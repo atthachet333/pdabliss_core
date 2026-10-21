@@ -39,6 +39,21 @@ Tailwind utilities (`bg-surface-raised`, `text-text-secondary`, `border-border-s
 | `info`                | `#6cb8ff`                | State only                                       |
 | `chart-1` / `chart-2` | `#14a883` / `#4f8fe8`    | Data series (validated, see below)               |
 
+### Workspace accents (EP01-PROTOTYPE)
+
+Each department workspace has one restrained accent, all within the green → teal → blue
+family. Accents are used for icons, hairlines and soft glows only — never for status.
+
+| Token                  | Value     | Workspace   |
+| ---------------------- | --------- | ----------- |
+| `ws-executive`         | `#3ef0c0` | Executive   |
+| `ws-sales`             | `#2dd4bf` | Sales       |
+| `ws-warehouse`         | `#86efac` | Warehouse   |
+| `ws-purchasing`        | `#60a5fa` | Purchasing  |
+| `ws-operations`        | `#a3d9a5` | Operations  |
+| `ws-accounting`        | `#a5b4fc` | Accounting  |
+| `ws-admin`             | `#94a3b8` | System Admin |
+
 Rules:
 
 - Green/teal is the signature. Blue is a supporting light, never a co-lead. No rainbow neon.

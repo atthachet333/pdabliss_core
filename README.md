@@ -67,10 +67,26 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 Public: `/`, `/departments`, `/features`, `/solutions`, `/pricing`, `/about`, `/contact`,
 `/login`, `/privacy`, `/terms`
 
-Workspaces (demo data in EP00): `/app/executive`, `/app/sales`, `/app/warehouse`,
+Workspaces (prototype, sign-in required): `/app/executive`, `/app/sales`, `/app/warehouse`,
 `/app/purchasing`, `/app/operations`, `/app/accounting`, `/app/admin`
 
 API: `GET /health`, `GET /api/v1`, demo-only `GET /api/v1/demo/{warehouse,purchasing}/stock`
+
+## Workspace prototype (EP01-PROTOTYPE)
+
+To review the department workspaces locally:
+
+1. `cd frontend && npm run dev`
+2. Open <http://localhost:1111/login>
+3. Sign in with the **demo-only** account `user1` / `pass1`
+4. Use the **สลับพื้นที่ทำงาน · ต้นแบบ** switcher in the top bar to move between workspaces
+
+> **This is not authentication.** The demo account lives in `frontend/src/prototype/`, is
+> checked in the browser only, and protects nothing but sample UI. The workspace switcher is
+> prototype-only — in production a user signs in and lands directly in their assigned
+> department workspace. The prototype is always on in `npm run dev`; production builds
+> exclude it (and the demo password) unless `VITE_ENABLE_PROTOTYPE=true` is set.
+> See [docs/EP01_PROTOTYPE_REPORT.md](docs/EP01_PROTOTYPE_REPORT.md).
 
 ## Security model in one paragraph
 
@@ -86,6 +102,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/BRAND.md](docs/BRAND.md) — colour, typography, spacing, surfaces, glow
 - [docs/MOTION.md](docs/MOTION.md) — motion principles and reduced-motion behaviour
 - [docs/EP00_REPORT.md](docs/EP00_REPORT.md) — what EP00 delivered and verified
+- [docs/EP01_PROTOTYPE_REPORT.md](docs/EP01_PROTOTYPE_REPORT.md) — department workspace UX prototype
 
 ---
 

@@ -10,6 +10,8 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import HomePage from '@/pages/public/HomePage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { WorkspaceLayout } from '@/components/app/WorkspaceLayout';
+import { PrototypeGate } from '@/prototype/PrototypeGate';
+import { lastWorkspace } from '@/prototype/session';
 import ModulePage from '@/workspaces/ModulePage';
 import { WORKSPACE_ORDER, WORKSPACES, type WorkspaceId } from '@/workspaces/registry';
 
@@ -23,7 +25,7 @@ const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const LegalPage = lazy(() => import('@/pages/public/LegalPage'));
 
-// Each workspace dashboard is its own chunk (Recharts only loads with Executive).
+// Each workspace dashboard is its own chunk.
 const DASHBOARDS: Record<WorkspaceId, LazyExoticComponent<ComponentType>> = {
   executive: lazy(() => import('@/workspaces/executive/ExecutiveDashboard')),
   sales: lazy(() => import('@/workspaces/sales/SalesDashboard')),
@@ -60,6 +62,10 @@ const lazyPage = (Page: LazyExoticComponent<ComponentType>) => (
  * Route visibility is navigation only. It is NOT security — every API call is
  * authorized server-side (see docs/ARCHITECTURE.md).
  */
+function AppIndex() {
+  return <Navigate to={`/app/${lastWorkspace()}`} replace />;
+}
+
 function workspaceRoutes(): RouteObject[] {
   return WORKSPACE_ORDER.map((id) => {
     const Dashboard = DASHBOARDS[id];
@@ -114,9 +120,13 @@ export const routes: RouteObject[] = [
           { path: '*', element: <NotFoundPage /> },
         ],
       },
-      // There is no company or workspace picker: a signed-in user lands directly in their workspace.
-      { path: 'app', element: <Navigate to="/login" replace /> },
-      ...workspaceRoutes(),
+      // EP01-PROTOTYPE: workspaces sit behind the demo-only sign-in (src/prototype/).
+      // There is no company picker. The prototype's workspace switcher is review-only;
+      // production sign-in will open the user's assigned workspace directly.
+      {
+        element: <PrototypeGate />,
+        children: [{ path: 'app', element: <AppIndex /> }, ...workspaceRoutes()],
+      },
     ],
   },
 ];

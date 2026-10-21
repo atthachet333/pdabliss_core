@@ -1,222 +1,143 @@
-import { ArrowRightLeft, CheckCheck, CirclePlay, Inbox, TimerOff } from 'lucide-react';
-import {
-  KpiTile,
-  PageTitle,
-  Panel,
-  ProgressBar,
-  StatusPill,
-  type Tone,
-} from '@/components/app/primitives';
+import { ClipboardList } from 'lucide-react';
+import { Panel, ProgressBar, SampleTag, WorkspaceHero } from '@/components/app/primitives';
 import { cn } from '@/lib/cn';
+import { WORKSPACES } from '../registry';
 
-/* EP00 mock data — Operations workspace. No pricing is shown here. */
+/* Minimal sample content for UX review only. */
 
-interface WorkOrder {
-  wo: string;
-  product: string;
-  forSo: string;
-  qty: string;
+interface Card {
+  id: string;
+  title: string;
+  forOrder: string;
   progress: number;
-  step: string;
-  state: { tone: Tone; label: string };
-  start: number;
-  span: number;
+  late?: boolean;
 }
 
-const WORK_ORDERS: WorkOrder[] = [
+const BOARD: { column: string; cards: Card[] }[] = [
+  { column: 'งานใหม่', cards: [] },
   {
-    wo: 'WO-1182',
-    product: 'ชุดโครงอะลูมิเนียม AF-20',
-    forSo: 'SO-2419',
-    qty: '120 ชุด',
-    progress: 72,
-    step: 'ประกอบ',
-    state: { tone: 'brand', label: 'ตามแผน' },
-    start: 0,
-    span: 3,
+    column: 'วางแผนแล้ว',
+    cards: [{ id: 'WO-1', title: 'ใบสั่งงานตัวอย่าง 1', forOrder: 'สำหรับใบสั่งขาย', progress: 0 }],
   },
   {
-    wo: 'WO-1185',
-    product: 'แผงเคลือบผิว RC-8',
-    forSo: 'SO-2423',
-    qty: '60 แผง',
-    progress: 30,
-    step: 'รอวัตถุดิบ',
-    state: { tone: 'danger', label: 'ล่าช้า 1 วัน' },
-    start: 1,
-    span: 4,
+    column: 'กำลังดำเนินการ',
+    cards: [
+      {
+        id: 'WO-2',
+        title: 'ใบสั่งงานตัวอย่าง 2',
+        forOrder: 'สำหรับใบสั่งขาย',
+        progress: 45,
+        late: true,
+      },
+    ],
   },
-  {
-    wo: 'WO-1187',
-    product: 'กล่องบรรจุพิเศษ PK-X',
-    forSo: 'SO-2427',
-    qty: '800 ใบ',
-    progress: 55,
-    step: 'ขึ้นรูป',
-    state: { tone: 'brand', label: 'ตามแผน' },
-    start: 2,
-    span: 2,
-  },
-  {
-    wo: 'WO-1190',
-    product: 'ชุดโครงอะลูมิเนียม AF-32',
-    forSo: 'SO-2431',
-    qty: '40 ชุด',
-    progress: 0,
-    step: 'ตรวจความพร้อม',
-    state: { tone: 'neutral', label: 'งานใหม่' },
-    start: 4,
-    span: 3,
-  },
+  { column: 'รอส่งต่อคลัง', cards: [] },
 ];
 
-const DAYS = ['จ. 20', 'อ. 21', 'พ. 22', 'พฤ. 23', 'ศ. 24', 'ส. 25', 'อา. 26'];
-const TODAY_INDEX = 1;
-
-const HANDOFFS = [
-  {
-    wo: 'WO-1179',
-    product: 'ชุดโครงอะลูมิเนียม AF-20',
-    qty: '60 ชุด',
-    to: 'WH-MAIN · โซน F',
-    ready: '13:00',
-  },
-  {
-    wo: 'WO-1180',
-    product: 'แผงเคลือบผิว RC-6',
-    qty: '25 แผง',
-    to: 'WH-MAIN · โซน F',
-    ready: '15:00',
-  },
-  {
-    wo: 'WO-1176',
-    product: 'กล่องบรรจุพิเศษ PK-S',
-    qty: '1,200 ใบ',
-    to: 'WH-MAIN · โซน E',
-    ready: 'พร้อมแล้ว',
-  },
-];
+const DAYS = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
+const TODAY = 1;
 
 export default function OperationsDashboard() {
+  const ws = WORKSPACES.operations;
   return (
     <>
-      <PageTitle title="แผนงานและความคืบหน้า" subtitle="ใบสั่งงานที่เชื่อมกับคำสั่งซื้อของลูกค้า" />
+      <WorkspaceHero
+        icon={ws.icon}
+        eyebrow={ws.nameEn}
+        title="ใบสั่งงานและแผนงาน"
+        subtitle={ws.tagline}
+        motif={ws.motif}
+      />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <KpiTile label="งานใหม่" value="6" icon={Inbox} tone="brand" />
-        <KpiTile label="กำลังดำเนินการ" value="9" icon={CirclePlay} />
-        <KpiTile label="ล่าช้า" value="2" icon={TimerOff} tone="danger" />
-        <KpiTile label="เสร็จวันนี้" value="3" icon={CheckCheck} tone="success" />
-        <KpiTile label="รอส่งต่อคลัง" value="3" icon={ArrowRightLeft} tone="warning" />
-      </div>
+      <section aria-labelledby="ops-board" className="mb-12">
+        <div className="mb-4 flex items-center gap-3">
+          <h2 id="ops-board" className="text-body font-semibold text-text-primary">
+            ใบสั่งงาน
+          </h2>
+          <SampleTag />
+        </div>
+        <ol className="-mx-4 no-scrollbar flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
+          {BOARD.map((col) => (
+            <li
+              key={col.column}
+              className="w-[78vw] max-w-xs shrink-0 snap-start rounded-panel border border-border-soft bg-surface-base p-4 sm:w-auto sm:max-w-none"
+            >
+              <p className="flex items-center justify-between px-1 text-label text-text-secondary">
+                {col.column}
+                <span className="text-caption text-text-muted tabular">{col.cards.length}</span>
+              </p>
+              {col.cards.length === 0 ? (
+                <p className="mt-4 rounded-xl border border-dashed border-border-soft px-3 py-6 text-center text-caption text-text-muted">
+                  ไม่มีงาน
+                </p>
+              ) : (
+                <ul className="mt-4 space-y-3">
+                  {col.cards.map((c) => (
+                    <li
+                      key={c.id}
+                      className="rounded-xl border border-border-soft bg-surface-raised/60 p-4"
+                    >
+                      <p className="flex items-center gap-2 text-label font-medium text-text-primary">
+                        <ClipboardList className="size-4 text-[var(--ws-accent)]" aria-hidden />
+                        {c.title}
+                      </p>
+                      <p className="mt-1 text-caption text-text-muted">{c.forOrder}</p>
+                      <div className="mt-4 flex items-center gap-3">
+                        <ProgressBar
+                          value={c.progress}
+                          tone={c.late ? 'warning' : 'accent'}
+                          label={`${c.title} ความคืบหน้า`}
+                        />
+                        <span className="w-9 text-right text-caption text-text-secondary tabular">
+                          {c.progress}%
+                        </span>
+                      </div>
+                      {c.late && <p className="mt-2 text-caption text-warning">เสี่ยงล่าช้า</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <Panel
-        title="ตารางงานสัปดาห์นี้"
-        subtitle="20–26 ต.ค. · แถบสีแดงคืองานที่เสี่ยงล่าช้า"
-        className="mt-6"
+        title="แผนงานสัปดาห์นี้"
+        subtitle="จัดลำดับตามกำหนดส่ง และตรวจความพร้อมวัตถุดิบก่อนเริ่ม"
       >
-        <div
-          className="-mx-5 overflow-x-auto px-5"
-          role="region"
-          aria-label="ตารางงานรายวัน"
-          tabIndex={0}
-        >
-          <div className="min-w-[44rem]">
-            <div className="grid grid-cols-[9rem_repeat(7,minmax(0,1fr))] gap-1.5 text-center text-caption text-text-muted">
-              <span />
-              {DAYS.map((d, i) => (
-                <span
-                  key={d}
-                  className={cn(
-                    'rounded-md py-1',
-                    i === TODAY_INDEX && 'bg-brand-primary/12 font-medium text-brand-soft',
-                  )}
-                >
-                  {d}
+        <ol className="grid grid-cols-7 gap-2" aria-label="ตารางงานรายวัน">
+          {DAYS.map((d, i) => (
+            <li
+              key={d}
+              aria-current={i === TODAY ? 'date' : undefined}
+              className={cn(
+                'flex min-h-28 flex-col rounded-xl border p-2.5 sm:p-3',
+                i === TODAY
+                  ? 'border-[color-mix(in_oklab,var(--ws-accent)_45%,transparent)] bg-[color-mix(in_oklab,var(--ws-accent)_6%,transparent)]'
+                  : 'border-border-soft',
+              )}
+            >
+              <span
+                className={cn(
+                  'text-caption',
+                  i === TODAY ? 'font-semibold text-[var(--ws-accent)]' : 'text-text-muted',
+                )}
+              >
+                {d}
+              </span>
+              {i === TODAY && (
+                <span className="mt-auto hidden text-[0.75rem] text-text-muted sm:block">
+                  วันนี้
                 </span>
-              ))}
-            </div>
-            <ul className="mt-2 space-y-2">
-              {WORK_ORDERS.map((w) => (
-                <li
-                  key={w.wo}
-                  className="grid grid-cols-[9rem_repeat(7,minmax(0,1fr))] items-center gap-1.5"
-                >
-                  <span className="truncate text-label text-text-primary">
-                    {w.wo} <span className="text-caption text-text-muted">· {w.forSo}</span>
-                  </span>
-                  <span
-                    className={cn(
-                      'flex h-8 items-center rounded-lg px-2.5 text-caption font-medium',
-                      w.state.tone === 'danger'
-                        ? 'bg-danger/20 text-danger'
-                        : w.state.tone === 'neutral'
-                          ? 'border border-dashed border-border-strong text-text-muted'
-                          : 'bg-brand-primary/20 text-brand-soft',
-                    )}
-                    style={{ gridColumn: `${w.start + 2} / span ${w.span}` }}
-                  >
-                    <span className="truncate">{w.step}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+              )}
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 text-caption text-text-muted">
+          ยังไม่มีงานที่ลงตาราง — ลากใบสั่งงานมาวางในวันที่ต้องการ (เร็ว ๆ นี้)
+        </p>
       </Panel>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <Panel title="ใบสั่งงานที่กำลังดำเนินการ" bodyClassName="p-0">
-          <ul className="divide-y divide-border-soft">
-            {WORK_ORDERS.map((w) => (
-              <li key={w.wo} className="px-5 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-label font-semibold text-text-primary">
-                      {w.wo} · {w.product}
-                    </p>
-                    <p className="text-caption text-text-muted">
-                      สำหรับ {w.forSo} · {w.qty} · ขั้นตอน: {w.step}
-                    </p>
-                  </div>
-                  <StatusPill tone={w.state.tone}>{w.state.label}</StatusPill>
-                </div>
-                <div className="mt-3 flex items-center gap-3">
-                  <ProgressBar
-                    value={w.progress}
-                    tone={w.state.tone === 'danger' ? 'danger' : 'brand'}
-                    label={`${w.wo} ความคืบหน้า`}
-                  />
-                  <span className="w-10 text-right text-caption text-text-secondary tabular">
-                    {w.progress}%
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-
-        <Panel
-          title="รอส่งต่อให้คลังสินค้า"
-          subtitle="คลังเห็นรายการนี้ในคิวรับเข้าทันที"
-          bodyClassName="p-0"
-        >
-          <ul className="divide-y divide-border-soft">
-            {HANDOFFS.map((h) => (
-              <li key={h.wo} className="flex items-center gap-3 px-5 py-4">
-                <ArrowRightLeft className="size-5 shrink-0 text-warning" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-label font-medium text-text-primary">{h.product}</p>
-                  <p className="text-caption text-text-muted">
-                    {h.wo} · {h.qty} → {h.to}
-                  </p>
-                </div>
-                <span className="shrink-0 text-caption text-text-secondary">{h.ready}</span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
     </>
   );
 }

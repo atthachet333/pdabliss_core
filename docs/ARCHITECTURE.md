@@ -43,7 +43,7 @@ frontend/src/
 │   ├── ui/         Button, Section, Badge, Field (+ *Styles.ts class helpers)
 │   ├── brand/      Logo / LogoMark
 │   ├── layout/     PublicLayout, PublicHeader, PublicFooter, PageHero
-│   └── app/        WorkspaceLayout, ApiStatus, app primitives (KpiTile, Panel, StatusPill…)
+│   └── app/        WorkspaceLayout, workspace primitives (WorkspaceHero, Metric, Panel, EmptyState…)
 ├── config/         site constants, department content model
 ├── features/landing/
 │   ├── universe/   CORE Universe hero visual (SVG geometry + HTML nodes)
@@ -51,18 +51,27 @@ frontend/src/
 │   └── previews/   illustrative department mockups (container-query responsive)
 ├── motion/         motion tokens, Reveal, CountUp
 ├── pages/          public pages, 404
-├── workspaces/     registry (per-department navigation) + one folder per workspace
+├── prototype/      EP01-PROTOTYPE demo sign-in, route gate, workspace switcher (removable)
+├── workspaces/     registry (navigation + accent per department) + one folder per workspace
 ├── lib/            api client, formatting, page meta, cn
 └── styles/         index.css — the design-token source of truth
 ```
 
 - **Routing.** React Router 8 data router. The landing page is in the main bundle for a fast
-  first paint; every other public page and every workspace dashboard is a lazy chunk
-  (Recharts only loads with the Executive workspace).
-- **Workspaces.** `workspaces/registry.ts` declares each workspace's navigation. Route groups
-  `/app/<workspace>` are generated from it. **This is navigation, not authorization.**
-- **No company picker.** `/app` redirects to `/login`; a real session will land the user
-  directly in their primary workspace.
+  first paint; every other public page and every workspace dashboard is a lazy chunk.
+- **Workspaces.** `workspaces/registry.ts` declares each workspace's navigation and accent
+  colour. Route groups `/app/<workspace>` are generated from it. **This is navigation, not
+  authorization.** Each workspace sets `--ws-accent` on its shell; the shared primitives
+  inherit it so one component set takes on each department's own hue.
+- **No company picker.** There is never a company selection step.
+- **Prototype access (EP01-PROTOTYPE).** `/app/*` sits behind `prototype/PrototypeGate`, a
+  demo-only sign-in (`user1` / `pass1`) checked in the browser with a sessionStorage flag.
+  It exists solely for UX review and is **not authentication**. The top-bar workspace switcher
+  is prototype-only; production sign-in will open the user's assigned workspace directly.
+  Everything lives in `src/prototype/` so it can be removed in one step when real
+  authentication arrives: replace `PrototypeGate`, delete `WorkspaceSwitcher`, and drop the
+  prototype branch in `LoginPage`. Production builds exclude the prototype (the demo password
+  is dead-code-eliminated) unless `VITE_ENABLE_PROTOTYPE=true`.
 - **API access.** `lib/api.ts` uses `credentials: 'include'` so an HttpOnly session cookie can
   be introduced without touching call sites. Base URL from `VITE_API_URL`.
 

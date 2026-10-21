@@ -1,30 +1,105 @@
-import {
-  ArrowUpRight,
-  ClipboardCheck,
-  Eye,
-  Gauge,
-  PackageX,
-  ShoppingCart,
-  TriangleAlert,
-} from 'lucide-react';
+import { ArrowUpRight, Eye, ShieldAlert } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
-import { KpiTile, PageTitle, Panel, StatusPill, type Tone } from '@/components/app/primitives';
-import { WORKSPACES } from '../registry';
-import { DEPARTMENT_PULSE, EXCEPTIONS, type ExceptionItem } from './data';
-import OrderTrendChart from './OrderTrendChart';
+import {
+  Metric,
+  Panel,
+  SampleTag,
+  StatusPill,
+  WorkspaceHero,
+  type Tone,
+} from '@/components/app/primitives';
+import { WORKSPACES, type WorkspaceId } from '../registry';
 
-const SEVERITY: Record<ExceptionItem['severity'], { tone: Tone; label: string }> = {
-  critical: { tone: 'danger', label: 'วิกฤต' },
-  high: { tone: 'warning', label: 'สูง' },
-  medium: { tone: 'info', label: 'ปานกลาง' },
-};
+/* Minimal sample content for UX review only. */
+
+const SUMMARY = [
+  { label: 'คำสั่งซื้อที่เปิดอยู่', value: 12 },
+  { label: 'งานล่าช้า', value: 1, tone: 'warning' as const },
+  { label: 'ข้อยกเว้นที่ต้องตัดสินใจ', value: 2, tone: 'warning' as const },
+  { label: 'รอการอนุมัติ', value: 0 },
+];
+
+const DEPARTMENTS: {
+  id: Exclude<WorkspaceId, 'executive' | 'admin'>;
+  status: { tone: Tone; label: string };
+  metrics: [string, string][];
+}[] = [
+  {
+    id: 'sales',
+    status: { tone: 'success', label: 'ปกติ' },
+    metrics: [
+      ['คำสั่งซื้อ', '12'],
+      ['รอจัดส่ง', '3'],
+    ],
+  },
+  {
+    id: 'operations',
+    status: { tone: 'warning', label: 'ต้องติดตาม' },
+    metrics: [
+      ['กำลังทำ', '4'],
+      ['ล่าช้า', '1'],
+    ],
+  },
+  {
+    id: 'warehouse',
+    status: { tone: 'success', label: 'ปกติ' },
+    metrics: [
+      ['รอรับเข้า', '2'],
+      ['ใกล้หมดอายุ', '1'],
+    ],
+  },
+  {
+    id: 'purchasing',
+    status: { tone: 'warning', label: 'ต้องติดตาม' },
+    metrics: [
+      ['PR รออนุมัติ', '2'],
+      ['ส่งล่าช้า', '1'],
+    ],
+  },
+  {
+    id: 'accounting',
+    status: { tone: 'success', label: 'ปกติ' },
+    metrics: [
+      ['รอชำระ', '2'],
+      ['เอกสารไม่ครบ', '0'],
+    ],
+  },
+];
+
+const EXCEPTIONS: {
+  title: string;
+  detail: string;
+  dept: WorkspaceId;
+  tone: Tone;
+  severity: string;
+}[] = [
+  {
+    title: 'ซัพพลายเออร์ส่งของล่าช้า',
+    detail: 'ใบสั่งซื้อเลยกำหนดส่ง 1 วัน — กระทบใบสั่งงานที่รอวัตถุดิบ',
+    dept: 'purchasing',
+    tone: 'danger',
+    severity: 'สูง',
+  },
+  {
+    title: 'ใบสั่งงานเสี่ยงล่าช้า',
+    detail: 'ความคืบหน้าต่ำกว่าแผน และใกล้กำหนดส่งให้ลูกค้า',
+    dept: 'operations',
+    tone: 'warning',
+    severity: 'ปานกลาง',
+  },
+];
 
 export default function ExecutiveDashboard() {
+  const ws = WORKSPACES.executive;
   return (
     <>
-      <PageTitle
+      <WorkspaceHero
+        icon={ws.icon}
+        eyebrow={ws.nameEn}
         title="ภาพรวมองค์กร"
-        subtitle="วันอังคารที่ 21 ตุลาคม 2569 · ข้อมูลจากทุกแผนกบนข้อมูลชุดเดียวกัน"
+        subtitle="ทุกแผนกบนข้อมูลชุดเดียวกัน — ผู้บริหารดูภาพรวมและตัดสินใจจากข้อยกเว้น"
+        motif={ws.motif}
         actions={
           <StatusPill tone="neutral">
             <span className="inline-flex items-center gap-1">
@@ -34,64 +109,55 @@ export default function ExecutiveDashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <KpiTile
-          label="คำสั่งซื้อเดือนนี้"
-          value="128"
-          icon={ShoppingCart}
-          hint="ส่งแล้ว 96 · ค้างส่ง 32"
-        />
-        <KpiTile label="ส่งมอบตรงเวลา" value="94%" icon={Gauge} tone="brand" hint="เป้าหมาย 95%" />
-        <KpiTile
-          label="ข้อยกเว้นที่เปิดอยู่"
-          value={EXCEPTIONS.length}
-          icon={TriangleAlert}
-          tone="warning"
-          hint="วิกฤต 2 รายการ"
-        />
-        <KpiTile
-          label="รออนุมัติจากคุณ"
-          value="2"
-          icon={ClipboardCheck}
-          hint="PR-0412 · PAY-0331"
-        />
-      </div>
+      <section aria-labelledby="exec-summary" className="mb-12">
+        <div className="mb-4 flex items-center gap-3">
+          <h2 id="exec-summary" className="text-body font-semibold text-text-primary">
+            สรุปวันนี้
+          </h2>
+          <SampleTag />
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {SUMMARY.map((m) => (
+            <Metric key={m.label} label={m.label} value={m.value} tone={m.tone} />
+          ))}
+        </div>
+      </section>
 
-      {/* Department pulse — drill down into each workspace */}
-      <section aria-labelledby="pulse-title" className="mt-6">
-        <h2 id="pulse-title" className="mb-3 text-body font-semibold text-text-primary">
-          ชีพจรรายแผนก
-        </h2>
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {DEPARTMENT_PULSE.map((d) => {
-            const ws = WORKSPACES[d.workspace];
-            const Icon = ws.icon;
+      <section aria-labelledby="exec-departments" className="mb-12">
+        <div className="mb-4 flex items-center gap-3">
+          <h2 id="exec-departments" className="text-body font-semibold text-text-primary">
+            แผนก
+          </h2>
+          <SampleTag />
+        </div>
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+          {DEPARTMENTS.map((d) => {
+            const dept = WORKSPACES[d.id];
+            const Icon = dept.icon;
             return (
-              <li key={d.workspace}>
+              <li key={d.id} style={{ '--ws-accent': dept.accent } as CSSProperties}>
                 <Link
-                  to={`/app/${d.workspace}`}
-                  className="group flex h-full flex-col rounded-panel border border-border-soft bg-surface-base p-4 transition-[border-color,background-color] hover:border-border-brand hover:bg-surface-raised"
+                  to={`/app/${d.id}`}
+                  className="group flex h-full flex-col rounded-panel border border-border-soft bg-surface-base p-5 transition-colors hover:border-[color-mix(in_oklab,var(--ws-accent)_45%,transparent)]"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 text-label font-semibold text-text-primary">
-                      <Icon className="size-4 text-brand-glow" aria-hidden />
-                      {ws.nameTh.replace('พื้นที่ทำงาน', '')}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2.5 text-label font-semibold text-text-primary">
+                      <Icon className="size-4.5 text-[var(--ws-accent)]" aria-hidden />
+                      {dept.shortTh}
                     </span>
                     <ArrowUpRight
-                      className="size-4 text-text-muted transition-colors group-hover:text-brand-glow"
+                      className="size-4 text-text-muted transition-colors group-hover:text-[var(--ws-accent)]"
                       aria-hidden
                     />
                   </div>
-                  <StatusPill tone={d.status.tone} className="mt-2 self-start">
+                  <StatusPill tone={d.status.tone} className="mt-4 self-start">
                     {d.status.label}
                   </StatusPill>
-                  <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5">
-                    {d.metrics.map((m) => (
-                      <div key={m.label}>
-                        <dt className="text-caption text-text-muted">{m.label}</dt>
-                        <dd className="text-body font-semibold text-text-primary tabular">
-                          {m.value}
-                        </dd>
+                  <dl className="mt-5 grid grid-cols-2 gap-3">
+                    {d.metrics.map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-caption text-text-muted">{label}</dt>
+                        <dd className="mt-0.5 text-h3 text-text-primary tabular">{value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -102,52 +168,33 @@ export default function ExecutiveDashboard() {
         </ul>
       </section>
 
-      <div className="mt-6 grid gap-5 xl:grid-cols-[1.25fr_1fr]">
-        <Panel
-          title="คำสั่งซื้อเข้าเทียบส่งมอบ"
-          subtitle="รายสัปดาห์ · 8 สัปดาห์ล่าสุด (จำนวนใบสั่งขาย)"
-        >
-          <OrderTrendChart />
-        </Panel>
-
-        <Panel
-          title="Exception Center"
-          subtitle="เรียงตามความรุนแรงและอายุของปัญหา"
-          action={
-            <Link
-              to="/app/executive/exceptions"
-              className="text-caption font-medium text-brand-glow hover:underline"
-            >
-              ดูทั้งหมด
-            </Link>
-          }
-          bodyClassName="p-0"
-        >
-          <ul className="divide-y divide-border-soft">
-            {EXCEPTIONS.map((ex) => {
-              const sev = SEVERITY[ex.severity];
-              const Icon = ex.workspace === 'warehouse' ? PackageX : WORKSPACES[ex.workspace].icon;
-              return (
-                <li key={ex.id} className="flex gap-3 px-5 py-3.5">
-                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-overlay">
-                    <Icon className="size-4 text-text-secondary" aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-label font-medium text-text-primary">{ex.title}</p>
-                      <StatusPill tone={sev.tone}>{sev.label}</StatusPill>
-                    </div>
-                    <p className="mt-0.5 truncate text-caption text-text-secondary">{ex.detail}</p>
-                    <p className="mt-0.5 text-caption text-text-muted">
-                      ผู้รับผิดชอบ: {ex.owner} · เปิดมา {ex.age}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </Panel>
-      </div>
+      <Panel
+        title="ข้อยกเว้นที่ต้องตัดสินใจ"
+        subtitle="ยกขึ้นมาเฉพาะสิ่งที่ผิดไปจากแผน เรียงตามความรุนแรง"
+        action={<SampleTag />}
+      >
+        <ul className="space-y-3">
+          {EXCEPTIONS.map((ex) => {
+            const dept = WORKSPACES[ex.dept];
+            return (
+              <li
+                key={ex.title}
+                className="flex flex-col gap-3 rounded-2xl border border-border-soft bg-surface-raised/50 p-5 sm:flex-row sm:items-center"
+              >
+                <ShieldAlert className="size-5 shrink-0 text-warning" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="text-label font-medium text-text-primary">{ex.title}</p>
+                  <p className="mt-0.5 text-caption text-text-muted">{ex.detail}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-caption text-text-secondary">{dept.shortTh}</span>
+                  <StatusPill tone={ex.tone}>{ex.severity}</StatusPill>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
     </>
   );
 }

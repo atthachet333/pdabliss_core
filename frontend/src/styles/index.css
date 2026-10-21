@@ -45,6 +45,17 @@
   --color-chart-1: #14a883;
   --color-chart-2: #4f8fe8;
 
+  /* Workspace accents — one restrained hue per department, all within the
+     green → teal → blue family so the brand signature stays intact.
+     Used for icons, hairlines and soft glows only — never for status. */
+  --color-ws-executive: #3ef0c0;
+  --color-ws-sales: #2dd4bf;
+  --color-ws-warehouse: #86efac;
+  --color-ws-purchasing: #60a5fa;
+  --color-ws-operations: #a3d9a5;
+  --color-ws-accounting: #a5b4fc;
+  --color-ws-admin: #94a3b8;
+
   /* Typography — Thai-first */
   --font-sans:
     'IBM Plex Sans Thai', 'Noto Sans Thai', system-ui, -apple-system, 'Segoe UI', sans-serif;

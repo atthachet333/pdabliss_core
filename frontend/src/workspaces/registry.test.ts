@@ -33,6 +33,11 @@ describe('workspace registry', () => {
     expect(new Set(signatures).size).toBe(signatures.length);
   });
 
+  it('gives every workspace its own accent', () => {
+    const accents = WORKSPACE_ORDER.map((id) => WORKSPACES[id].accent);
+    expect(new Set(accents).size).toBe(accents.length);
+  });
+
   it('keeps the warehouse navigation free of pricing or payment modules', () => {
     const labels = WORKSPACES.warehouse.nav.map((n) => `${n.path} ${n.label}`).join(' ');
     expect(labels).not.toMatch(/price|cost|payment|ราคา|ต้นทุน|จ่ายเงิน/i);

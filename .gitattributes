@@ -1,0 +1,5 @@
+# Normalise line endings in the repository (developers work on Windows and macOS)
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.avif binary

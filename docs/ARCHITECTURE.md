@@ -1,0 +1,167 @@
+# Architecture
+
+## Overview
+
+```
+ Browser ──► frontend (Vite/React SPA)  http://localhost:1111
+                │  fetch, credentials: include, CORS allow-list
+                ▼
+            backend (Fastify API)       http://localhost:1112
+                │  /health
+                │  /api/v1/...
+                ▼
+            PostgreSQL (planned — Prisma schema in backend/prisma)
+```
+
+Two independent npm projects — no monorepo tooling, no microservices, no containers in EP00.
+
+| Concern  | Frontend (`frontend/`)                                         | Backend (`backend/`)                              |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------- |
+| Runtime  | Browser, React 19                                              | Node.js 22.12+, Fastify 5                         |
+| Language | TypeScript 6 (strict)                                          | TypeScript 6 (strict, NodeNext ESM)               |
+| Build    | Vite 8 (code-split per route/workspace)                        | `tsc` → `dist/`                                   |
+| Styling  | Tailwind CSS 4 with CSS-first design tokens                    | —                                                 |
+| Data     | TanStack Query 5                                               | Zod 4 contracts, Prisma 7 schema (no DB yet)      |
+| Forms    | React Hook Form + Zod                                          | —                                                 |
+| Motion   | Framer Motion + CSS keyframes (see MOTION.md)                  | —                                                 |
+| Tests    | Vitest + Testing Library (jsdom)                               | Vitest + `fastify.inject`                         |
+| Quality  | ESLint 10 + typescript-eslint, Prettier                        | ESLint 10 (type-aware), Prettier                  |
+
+### Ports
+
+| Service  | Port | Enforcement                                                            |
+| -------- | ---- | ---------------------------------------------------------------------- |
+| Frontend | 1111 | `server.strictPort: true` — Vite exits instead of picking another port |
+| Backend  | 1112 | `EADDRINUSE` is logged as fatal and the process exits                  |
+
+## Frontend
+
+```
+frontend/src/
+├── app/            router (route table, lazy chunks), providers (Query, MotionConfig)
+├── components/
+│   ├── ui/         Button, Section, Badge, Field (+ *Styles.ts class helpers)
+│   ├── brand/      Logo / LogoMark
+│   ├── layout/     PublicLayout, PublicHeader, PublicFooter, PageHero
+│   └── app/        WorkspaceLayout, ApiStatus, app primitives (KpiTile, Panel, StatusPill…)
+├── config/         site constants, department content model
+├── features/landing/
+│   ├── universe/   CORE Universe hero visual (SVG geometry + HTML nodes)
+│   ├── sections/   the ten landing-page sections
+│   └── previews/   illustrative department mockups (container-query responsive)
+├── motion/         motion tokens, Reveal, CountUp
+├── pages/          public pages, 404
+├── workspaces/     registry (per-department navigation) + one folder per workspace
+├── lib/            api client, formatting, page meta, cn
+└── styles/         index.css — the design-token source of truth
+```
+
+- **Routing.** React Router 8 data router. The landing page is in the main bundle for a fast
+  first paint; every other public page and every workspace dashboard is a lazy chunk
+  (Recharts only loads with the Executive workspace).
+- **Workspaces.** `workspaces/registry.ts` declares each workspace's navigation. Route groups
+  `/app/<workspace>` are generated from it. **This is navigation, not authorization.**
+- **No company picker.** `/app` redirects to `/login`; a real session will land the user
+  directly in their primary workspace.
+- **API access.** `lib/api.ts` uses `credentials: 'include'` so an HttpOnly session cookie can
+  be introduced without touching call sites. Base URL from `VITE_API_URL`.
+
+## Backend
+
+```
+backend/src/
+├── server.ts              process entry: env, listen, graceful shutdown
+├── app.ts                 buildApp(env): plugins, hooks, routes (used by tests too)
+├── config/env.ts          Zod-validated environment
+├── plugins/error-handler  uniform error envelope, 404 handler
+├── routes/
+│   ├── health.ts          GET /health
+│   └── v1/                GET /api/v1, demo routes (flagged)
+├── domain/
+│   ├── access/            workspaces, data classification & clearance
+│   ├── inventory/         stock item record + per-audience view contracts
+│   ├── workflow/          generic per-document state machine
+│   ├── purchasing/        Purchase Request workflow (reference implementation)
+│   └── audit/             audit entry builder with before/after diff
+├── demo/                  EP00 mock fixtures
+└── lib/                   AppError hierarchy, input parsing
+```
+
+Cross-cutting behaviour in `app.ts`:
+
+- **Request IDs** — accepts a well-formed upstream `x-request-id` (8–128 safe chars), otherwise
+  generates a UUID; echoed on every response and in every error body; exposed via CORS.
+- **Security headers** — `@fastify/helmet`, API-appropriate CSP (`default-src 'none'`).
+- **CORS** — explicit origin allow-list from `CORS_ORIGINS` (default `http://localhost:1111`),
+  credentials enabled.
+- **Rate limiting** — `@fastify/rate-limit` (default 300 req/min/client; `/health` exempt).
+- **Structured logging** — Pino; pretty in development, JSON in production; auth/cookie
+  headers redacted.
+- **Errors** — `AppError` subclasses map to stable `code`s; unknown errors become a generic 500
+  and are logged, never leaked.
+- **Graceful shutdown** — SIGINT/SIGTERM close the server with a 10 s hard timeout.
+- **API versioning** — everything business-related lives under `/api/v1`.
+
+### Environment
+
+See `backend/.env.example`. Secrets only via environment variables; `.env` is git-ignored.
+`ENABLE_DEMO_ROUTES` defaults to `true` outside production and `false` in production.
+
+## Security
+
+### Principles
+
+1. **The frontend is never trusted for permissions.** Hidden menu items and hidden columns
+   are UX, not security.
+2. **Response contracts are allow-lists per audience.** Each field is classified
+   (`operational`, `commercial`, `financial`); each workspace has a clearance
+   (`domain/access/data-classification.ts`). View schemas are built with Zod `pick`, and Zod
+   strips unknown keys on parse — so a field that is not in the contract cannot be serialized
+   even if the source record contains it.
+3. **Warehouse never receives pricing.** `StockItemWarehouseView` has no cost/price/supplier
+   fields. Tests assert both the contract shape and the raw HTTP payload.
+4. **Authorization (planned, EP01+):** authenticated sessions (HttpOnly, Secure, SameSite
+   cookies), RBAC by role + department membership, object-level checks in services, and the
+   workspace derived from the verified session — never from a client-supplied header, path or
+   query parameter.
+5. **Every important mutation is audited** with actor, request ID, reason and before/after
+   field values (`domain/audit/audit-entry.ts`).
+
+### Human-error prevention architecture
+
+Business rules live in domain code, not in UI:
+
+- `domain/workflow/state-machine.ts` — each document type declares its own states and
+  transitions. `applyTransition` rejects invalid transitions (409 `INVALID_TRANSITION`),
+  enforces guards (422 with a rule code) and required reasons (422 `REASON_REQUIRED`).
+  `defineMachine` refuses transitions out of terminal states or to unknown states.
+- `domain/purchasing/purchase-request.workflow.ts` — reference machine: cannot submit an empty
+  PR; requester cannot approve their own PR; reject/cancel require a reason.
+
+Future rules slot into the same pattern: receiving more than the open PO quantity, paying
+without approval or complete documents, issuing an expired lot, duplicate submission
+(idempotency keys), unauthorized edits (object-level checks).
+
+## Data model
+
+### Implemented in EP00 (`backend/prisma/schema.prisma`)
+
+`Company`, `Department`, `User`, `Membership` (user × department × role), `Role`,
+`Permission`, `RolePermission`, `AuditLog`. The schema validates (`npm run db:validate`);
+no database connection or migrations are required yet.
+
+### Planned domain model
+
+| Area        | Entities                                                                  |
+| ----------- | ------------------------------------------------------------------------- |
+| Identity    | Company (one per deployment), Department, User, Membership, Role, Permission |
+| Master data | Customer, Supplier, Product/Item, Warehouse                               |
+| Sales       | SalesOrder, SalesOrderLine                                                |
+| Purchasing  | PurchaseRequest(+Line), PurchaseOrder(+Line)                              |
+| Inventory   | GoodsReceipt(+Line), StockBalance, StockMovement, Lot                     |
+| Operations  | WorkOrder                                                                 |
+| Finance     | PaymentRequest, Payment                                                   |
+| Workflow    | Approval, WorkflowEvent                                                   |
+| Platform    | Notification, Attachment, AuditLog, Subscription                          |
+
+Each document entity will carry its own status enum matching its state machine.

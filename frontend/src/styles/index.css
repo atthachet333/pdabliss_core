@@ -1,0 +1,244 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   PDA BLISS CORE — design tokens
+   Single source of truth for colour, type, radius, glow and motion.
+   Components use these tokens through Tailwind utilities
+   (e.g. bg-surface-raised, text-text-secondary, border-border-soft).
+   Do not introduce raw hex values in components. See docs/BRAND.md.
+   ========================================================================== */
+
+@theme {
+  /* Brand — PDA BLISS green / emerald / teal signature */
+  --color-brand-primary: #19c39a;
+  --color-brand-deep: #0b5e4f;
+  --color-brand-glow: #3ef0c0;
+  --color-brand-soft: #b9f5e4;
+  /* Secondary supporting light (cool blue) — use sparingly */
+  --color-brand-cool: #5aa9ff;
+
+  /* Surfaces — deep near-black navy */
+  --color-surface-dark: #050b12;
+  --color-surface-base: #08121b;
+  --color-surface-raised: #0c1822;
+  --color-surface-overlay: #12222e;
+  --color-surface-highlight: #183040;
+
+  /* Text */
+  --color-text-primary: #eef6f3;
+  --color-text-secondary: #a3b8b2;
+  --color-text-muted: #758c86;
+  --color-text-inverse: #04110d;
+
+  /* Borders */
+  --color-border-soft: rgb(190 235 222 / 0.09);
+  --color-border-strong: rgb(190 235 222 / 0.18);
+  --color-border-brand: rgb(62 240 192 / 0.38);
+
+  /* Status — reserved for state, always paired with an icon or label */
+  --color-success: #34d399;
+  --color-warning: #f5b84b;
+  --color-danger: #f47272;
+  --color-info: #6cb8ff;
+
+  /* Data visualisation — validated against surface-raised (docs/BRAND.md) */
+  --color-chart-1: #14a883;
+  --color-chart-2: #4f8fe8;
+
+  /* Typography — Thai-first */
+  --font-sans:
+    'IBM Plex Sans Thai', 'Noto Sans Thai', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Thai stacks vowels and tone marks above and below the baseline,
+     so heading line-heights stay generous even at display sizes. */
+  --text-display: clamp(2.125rem, 1.4rem + 2.6vw, 3.5rem);
+  --text-display--line-height: 1.36;
+  --text-display--letter-spacing: -0.015em;
+  --text-display--font-weight: 600;
+  --text-h1: clamp(2rem, 1.55rem + 1.9vw, 3.25rem);
+  --text-h1--line-height: 1.36;
+  --text-h1--font-weight: 600;
+  --text-h2: clamp(1.625rem, 1.32rem + 1.25vw, 2.5rem);
+  --text-h2--line-height: 1.4;
+  --text-h2--font-weight: 600;
+  --text-h3: clamp(1.1875rem, 1.1rem + 0.35vw, 1.4375rem);
+  --text-h3--line-height: 1.45;
+  --text-h3--font-weight: 600;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.8;
+  --text-body: 1rem;
+  --text-body--line-height: 1.75;
+  --text-label: 0.9375rem;
+  --text-label--line-height: 1.5;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.55;
+  --text-kpi: clamp(1.75rem, 1.5rem + 0.9vw, 2.375rem);
+  --text-kpi--line-height: 1.1;
+  --text-kpi--font-weight: 600;
+
+  /* Radius */
+  --radius-card: 1.25rem;
+  --radius-panel: 1rem;
+  --radius-control: 0.75rem;
+
+  /* Glow — brand light, used for focus of attention only */
+  --shadow-glow-sm: 0 0 0 1px rgb(62 240 192 / 0.25), 0 0 18px -6px rgb(62 240 192 / 0.55);
+  --shadow-glow-md: 0 0 0 1px rgb(62 240 192 / 0.3), 0 10px 40px -12px rgb(25 195 154 / 0.55);
+  --shadow-glow-lg: 0 0 80px -10px rgb(25 195 154 / 0.45);
+  --shadow-raised: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 20px 50px -24px rgb(0 0 0 / 0.75);
+
+  /* Motion — mirrors src/motion/tokens.ts */
+  --ease-core: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-calm: cubic-bezier(0.45, 0, 0.25, 1);
+
+  --animate-core-breathe: core-breathe 7s var(--ease-calm) infinite;
+  --animate-spin-slow: spin 140s linear infinite;
+  --animate-spin-slower: spin 220s linear infinite reverse;
+  --animate-drift: drift 60s var(--ease-calm) infinite alternate;
+  --animate-flow: flow 6s linear infinite;
+  --animate-sweep: sweep 2.4s var(--ease-core);
+
+  @keyframes core-breathe {
+    0%,
+    100% {
+      opacity: 0.75;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.045);
+    }
+  }
+  @keyframes drift {
+    from {
+      transform: translate3d(-2%, -1%, 0) scale(1.04);
+    }
+    to {
+      transform: translate3d(2%, 1.5%, 0) scale(1.08);
+    }
+  }
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -240;
+    }
+  }
+  @keyframes sweep {
+    0% {
+      opacity: 0;
+      transform: translateX(-120%) skewX(-18deg);
+    }
+    25% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(320%) skewX(-18deg);
+    }
+  }
+}
+
+/* ---------- Base ---------- */
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    @apply bg-surface-dark font-sans text-body text-text-primary antialiased;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: rgb(62 240 192 / 0.28);
+    color: var(--color-text-primary);
+  }
+
+  /* Visible, consistent focus for keyboard users everywhere */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-glow);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* ---------- Brand utilities ---------- */
+
+@utility text-gradient-brand {
+  background: linear-gradient(
+    100deg,
+    var(--color-brand-soft) 0%,
+    var(--color-brand-glow) 45%,
+    var(--color-brand-cool) 110%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility surface-glass {
+  background: linear-gradient(180deg, rgb(18 34 46 / 0.72), rgb(8 18 27 / 0.72));
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--color-border-soft);
+}
+
+@utility surface-card {
+  background: linear-gradient(180deg, var(--color-surface-raised), var(--color-surface-base));
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-raised);
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-brand-glow);
+}
+
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, rgb(190 235 222 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(190 235 222 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ---------- Reduced motion ----------
+   Framer Motion honours the OS setting via <MotionConfig reducedMotion="user">.
+   This block stops every CSS-driven loop as well. See docs/MOTION.md. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

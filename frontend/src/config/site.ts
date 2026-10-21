@@ -1,0 +1,20 @@
+export const SITE = {
+  name: 'PDA BLISS CORE',
+  company: 'PDA BLISS COMPANY LIMITED',
+  positioning: 'Department Operations Platform',
+  url: import.meta.env.VITE_SITE_URL ?? 'https://core.pdabliss.com',
+  defaultDescription:
+    'PDA BLISS CORE แพลตฟอร์มปฏิบัติการระดับแผนก ให้ทุกแผนกมีพื้นที่ทำงานของตัวเอง เชื่อมทุกขั้นตอนด้วยข้อมูลชุดเดียวกันทั้งองค์กร',
+} as const;
+
+export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:1112';
+
+export const PUBLIC_NAV = [
+  { to: '/', label: 'หน้าแรก' },
+  { to: '/departments', label: 'แผนก' },
+  { to: '/features', label: 'ฟีเจอร์' },
+  { to: '/solutions', label: 'โซลูชัน' },
+  { to: '/pricing', label: 'ราคา' },
+  { to: '/about', label: 'เกี่ยวกับเรา' },
+  { to: '/contact', label: 'ติดต่อเรา' },
+] as const;

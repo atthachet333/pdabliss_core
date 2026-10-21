@@ -1,0 +1,132 @@
+// PDA BLISS CORE — data model foundation (EP00)
+//
+// Only the identity & access core is modelled here. Business documents
+// (SalesOrder, PurchaseRequest, PurchaseOrder, GoodsReceipt, StockMovement,
+// Lot, WorkOrder, PaymentRequest, …) are planned in docs/ARCHITECTURE.md and
+// will be added in later episodes together with their workflows.
+//
+// A CORE deployment serves exactly ONE company. The Company row exists so the
+// workspace has an identity and settings — not to support company switching.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id          String       @id @default(cuid())
+  name        String
+  legalName   String?
+  taxId       String?
+  timezone    String       @default("Asia/Bangkok")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  departments Department[]
+  users       User[]
+  roles       Role[]
+}
+
+model Department {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id])
+  /// Workspace code: sales | warehouse | purchasing | operations | accounting | executive
+  code        String
+  name        String
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+
+  @@unique([companyId, code])
+}
+
+model User {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id])
+  email       String       @unique
+  displayName String
+  /// Argon2id hash. Never selected by default in API projections.
+  passwordHash String?
+  status      UserStatus   @default(ACTIVE)
+  lastLoginAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  auditLogs   AuditLog[]
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+/// A user's access inside a department, through a role.
+model Membership {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  isPrimary    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, departmentId])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id])
+  code        String
+  name        String
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  memberships Membership[]
+
+  @@unique([companyId, code])
+}
+
+/// Permission codes are defined in code (e.g. "purchasing.pr.approve").
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+/// Append-only audit trail with before/after field changes.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  requestId  String
+  reason     String?
+  changes    Json
+  occurredAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, occurredAt])
+}

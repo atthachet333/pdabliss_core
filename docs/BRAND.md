@@ -113,6 +113,21 @@ Glow marks the focus of attention. It is never decoration on everything.
 
 Large ambient glows are radial gradients, not CSS `blur()` filters, to keep GPU cost low.
 
+## CORE World (EP03)
+
+The homepage hero is a real-time scene, documented in [CORE_WORLD.md](CORE_WORLD.md).
+
+- **Materials:** obsidian / smoked glass, dark architectural metal (lattice), clear glass edges
+  (fresnel rim), emerald light, soft volumetric-like glow. No plastic, no glossy gaming cards,
+  no neon outline on every element, no heavy glassmorphism.
+- **Palette in the scene:** navy/black dominant, emerald `#19c39a` / glow `#3ef0c0` primary
+  light, teal `#2bb5a8` secondary energy, soft cyan `#7fd6ff` minor highlight only. Department
+  accents from the internal app are **not** used in the hero — departments are identified by
+  icon, name and position.
+- **Atmosphere:** deep navy gradient, one emerald light that follows the mouse, faint radial
+  structure, subtle grain — no starfield, nebula or lens flare.
+- The CORE is never an Earth globe, a power orb or a token. Branding sits on it as DOM text.
+
 ## Imagery
 
 Generated, abstract and brand-tinted (orbits, networks, racks, ledgers) — produced by

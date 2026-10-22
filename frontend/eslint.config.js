@@ -27,6 +27,13 @@ export default tseslint.config(
     rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
+    // three.js scenes: materials, uniforms and per-frame state are mutated inside
+    // useFrame by design (outside React rendering) — the standard react-three-fiber
+    // pattern. The React Compiler immutability rule does not model that loop.
+    files: ['src/features/landing/core-world/**/*.{ts,tsx}'],
+    rules: { 'react-hooks/immutability': 'off' },
+  },
+  {
     files: ['scripts/**/*.mjs', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },

@@ -39,6 +39,11 @@ Object.defineProperty(window, 'matchMedia', {
 
 window.scrollTo = () => {};
 
+// jsdom has no WebGL (or 2D canvas). Returning null mirrors a browser without
+// WebGL, so the homepage exercises its static CORE fallback in unit tests.
+HTMLCanvasElement.prototype.getContext = (() =>
+  null) as typeof HTMLCanvasElement.prototype.getContext;
+
 // No API in unit tests — fetch rejects so data hooks use their offline fallback.
 vi.stubGlobal(
   'fetch',

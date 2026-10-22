@@ -59,10 +59,10 @@ export function PublicHeader() {
       <div ref={sentinel} aria-hidden className="absolute top-0 h-4 w-full" />
       <header
         className={cn(
-          'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-300',
+          'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-500',
           scrolled || open
-            ? 'border-b border-border-soft bg-surface-dark/80 backdrop-blur-xl'
-            : 'border-b border-transparent',
+            ? 'border-b border-border-soft bg-[rgb(5_11_18/0.72)] shadow-[0_12px_40px_-24px_rgb(0_0_0/0.8)] backdrop-blur-xl backdrop-saturate-150'
+            : 'border-b border-transparent bg-transparent',
         )}
       >
         <div className="mx-auto flex h-18 max-w-[1320px] items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
@@ -79,7 +79,7 @@ export function PublicHeader() {
                     end={item.to === '/'}
                     className={({ isActive }) =>
                       cn(
-                        'relative rounded-full px-3.5 py-2 text-label transition-colors',
+                        'group relative rounded-full px-3.5 py-2 text-label transition-colors duration-300',
                         isActive
                           ? 'text-text-primary'
                           : 'text-text-secondary hover:text-text-primary',
@@ -89,6 +89,12 @@ export function PublicHeader() {
                     {({ isActive }) => (
                       <>
                         {item.label}
+                        {!isActive && (
+                          <span
+                            aria-hidden
+                            className="absolute inset-x-5 -bottom-0.5 h-px origin-left scale-x-0 bg-border-strong transition-transform duration-300 ease-out group-hover:scale-x-100"
+                          />
+                        )}
                         {isActive && (
                           <motion.span
                             layoutId="nav-active"

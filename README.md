@@ -16,7 +16,7 @@ CORE is department-, role-, task- and workflow-centric. See
 
 ```
 pdabliss_core/
-├── frontend/   React + TypeScript + Vite — public website and department workspaces (port 1111)
+├── frontend/   React + TypeScript + Vite (+ three.js) — public website and department workspaces (port 1111)
 ├── backend/    Node.js + TypeScript + Fastify — API foundation (port 1112)
 ├── docs/       Architecture, brand, motion, product concept, episode reports
 ├── README.md
@@ -108,6 +108,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP01_PROTOTYPE_REPORT.md](docs/EP01_PROTOTYPE_REPORT.md) — department workspace UX prototype
 - [docs/INTERNAL_DESIGN_SYSTEM.md](docs/INTERNAL_DESIGN_SYSTEM.md) — internal app shell, tokens and UI patterns
 - [docs/EP02_REPORT.md](docs/EP02_REPORT.md) — internal design system & workspace foundation
+- [docs/CORE_WORLD.md](docs/CORE_WORLD.md) — the interactive CORE World homepage (WebGL)
+- [docs/EP03_REPORT.md](docs/EP03_REPORT.md) — interactive CORE Universe & luxury public homepage
 
 ---
 

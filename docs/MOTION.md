@@ -11,7 +11,7 @@ Source of truth: `frontend/src/motion/tokens.ts` (Framer Motion) and the `--ease
 1. **Meaningful.** Every motion explains something: data flowing into the CORE, work moving
    between departments, a section arriving, an element responding to you.
 2. **Slow ambient, quick response.** Ambient loops take 6–220 s; UI responses take 120–400 ms.
-3. **Restrained travel.** Pointer parallax is capped at 12 px; magnetic buttons at 5 px; hover
+3. **Restrained travel.** Public-site pointer parallax is capped at 12 px (the CORE World hero uses none — the pointer only moves light); magnetic buttons at 5 px; hover
    lift at 4 px.
 4. **Cheap to render.** Animate `transform` and `opacity` (plus SVG stroke offset for line
    pulses). No layout-affecting properties, no scroll listeners — reveals use
@@ -34,18 +34,29 @@ Source of truth: `frontend/src/motion/tokens.ts` (Framer Motion) and the `--ease
 
 ## Catalogue
 
-### Hero — CORE Universe
+### Homepage presentation — CORE World (EP03, WebGL — see [CORE_WORLD.md](CORE_WORLD.md))
 
-| Element            | Motion                                                        | Duration        |
-| ------------------ | ------------------------------------------------------------- | --------------- |
-| CORE halo          | Breathing glow (opacity .75→1, scale 1→1.045)                 | 7 s loop        |
-| CORE rings         | Very slow rotation, inner and outer counter-rotating          | 140 s / 220 s   |
-| Department nodes   | Gentle float (±6 px), staggered phases                        | 7–10 s loop     |
-| Connection lines   | Flowing pulse along each path (stroke-dashoffset)             | 6 s loop        |
-| Data particles     | One particle per line travelling to / from the CORE (SVG)     | 5.5–7.8 s loop  |
-| Starfield          | Slow atmospheric drift                                        | 60 s alternate  |
-| Pointer parallax   | Three depth layers, spring-smoothed, max 12 px                | —               |
-| Node hover/focus   | Node glows, its connection brightens                          | 300 ms          |
+| Element | Motion | Timing |
+| ------- | ------ | ------ |
+| Intro | atmosphere → CORE (scale .86→1) → rim → orbits → links draw → nodes (staggered 60 ms) | 0.1–1.3 s, no splash |
+| Hero text | eyebrow → H1 → copy → CTAs → values, `y 16 → 0` | 0.1–0.6 s |
+| CORE shell | slow rotation; internal energy currents; data points on meridians | ~0.03 rad/s |
+| Halo / rim | breathing on two incommensurate sines (never a visible loop) | ~20–65 s periods |
+| Orbits | three rings turning at different speeds | 0.009–0.021 rad/s |
+| Ring drift | ±0.025 rad on two slow sines (≈ 3 px — the composition never travels) | ~90 s / ~215 s |
+| Nodes | float ±0.035 units, own phase each | ~12 s |
+| Pulses | travel node → CORE; faster on the focused department | 2–5 s per trip |
+| Particles | drift in the vertex shader | 2–3 min cycles |
+| Pointer | moves the glass highlight / rim light only, plus a ≤ 0.012 rad depth tilt (≈ 2–4 px); no parallax | λ ≈ 4/s |
+| Drag | only from the CORE / orbit area, button held; yaw ±0.6, pitch ±0.15 rad; restrained inertia (settles < 1 s); eases home after 2.6 s idle | λ ≈ 6/s |
+| Hover / select | node grows and glows, its spoke and pulses brighten, others dim — no camera move | λ ≈ 9/s |
+| Slide 02 | workspace cards unfold outward from a CORE emblem (staggered 80 ms), connectors draw | 0.75 s, once |
+| Slide 03 | a data pulse travels the department route station by station; stations complete in turn (only while on screen) | 1.1 s / station |
+| Slides | full-height scenes activated on entry, progress dots — native scroll, no snapping, no wheel handling | — |
+| Product transition | CORE node clip-path circle → product window; data lines flatten into rules | scroll-linked |
+
+Physics: exponential damping (frame-rate independent) and ease-out curves — no elastic springs.
+CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 
 ### Scroll
 
@@ -67,8 +78,9 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - `<MotionConfig reducedMotion="user">` disables Framer Motion transform/layout animation
   app-wide (opacity fades remain).
 - A global CSS rule collapses all CSS animations and transitions to effectively zero.
-- The hero does not render SMIL data particles, stops node floating and ignores pointer
-  parallax; magnetic buttons are disabled.
+- The CORE World uses its `reduced` tier: no drift, orbit turning, particles travel or pulses,
+  no parallax, intro skipped, rendering on demand only; hover/selection/drag still work.
+  Magnetic buttons are disabled; the product transition shows its final state.
 - Counters show their final value immediately.
 
 The page is fully readable and complete in this mode — motion never carries information that

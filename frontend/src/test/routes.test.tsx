@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { getPrototypeSession, prototypeSignIn, prototypeSignOut } from '@/prototype/session';
@@ -16,9 +16,10 @@ describe('public website', () => {
     expect(screen.getAllByRole('link', { name: /เริ่มทดลองใช้/ }).length).toBeGreaterThan(0);
   });
 
-  it('shows every orbiting department as a reachable link', async () => {
+  it('offers every orbiting department as an accessible control in the CORE Universe', async () => {
     renderRoute('/');
-    const universe = await screen.findByRole('figure', { name: /CORE Universe/ });
+    await screen.findByRole('figure', { name: /CORE Universe/ });
+    const group = screen.getByRole('group', { name: 'แผนกที่เชื่อมกับ CORE' });
     for (const name of [
       'ฝ่ายขาย',
       'คลังสินค้า',
@@ -27,8 +28,7 @@ describe('public website', () => {
       'บัญชีและการเงิน',
       'รายงาน',
     ]) {
-      expect(universe.querySelector(`a[href^="/departments#"]`)).not.toBeNull();
-      expect(universe).toHaveTextContent(name);
+      expect(within(group).getByRole('button', { name })).toBeInTheDocument();
     }
   });
 

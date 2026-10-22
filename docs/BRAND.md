@@ -39,26 +39,30 @@ Tailwind utilities (`bg-surface-raised`, `text-text-secondary`, `border-border-s
 | `info`                | `#6cb8ff`                | State only                                       |
 | `chart-1` / `chart-2` | `#14a883` / `#4f8fe8`    | Data series (validated, see below)               |
 
-### Workspace accents (EP01-PROTOTYPE)
+### Workspace accents (EP02)
 
-Each department workspace has one restrained accent, all within the green → teal → blue
-family. Accents are used for icons, hairlines and soft glows only — never for status.
+Each department has one contextual accent. Accents identify *where you are* — the workspace
+icon, the active-navigation bar, small markers — and are never status colours or large fills.
+Chroma is held low so seven of them never read as a rainbow; brand green/teal stays dominant.
+Internal surfaces, text and semantic tokens are documented in
+[INTERNAL_DESIGN_SYSTEM.md](INTERNAL_DESIGN_SYSTEM.md).
 
-| Token                  | Value     | Workspace   |
-| ---------------------- | --------- | ----------- |
-| `ws-executive`         | `#3ef0c0` | Executive   |
-| `ws-sales`             | `#2dd4bf` | Sales       |
-| `ws-warehouse`         | `#86efac` | Warehouse   |
-| `ws-purchasing`        | `#60a5fa` | Purchasing  |
-| `ws-operations`        | `#a3d9a5` | Operations  |
-| `ws-accounting`        | `#a5b4fc` | Accounting  |
-| `ws-admin`             | `#94a3b8` | System Admin |
+| Token                  | Value     | Workspace   | Family |
+| ---------------------- | --------- | ----------- | ------ |
+| `ws-executive`         | `#3ee0b4` | Executive   | PDA BLISS core green / teal |
+| `ws-sales`             | `#6aaaf5` | Sales       | cool blue |
+| `ws-warehouse`         | `#4fd08f` | Warehouse   | emerald |
+| `ws-purchasing`        | `#dfb066` | Purchasing  | amber |
+| `ws-operations`        | `#a99af0` | Operations  | violet |
+| `ws-accounting`        | `#6cc7e0` | Accounting  | cyan |
+| `ws-admin`             | `#a3adb8` | System Admin | graphite |
 
 Rules:
 
 - Green/teal is the signature. Blue is a supporting light, never a co-lead. No rainbow neon.
 - Status colours are reserved for state and always ship with an icon **and** a label
-  (`StatusPill`), never colour alone.
+  (`StatusBadge`), never colour alone. Purchasing's amber accent and the warning status share
+  a hue family; they never meet on one element, and status always carries its icon and text.
 - Chart series colours were validated for the dark surface with a colour-vision-deficiency
   checker (lightness band, chroma, CVD ΔE, contrast all pass). The second series is also
   dashed, so identity never relies on colour alone.

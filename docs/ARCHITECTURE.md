@@ -43,7 +43,9 @@ frontend/src/
 │   ├── ui/         Button, Section, Badge, Field (+ *Styles.ts class helpers)
 │   ├── brand/      Logo / LogoMark
 │   ├── layout/     PublicLayout, PublicHeader, PublicFooter, PageHero
-│   └── app/        WorkspaceLayout, workspace primitives (WorkspaceHero, Metric, Panel, EmptyState…)
+│   ├── core/       internal design system (EP02): StatusBadge, PageHeader, Kpi, DataTable,
+│   │               forms, Modal/Drawer/Sheet, WorkflowTimeline, Task/ExceptionItem, states…
+│   └── shell/      AppShell: top bar, sidebar/rail, phone bottom bar, search, notifications
 ├── config/         site constants, department content model
 ├── features/landing/
 │   ├── universe/   CORE Universe hero visual (SVG geometry + HTML nodes)
@@ -51,18 +53,28 @@ frontend/src/
 │   └── previews/   illustrative department mockups (container-query responsive)
 ├── motion/         motion tokens, Reveal, CountUp
 ├── pages/          public pages, 404
-├── prototype/      EP01-PROTOTYPE demo sign-in, route gate, workspace switcher (removable)
-├── workspaces/     registry (navigation + accent per department) + one folder per workspace
+├── prototype/      demo sign-in, route gate, workspace switcher, Design Lab (removable)
+├── workspaces/     registry (navigation, accent, module blueprints) + one folder per workspace
 ├── lib/            api client, formatting, page meta, cn
 └── styles/         index.css — the design-token source of truth
 ```
 
 - **Routing.** React Router 8 data router. The landing page is in the main bundle for a fast
   first paint; every other public page and every workspace dashboard is a lazy chunk.
-- **Workspaces.** `workspaces/registry.ts` declares each workspace's navigation and accent
-  colour. Route groups `/app/<workspace>` are generated from it. **This is navigation, not
-  authorization.** Each workspace sets `--ws-accent` on its shell; the shared primitives
-  inherit it so one component set takes on each department's own hue.
+- **Workspaces.** `workspaces/registry.ts` declares each workspace's navigation, accent colour,
+  phone-bar destinations and module *blueprints* (list columns, filters, primary action, empty
+  copy). Route groups `/app/<workspace>/<module>` are generated from it; modules without their
+  own page render the generic blueprint `ModulePage`. **This is navigation, not
+  authorization.** `AppShell` sets `--ws-accent` (on the shell and on `<html>` for portaled
+  overlays); every `components/core` part inherits it so one component set takes on each
+  department's own hue. Unknown module paths render an in-shell not-found state; page errors
+  render `RouteError` inside the shell.
+- **Internal design system (EP02).** Screens are assembled from `components/core` only — see
+  [INTERNAL_DESIGN_SYSTEM.md](INTERNAL_DESIGN_SYSTEM.md). The public site keeps its own
+  `components/ui` + `layout` and is not affected by internal changes.
+- **Design Lab (prototype).** `/app/prototype/ui` renders every core pattern inside the shell
+  of the reviewer's last workspace. It sits behind the prototype gate and is linked only from
+  the profile menu's prototype entry — never from workspace navigation.
 - **No company picker.** There is never a company selection step.
 - **Prototype access (EP01-PROTOTYPE).** `/app/*` sits behind `prototype/PrototypeGate`, a
   demo-only sign-in (`user1` / `pass1`) checked in the browser with a sessionStorage flag.

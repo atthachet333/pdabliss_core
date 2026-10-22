@@ -1,104 +1,159 @@
-import { CircleCheck, CircleDashed, Receipt, Wallet } from 'lucide-react';
-import { EmptyState, Metric, Panel, SampleTag, WorkspaceHero } from '@/components/app/primitives';
-import { WORKSPACES } from '../registry';
+import { CircleCheck, CircleDashed, Plus, Receipt, Wallet } from 'lucide-react';
+import {
+  Button,
+  DataTable,
+  EmptyState,
+  Kpi,
+  KpiGrid,
+  PageHeader,
+  Panel,
+  SampleTag,
+  SectionHeader,
+  StatusBadge,
+  type Column,
+  type Status,
+} from '@/components/core';
 
 /* Minimal sample content for UX review only. Amounts are illustrative. */
 
-const PENDING = [
-  { kind: 'มัดจำ', ref: 'PO ตัวอย่าง 1', amount: '฿ 25,000', due: 'ครบกำหนดวันนี้' },
-  { kind: 'ส่วนที่เหลือ', ref: 'PO ตัวอย่าง 2', amount: '฿ 48,500', due: 'ครบกำหนดใน 5 วัน' },
+interface PendingPayment {
+  no: string;
+  kind: string;
+  ref: string;
+  amount: string;
+  due: string;
+  status: Status;
+  statusLabel?: string;
+}
+
+const PENDING: PendingPayment[] = [
+  {
+    no: 'PAY-ตัวอย่าง-07',
+    kind: 'มัดจำ',
+    ref: 'PO-ตัวอย่าง-015',
+    amount: '฿ 25,000',
+    due: 'วันนี้',
+    status: 'pending',
+    statusLabel: 'ครบกำหนดวันนี้',
+  },
+  {
+    no: 'PAY-ตัวอย่าง-08',
+    kind: 'ส่วนที่เหลือ',
+    ref: 'PO-ตัวอย่าง-011',
+    amount: '฿ 48,500',
+    due: '27 ต.ค.',
+    status: 'warning',
+    statusLabel: 'เอกสารไม่ครบ',
+  },
+];
+
+const COLUMNS: Column<PendingPayment>[] = [
+  {
+    id: 'no',
+    header: 'เลขที่',
+    priority: 'primary',
+    cell: (r) => <span className="whitespace-nowrap tabular">{r.no}</span>,
+  },
+  {
+    id: 'status',
+    header: 'สถานะ',
+    priority: 'status',
+    cell: (r) => <StatusBadge status={r.status} label={r.statusLabel} size="sm" />,
+  },
+  { id: 'kind', header: 'ประเภท', cell: (r) => r.kind },
+  {
+    id: 'amount',
+    header: 'ยอดเงิน',
+    align: 'end',
+    cell: (r) => <span className="text-fg-primary">{r.amount}</span>,
+  },
+  { id: 'ref', header: 'อ้างอิง', priority: 'medium', cell: (r) => r.ref },
+  { id: 'due', header: 'กำหนดชำระ', priority: 'low', cell: (r) => r.due },
 ];
 
 const REQUIRED_DOCS = [
   { name: 'ใบสั่งซื้อ (PO) ได้รับอนุมัติ', ready: true },
   { name: 'ใบรับสินค้า (GR) จากคลัง', ready: true },
-  { name: 'ใบแจ้งหนี้จากซัพพลายเออร์', ready: false },
+  { name: 'ใบแจ้งหนี้จาก Supplier', ready: false },
 ];
 
 export default function AccountingDashboard() {
-  const ws = WORKSPACES.accounting;
   return (
     <>
-      <WorkspaceHero
-        icon={ws.icon}
-        eyebrow={ws.nameEn}
+      <PageHeader
         title="การจ่ายเงิน"
-        subtitle={ws.tagline}
-        motif={ws.motif}
+        description="จ่ายถูกต้อง เมื่อเอกสารครบ — ทุกการจ่ายผูกกับ PO และใบรับสินค้า"
+        actions={
+          <Button variant="primary" icon={Plus} soon>
+            สร้างคำขอจ่าย
+          </Button>
+        }
       />
 
-      <section aria-labelledby="acc-summary" className="mb-12">
-        <div className="mb-4 flex items-center gap-3">
-          <h2 id="acc-summary" className="text-body font-semibold text-text-primary">
-            สรุป
-          </h2>
-          <SampleTag />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Metric label="คำขอจ่ายเงิน" value={0} icon={Receipt} hint="รอตรวจเอกสาร" />
-          <Metric label="รอชำระ" value={2} icon={Wallet} hint="มัดจำ 1 · ส่วนที่เหลือ 1" />
-          <Metric label="ยอดค้างจ่าย" value="฿ 73,500" icon={Wallet} hint="ซัพพลายเออร์ 2 ราย" />
-        </div>
+      <section aria-labelledby="acc-summary" className="mb-10">
+        <SectionHeader id="acc-summary" title="สรุป" aside={<SampleTag />} />
+        <KpiGrid columns={3}>
+          <Kpi variant="primary" label="ยอดค้างจ่าย" value="฿ 73,500" supporting="Supplier 2 ราย" />
+          <Kpi
+            label="รอชำระ"
+            value={2}
+            unit="รายการ"
+            icon={Wallet}
+            supporting="มัดจำ 1 · ส่วนที่เหลือ 1"
+          />
+          <Kpi
+            label="คำขอจ่ายรอตรวจ"
+            value={0}
+            unit="รายการ"
+            icon={Receipt}
+            supporting="ไม่มีรายการค้าง"
+          />
+        </KpiGrid>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-        <div className="grid gap-6">
-          <Panel
-            title="คำขอจ่ายเงิน"
-            subtitle="จ่ายได้เมื่อได้รับอนุมัติและเอกสารอ้างอิงครบเท่านั้น"
-          >
-            <EmptyState
-              icon={Receipt}
-              title="ไม่มีคำขอจ่ายเงินที่รอดำเนินการ"
-              description="คำขอจ่ายเงินที่ผูกกับใบสั่งซื้อและใบรับสินค้าจะเข้ามาที่นี่"
-              compact
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-6">
+          <Panel flush title="รอชำระ" actions={<SampleTag />}>
+            <DataTable
+              label="รายการรอชำระ"
+              columns={COLUMNS}
+              rows={PENDING}
+              getRowId={(r) => r.no}
             />
           </Panel>
-
-          <Panel title="รอชำระ" action={<SampleTag />}>
-            <ul className="space-y-3">
-              {PENDING.map((p) => (
-                <li
-                  key={p.ref}
-                  className="flex items-center justify-between gap-4 rounded-2xl border border-border-soft bg-surface-raised/50 px-5 py-4"
-                >
-                  <div className="min-w-0">
-                    <p className="text-label font-medium text-text-primary">
-                      {p.kind} <span className="font-normal text-text-muted">· {p.ref}</span>
-                    </p>
-                    <p className="mt-0.5 text-caption text-text-muted">{p.due}</p>
-                  </div>
-                  <p className="shrink-0 text-body font-semibold text-text-primary tabular">
-                    {p.amount}
-                  </p>
-                </li>
-              ))}
-            </ul>
+          <Panel
+            title="คำขอจ่าย"
+            description="จ่ายได้เมื่อได้รับอนุมัติและเอกสารอ้างอิงครบเท่านั้น"
+          >
+            <EmptyState
+              layout="inline"
+              kind="clear"
+              title="ไม่มีรายการค้าง"
+              description="คำขอจ่ายที่ผูกกับใบสั่งซื้อและใบรับสินค้าจะเข้ามาที่นี่"
+            />
           </Panel>
         </div>
 
-        <Panel title="เงื่อนไขก่อนจ่าย" subtitle="ระบบตรวจเอกสารที่เชื่อมโยงกันให้อัตโนมัติ">
-          <ul className="space-y-4">
+        <Panel title="เงื่อนไขก่อนจ่าย" description="ระบบตรวจเอกสารที่เชื่อมโยงกันให้อัตโนมัติ">
+          <ul className="space-y-3.5">
             {REQUIRED_DOCS.map((d) => (
               <li key={d.name} className="flex items-center gap-3 text-label">
                 {d.ready ? (
                   <CircleCheck className="size-5 shrink-0 text-success" aria-hidden />
                 ) : (
-                  <CircleDashed className="size-5 shrink-0 text-text-muted" aria-hidden />
+                  <CircleDashed className="size-5 shrink-0 text-fg-muted" aria-hidden />
                 )}
-                <span className={d.ready ? 'text-text-primary' : 'text-text-muted'}>{d.name}</span>
-                <span className="sr-only">{d.ready ? 'ครบ' : 'ยังไม่มี'}</span>
+                <span className={d.ready ? 'text-fg-primary' : 'text-fg-muted'}>{d.name}</span>
+                <span className="ml-auto text-caption text-fg-muted">
+                  {d.ready ? 'ครบ' : 'ยังไม่มี'}
+                </span>
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            disabled
-            className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-surface-highlight text-label text-text-muted disabled:cursor-not-allowed"
-          >
+          <Button block disabled className="mt-7">
             บันทึกการจ่าย — รอเอกสารครบ
-          </button>
-          <p className="mt-3 text-caption text-text-muted">
+          </Button>
+          <p className="mt-3 text-caption text-fg-muted">
             ตัวอย่างการป้องกันความผิดพลาด: ปุ่มจ่ายจะเปิดเมื่อเอกสารครบทุกใบ
           </p>
         </Panel>

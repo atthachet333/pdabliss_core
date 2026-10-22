@@ -45,16 +45,41 @@
   --color-chart-1: #14a883;
   --color-chart-2: #4f8fe8;
 
-  /* Workspace accents — one restrained hue per department, all within the
-     green → teal → blue family so the brand signature stays intact.
-     Used for icons, hairlines and soft glows only — never for status. */
-  --color-ws-executive: #3ef0c0;
-  --color-ws-sales: #2dd4bf;
-  --color-ws-warehouse: #86efac;
-  --color-ws-purchasing: #60a5fa;
-  --color-ws-operations: #a3d9a5;
-  --color-ws-accounting: #a5b4fc;
-  --color-ws-admin: #94a3b8;
+  /* ---------- Internal app (EP02) — see docs/INTERNAL_DESIGN_SYSTEM.md ----------
+     Layered dark surfaces for all-day work: never pure black, each layer one
+     step lighter. The public site keeps the surface-* / text-* tokens above. */
+  --color-canvas: #0b131b; /* page background */
+  --color-nav: #0d1720; /* sidebar, top bar, bottom nav */
+  --color-panel: #0f1a24; /* cards, panels, tables */
+  --color-panel-raised: #14222e; /* nested tiles, inputs, table header */
+  --color-panel-overlay: #1a2a37; /* menus, dialogs, drawers */
+  --color-line: rgb(200 230 222 / 0.08); /* default hairline */
+  --color-line-strong: rgb(200 230 222 / 0.15); /* controls, dividers that must read */
+  --color-fill-hover: rgb(220 240 235 / 0.045);
+  --color-fill-active: rgb(220 240 235 / 0.085);
+  --color-fill-muted: #1a2733; /* skeletons, progress tracks, quiet chips */
+  --color-focus: #3ef0c0;
+
+  /* App text — all ≥ 5:1 on every app surface except disabled (by design). */
+  --color-fg-primary: #eaf3f0;
+  --color-fg-secondary: #aebfba;
+  --color-fg-muted: #8a9e98;
+  --color-fg-disabled: #5c6e69;
+
+  /* Neutral joins success / warning / danger / info as the fifth semantic family. */
+  --color-neutral: #a8b5b2;
+
+  /* Workspace accents — contextual identifiers, not decoration. Used for the
+     workspace icon, active-nav indicator and small markers only — never for
+     status, never as large fills. Chroma is held low so seven of them never
+     read as a rainbow; brand green/teal stays dominant. */
+  --color-ws-executive: #3ee0b4; /* PDA BLISS core green / teal */
+  --color-ws-sales: #6aaaf5; /* cool blue */
+  --color-ws-warehouse: #4fd08f; /* emerald */
+  --color-ws-purchasing: #dfb066; /* amber */
+  --color-ws-operations: #a99af0; /* violet */
+  --color-ws-accounting: #6cc7e0; /* cyan */
+  --color-ws-admin: #a3adb8; /* graphite */
 
   /* Typography — Thai-first */
   --font-sans:
@@ -86,6 +111,16 @@
   --text-kpi: clamp(1.75rem, 1.5rem + 0.9vw, 2.375rem);
   --text-kpi--line-height: 1.1;
   --text-kpi--font-weight: 600;
+  /* Internal app scale — calmer than the marketing scale above. */
+  --text-page: clamp(1.375rem, 1.24rem + 0.55vw, 1.75rem);
+  --text-page--line-height: 1.45;
+  --text-page--font-weight: 600;
+  --text-section: 1.0625rem;
+  --text-section--line-height: 1.55;
+  --text-section--font-weight: 600;
+  --text-metric: clamp(1.625rem, 1.48rem + 0.5vw, 2rem);
+  --text-metric--line-height: 1.15;
+  --text-metric--font-weight: 600;
 
   /* Radius */
   --radius-card: 1.25rem;
@@ -97,6 +132,9 @@
   --shadow-glow-md: 0 0 0 1px rgb(62 240 192 / 0.3), 0 10px 40px -12px rgb(25 195 154 / 0.55);
   --shadow-glow-lg: 0 0 80px -10px rgb(25 195 154 / 0.45);
   --shadow-raised: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 20px 50px -24px rgb(0 0 0 / 0.75);
+  /* Internal app elevation — depth from shadow, not glow. */
+  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.025) inset;
+  --shadow-overlay: 0 0 0 1px rgb(200 230 222 / 0.1), 0 24px 64px -16px rgb(0 0 0 / 0.7);
 
   /* Motion — mirrors src/motion/tokens.ts */
   --ease-core: cubic-bezier(0.22, 1, 0.36, 1);
@@ -152,6 +190,8 @@
 
 @layer base {
   html {
+    /* Workspace accent; the app shell overrides it per department. */
+    --ws-accent: var(--color-brand-glow);
     color-scheme: dark;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
@@ -231,6 +271,19 @@
     linear-gradient(to right, rgb(190 235 222 / 0.045) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(190 235 222 / 0.045) 1px, transparent 1px);
   background-size: 56px 56px;
+}
+
+/* Sidebar rail state (internal app shell). Applies when the user collapsed the
+   navigation, or automatically on tablet widths (48rem–80rem) until they choose. */
+@custom-variant rail {
+  &:where([data-nav='collapsed'] *) {
+    @slot;
+  }
+  @media (width >= 48rem) and (width < 80rem) {
+    &:where([data-nav='auto'] *) {
+      @slot;
+    }
+  }
 }
 
 @utility no-scrollbar {

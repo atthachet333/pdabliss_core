@@ -68,7 +68,8 @@ Public: `/`, `/departments`, `/features`, `/solutions`, `/pricing`, `/about`, `/
 `/login`, `/privacy`, `/terms`
 
 Workspaces (prototype, sign-in required): `/app/executive`, `/app/sales`, `/app/warehouse`,
-`/app/purchasing`, `/app/operations`, `/app/accounting`, `/app/admin`
+`/app/purchasing`, `/app/operations`, `/app/accounting`, `/app/admin` — each with its own
+module routes (e.g. `/app/warehouse/expiry`). Design Lab (prototype only): `/app/prototype/ui`
 
 API: `GET /health`, `GET /api/v1`, demo-only `GET /api/v1/demo/{warehouse,purchasing}/stock`
 
@@ -79,7 +80,9 @@ To review the department workspaces locally:
 1. `cd frontend && npm run dev`
 2. Open <http://localhost:1111/login>
 3. Sign in with the **demo-only** account `user1` / `pass1`
-4. Use the **สลับพื้นที่ทำงาน · ต้นแบบ** switcher in the top bar to move between workspaces
+4. Use the **สลับพื้นที่ทำงาน · ต้นแบบ** switcher in the top bar (on phones: **เพิ่มเติม** in the
+   bottom bar) to move between workspaces
+5. Open **Design Lab** from the profile menu to review every internal UI pattern
 
 > **This is not authentication.** The demo account lives in `frontend/src/prototype/`, is
 > checked in the browser only, and protects nothing but sample UI. The workspace switcher is
@@ -103,6 +106,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/MOTION.md](docs/MOTION.md) — motion principles and reduced-motion behaviour
 - [docs/EP00_REPORT.md](docs/EP00_REPORT.md) — what EP00 delivered and verified
 - [docs/EP01_PROTOTYPE_REPORT.md](docs/EP01_PROTOTYPE_REPORT.md) — department workspace UX prototype
+- [docs/INTERNAL_DESIGN_SYSTEM.md](docs/INTERNAL_DESIGN_SYSTEM.md) — internal app shell, tokens and UI patterns
+- [docs/EP02_REPORT.md](docs/EP02_REPORT.md) — internal design system & workspace foundation
 
 ---
 

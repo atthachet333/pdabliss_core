@@ -1,3 +1,5 @@
+import type { WorkflowStep } from '@/components/core';
+
 /*
  * Warehouse workspace — minimal sample content for UX review only.
  *
@@ -9,7 +11,7 @@
  */
 
 export interface WarehouseTask {
-  id: 'receiving' | 'stock' | 'lots' | 'stock-count';
+  id: 'receiving' | 'stock' | 'expiry' | 'stock-count';
   label: string;
   count: number;
   unit: string;
@@ -26,16 +28,16 @@ export const TODAY: readonly WarehouseTask[] = [
   },
   {
     id: 'stock',
-    label: 'สต็อก',
+    label: 'สต็อกสินค้า',
     count: 1,
     unit: 'รายการต่ำกว่าจุดสั่งซื้อ',
     note: 'แสดงเฉพาะปริมาณ',
   },
   {
-    id: 'lots',
-    label: 'ล็อต / วันหมดอายุ',
+    id: 'expiry',
+    label: 'วันหมดอายุ',
     count: 1,
-    unit: 'ล็อตใกล้หมดอายุ',
+    unit: 'Lot ใกล้หมดอายุ',
     note: 'จ่ายตามหลัก FEFO',
   },
   {
@@ -52,10 +54,45 @@ export interface LotExpiry {
   item: string;
   quantity: string;
   daysLeft: number;
+  expires: string;
+  location: string;
+  received: string;
 }
 
 /** Sorted first-expiry, first-out. Quantities and dates only. */
 export const FEFO_SAMPLE: readonly LotExpiry[] = [
-  { lot: 'LOT-A', item: 'วัตถุดิบตัวอย่าง A', quantity: '12 หน่วย', daysLeft: 18 },
-  { lot: 'LOT-B', item: 'วัตถุดิบตัวอย่าง B', quantity: '40 หน่วย', daysLeft: 64 },
+  {
+    lot: 'LOT-A',
+    item: 'วัตถุดิบตัวอย่าง A',
+    quantity: '12 หน่วย',
+    daysLeft: 18,
+    expires: '9 พ.ย.',
+    location: 'A-02-1',
+    received: '2 ก.ย.',
+  },
+  {
+    lot: 'LOT-B',
+    item: 'วัตถุดิบตัวอย่าง B',
+    quantity: '40 หน่วย',
+    daysLeft: 64,
+    expires: '25 ธ.ค.',
+    location: 'B-01-3',
+    received: '18 ก.ย.',
+  },
+  {
+    lot: 'LOT-C',
+    item: 'วัตถุดิบตัวอย่าง A',
+    quantity: '30 หน่วย',
+    daysLeft: 121,
+    expires: '20 ก.พ.',
+    location: 'A-03-2',
+    received: '10 ต.ค.',
+  },
+];
+
+export const LOT_STEPS: readonly WorkflowStep[] = [
+  { label: 'รับเข้า', state: 'completed' },
+  { label: 'ตรวจ QC', state: 'completed' },
+  { label: 'จัดเก็บ', state: 'current' },
+  { label: 'จ่ายออก', state: 'upcoming' },
 ];

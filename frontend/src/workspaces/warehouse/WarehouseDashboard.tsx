@@ -7,89 +7,130 @@ import {
   PackageCheck,
   ScanBarcode,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import {
+  ActivityFeed,
+  Button,
+  DataTable,
+  Drawer,
   EmptyState,
+  LinkButton,
+  PageHeader,
   Panel,
   SampleTag,
-  StatusPill,
-  WorkspaceHero,
-} from '@/components/app/primitives';
-import { WORKSPACES } from '../registry';
-import { FEFO_SAMPLE, TODAY, type WarehouseTask } from './data';
+  SectionHeader,
+  StatusBadge,
+  SummaryList,
+  WorkflowTimeline,
+  type Column,
+} from '@/components/core';
+import { ScanDialog } from '@/components/shell/ScanDialog';
+import { cn } from '@/lib/cn';
+import { workspacePath } from '../registry';
+import { FEFO_SAMPLE, LOT_STEPS, TODAY, type LotExpiry, type WarehouseTask } from './data';
 
 const TASK_ICON: Record<WarehouseTask['id'], typeof Boxes> = {
   receiving: PackageCheck,
   stock: Boxes,
-  lots: Hourglass,
+  expiry: Hourglass,
   'stock-count': ListChecks,
 };
 
+const lotStatus = (l: LotExpiry) =>
+  l.daysLeft <= 30 ? (
+    <StatusBadge status="warning" label={`เหลือ ${l.daysLeft} วัน`} size="sm" />
+  ) : (
+    <StatusBadge status="completed" label="พร้อมใช้" size="sm" />
+  );
+
+const LOT_COLUMNS: Column<LotExpiry>[] = [
+  { id: 'lot', header: 'Lot', priority: 'primary', cell: (l) => l.lot },
+  { id: 'status', header: 'สถานะ', priority: 'status', cell: lotStatus },
+  { id: 'item', header: 'สินค้า', cell: (l) => l.item },
+  { id: 'qty', header: 'จำนวน', align: 'end', cell: (l) => l.quantity },
+  { id: 'exp', header: 'วันหมดอายุ', priority: 'medium', cell: (l) => l.expires },
+  { id: 'loc', header: 'ตำแหน่ง', priority: 'low', cell: (l) => l.location },
+];
+
 export default function WarehouseDashboard() {
-  const ws = WORKSPACES.warehouse;
+  const [scanOpen, setScanOpen] = useState(false);
+  const [lot, setLot] = useState<LotExpiry | null>(null);
+
   return (
     <>
-      <WorkspaceHero
-        icon={ws.icon}
-        eyebrow={ws.nameEn}
+      <PageHeader
         title="งานคลังวันนี้"
-        subtitle={ws.tagline}
-        motif={ws.motif}
+        description="รับเข้า ตรวจสอบ จัดเก็บ — แม่นยำทุก Lot"
         actions={
-          <button
-            type="button"
-            disabled
-            title="การสแกนบาร์โค้ดจะเปิดใช้ในรอบพัฒนาถัดไป"
-            className="hidden h-11 items-center gap-2 rounded-full border border-border-strong px-5 text-label text-text-secondary disabled:opacity-70 sm:inline-flex"
-          >
-            <ScanBarcode className="size-4" aria-hidden />
-            สแกนบาร์โค้ด · เร็ว ๆ นี้
-          </button>
+          <>
+            <Button icon={ScanBarcode} onClick={() => setScanOpen(true)} className="max-md:hidden">
+              สแกน
+            </Button>
+            <LinkButton
+              to={workspacePath('warehouse', 'receiving')}
+              variant="primary"
+              icon={PackageCheck}
+            >
+              รับสินค้า
+            </LinkButton>
+          </>
         }
       />
 
-      <p className="mb-8 flex items-start gap-3 rounded-2xl border border-[color-mix(in_oklab,var(--ws-accent)_30%,transparent)] bg-[color-mix(in_oklab,var(--ws-accent)_6%,transparent)] px-5 py-4 text-label text-text-secondary">
-        <Lock className="mt-0.5 size-4 shrink-0 text-[var(--ws-accent)]" aria-hidden />
+      <p className="mb-8 flex items-start gap-3 rounded-panel border border-line bg-panel px-5 py-3.5 text-label text-fg-secondary">
+        <Lock className="mt-1 size-4 shrink-0 text-[var(--ws-accent)]" aria-hidden />
         <span>
-          พื้นที่ทำงานนี้แสดงเฉพาะจำนวน ล็อต และวันที่ —{' '}
-          <strong className="font-semibold text-text-primary">
+          พื้นที่ทำงานนี้แสดงเฉพาะจำนวน Lot และวันที่ —{' '}
+          <strong className="font-semibold text-fg-primary">
             ข้อมูลต้นทุนและราคาไม่ถูกส่งมาจากเซิร์ฟเวอร์
           </strong>
         </span>
       </p>
 
       {/* Task-first: four large, thumb-sized entry points */}
-      <section aria-labelledby="wh-today" className="mb-12">
-        <div className="mb-4 flex items-center gap-3">
-          <h2 id="wh-today" className="text-body font-semibold text-text-primary">
-            สิ่งที่ต้องทำ
-          </h2>
-          <SampleTag />
-        </div>
-        <ul className="grid gap-4 sm:grid-cols-2">
+      <section aria-labelledby="wh-today" className="mb-10">
+        <SectionHeader id="wh-today" title="สิ่งที่ต้องทำ" aside={<SampleTag />} />
+        <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           {TODAY.map((task) => {
             const Icon = TASK_ICON[task.id];
+            const idle = task.count === 0;
             return (
               <li key={task.id}>
                 <Link
-                  to={`/app/warehouse/${task.id}`}
-                  className="group flex h-full items-center gap-4 rounded-panel border border-border-soft bg-surface-base p-5 transition-colors hover:border-[color-mix(in_oklab,var(--ws-accent)_45%,transparent)] sm:gap-5 sm:p-6"
+                  to={workspacePath('warehouse', task.id)}
+                  className="group flex h-full min-h-24 items-center gap-4 rounded-panel border border-line bg-panel p-4 transition-colors hover:border-line-strong hover:bg-panel-raised sm:p-5"
                 >
-                  <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_oklab,var(--ws-accent)_12%,transparent)]">
-                    <Icon className="size-6 text-[var(--ws-accent)]" aria-hidden />
+                  <span
+                    className={cn(
+                      'flex size-12 shrink-0 items-center justify-center rounded-control',
+                      idle
+                        ? 'bg-fill-muted'
+                        : 'bg-[color-mix(in_oklab,var(--ws-accent)_12%,transparent)]',
+                    )}
+                  >
+                    <Icon
+                      className={cn('size-5.5', idle ? 'text-fg-muted' : 'text-[var(--ws-accent)]')}
+                      aria-hidden
+                    />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-label text-text-secondary">{task.label}</span>
-                    <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
-                      <span className="text-[2.25rem] leading-none font-semibold text-text-primary tabular">
+                    <span className="block text-label text-fg-secondary">{task.label}</span>
+                    <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+                      <span
+                        className={cn(
+                          'text-metric tabular',
+                          idle ? 'text-fg-muted' : 'text-fg-primary',
+                        )}
+                      >
                         {task.count}
                       </span>
-                      <span className="text-caption text-text-muted">{task.unit}</span>
+                      <span className="text-caption text-fg-muted">{task.unit}</span>
                     </span>
-                    <span className="mt-1.5 block text-caption text-text-muted">{task.note}</span>
+                    <span className="block text-caption text-fg-muted">{task.note}</span>
                   </span>
                   <ArrowUpRight
-                    className="size-5 shrink-0 text-text-muted transition-colors group-hover:text-[var(--ws-accent)]"
+                    className="size-4 shrink-0 text-fg-muted transition-colors group-hover:text-fg-primary"
                     aria-hidden
                   />
                 </Link>
@@ -99,48 +140,84 @@ export default function WarehouseDashboard() {
         </ul>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="รับสินค้าวันนี้" subtitle="ระบบไม่อนุญาตให้รับเกินจำนวนในใบสั่งซื้อ">
-          <EmptyState
-            icon={PackageCheck}
-            title="ยังไม่มีรายการเข้าคลัง"
-            description="เมื่อฝ่ายจัดซื้อออก PO รายการที่ถึงกำหนดรับจะปรากฏที่นี่ พร้อมขั้นตอนตรวจ QC"
-            action="เริ่มรับสินค้า"
-            compact
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <Panel
+          flush
+          title="Lot ตามลำดับ FEFO"
+          description="หมดอายุก่อน จ่ายออกก่อน"
+          actions={<SampleTag />}
+        >
+          <DataTable
+            label="Lot ตามลำดับ FEFO"
+            columns={LOT_COLUMNS}
+            rows={FEFO_SAMPLE}
+            getRowId={(l) => l.lot}
+            onRowClick={setLot}
           />
         </Panel>
 
-        <Panel title="ล็อตตามลำดับ FEFO" subtitle="หมดอายุก่อน จ่ายออกก่อน" action={<SampleTag />}>
-          <ul className="space-y-3">
-            {FEFO_SAMPLE.map((l) => (
-              <li
-                key={l.lot}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-border-soft bg-surface-raised/50 px-5 py-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-label font-medium text-text-primary">{l.item}</p>
-                  <p className="mt-0.5 text-caption text-text-muted">
-                    {l.lot} · {l.quantity}
-                  </p>
-                </div>
-                <StatusPill tone={l.daysLeft <= 30 ? 'warning' : 'success'}>
-                  เหลือ {l.daysLeft} วัน
-                </StatusPill>
-              </li>
-            ))}
-          </ul>
+        <Panel title="รับสินค้าวันนี้" description="ระบบไม่อนุญาตให้รับเกินจำนวนในใบสั่งซื้อ">
+          <EmptyState
+            layout="compact"
+            icon={PackageCheck}
+            title="ยังไม่มีรายการเข้าคลัง"
+            description="เมื่อฝ่ายจัดซื้อออก PO รายการที่ถึงกำหนดรับจะปรากฏที่นี่ พร้อมขั้นตอนตรวจ QC"
+            action={
+              <Button size="sm" soon>
+                เริ่มรับสินค้า
+              </Button>
+            }
+          />
         </Panel>
       </div>
 
-      {/* Mobile: floor staff reach scanning with one thumb */}
-      <button
-        type="button"
-        disabled
-        aria-label="สแกนบาร์โค้ด (จะเปิดใช้ในรอบพัฒนาถัดไป)"
-        className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex size-14 items-center justify-center rounded-full bg-[var(--ws-accent)] text-text-inverse shadow-glow-md disabled:opacity-90 sm:hidden"
+      <Drawer
+        open={lot !== null}
+        onClose={() => setLot(null)}
+        subtitle="Lot / Batch"
+        title={lot?.lot ?? ''}
+        headerExtra={lot && lotStatus(lot)}
+        footer={
+          <Button variant="ghost" onClick={() => setLot(null)}>
+            ปิด
+          </Button>
+        }
       >
-        <ScanBarcode className="size-6" aria-hidden />
-      </button>
+        {lot && (
+          <div className="space-y-8">
+            <SummaryList
+              columns={1}
+              items={[
+                { label: 'สินค้า', value: lot.item },
+                { label: 'จำนวนคงเหลือ', value: lot.quantity },
+                { label: 'ตำแหน่ง', value: lot.location },
+                { label: 'วันที่รับเข้า', value: lot.received },
+                { label: 'วันหมดอายุ', value: `${lot.expires} · เหลือ ${lot.daysLeft} วัน` },
+              ]}
+            />
+            <section>
+              <h3 className="mb-4 text-section text-fg-primary">เส้นทางของ Lot</h3>
+              <WorkflowTimeline
+                orientation="vertical"
+                label={`เส้นทางของ ${lot.lot}`}
+                steps={LOT_STEPS}
+              />
+            </section>
+            <section>
+              <h3 className="mb-3 text-section text-fg-primary">การเคลื่อนไหวล่าสุด</h3>
+              <ActivityFeed
+                entries={[
+                  { who: 'ทีมคลัง', what: `จัดเก็บที่ ${lot.location}`, when: lot.received },
+                  { who: 'QC', what: 'ผ่านการตรวจ', when: lot.received },
+                  { who: 'ทีมคลัง', what: 'รับเข้าตาม PO', when: lot.received },
+                ]}
+              />
+            </section>
+          </div>
+        )}
+      </Drawer>
+
+      <ScanDialog open={scanOpen} onClose={() => setScanOpen(false)} />
     </>
   );
 }

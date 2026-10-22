@@ -9,11 +9,12 @@ import {
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import HomePage from '@/pages/public/HomePage';
 import NotFoundPage from '@/pages/NotFoundPage';
-import { WorkspaceLayout } from '@/components/app/WorkspaceLayout';
+import { AppShell } from '@/components/shell/AppShell';
 import { PrototypeGate } from '@/prototype/PrototypeGate';
 import { lastWorkspace } from '@/prototype/session';
 import ModulePage from '@/workspaces/ModulePage';
 import { WORKSPACE_ORDER, WORKSPACES, type WorkspaceId } from '@/workspaces/registry';
+import { RouteError, WorkspaceNotFound } from '@/workspaces/RouteStates';
 
 // Public pages other than the landing page are code-split.
 const FeaturesPage = lazy(() => import('@/pages/public/FeaturesPage'));
@@ -35,6 +36,24 @@ const DASHBOARDS: Record<WorkspaceId, LazyExoticComponent<ComponentType>> = {
   accounting: lazy(() => import('@/workspaces/accounting/AccountingDashboard')),
   admin: lazy(() => import('@/workspaces/admin/AdminDashboard')),
 };
+
+// Modules with their own page; every other module renders the generic ModulePage blueprint.
+const MODULE_PAGES: Partial<Record<string, LazyExoticComponent<ComponentType>>> = {
+  'executive/departments': lazy(() => import('@/workspaces/executive/DepartmentsPage')),
+  'admin/departments': lazy(() =>
+    import('@/workspaces/admin/ConfigPages').then((m) => ({ default: m.AdminDepartmentsPage })),
+  ),
+  'admin/roles': lazy(() =>
+    import('@/workspaces/admin/ConfigPages').then((m) => ({ default: m.AdminRolesPage })),
+  ),
+  'admin/settings': lazy(() =>
+    import('@/workspaces/admin/ConfigPages').then((m) => ({ default: m.AdminSettingsPage })),
+  ),
+};
+
+// EP02-PROTOTYPE: component gallery for design review. Reachable by URL (and the
+// prototype profile menu) only — never part of a workspace's navigation.
+const DesignLab = lazy(() => import('@/prototype/lab/DesignLab'));
 
 function PageSuspense({ children }: { children: React.ReactNode }) {
   return (
@@ -71,19 +90,28 @@ function workspaceRoutes(): RouteObject[] {
     const Dashboard = DASHBOARDS[id];
     return {
       path: `app/${id}`,
-      element: <WorkspaceLayout workspace={id} />,
+      element: <AppShell workspace={id} />,
       children: [
-        { index: true, element: <Dashboard /> },
+        { index: true, element: <Dashboard />, errorElement: <RouteError /> },
         ...WORKSPACES[id].nav
           .filter((item) => item.path !== '')
-          .map((item) => ({
-            path: item.path,
-            element: <ModulePage workspace={id} path={item.path} />,
-          })),
-        { path: '*', element: <Navigate to={`/app/${id}`} replace /> },
+          .map((item) => {
+            const Custom = MODULE_PAGES[`${id}/${item.path}`];
+            return {
+              path: item.path,
+              element: Custom ? <Custom /> : <ModulePage workspace={id} path={item.path} />,
+              errorElement: <RouteError />,
+            };
+          }),
+        { path: '*', element: <WorkspaceNotFound workspace={id} /> },
       ],
     };
   });
+}
+
+/** The lab renders inside the shell of the reviewer's last workspace. */
+function LabShell() {
+  return <AppShell workspace={lastWorkspace()} />;
 }
 
 export const routes: RouteObject[] = [
@@ -125,7 +153,18 @@ export const routes: RouteObject[] = [
       // production sign-in will open the user's assigned workspace directly.
       {
         element: <PrototypeGate />,
-        children: [{ path: 'app', element: <AppIndex /> }, ...workspaceRoutes()],
+        children: [
+          { path: 'app', element: <AppIndex /> },
+          {
+            path: 'app/prototype',
+            element: <LabShell />,
+            children: [
+              { path: 'ui', element: <DesignLab />, errorElement: <RouteError /> },
+              { path: '*', element: <Navigate to="/app/prototype/ui" replace /> },
+            ],
+          },
+          ...workspaceRoutes(),
+        ],
       },
     ],
   },

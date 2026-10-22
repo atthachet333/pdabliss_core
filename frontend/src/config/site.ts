@@ -7,4 +7,7 @@ export const SITE = {
     'PDA BLISS CORE แพลตฟอร์มปฏิบัติการระดับแผนก ให้ทุกแผนกมีพื้นที่ทำงานของตัวเอง เชื่อมทุกขั้นตอนด้วยข้อมูลชุดเดียวกันทั้งองค์กร',
 } as const;
 
+/** Year printed in the footer copyright line. */
+export const COPYRIGHT_YEAR = 2026;
+
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:1112';

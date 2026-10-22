@@ -84,6 +84,15 @@ Thai and Latin together, with Thai-first readability.
 | `text-caption` | 13px                                   | 1.55        | Metadata                |
 | `text-kpi`     | clamp(28px → 38px), tabular figures    | 1.10        | Numeric KPIs            |
 
+**Simplified Chinese (EP05).** Plex has no Han glyphs, so `:lang(zh-CN)` uses `--font-zh`:
+Plex for Latin, then PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC / CJK SC and
+Source Han Sans SC — Simplified faces named explicitly so no Japanese or Traditional fallback is
+picked. Never mix Traditional characters into `zh-CN` copy.
+
+**Letter-spacing.** Wide tracking (`tracking-[0.14em+]`, uppercase) is for Latin overlines only
+(*DEPARTMENTS*, *CONNECTED WORKFLOW*). Thai labels are never tracked — spaced Thai reads as
+broken text.
+
 Thai stacks vowels and tone marks above and below the baseline, so line-heights are more
 generous than a Latin-only system would use. The smallest text in the product is 12px (inside
 illustrative mockups only); real UI text is ≥ 13px. Numbers use `tabular-nums` (`.tabular`).
@@ -145,6 +154,25 @@ The homepage is eleven chapters with their own art direction — see
 - **Real product, not screenshots.** Previews are the EP02 components with sample data.
 - The final chapter brings the CORE back in CSS (orbits, breathing light) — no second WebGL
   canvas.
+
+## Public shell (EP05)
+
+The header, mega menus, footer, cookie UI and floating utilities share one language — see
+[PUBLIC_SHELL.md](PUBLIC_SHELL.md):
+
+- **Smoked dark glass, not white boxes.** Overlays use near-black surfaces
+  (`rgb(5–7 11–14 18–21 / 0.74–0.99)`), a hairline `border-soft`, and one fine emerald edge light
+  (`via-brand-glow/40–55` gradient line) on top. Mega panels and popovers are near-opaque so
+  the page never ghosts through.
+- **Highlight panels** carry a faint CORE orbit (six nodes) at ≈ 20 % opacity and a radial
+  emerald light from one corner — the whisper of the CORE mark, never a glow on every element.
+- **Footer intensity ≈ 2/10.** Obsidian, one emerald hairline, a soft radial light, two
+  restrained network curves; it should feel like a calm ending.
+- **Contact styling stays on-brand.** Floating contact uses dark emerald icon tiles — no
+  social-media blues/greens, no LINE brand colour, no chat-widget bubble.
+- **Honest copy.** Planned capabilities are tagged *อยู่ในแผนพัฒนา*; packages say
+  *โครงสร้างแพ็คเกจตัวอย่าง · ราคาอยู่ระหว่างกำหนด*; cookie UI states which categories are not
+  in use. No invented clients, uptime, certifications, counts or awards.
 
 ## Imagery
 

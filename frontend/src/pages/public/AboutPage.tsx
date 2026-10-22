@@ -33,7 +33,7 @@ export default function AboutPage() {
         lead={`${SITE.name} พัฒนาโดย ${SITE.company} เป็นผลิตภัณฑ์ที่แยกจาก PDA ONE โดยมุ่งเน้นการทำงานระดับแผนก บทบาท และเวิร์กโฟลว์`}
       />
       <Container className="pb-24">
-        <Reveal stagger className="grid gap-5 md:grid-cols-3">
+        <Reveal stagger id="approach" className="grid gap-5 md:grid-cols-3">
           {BELIEFS.map(({ icon: Icon, title, body }) => (
             <RevealItem key={title} className="rounded-card border border-border-soft bg-surface-base/80 p-7">
               <Icon className="size-7 text-brand-glow" aria-hidden />

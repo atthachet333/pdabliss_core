@@ -84,6 +84,16 @@
   /* Typography — Thai-first */
   --font-sans:
     'IBM Plex Sans Thai', 'Noto Sans Thai', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Simplified Chinese (EP05). IBM Plex Sans Thai covers Thai + Latin only, so
+     Han glyphs come from a Simplified-Chinese system face — listed explicitly
+     so browsers never pick a Japanese or Traditional variant. */
+  --font-zh:
+    'IBM Plex Sans Thai', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC',
+    'Noto Sans CJK SC', 'Source Han Sans SC', system-ui, sans-serif;
+
+  /* Public header: full navigation + mega menus from here up (EP05).
+     Mirrors NAV_DESKTOP_QUERY in src/config/navigation.ts. */
+  --breakpoint-nav: 80rem;
 
   /* Thai stacks vowels and tone marks above and below the baseline,
      so heading line-heights stay generous even at display sizes. */
@@ -245,6 +255,10 @@
   body {
     @apply bg-surface-dark font-sans text-body text-text-primary antialiased;
     min-height: 100dvh;
+  }
+
+  :lang(zh-CN) {
+    font-family: var(--font-zh);
   }
 
   ::selection {

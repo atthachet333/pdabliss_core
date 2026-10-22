@@ -4,12 +4,15 @@ import {
   Navigate,
   Outlet,
   ScrollRestoration,
+  useLocation,
   type RouteObject,
 } from 'react-router';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import HomePage from '@/pages/public/HomePage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { AppShell } from '@/components/shell/AppShell';
+import { localizePath, resolveLocale, type Locale } from '@/i18n/locales';
+import { loadMessages } from '@/i18n/messages';
 import { PrototypeGate } from '@/prototype/PrototypeGate';
 import { lastWorkspace } from '@/prototype/session';
 import ModulePage from '@/workspaces/ModulePage';
@@ -114,40 +117,88 @@ function LabShell() {
   return <AppShell workspace={lastWorkspace()} />;
 }
 
+/** Public pages, shared by every locale (EP05). Page bodies are Thai for now. */
+function publicPages(): RouteObject[] {
+  return [
+    { index: true, element: <HomePage /> },
+    { path: 'features', element: lazyPage(FeaturesPage) },
+    { path: 'departments', element: lazyPage(DepartmentsPage) },
+    { path: 'solutions', element: lazyPage(SolutionsPage) },
+    { path: 'pricing', element: lazyPage(PricingPage) },
+    { path: 'about', element: lazyPage(AboutPage) },
+    { path: 'contact', element: lazyPage(ContactPage) },
+    {
+      path: 'privacy',
+      element: (
+        <PageSuspense>
+          <LegalPage kind="privacy" />
+        </PageSuspense>
+      ),
+    },
+    {
+      path: 'terms',
+      element: (
+        <PageSuspense>
+          <LegalPage kind="terms" />
+        </PageSuspense>
+      ),
+    },
+  ];
+}
+
+/**
+ * Alias prefixes (/th/…, /zh-CN/…, /zh-hans/…) redirect to the canonical
+ * locale URL, keeping the rest of the path and the hash.
+ */
+function LocaleAlias({ alias }: { alias: string }) {
+  const { pathname, search, hash } = useLocation();
+  const rest = pathname.slice(alias.length + 1) || '/';
+  return <Navigate to={`${localizePath(rest, resolveLocale(alias))}${search}${hash}`} replace />;
+}
+
+/**
+ * A prefixed locale (/en, /zh). Its shell dictionary is a separate chunk,
+ * loaded before the route renders — Thai visitors never download it.
+ * /en/login and /zh/login redirect: sign-in is never locale-prefixed.
+ */
+function localeRoutes(path: string, locale: Locale): RouteObject {
+  return {
+    path,
+    // Shown for the moment the dictionary chunk loads on a direct visit.
+    hydrateFallbackElement: <div className="min-h-dvh bg-surface-dark" aria-busy="true" />,
+    lazy: async () => {
+      await loadMessages(locale);
+      return { element: <PublicLayout locale={locale} /> };
+    },
+    children: [
+      ...publicPages(),
+      { path: 'login', element: <Navigate to="/login" replace /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  };
+}
+
 export const routes: RouteObject[] = [
   {
     element: <Root />,
     children: [
+      // Thai — default locale, unprefixed.
       {
         element: <PublicLayout />,
         children: [
-          { index: true, element: <HomePage /> },
-          { path: 'features', element: lazyPage(FeaturesPage) },
-          { path: 'departments', element: lazyPage(DepartmentsPage) },
-          { path: 'solutions', element: lazyPage(SolutionsPage) },
-          { path: 'pricing', element: lazyPage(PricingPage) },
-          { path: 'about', element: lazyPage(AboutPage) },
-          { path: 'contact', element: lazyPage(ContactPage) },
+          ...publicPages(),
           { path: 'login', element: lazyPage(LoginPage) },
-          {
-            path: 'privacy',
-            element: (
-              <PageSuspense>
-                <LegalPage kind="privacy" />
-              </PageSuspense>
-            ),
-          },
-          {
-            path: 'terms',
-            element: (
-              <PageSuspense>
-                <LegalPage kind="terms" />
-              </PageSuspense>
-            ),
-          },
           { path: '*', element: <NotFoundPage /> },
         ],
       },
+      // English and Simplified Chinese — the public shell is localized; page
+      // bodies follow in the localization episode (docs/PUBLIC_SHELL.md).
+      localeRoutes('en', 'en'),
+      localeRoutes('zh', 'zh-CN'),
+      ...['th', 'zh-CN', 'zh-hans'].map((alias) => ({
+        path: `${alias}/*`,
+        element: <LocaleAlias alias={alias} />,
+      })),
       // EP01-PROTOTYPE: workspaces sit behind the demo-only sign-in (src/prototype/).
       // There is no company picker. The prototype's workspace switcher is review-only;
       // production sign-in will open the user's assigned workspace directly.

@@ -10,6 +10,7 @@ export function PlansGrid() {
       {PLANS.map((plan) => (
         <RevealItem
           key={plan.id}
+          id={`plan-${plan.id}`}
           className={cn(
             'relative flex flex-col rounded-card border p-6',
             plan.highlight

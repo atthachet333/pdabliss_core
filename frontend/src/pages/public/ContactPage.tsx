@@ -3,6 +3,7 @@ import { CircleCheck, Info } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ContactDetails } from '@/components/contact/ContactDetails';
 import { PageHero } from '@/components/layout/PageHero';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -49,6 +50,11 @@ export default function ContactPage() {
               <li>• เอกสารและขั้นตอนอนุมัติที่ใช้อยู่</li>
               <li>• โครงสร้างแพ็กเกจที่เหมาะกับองค์กร</li>
             </ul>
+          </div>
+          {/* EP05: channels read from the central contact config (config/contact.ts). */}
+          <div className="rounded-card border border-border-soft bg-surface-base/80 p-6">
+            <h2 className="text-h3 text-text-primary">ช่องทางติดต่อ</h2>
+            <ContactDetails className="mt-5" />
           </div>
           <p className="flex items-start gap-2.5 rounded-2xl border border-border-soft bg-surface-raised/40 p-4 text-caption text-text-secondary">
             <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />

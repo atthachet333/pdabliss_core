@@ -67,6 +67,14 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 Public: `/`, `/departments`, `/features`, `/solutions`, `/pricing`, `/about`, `/contact`,
 `/login`, `/privacy`, `/terms`
 
+Locales (EP05): Thai is the default and unprefixed; the same public pages are served under
+`/en/...` and `/zh/...` (Simplified Chinese) with a fully localized shell — page bodies are
+still Thai. `/login` and `/app/*` are never prefixed. See
+[docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md).
+
+Public contact details (address, phones, email, LINE) live only in
+`frontend/src/config/contact.ts`.
+
 Workspaces (prototype, sign-in required): `/app/executive`, `/app/sales`, `/app/warehouse`,
 `/app/purchasing`, `/app/operations`, `/app/accounting`, `/app/admin` — each with its own
 module routes (e.g. `/app/warehouse/expiry`). Design Lab (prototype only): `/app/prototype/ui`
@@ -112,6 +120,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP03_REPORT.md](docs/EP03_REPORT.md) — interactive CORE Universe & luxury public homepage
 - [docs/HOMEPAGE_EXPERIENCE.md](docs/HOMEPAGE_EXPERIENCE.md) — the eleven-chapter public homepage, header and mega menus
 - [docs/EP04_REPORT.md](docs/EP04_REPORT.md) — flagship homepage experience
+- [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md) — public header, mega menus, localization, footer, contact, cookies, utilities
+- [docs/EP05_REPORT.md](docs/EP05_REPORT.md) — public shell & localization foundation
 
 ---
 

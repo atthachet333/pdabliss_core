@@ -24,8 +24,8 @@ and the EP03 scene in `features/landing/core-world/`).
 | 10 | `#trust` | **Trust** — PDA BLISS COMPANY LIMITED | Editorial, quiet, typographic; one philosophy quote | Links: รู้จัก PDA BLISS (`/about`), Why We Built CORE (`/#why-core`), ติดต่อเรา (`/contact`) |
 | 11 | `#begin` | **Final CTA** — *ระบบที่ดีควรเข้ากับวิธีที่องค์กรของคุณทำงาน ไม่ใช่บังคับให้องค์กรทำงานตามระบบ* | The CORE language returns: CSS orbits and a breathing light (no second WebGL canvas) | ขอคำปรึกษา (`/contact`), สำรวจ CORE เพิ่มเติม (`/features`), ดูแผนกทั้งหมด (`/departments`). No price |
 
-There is **no pricing section** on the homepage. `/pricing` still exists (header Product menu →
-แพ็กเกจ, and the footer).
+There is **no pricing section** on the homepage. `/pricing` still exists (header แพ็คเกจ menu
+and the footer).
 
 A quiet chapter indicator (dots, labels on hover/focus; plain anchor links) appears on very wide
 screens (≥ 1536 px) once the visitor leaves the hero — it never sits over the CORE stage, and
@@ -33,22 +33,11 @@ only its 24 px dots are hit targets.
 
 ## Header
 
-`components/layout/PublicHeader.tsx`, `DesktopNav.tsx`, `MobileMenu.tsx`, `config/navigation.ts`.
-
-- **Desktop (≥ 1280 px):** Product · Departments · Solutions · Industries · Enterprise ·
-  Resources · Company, then TH · ติดต่อเรา · เข้าสู่ระบบ. Pricing is not top-level.
-- Transparent at the top of the page; smoked glass after scrolling, or while a menu is open.
-- **Mega menus** use the disclosure pattern: each item is a button (`aria-expanded`,
-  `aria-controls`) controlling a panel of ordinary links. Hover intent (70 ms open / 160 ms
-  close). Keyboard: ←/→ between items, ↓ opens and focuses the first link, Escape closes and
-  returns focus, tabbing out or clicking outside closes, navigating closes.
-- **No dead links.** Every link points to an existing route or homepage anchor. Destinations
-  without a page yet (Analytics, Mobile, Integrations, industry pages, Security, Scalability,
-  API, Product Guide, FAQ, Updates) are shown as plain-text notes, never as links.
-- **Phones / tablets (< 1280 px):** a full-screen menu (dialog, focus trapped, body scroll
-  locked, Escape closes) with large disclosure rows and ติดต่อเรา / เข้าสู่ระบบ pinned at
-  the bottom.
-- Hash links work from any page: `PublicLayout` scrolls to the target after navigation.
+Superseded in EP05: the header, mega menus, mobile navigation, footer, cookie consent and
+floating utilities are now the shared public shell — see [PUBLIC_SHELL.md](PUBLIC_SHELL.md).
+The homepage-specific rules that remain: the shell's floating utility dock stays hidden while
+the CORE hero is in view, and cross-page hash links (`/#connected-flow`) scroll to their
+chapter after navigation.
 
 ## Scrolling rules
 

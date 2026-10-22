@@ -134,9 +134,9 @@ describe('homepage hero — CORE Universe', () => {
   it('public navigation reaches other pages', async () => {
     const { router } = renderRoute('/');
     const nav = await screen.findByRole('navigation', { name: 'เมนูหลัก' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'Product' }));
-    const panel = screen.getByRole('region', { name: 'เมนู Product' });
-    await userEvent.click(within(panel).getByRole('link', { name: /ฟีเจอร์/ }));
+    await userEvent.click(within(nav).getByRole('button', { name: 'วิธีการทำงาน' }));
+    const panel = screen.getByRole('region', { name: 'เมนูวิธีการทำงาน' });
+    await userEvent.click(within(panel).getByRole('link', { name: /Workflow และ Approval/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/features'));
   });
 });

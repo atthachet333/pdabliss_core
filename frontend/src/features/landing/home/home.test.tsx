@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { NAV_GROUPS } from '@/config/navigation';
+import { shellLinkTargets } from '@/config/navigation';
 import { renderRoute } from '@/test/render';
 import { CHAPTERS } from './chapters';
 import { FLOWS } from './flows';
@@ -89,10 +89,7 @@ describe('homepage chapters (EP04)', () => {
   it('every in-page link from the hero, the mega menus and the chapter indicator has a target', async () => {
     await renderHome();
     const hashes = new Set<string>(['who-for', 'fit']);
-    for (const g of NAV_GROUPS) {
-      for (const l of g.links) if (l.to.startsWith('/#')) hashes.add(l.to.slice(2));
-      if (g.cta.to.startsWith('/#')) hashes.add(g.cta.to.slice(2));
-    }
+    for (const to of shellLinkTargets()) if (to.startsWith('/#')) hashes.add(to.slice(2));
     const progress = screen.getByRole('navigation', { name: 'บทของหน้า' });
     for (const a of within(progress).getAllByRole('link')) {
       hashes.add(a.getAttribute('href')!.slice(1));

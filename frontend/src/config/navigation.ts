@@ -1,6 +1,7 @@
 import {
+  BadgeCheck,
   Blocks,
-  BookOpen,
+  Building,
   Building2,
   Calculator,
   Compass,
@@ -9,19 +10,20 @@ import {
   Factory,
   FileCheck2,
   GitBranch,
-  Hammer,
   Handshake,
   Hourglass,
   Info,
+  KeyRound,
   Layers,
   LifeBuoy,
-  MessageSquare,
+  Lightbulb,
   Network,
-  Orbit,
+  Plug,
+  Radar,
   Route,
   ShieldCheck,
   ShoppingCart,
-  Sparkles,
+  Sprout,
   Truck,
   Warehouse,
   Workflow,
@@ -29,263 +31,161 @@ import {
 } from 'lucide-react';
 
 /*
- * Public site information architecture (EP04).
+ * Public site information architecture (EP05).
  *
- * Every link points to a destination that exists today — a public route, a
- * department anchor, or a homepage chapter. Topics whose dedicated page comes
- * in a later episode are listed as `notes` (plain text, never a dead link).
- * Pricing is intentionally not a top-level item: it lives under Product.
+ * This file holds the STRUCTURE only — ids, destinations and icons. Every
+ * visible word lives in the locale dictionaries (src/i18n/messages/*), keyed
+ * by the ids below, so the same structure renders in Thai, English and
+ * Simplified Chinese.
+ *
+ * No dead links: every `to` is a public route that exists today, a homepage
+ * chapter anchor, or an anchor on an existing page. An item without `to` is
+ * informational (rendered as text, never a link) — used for capabilities that
+ * are planned but not live.
  */
 
-export interface NavLinkItem {
-  label: string;
-  description: string;
-  to: string;
-  icon: LucideIcon;
-}
+/**
+ * Full navigation + mega menus from this width up; the dedicated mobile
+ * navigation below it. Mirrors `--breakpoint-nav` in styles/index.css.
+ */
+export const NAV_DESKTOP_QUERY = '(min-width: 80rem)';
 
-export interface NavGroup {
+export type MegaGroupId =
+  'departments' | 'packages' | 'howItWorks' | 'solutions' | 'enterprise' | 'about';
+
+export interface MegaItem {
   id: string;
-  label: string;
-  /** One sentence shown in the menu's side panel. */
-  summary: string;
-  links: readonly NavLinkItem[];
-  /** Topics without their own page yet — shown as text, not links. */
-  notes?: { title: string; items: readonly string[] };
-  /** Primary call to action in the side panel. */
-  cta: { label: string; to: string };
+  icon: LucideIcon;
+  /** Omit for an informational (non-link) item. */
+  to?: string;
 }
 
-export const NAV_GROUPS: readonly NavGroup[] = [
-  {
-    id: 'product',
-    label: 'Product',
-    summary: 'แพลตฟอร์มปฏิบัติการที่ให้แต่ละแผนกมีพื้นที่ทำงานของตัวเอง บนข้อมูลชุดเดียวกัน',
-    links: [
-      { label: 'ภาพรวม CORE', description: 'CORE คืออะไร และทำงานอย่างไร', to: '/', icon: Orbit },
-      {
-        label: 'แนวคิดของ CORE',
-        description: 'เริ่มจากวิธีทำงานของแต่ละแผนก',
-        to: '/#why-core',
-        icon: Compass,
-      },
-      {
-        label: 'โลกการทำงานของแต่ละแผนก',
-        description: 'หกมุมมองการทำงานในระบบเดียว',
-        to: '/#department-worlds',
-        icon: Layers,
-      },
-      {
-        label: 'เส้นทางงานข้ามแผนก',
-        description: 'งานส่งต่อกันบนข้อมูลชุดเดียว',
-        to: '/#connected-flow',
-        icon: Route,
-      },
-      { label: 'ฟีเจอร์', description: 'ความสามารถหลักของระบบ', to: '/features', icon: Sparkles },
-      {
-        label: 'แพ็กเกจ',
-        description: 'โครงสร้างแพ็กเกจสำหรับองค์กร',
-        to: '/pricing',
-        icon: Blocks,
-      },
-    ],
-    notes: { title: 'กำลังจัดทำหน้าเฉพาะ', items: ['Analytics', 'Mobile', 'Integrations'] },
-    cta: { label: 'สำรวจ CORE', to: '/#who-for' },
-  },
-  {
+export interface MegaGroup {
+  id: MegaGroupId;
+  items: readonly MegaItem[];
+  /** Destination of the highlight panel's call to action (label in messages). */
+  cta?: string;
+}
+
+export type TopNavItem =
+  { kind: 'link'; id: 'overview' | 'contact'; to: string } | { kind: 'mega'; id: MegaGroupId };
+
+export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
+  departments: {
     id: 'departments',
-    label: 'Departments',
-    summary: 'แต่ละแผนกเห็นงานของตัวเองก่อน — แต่ยังเชื่อมกับทุกแผนกผ่าน CORE',
-    links: [
-      {
-        label: 'ผู้บริหาร',
-        description: 'ภาพรวมทุกแผนก ข้อยกเว้น และการอนุมัติ',
-        to: '/departments#executive',
-        icon: Crown,
-      },
-      {
-        label: 'ฝ่ายขาย',
-        description: 'จากคำสั่งซื้อลูกค้า ถึงการส่งมอบ',
-        to: '/departments#sales',
-        icon: ShoppingCart,
-      },
-      {
-        label: 'ปฏิบัติการ',
-        description: 'ใบสั่งงาน ลำดับงาน และความคืบหน้า',
-        to: '/departments#operations',
-        icon: Factory,
-      },
-      {
-        label: 'คลังสินค้า',
-        description: 'รับเข้า สต็อก Lot และวันหมดอายุ',
-        to: '/departments#warehouse',
-        icon: Warehouse,
-      },
-      {
-        label: 'จัดซื้อ',
-        description: 'ใบขอซื้อ ใบสั่งซื้อ และ Supplier',
-        to: '/departments#purchasing',
-        icon: Truck,
-      },
-      {
-        label: 'บัญชีและการเงิน',
-        description: 'คำขอจ่าย เอกสาร และยอดค้าง',
-        to: '/departments#accounting',
-        icon: Calculator,
-      },
+    items: [
+      { id: 'executive', icon: Crown, to: '/departments#executive' },
+      { id: 'sales', icon: ShoppingCart, to: '/departments#sales' },
+      { id: 'operations', icon: Factory, to: '/departments#operations' },
+      { id: 'warehouse', icon: Warehouse, to: '/departments#warehouse' },
+      { id: 'purchasing', icon: Truck, to: '/departments#purchasing' },
+      { id: 'accounting', icon: Calculator, to: '/departments#accounting' },
     ],
-    cta: { label: 'ดูทุกแผนก', to: '/departments' },
+    cta: '/departments',
   },
-  {
+  packages: {
+    id: 'packages',
+    items: [
+      { id: 'starter', icon: Sprout, to: '/pricing#plan-starter' },
+      { id: 'business', icon: Blocks, to: '/pricing#plan-business' },
+      { id: 'professional', icon: Layers, to: '/pricing#plan-professional' },
+      { id: 'enterprise', icon: Building2, to: '/pricing#plan-enterprise' },
+    ],
+    cta: '/contact',
+  },
+  howItWorks: {
+    id: 'howItWorks',
+    items: [
+      { id: 'how', icon: Compass, to: '/#why-core' },
+      { id: 'crossDept', icon: Route, to: '/#connected-flow' },
+      { id: 'workflow', icon: Workflow, to: '/features' },
+      { id: 'tracking', icon: Radar, to: '/#executive' },
+      { id: 'errorPrevention', icon: ShieldCheck, to: '/#error-control' },
+    ],
+    cta: '/#connected-flow',
+  },
+  solutions: {
     id: 'solutions',
-    label: 'Solutions',
-    summary: 'ปัญหาที่องค์กรหลายแผนกพบบ่อย และวิธีที่ CORE ถูกออกแบบมาเพื่อรับมือ',
-    links: [
-      {
-        label: 'ลดความผิดพลาดจากคน',
-        description: 'ป้องกัน ตรวจจับ และควบคุมก่อนเกิดปัญหา',
-        to: '/#error-control',
-        icon: ShieldCheck,
-      },
-      {
-        label: 'เชื่อมหลายแผนก',
-        description: 'แยกประสบการณ์ แต่ไม่แยกข้อมูล',
-        to: '/#department-worlds',
-        icon: Network,
-      },
-      {
-        label: 'Workflow และการอนุมัติ',
-        description: 'ขั้นตอนที่ชัดเจน ส่งต่อได้เอง',
-        to: '/#connected-flow',
-        icon: Workflow,
-      },
-      {
-        label: 'มองเห็นการปฏิบัติงาน',
-        description: 'สถานะเดียวกันทั้งองค์กร',
-        to: '/#executive',
-        icon: Eye,
-      },
-      {
-        label: 'ควบคุมสต็อกและวันหมดอายุ',
-        description: 'Lot ตามลำดับ FEFO',
-        to: '/departments#warehouse',
-        icon: Hourglass,
-      },
-      {
-        label: 'การควบคุมของผู้บริหาร',
-        description: 'ข้อยกเว้นที่ต้องตัดสินใจ',
-        to: '/departments#executive',
-        icon: Crown,
-      },
+    items: [
+      { id: 'humanError', icon: ShieldCheck, to: '/#error-control' },
+      { id: 'multiDept', icon: Network, to: '/#department-worlds' },
+      { id: 'workflow', icon: GitBranch, to: '/#connected-flow' },
+      { id: 'stock', icon: Hourglass, to: '/departments#warehouse' },
+      { id: 'visibility', icon: Eye, to: '/#executive' },
+      { id: 'management', icon: Crown, to: '/departments#executive' },
     ],
-    cta: { label: 'ดูตัวอย่างการใช้งาน', to: '/solutions' },
+    cta: '/solutions',
   },
-  {
-    id: 'industries',
-    label: 'Industries',
-    summary: 'CORE ออกแบบตามแผนกและกระบวนการ จึงปรับใช้ได้กับหลายประเภทธุรกิจ',
-    links: [
-      {
-        label: 'ตัวอย่างการใช้งาน',
-        description: 'ผลิตตามคำสั่งซื้อ สินค้ามีวันหมดอายุ และจัดซื้อบ่อย',
-        to: '/solutions',
-        icon: BookOpen,
-      },
-      {
-        label: 'ปรึกษาสำหรับธุรกิจของคุณ',
-        description: 'คุยกับทีมเพื่อดูว่า CORE เหมาะหรือไม่',
-        to: '/contact',
-        icon: MessageSquare,
-      },
-    ],
-    notes: {
-      title: 'กลุ่มธุรกิจ · หน้าเฉพาะกำลังจัดทำ',
-      items: [
-        'การผลิต (Manufacturing)',
-        'การจัดจำหน่าย (Distribution)',
-        'ค้าปลีก (Retail)',
-        'งานบริการ (Services)',
-        'อสังหาริมทรัพย์ (Property)',
-        'การดำเนินงานเฉพาะทาง',
-      ],
-    },
-    cta: { label: 'ดูว่า CORE เหมาะกับองค์กรคุณหรือไม่', to: '/#fit' },
-  },
-  {
+  enterprise: {
     id: 'enterprise',
-    label: 'Enterprise',
-    summary: 'เริ่มจากกระบวนการที่ใช้วันนี้ และขยายไปพร้อมกับความซับซ้อนขององค์กร',
-    links: [
-      {
-        label: 'ภาพรวมสำหรับองค์กร',
-        description: 'โครงสร้างที่ขยายได้ตามการเติบโต',
-        to: '/#enterprise',
-        icon: Building2,
-      },
-      {
-        label: 'Audit และการควบคุม',
-        description: 'ทุกการเปลี่ยนแปลงย้อนดูได้',
-        to: '/#error-control',
-        icon: FileCheck2,
-      },
-      {
-        label: 'Workflow ตามองค์กร',
-        description: 'ลำดับขั้นและการอนุมัติของคุณเอง',
-        to: '/#connected-flow',
-        icon: GitBranch,
-      },
-      {
-        label: 'การวางระบบและการดูแล',
-        description: 'วางระบบร่วมกับทีมของคุณ',
-        to: '/contact',
-        icon: LifeBuoy,
-      },
+    items: [
+      { id: 'scale', icon: Building, to: '/#enterprise' },
+      { id: 'security', icon: KeyRound },
+      { id: 'audit', icon: FileCheck2, to: '/#error-control' },
+      { id: 'customWorkflow', icon: Workflow, to: '/#connected-flow' },
+      { id: 'integration', icon: Plug },
+      { id: 'support', icon: LifeBuoy, to: '/contact' },
     ],
-    notes: { title: 'ทิศทางสถาปัตยกรรม', items: ['Security', 'Scalability', 'API & Integration'] },
-    cta: { label: 'คุยกับทีม Enterprise', to: '/contact' },
+    cta: '/contact',
   },
-  {
-    id: 'resources',
-    label: 'Resources',
-    summary: 'ทำความเข้าใจ CORE ก่อนตัดสินใจ',
-    links: [
-      {
-        label: 'CORE ทำงานอย่างไร',
-        description: 'แนวคิดและเส้นทางงานข้ามแผนก',
-        to: '/#why-core',
-        icon: Compass,
-      },
-      {
-        label: 'ตัวอย่างการใช้งาน',
-        description: 'สถานการณ์จริงของธุรกิจหลายแผนก',
-        to: '/solutions',
-        icon: BookOpen,
-      },
-      { label: 'ฟีเจอร์', description: 'ความสามารถหลักของระบบ', to: '/features', icon: Sparkles },
+  about: {
+    id: 'about',
+    items: [
+      { id: 'company', icon: Info, to: '/about' },
+      { id: 'why', icon: Lightbulb, to: '/#trust' },
+      { id: 'approach', icon: BadgeCheck, to: '/about#approach' },
+      { id: 'consulting', icon: Handshake, to: '/contact' },
     ],
-    notes: { title: 'กำลังจัดทำ', items: ['Product Guide', 'FAQ', 'Updates'] },
-    cta: { label: 'ขอคำปรึกษา', to: '/contact' },
+    cta: '/contact',
+  },
+};
+
+/** The approved top-level order. */
+export const TOP_NAV: readonly TopNavItem[] = [
+  { kind: 'link', id: 'overview', to: '/' },
+  { kind: 'mega', id: 'departments' },
+  { kind: 'mega', id: 'packages' },
+  { kind: 'mega', id: 'howItWorks' },
+  { kind: 'mega', id: 'solutions' },
+  { kind: 'mega', id: 'enterprise' },
+  { kind: 'mega', id: 'about' },
+  { kind: 'link', id: 'contact', to: '/contact' },
+];
+
+export const MEGA_ORDER: readonly MegaGroupId[] = TOP_NAV.flatMap((i) =>
+  i.kind === 'mega' ? [i.id] : [],
+);
+
+/** Footer link groups — a calm subset of the header IA. */
+export const FOOTER_GROUPS = [
+  {
+    id: 'quick',
+    links: [
+      { id: 'overview', to: '/' },
+      { id: 'departments', to: '/departments' },
+      { id: 'packages', to: '/pricing' },
+      { id: 'howItWorks', to: '/#why-core' },
+    ],
   },
   {
     id: 'company',
-    label: 'Company',
-    summary: 'PDA BLISS COMPANY LIMITED — ผู้พัฒนา PDA BLISS CORE',
     links: [
-      { label: 'รู้จัก PDA BLISS', description: 'บริษัทผู้พัฒนา CORE', to: '/about', icon: Info },
-      {
-        label: 'ทำไมเราสร้าง CORE',
-        description: 'แนวคิดเบื้องหลังระบบ',
-        to: '/#trust',
-        icon: Hammer,
-      },
-      {
-        label: 'บริการให้คำปรึกษา',
-        description: 'วางกระบวนการก่อนวางระบบ',
-        to: '/contact',
-        icon: Handshake,
-      },
-      { label: 'ติดต่อเรา', description: 'คุยกับทีมงาน', to: '/contact', icon: MessageSquare },
+      { id: 'solutions', to: '/solutions' },
+      { id: 'enterprise', to: '/#enterprise' },
+      { id: 'about', to: '/about' },
+      { id: 'contact', to: '/contact' },
     ],
-    cta: { label: 'ติดต่อเรา', to: '/contact' },
   },
-];
+] as const;
+
+/** Every internal destination the shell links to (for dead-link tests). */
+export function shellLinkTargets(): string[] {
+  const targets = new Set<string>();
+  for (const item of TOP_NAV) if (item.kind === 'link') targets.add(item.to);
+  for (const g of Object.values(MEGA_GROUPS)) {
+    for (const i of g.items) if (i.to) targets.add(i.to);
+    if (g.cta) targets.add(g.cta);
+  }
+  for (const g of FOOTER_GROUPS) for (const l of g.links) targets.add(l.to);
+  return [...targets];
+}

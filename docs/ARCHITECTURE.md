@@ -42,11 +42,16 @@ frontend/src/
 ├── components/
 │   ├── ui/         Button, Section, Badge, Field (+ *Styles.ts class helpers)
 │   ├── brand/      Logo / LogoMark
-│   ├── layout/     PublicLayout, PublicHeader, PublicFooter, PageHero
+│   ├── layout/     public shell (EP05): PublicLayout, PublicHeader, DesktopNav, MegaPanel,
+│   │               MobileMenu, LanguageSelector, PublicFooter, UtilityDock; PageHero
+│   ├── contact/    ContactDetails (reads config/contact.ts)
 │   ├── core/       internal design system (EP02): StatusBadge, PageHeader, Kpi, DataTable,
 │   │               forms, Modal/Drawer/Sheet, WorkflowTimeline, Task/ExceptionItem, states…
 │   └── shell/      AppShell: top bar, sidebar/rail, phone bottom bar, search, notifications
-├── config/         site constants, department content model
+├── config/         site constants, department content model, public IA (navigation.ts),
+│                   central contact details (contact.ts)
+├── i18n/           public-shell locales (th default, en, zh-CN), typed dictionaries, URL mapping
+├── features/consent/ cookie consent store, banner and preferences dialog
 ├── features/landing/
 │   ├── universe/   CORE Universe hero visual (SVG geometry + HTML nodes)
 │   ├── sections/   the ten landing-page sections
@@ -61,6 +66,17 @@ frontend/src/
 
 - **Routing.** React Router 8 data router. The landing page is in the main bundle for a fast
   first paint; every other public page and every workspace dashboard is a lazy chunk.
+- **Public shell (EP05).** Every public page renders inside `PublicLayout`: header + mega menus,
+  mobile navigation, footer, cookie consent and the floating utility dock — pages never build
+  their own. Structure lives in `config/navigation.ts`, words in `i18n/messages/*`, contact
+  values only in `config/contact.ts`. See [PUBLIC_SHELL.md](PUBLIC_SHELL.md).
+- **Locale routing (EP05).** `publicPages()` is mounted three times: unprefixed (Thai, default,
+  plus `/login`), `/en` and `/zh`. The prefixed groups load their shell dictionary with the
+  route's `lazy()` before rendering; `/th/*`, `/zh-CN/*`, `/zh-hans/*` redirect to canonical
+  URLs; `/login` and `/app/*` are never prefixed. Page bodies are Thai in every locale for now.
+- **Cookie consent (EP05).** A versioned record in `localStorage`
+  (`pdabliss-core:cookie-consent`), read through `useConsent()`; nothing is sent to the
+  backend. No analytics/marketing tools exist yet — any future one must check consent first.
 - **Workspaces.** `workspaces/registry.ts` declares each workspace's navigation, accent colour,
   phone-bar destinations and module *blueprints* (list columns, filters, primary action, empty
   copy). Route groups `/app/<workspace>/<module>` are generated from it; modules without their

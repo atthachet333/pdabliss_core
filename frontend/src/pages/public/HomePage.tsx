@@ -1,38 +1,38 @@
 import { usePageMeta } from '@/lib/usePageMeta';
-import { ConnectedWorkflowSection } from '@/features/landing/sections/ConnectedWorkflowSection';
-import { DepartmentExperiencesSection } from '@/features/landing/sections/DepartmentExperiencesSection';
-import { DifferenceSection } from '@/features/landing/sections/DifferenceSection';
-import { ErrorPreventionSection } from '@/features/landing/sections/ErrorPreventionSection';
-import { FinalCtaSection } from '@/features/landing/sections/FinalCtaSection';
+import { ChapterProgress } from '@/features/landing/home/ChapterProgress';
+import { ComplexityChapter } from '@/features/landing/home/ComplexityChapter';
+import { ConnectedFlowChapter } from '@/features/landing/home/ConnectedFlowChapter';
+import { DepartmentWorldsChapter } from '@/features/landing/home/DepartmentWorldsChapter';
+import { EnterpriseChapter } from '@/features/landing/home/EnterpriseChapter';
+import { ErrorControlChapter } from '@/features/landing/home/ErrorControlChapter';
+import { ExecutiveChapter } from '@/features/landing/home/ExecutiveChapter';
+import { FinalChapter } from '@/features/landing/home/FinalChapter';
+import { TrustChapter } from '@/features/landing/home/TrustChapter';
+import { WhoForChapter } from '@/features/landing/home/WhoForChapter';
+import { WhyCoreChapter } from '@/features/landing/home/WhyCoreChapter';
 import { HeroExperience } from '@/features/landing/sections/HeroExperience';
-import {
-  DepartmentsSlide,
-  PresentationProgress,
-  ProcessSlide,
-} from '@/features/landing/sections/PresentationSlides';
-import { PlansSection } from '@/features/landing/sections/PlansSection';
-import { ProductPreviewSection } from '@/features/landing/sections/ProductPreviewSection';
-import { ProductTransitionSection } from '@/features/landing/sections/ProductTransitionSection';
-import { RoleWorkspaceSection } from '@/features/landing/sections/RoleWorkspaceSection';
 
+/**
+ * The homepage is one story in eleven chapters (see docs/HOMEPAGE_EXPERIENCE.md):
+ * WOW → curiosity → trust → product understanding. Pricing lives on /pricing.
+ */
 export default function HomePage() {
   usePageMeta(null);
 
   return (
     <>
-      <PresentationProgress />
+      <ChapterProgress />
       <HeroExperience />
-      <DepartmentsSlide />
-      <ProcessSlide />
-      <ProductTransitionSection />
-      <DifferenceSection />
-      <DepartmentExperiencesSection />
-      <RoleWorkspaceSection />
-      <ConnectedWorkflowSection />
-      <ErrorPreventionSection />
-      <ProductPreviewSection />
-      <PlansSection />
-      <FinalCtaSection />
+      <WhoForChapter />
+      <ComplexityChapter />
+      <WhyCoreChapter />
+      <DepartmentWorldsChapter />
+      <ConnectedFlowChapter />
+      <ErrorControlChapter />
+      <ExecutiveChapter />
+      <EnterpriseChapter />
+      <TrustChapter />
+      <FinalChapter />
     </>
   );
 }

@@ -53,7 +53,7 @@ function HeroCta({
         ry.set(0);
       }}
       whileTap={{ scale: 0.98 }}
-      className={buttonClasses(variant, 'lg')}
+      className={buttonClasses(variant, 'lg', 'h-auto min-h-13 py-3 text-center whitespace-normal')}
     >
       {variant === 'primary' && (
         <span
@@ -178,34 +178,34 @@ export function HeroExperience() {
               {...intro(0.1)}
             >
               <span className="size-1.5 rounded-full bg-brand-glow shadow-glow-sm" aria-hidden />
-              Department Operations Platform
+              PDA BLISS CORE · Department Operations Platform
             </motion.p>
             <motion.h1
               id="hero-title"
-              className="mt-6 text-display text-text-primary lg:text-[clamp(2.5rem,3.25vw,3.5rem)]"
+              className="mt-6 text-display text-text-primary lg:text-[clamp(2.25rem,2.8vw,3.25rem)]"
               {...intro(0.2)}
             >
-              <span className="block">ทุกแผนกทำงานได้เต็มที่</span>
+              <span className="block">แต่ละแผนกทำงานได้เต็มที่</span>
               <span className="block text-gradient-brand">ทุกงานเชื่อมเป็นระบบเดียว</span>
             </motion.h1>
             <motion.p
               className="mt-6 max-w-[34rem] text-body-lg text-text-secondary"
               {...intro(0.32)}
             >
-              PDA BLISS CORE ให้แต่ละแผนกมีพื้นที่ทำงานที่ออกแบบมาเพื่องานของตัวเอง และเชื่อมข้อมูล
-              งาน และขั้นตอนของทั้งองค์กรไว้ในระบบเดียว
+              ทุกแผนกมีพื้นที่ทำงานที่ออกแบบมาเพื่องานของตัวเองโดยเฉพาะ —
+              และทุกพื้นที่เชื่อมถึงกันด้วย ข้อมูลชุดเดียว ไม่ต้องกรอกซ้ำ ไม่ต้องไล่ถามสถานะข้ามแผนก
             </motion.p>
             <motion.div className="mt-9 flex flex-wrap items-center gap-3" {...intro(0.45)}>
-              <HeroCta href="#preview" variant="primary">
-                ดูภาพรวมระบบ
-                <ArrowRight
-                  className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+              <HeroCta href="#who-for" variant="primary">
+                สำรวจ CORE
+                <ArrowDown
+                  className="size-4 transition-transform duration-200 group-hover:translate-y-0.5"
                   aria-hidden
                 />
               </HeroCta>
-              <HeroCta href="#core-story" variant="secondary">
-                สำรวจ CORE
-                <ArrowDown className="size-4" aria-hidden />
+              <HeroCta href="#fit" variant="secondary">
+                ดูว่า CORE เหมาะกับองค์กรของคุณหรือไม่
+                <ArrowRight className="size-4 shrink-0" aria-hidden />
               </HeroCta>
             </motion.div>
             {/* Desktop: department detail sits beside the world, never over a node. */}

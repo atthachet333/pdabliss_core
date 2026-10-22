@@ -9,11 +9,14 @@ describe('public website', () => {
   it('renders the CORE Universe landing page with the primary CTAs', async () => {
     renderRoute('/');
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
-      'ทุกแผนกทำงานได้เต็มที่',
+      'แต่ละแผนกทำงานได้เต็มที่',
     );
     expect(screen.getByRole('figure', { name: /CORE Universe/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /ดูภาพรวมระบบ/ })).toHaveAttribute('href', '#preview');
-    expect(screen.getAllByRole('link', { name: /เริ่มทดลองใช้/ }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'สำรวจ CORE' })).toHaveAttribute('href', '#who-for');
+    expect(
+      screen.getByRole('link', { name: 'ดูว่า CORE เหมาะกับองค์กรของคุณหรือไม่' }),
+    ).toHaveAttribute('href', '#fit');
+    expect(screen.getByRole('link', { name: /ขอคำปรึกษา/ })).toHaveAttribute('href', '/contact');
   });
 
   it('offers every orbiting department as an accessible control in the CORE Universe', async () => {

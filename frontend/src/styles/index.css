@@ -146,6 +146,12 @@
   --animate-drift: drift 60s var(--ease-calm) infinite alternate;
   --animate-flow: flow 6s linear infinite;
   --animate-sweep: sweep 2.4s var(--ease-core);
+  /* Homepage world environments (EP04) — slow, low-contrast, stopped under reduced motion */
+  --animate-route: route 8s linear infinite;
+  --animate-now: now-line 14s linear infinite;
+  --animate-scan: scan-line 7s var(--ease-calm) infinite alternate;
+  --animate-verify: verify 4.5s var(--ease-calm) infinite;
+  --animate-horizon: horizon 6s var(--ease-core) infinite;
 
   @keyframes core-breathe {
     0%,
@@ -169,6 +175,44 @@
   @keyframes flow {
     to {
       stroke-dashoffset: -240;
+    }
+  }
+  @keyframes route {
+    to {
+      stroke-dashoffset: -292;
+    }
+  }
+  @keyframes now-line {
+    from {
+      transform: translateX(80px);
+    }
+    to {
+      transform: translateX(1120px);
+    }
+  }
+  @keyframes scan-line {
+    to {
+      transform: translateY(500px);
+    }
+  }
+  @keyframes verify {
+    0%,
+    100% {
+      opacity: 0.12;
+    }
+    40%,
+    70% {
+      opacity: 0.75;
+    }
+  }
+  @keyframes horizon {
+    from {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    to {
+      transform: scale(2.6);
+      opacity: 0;
     }
   }
   @keyframes sweep {

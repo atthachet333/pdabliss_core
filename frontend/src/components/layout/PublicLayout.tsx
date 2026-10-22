@@ -1,8 +1,32 @@
-import { Outlet } from 'react-router';
+import { useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router';
 import { PublicFooter } from './PublicFooter';
 import { PublicHeader } from './PublicHeader';
 
+/**
+ * Scrolls to `#hash` targets after client-side navigation (e.g. a mega-menu
+ * link to `/#connected-flow` from another page). Retries briefly because the
+ * homepage chapters may still be mounting.
+ */
+function useHashScroll() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const id = decodeURIComponent(hash.slice(1));
+    let tries = 0;
+    let frame = 0;
+    const attempt = () => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView?.({ block: 'start' });
+      else if (tries++ < 30) frame = requestAnimationFrame(attempt);
+    };
+    frame = requestAnimationFrame(attempt);
+    return () => cancelAnimationFrame(frame);
+  }, [pathname, hash]);
+}
+
 export function PublicLayout() {
+  useHashScroll();
   return (
     <div className="relative flex min-h-dvh flex-col">
       <a

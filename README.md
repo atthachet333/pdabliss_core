@@ -110,6 +110,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP02_REPORT.md](docs/EP02_REPORT.md) — internal design system & workspace foundation
 - [docs/CORE_WORLD.md](docs/CORE_WORLD.md) — the interactive CORE World homepage (WebGL)
 - [docs/EP03_REPORT.md](docs/EP03_REPORT.md) — interactive CORE Universe & luxury public homepage
+- [docs/HOMEPAGE_EXPERIENCE.md](docs/HOMEPAGE_EXPERIENCE.md) — the eleven-chapter public homepage, header and mega menus
+- [docs/EP04_REPORT.md](docs/EP04_REPORT.md) — flagship homepage experience
 
 ---
 

@@ -14,8 +14,8 @@ Source of truth: `frontend/src/motion/tokens.ts` (Framer Motion) and the `--ease
 3. **Restrained travel.** Public-site pointer parallax is capped at 12 px (the CORE World hero uses none — the pointer only moves light); magnetic buttons at 5 px; hover
    lift at 4 px.
 4. **Cheap to render.** Animate `transform` and `opacity` (plus SVG stroke offset for line
-   pulses). No layout-affecting properties, no scroll listeners — reveals use
-   IntersectionObserver.
+   pulses). No layout-affecting properties. Reveals use IntersectionObserver; scroll-linked
+   chapters only *read* the native scroll position (Framer `useScroll`) — never intercept it.
 5. **Once.** Scroll reveals, line draws and counters run once per page view.
 6. **Optional.** Everything degrades to a static, complete layout under reduced motion.
 
@@ -50,26 +50,42 @@ Source of truth: `frontend/src/motion/tokens.ts` (Framer Motion) and the `--ease
 | Pointer | moves the glass highlight / rim light only, plus a ≤ 0.012 rad depth tilt (≈ 2–4 px); no parallax | λ ≈ 4/s |
 | Drag | only from the CORE / orbit area, button held; yaw ±0.6, pitch ±0.15 rad; restrained inertia (settles < 1 s); eases home after 2.6 s idle | λ ≈ 6/s |
 | Hover / select | node grows and glows, its spoke and pulses brighten, others dim — no camera move | λ ≈ 9/s |
-| Slide 02 | workspace cards unfold outward from a CORE emblem (staggered 80 ms), connectors draw | 0.75 s, once |
-| Slide 03 | a data pulse travels the department route station by station; stations complete in turn (only while on screen) | 1.1 s / station |
-| Slides | full-height scenes activated on entry, progress dots — native scroll, no snapping, no wheel handling | — |
-| Product transition | CORE node clip-path circle → product window; data lines flatten into rules | scroll-linked |
 
 Physics: exponential damping (frame-rate independent) and ease-out curves — no elastic springs.
 CTA magnetic pull is ≤ 3 px with a critically-damped spring.
+
+### Homepage chapters (EP04 — see [HOMEPAGE_EXPERIENCE.md](HOMEPAGE_EXPERIENCE.md))
+
+| Chapter | Motion | Timing |
+| ------- | ------ | ------ |
+| Chapter mark | data line draws down (`scaleY`), once | 0.9 s |
+| Who For | short desktop pin; organization diagram evolves through four stages from scroll position | `250vh`, stage = scroll ÷ 4 |
+| Complexity | fragments drift and tilt apart; tangle lines fade in (scroll-linked transforms) | whole chapter |
+| Why CORE | statements blur-in once; short pin morphs ONE LARGE SYSTEM → CORE geometry | `230vh`, morph over 20–75 % |
+| Department Worlds | world switch: environment crossfades with a 1.03 → 1 settle; text and preview rise 12–16 px | 0.45–0.8 s |
+| World art | CSS loops per world (route dashes, now line, rack scan, approval dot, verification ticks, horizon) | 4.5–14 s |
+| Connected Flow | route draws (`pathLength`); a pulse follows the route geometry (measured with `getPointAtLength`) station to station — only while in view; pausable | 1.6 s draw, 2.4 s / station |
+| Human Error | scenario phases: flow → interrupted → identified → corrected → continued — only while in view; replayable | 1.1–2.6 s per phase |
+| Executive | five signal lines draw into the command view, staggered | 1.4 s, 120 ms stagger |
+| Enterprise | layer stack separates as the chapter scrolls into view | scroll-linked |
+| Final | orbit rings turn, core light breathes (CSS) | 140–220 s / 7 s |
+| Header | glass fades in after scroll; mega panel rises 8 px; mobile menu groups stagger 30 ms | 0.2–0.4 s |
+
+Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
+position — no snapping, no wheel or touch handling.
 
 ### Scroll
 
 - Section headers and content reveal once (`y: 24 → 0`, fade in).
 - Card groups stagger by 80 ms.
-- Connected-workflow line draws once (`scaleX` desktop, `scaleY` mobile — transform only).
+- Chapter marks and Executive signal lines draw once (transform / `pathLength` only).
 - Counters count up once when in view; they render the final value in the HTML first.
 
 ### Hover / press
 
 - Department cards: lift 4 px, border glow, icon scales, connector to the core bus lights up.
 - Primary buttons: glow sweep passes once across; optional magnetic pull (5 px); press 0.97.
-- Product preview tabs: shared-layout pill slides; preview crossfades with a slight blur/slide.
+- World / scenario / flow selectors: accent underline or fill transitions; content crossfades with a short rise.
 
 ## Reduced motion
 
@@ -82,6 +98,9 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
   no parallax, intro skipped, rendering on demand only; hover/selection/drag still work.
   Magnetic buttons are disabled; the product transition shows its final state.
 - Counters show their final value immediately.
+- Homepage chapters (EP04) read the preference live: pins show their final composition,
+  scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
+  Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
 
 The page is fully readable and complete in this mode — motion never carries information that
 is not also present statically.

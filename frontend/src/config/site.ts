@@ -8,13 +8,3 @@ export const SITE = {
 } as const;
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:1112';
-
-export const PUBLIC_NAV = [
-  { to: '/', label: 'หน้าแรก' },
-  { to: '/departments', label: 'แผนก' },
-  { to: '/features', label: 'ฟีเจอร์' },
-  { to: '/solutions', label: 'โซลูชัน' },
-  { to: '/pricing', label: 'ราคา' },
-  { to: '/about', label: 'เกี่ยวกับเรา' },
-  { to: '/contact', label: 'ติดต่อเรา' },
-] as const;

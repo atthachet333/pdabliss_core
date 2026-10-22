@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderRoute } from '@/test/render';
 import { detectQuality, lowerQuality } from './core-world/quality';
 import { WebGLBoundary } from './core-world/WebGLBoundary';
+import { CHAPTERS } from './home/chapters';
 
 const DEPARTMENTS = ['ฝ่ายขาย', 'ปฏิบัติการ', 'คลังสินค้า', 'จัดซื้อ', 'บัญชีและการเงิน', 'รายงาน'];
 
@@ -43,15 +44,19 @@ describe('homepage hero — CORE Universe', () => {
   it('renders crawlable hero copy with the two CTAs', async () => {
     renderRoute('/');
     const h1 = await screen.findByRole('heading', { level: 1 });
-    expect(h1).toHaveTextContent('ทุกแผนกทำงานได้เต็มที่');
+    expect(h1).toHaveTextContent('แต่ละแผนกทำงานได้เต็มที่');
     expect(h1).toHaveTextContent('ทุกงานเชื่อมเป็นระบบเดียว');
-    expect(screen.getByText('Department Operations Platform')).toBeInTheDocument();
+    expect(document.getElementById('core-world')).toHaveTextContent(
+      'PDA BLISS CORE · Department Operations Platform',
+    );
     expect(screen.getAllByText(/ออกแบบมาเพื่องานของตัวเอง/)[0]).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /ดูภาพรวมระบบ/ })).toHaveAttribute('href', '#preview');
-    expect(screen.getByRole('link', { name: /สำรวจ CORE/ })).toHaveAttribute('href', '#core-story');
+    expect(screen.getByRole('link', { name: 'สำรวจ CORE' })).toHaveAttribute('href', '#who-for');
+    expect(
+      screen.getByRole('link', { name: 'ดูว่า CORE เหมาะกับองค์กรของคุณหรือไม่' }),
+    ).toHaveAttribute('href', '#fit');
     // Anchor targets exist on the page.
-    expect(document.getElementById('preview')).not.toBeNull();
-    expect(document.getElementById('core-story')).not.toBeNull();
+    expect(document.getElementById('who-for')).not.toBeNull();
+    expect(document.getElementById('fit')).not.toBeNull();
   });
 
   it('exposes one accessible control per orbiting department (no Admin in the orbit)', async () => {
@@ -109,46 +114,13 @@ describe('homepage hero — CORE Universe', () => {
     expect(figure).toHaveTextContent('CORE');
   });
 
-  it('presents the story as four slides with crawlable headings and the real product UI', async () => {
-    renderRoute('/');
-    await screen.findByRole('heading', { level: 1 });
-    for (const id of ['core-world', 'core-story', 'core-flow', 'from-core-to-product']) {
-      expect(document.getElementById(id)).toHaveAttribute('data-slide');
-    }
-    expect(
-      screen.getByRole('heading', { level: 2, name: /ทุกแผนกมีพื้นที่ทำงานของตัวเอง/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /งานส่งต่อกันเอง/ })).toBeInTheDocument();
-    const route = screen.getByRole('list', { name: 'ลำดับงานที่ส่งต่อกันระหว่างแผนก' });
-    expect(within(route).getAllByRole('listitem')).toHaveLength(6);
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'จากแนวคิด สู่หน้าจอที่ใช้งานจริง' }),
-    ).toBeInTheDocument();
-    // The product preview is the real Warehouse workspace UI (lazy), price-free.
-    const product = screen.getByRole('figure', { name: /พื้นที่ทำงานคลังสินค้า/ });
-    await within(product).findByText('งานคลังวันนี้');
-    expect(product.textContent).not.toMatch(/฿|บาท|ราคา|ต้นทุน/);
-  });
-
-  it('offers a quiet slide indicator whose links target each slide', async () => {
-    renderRoute('/');
-    const nav = await screen.findByRole('navigation', { name: 'ส่วนของการนำเสนอ' });
-    const links = within(nav).getAllByRole('link');
-    expect(links.map((l) => l.getAttribute('href'))).toEqual([
-      '#core-world',
-      '#core-story',
-      '#core-flow',
-      '#from-core-to-product',
-    ]);
-  });
-
-  it('never snaps or hijacks scrolling: free native scroll between slides', async () => {
+  it('never snaps or hijacks scrolling: free native scroll between chapters', async () => {
     renderRoute('/');
     await screen.findByRole('heading', { level: 1 });
     expect(getComputedStyle(document.documentElement).scrollSnapType).not.toMatch(
       /mandatory|proximity/,
     );
-    for (const id of ['core-world', 'core-story', 'core-flow', 'from-core-to-product']) {
+    for (const { id } of CHAPTERS) {
       expect(document.getElementById(id)?.className).not.toMatch(/snap-/);
     }
   });
@@ -162,7 +134,9 @@ describe('homepage hero — CORE Universe', () => {
   it('public navigation reaches other pages', async () => {
     const { router } = renderRoute('/');
     const nav = await screen.findByRole('navigation', { name: 'เมนูหลัก' });
-    await userEvent.click(within(nav).getByRole('link', { name: 'ฟีเจอร์' }));
+    await userEvent.click(within(nav).getByRole('button', { name: 'Product' }));
+    const panel = screen.getByRole('region', { name: 'เมนู Product' });
+    await userEvent.click(within(panel).getByRole('link', { name: /ฟีเจอร์/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/features'));
   });
 });
@@ -178,10 +152,10 @@ describe('reduced motion', () => {
     restore.push(mockMatchMedia((q) => q.includes('prefers-reduced-motion')));
     renderRoute('/');
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
-      'ทุกแผนกทำงานได้เต็มที่',
+      'แต่ละแผนกทำงานได้เต็มที่',
     );
     expect(screen.getByRole('group', { name: 'แผนกที่เชื่อมกับ CORE' })).toBeInTheDocument();
-    expect(document.getElementById('core-flow')).toBeInTheDocument();
+    for (const { id } of CHAPTERS) expect(document.getElementById(id)).toBeInTheDocument();
   });
 
   it('selects the reduced quality tier (static scene, no loops)', () => {

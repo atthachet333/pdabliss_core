@@ -1,9 +1,8 @@
-import { Building2, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { LinkButton } from '@/components/ui/Button';
-import { Badge, Container, SectionHeader } from '@/components/ui/Section';
 import { cn } from '@/lib/cn';
 import { Reveal, RevealItem } from '@/motion/Reveal';
-import { PLAN_DISCLAIMER, PLANS } from '../plans';
+import { PLANS } from '../plans';
 
 export function PlansGrid() {
   return (
@@ -56,34 +55,5 @@ export function PlansGrid() {
         </RevealItem>
       ))}
     </Reveal>
-  );
-}
-
-export function PlansSection() {
-  return (
-    <section aria-labelledby="plans-title" className="relative py-24 sm:py-32">
-      <Container>
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <SectionHeader
-            id="plans-title"
-            eyebrow="Subscription"
-            title="แพ็กเกจที่เติบโตไปพร้อมกับองค์กร"
-            lead="ทุกแพ็กเกจสำหรับ 1 บริษัทต่อ 1 พื้นที่ทำงาน CORE — แตกต่างกันที่จำนวนผู้ใช้ แผนกที่เปิดใช้ และความสามารถในการควบคุม"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="warning">{PLAN_DISCLAIMER}</Badge>
-            <Badge tone="neutral">
-              <Building2 className="size-3.5" aria-hidden />1 บริษัท / พื้นที่ทำงาน
-            </Badge>
-          </div>
-        </div>
-        <div className="mt-12">
-          <PlansGrid />
-        </div>
-        <p className="mt-6 text-caption text-text-muted">
-          {PLAN_DISCLAIMER} — รายละเอียด ขีดจำกัด และราคาจริงจะประกาศเมื่อเปิดให้บริการเชิงพาณิชย์
-        </p>
-      </Container>
-    </section>
   );
 }

@@ -1,7 +1,7 @@
 import { PageHero } from '@/components/layout/PageHero';
 import { Badge, Container } from '@/components/ui/Section';
 import { PLAN_DIMENSIONS, PLAN_DISCLAIMER, PLANS } from '@/features/landing/plans';
-import { PlansGrid } from '@/features/landing/sections/PlansSection';
+import { PlansGrid } from '@/features/landing/sections/PlansGrid';
 import { usePageMeta } from '@/lib/usePageMeta';
 
 export default function PricingPage() {

@@ -128,6 +128,24 @@ The homepage hero is a real-time scene, documented in [CORE_WORLD.md](CORE_WORLD
   structure, subtle grain — no starfield, nebula or lens flare.
 - The CORE is never an Earth globe, a power orb or a token. Branding sits on it as DOM text.
 
+## Homepage chapters (EP04)
+
+The homepage is eleven chapters with their own art direction — see
+[HOMEPAGE_EXPERIENCE.md](HOMEPAGE_EXPERIENCE.md). Shared rules:
+
+- **One thread.** A thin vertical data line and an index (`01 — CORE`) open every chapter
+  (`ChapterMark`), in brand, cold, warm or calm tone.
+- **Mood by chapter, not by decoration.** Complexity is colder and desaturated (`#7d97a8`,
+  grain); Human Error carries a restrained amber (`--color-warning`); Department Worlds takes
+  each workspace's EP02 accent (`--color-ws-*`) as the room's light — the only place the public
+  site uses workspace accents.
+- **Procedural art only.** Department environments are inline SVG (routes, timelines, rack
+  grids, supplier networks, ledgers, horizon), stroked in `currentColor` and tinted per world.
+  No stock imagery, no third-party logos (the "before CORE" chapter shows tools abstractly).
+- **Real product, not screenshots.** Previews are the EP02 components with sample data.
+- The final chapter brings the CORE back in CSS (orbits, breathing light) — no second WebGL
+  canvas.
+
 ## Imagery
 
 Generated, abstract and brand-tinted (orbits, networks, racks, ledgers) — produced by

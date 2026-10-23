@@ -178,7 +178,9 @@ function Scene(props: CoreWorldProps) {
         const enter = reveal(clock.time, INTRO.nodes + 0.15 + i * 0.06, 0.5);
         const back = Math.max(0, Math.min(1, (-depth - 0.3) / 2));
         const dimmed = focusId !== null && focusId !== id;
-        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, 0.85rem)`;
+        // World cards sit on their node; nearer departments read slightly larger.
+        const scale = 1.04 - back * 0.16;
+        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
         el.style.opacity = String(enter * (dimmed ? 0.45 : 1) * (1 - back * 0.12));
         el.style.zIndex = String(Math.round(100 + depth * 10));
       });

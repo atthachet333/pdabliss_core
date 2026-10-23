@@ -1,4 +1,3 @@
-import type { PhoneId } from '@/config/contact';
 import type { MegaGroupId } from '@/config/navigation';
 
 /*
@@ -6,9 +5,9 @@ import type { MegaGroupId } from '@/config/navigation';
  * language; English and Simplified Chinese implement the same interface, so a
  * missing string is a type error rather than a blank in production.
  *
- * Scope: the shared public shell only (header, mega menus, mobile navigation,
- * footer, cookie consent, floating utilities). Page bodies are localized in a
- * later episode.
+ * Scope: the shared public shell (header, mega menus, mobile navigation,
+ * footer, cookie consent, floating utilities). Page bodies keep their copy next
+ * to their components via `useCopy` (src/i18n/useCopy.ts).
  */
 
 export interface MegaItemMessages {
@@ -51,8 +50,6 @@ export interface ShellMessages {
   shell: {
     skipToContent: string;
     home: string;
-    /** Shown in non-Thai locales: page bodies are still Thai. */
-    contentInThai: string;
   };
   header: {
     primaryNav: string;
@@ -96,7 +93,9 @@ export interface ShellMessages {
     cookieSettings: string;
   };
   contact: {
-    phoneLabels: Record<PhoneId, string>;
+    /** Contact person for the single public phone number. */
+    phoneLabel: string;
+    lineLabel: string;
     opensInNewTab: string;
   };
   utility: {

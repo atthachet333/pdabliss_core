@@ -73,7 +73,16 @@ frontend/src/
 - **Locale routing (EP05).** `publicPages()` is mounted three times: unprefixed (Thai, default,
   plus `/login`), `/en` and `/zh`. The prefixed groups load their shell dictionary with the
   route's `lazy()` before rendering; `/th/*`, `/zh-CN/*`, `/zh-hans/*` redirect to canonical
-  URLs; `/login` and `/app/*` are never prefixed. Page bodies are Thai in every locale for now.
+  URLs; `/login` and `/app/*` are never prefixed.
+- **Page localization (EP05 revision).** Every public page body is localized. Copy lives beside
+  its component as `Localized<T>` (`{ th, en, 'zh-CN' }`, typed from the Thai source) and is read
+  with `useCopy()`; shared content modules expose locale hooks (`useDepartments`, `useWorlds`,
+  `useFlows`, `usePlans`, `useSafeguards`) that return stable per-locale references. Internal
+  links go through `useLocale().href()`. The internal app (`/app/*`, `/login`) is not localized.
+- **Department imagery (EP05 revision).** `scripts/build-department-scenes.mjs` renders seven
+  department scenes to `public/departments/<id>{,-sm}.webp` (`npm run assets`). They are used
+  by the CORE World cards and detail, the แผนก mega menu, the mobile selector and
+  `/departments`; always decorative (`alt=""`).
 - **Cookie consent (EP05).** A versioned record in `localStorage`
   (`pdabliss-core:cookie-consent`), read through `useConsent()`; nothing is sent to the
   backend. No analytics/marketing tools exist yet — any future one must check consent first.

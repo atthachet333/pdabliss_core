@@ -1,4 +1,8 @@
-# Public Shell — PDA BLISS CORE (EP05)
+# Public Shell — PDA BLISS CORE (EP05, revised)
+
+> **EP05 revision (2026-10-23):** the whole public site now switches language (page bodies
+> included), the public contact shows a single phone number, mega menus carry visual support,
+> and the CORE World shows department imagery. See [EP05_REVISION_REPORT.md](EP05_REVISION_REPORT.md).
 
 The public shell is the frame every public page renders inside: header and mega menus, mobile
 navigation, footer, cookie consent and the floating utility dock. It lives in
@@ -61,9 +65,22 @@ list of links:
 
 1. **Intro** — English overline, Thai heading (intentional line breaks via `\n`), one paragraph,
    optional honesty note (e.g. *โครงสร้างแพ็คเกจตัวอย่าง · ราคาอยู่ระหว่างกำหนด*).
-2. **Items** — two-column grid; icon tile, label, description; arrow reveal on hover/focus.
-3. **Highlight panel** — overline, statement, optional body, call to action; faint CORE orbit
-   geometry and a radial emerald light.
+2. **Items** — two-column grid; a leading mark, label, description; arrow reveal on hover/focus.
+   The mark is a department scene thumbnail (แผนก), a 1–4 tier indicator (แพ็คเกจ) or an icon
+   tile (`MegaItemMark` in `MegaVisuals.tsx`).
+3. **Highlight panel** — a small visual (`MegaVisual`), overline, statement, optional body,
+   call to action; faint CORE orbit geometry and a radial emerald light.
+
+**Visual support (EP05 revision).** Restrained, decorative (`aria-hidden`) and on-brand:
+
+| Menu | Visual |
+| --- | --- |
+| แผนก | Item thumbnails of each department's scene + a 3 × 2 mosaic of the six worlds |
+| แพ็คเกจ | Four rising layers (more departments, control, integration) — no price emphasis |
+| วิธีการทำงาน | Five stations routed through CORE with a slow pulse (stopped under reduced motion) |
+| โซลูชัน | Scattered, dashed problem fragments → an ordered, checked sequence |
+| สำหรับองค์กร | Isometric architecture stack with integration points outside it |
+| เกี่ยวกับเรา | Editorial image (the executive skyline scene) behind the company statement |
 
 | Menu | Items → destination | Highlight CTA |
 | --- | --- | --- |
@@ -84,8 +101,8 @@ panel also says *บางความสามารถอยู่ในแผ
 90 ms open, 180 ms close; a click within 450 ms of a hover-open keeps the panel open instead of
 toggling it shut. Keyboard: ←/→ move along all eight items (wrapping), ↓ opens a panel and
 focuses its first link, Escape closes and returns focus to the trigger, tabbing out or clicking
-outside closes, navigating closes. The panel is near-opaque (`/0.99`) so the page never ghosts
-through.
+outside closes, navigating closes. Header overlays (mega panel, language popover) use fully
+opaque surfaces: a `/0.99` background let the page ghost through in Chromium compositing.
 
 ## Mobile and tablet navigation (< 1280 px)
 
@@ -131,14 +148,25 @@ the same language. Existing URLs are unchanged.
   external URLs alone.
 - The language selector links to the same page in the other locale (`switchLocalePath`), with
   `lang` and `hreflang` on each option.
-- Thai ships in the main bundle. English and Chinese dictionaries are separate chunks loaded by
-  the route's `lazy()` before it renders (no Thai flash); Thai visitors never download them.
-- `<html lang>` follows the shell locale; leaving the public site restores `th`. Because page
-  bodies are still Thai, `<main>` carries `lang="th"` under `/en` and `/zh`.
+- Shell dictionaries: Thai ships in the main bundle; English and Chinese are separate chunks
+  loaded by the route's `lazy()` before it renders (no Thai flash).
+- **Page content (EP05 revision)** lives next to the component that renders it, as a
+  `Localized<T>` object (`{ th, en, 'zh-CN' }`) typed from the Thai source, read with
+  `useCopy()` (`src/i18n/useCopy.ts`). A missing English or Chinese string is a compile error.
+  Shared data modules expose locale-aware hooks with stable references per locale:
+  `useDepartments()` / `useDepartment()` (`config/departments.ts`), `useWorlds()`,
+  `useFlows()`, `usePlans()`, `useSafeguards()`. Page titles/descriptions are localized through
+  `usePageMeta`; in-page links go through `href()` so visitors stay in their language.
+- `<html lang>` follows the locale; leaving the public site restores `th`.
 
-**Scope in EP05.** Header, mega menus, mobile navigation, footer, cookie banner and preferences,
-floating contact and utility labels are complete in all three languages. Page bodies are **not**
-translated yet (they render in Thai under `/en` and `/zh`, and the language menu says so).
+**Scope.** The whole public site switches language: header, mega menus, mobile navigation,
+footer, cookie UI, floating contact, the homepage (hero, all eleven chapters, CTAs, labels),
+the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/pricing`,
+`/about`, `/contact` (including form validation), `/privacy`, `/terms` and the 404 page.
+Deliberate exceptions: the company address is printed in Thai in every locale (`lang="th"`),
+and the homepage product previews render the real EP02 product UI, which is Thai — their
+captions say so. `/login` and `/app/*` are not part of the public site and stay Thai.
+A test scans every page under `/en` and `/zh` and fails on visible Thai text.
 
 **Typography.** IBM Plex Sans Thai covers Thai and Latin only. `:lang(zh-CN)` switches to
 `--font-zh`: Plex for Latin, then PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC /
@@ -157,7 +185,7 @@ CORE orbit (desktop/tablet only; phones keep just the glow).
 | 1 — Brand | Logo, *by PDA BLISS*, *Department Operations Platform สำหรับองค์กร* + one sentence, quick contact chips (โทร · LINE · Email), *พัฒนาโดย PDA BLISS COMPANY LIMITED* |
 | 2 — ลิงก์ด่วน | ภาพรวม · แผนก · แพ็คเกจ · วิธีการทำงาน (visually lighter) |
 | 3 — องค์กร | โซลูชัน · สำหรับองค์กร · เกี่ยวกับเรา · ติดต่อเรา (visually lighter) |
-| 4 — ติดต่อเรา | `ContactDetails`: address, three phone numbers with labels, email, LINE |
+| 4 — ติดต่อเรา | `ContactDetails`: address, one phone number with its contact person, email, LINE OA |
 
 Legal bar: *© 2026 PDA BLISS COMPANY LIMITED. All rights reserved.* · นโยบายความเป็นส่วนตัว
 (`/privacy`) · ข้อกำหนดการใช้งาน (`/terms`) · **การตั้งค่าคุกกี้** (button, reopens Cookie
@@ -169,13 +197,14 @@ column on phones.
 
 ## Contact configuration and LINE
 
-`src/config/contact.ts` exports `CONTACT` (company, address, phones, email, `lineId`,
-`lineUrl`), `PRIMARY_PHONE` and the `telHref()` / `mailtoHref()` helpers.
+`src/config/contact.ts` exports `CONTACT` (company, address, **one** `phone`, email, `lineId`,
+`lineUrl`) and the `telHref()` / `mailtoHref()` helpers. The contact-person label for the phone
+is localized (`contact.phoneLabel`: คุณวิน / Khun Win).
 
 | Field | Value |
 | --- | --- |
 | Address | 186/42 หมู่ 6 ต.ทวีวัฒนา อ.ไทรน้อย จ.นนทบุรี 11110 (printed in Thai in every locale, `lang="th"`) |
-| Phones | 064-924-5544 (Office) · 090-662-5464 (คุณผึ้ง) · 063-869-3614 (คุณอิน) — `tel:+66…` |
+| Phone | 063-869-3614 (คุณวิน) — `tel:+66638693614` · *the only public number (EP05 revision)* |
 | Email | pdablissoffice@gmail.com — `mailto:` |
 | LINE | @593oiwec — `https://line.me/R/ti/p/@593oiwec` |
 
@@ -231,7 +260,8 @@ focus moves to `<main>` (never lost to `<body>`) and a polite status announces
   slight scale, no bounce.
 - **Contact** (48 px, chat icon → ✕): opens a stack, never navigates by itself. States closed →
   opening → open → closing via `AnimatePresence`. Stack: *ติดต่อทีม PDA BLISS* header, then
-  โทรหาเรา (064-924-5544 (Office), `tel:`), LINE OA (@593oiwec, `CONTACT.lineUrl`), ส่งอีเมล
+  โทรหาเรา (063-869-3614 (คุณวิน), `tel:` — the same single number as the footer), LINE OA
+  (@593oiwec, `CONTACT.lineUrl`), ส่งอีเมล
   (`mailto:`), ขอรับคำปรึกษา (→ `/contact`, closes the stack). Items reveal upward with a 45 ms
   stagger; closing is a fast fade. Dark emerald icon tiles, faint orbit geometry.
 - Accessibility: trigger has `aria-expanded` / `aria-controls` and a state-specific name; on open
@@ -239,8 +269,9 @@ focus moves to `<main>` (never lost to `<body>`) and a polite status announces
   or tabbing out closes.
 - Phones (< 640 px): the stack becomes a full-width sheet above the trigger (inset 12 px, safe-area
   aware) with a dim scrim; verified inside 320 × 568.
-- On the homepage the whole dock stays hidden while the CORE hero is in view (until 45 % of a
-  viewport has scrolled), so it never covers the hero's department selector.
+- On the homepage the whole dock stays hidden while the CORE World section (scene, world cards
+  and department selector) still covers the screen — until its bottom edge rises above 55 % of
+  the viewport — so it never sits on the hero's controls.
 
 ## Layering (z-index)
 

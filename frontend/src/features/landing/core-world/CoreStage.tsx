@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type PointerEvent } from 'react';
 import { useMediaQuery } from '@/components/core/hooks';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { createControls } from './controls';
 import { CoreWorldFallback } from './CoreWorldFallback';
@@ -7,6 +8,12 @@ import { NodeLabel } from './NodeLabel';
 import { ORBIT_LIST } from './orbitList';
 import { detectQuality, lowerQuality } from './quality';
 import type { OrbitDepartmentId, Quality, StoryStage } from './types';
+
+const STAGE_COPY: Localized<{ back: string }> = {
+  th: { back: 'กลับสู่ภาพรวม CORE' },
+  en: { back: 'Back to the CORE overview' },
+  'zh-CN': { back: '返回 CORE 概览' },
+};
 
 // three.js + react-three-fiber live in this chunk only.
 const CoreWorld = lazy(() => import('./CoreWorld'));
@@ -43,6 +50,7 @@ export function CoreStage({
   className?: string;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const copy = useCopy(STAGE_COPY);
   const controls = useRef(createControls());
   const labels = useRef<Partial<Record<OrbitDepartmentId, HTMLElement | null>>>({});
   const invalidate = useRef<(() => void) | null>(null);
@@ -246,7 +254,7 @@ export function CoreStage({
           onClick={() => onSelect(null)}
           className="absolute top-1/2 left-1/2 z-[200] -translate-1/2 rounded-full bg-surface-overlay/90 px-4 py-2 text-caption text-text-primary opacity-0 focus-visible:opacity-100"
         >
-          กลับสู่ภาพรวม CORE
+          {copy.back}
         </button>
       )}
 

@@ -44,16 +44,12 @@ export function ContactDetails({ className }: { className?: string }) {
           </p>
         </Row>
         <Row icon={Phone} label={t.footer.phone}>
-          <ul className="space-y-1">
-            {CONTACT.phones.map((p) => (
-              <li key={p.id} className="tabular">
-                <a href={telHref(p)} className={linkClass}>
-                  {p.display}
-                </a>{' '}
-                <span className="text-text-muted">({t.contact.phoneLabels[p.id]})</span>
-              </li>
-            ))}
-          </ul>
+          <p className="tabular">
+            <a href={telHref()} className={linkClass}>
+              {CONTACT.phone.display}
+            </a>{' '}
+            <span className="text-text-muted">({t.contact.phoneLabel})</span>
+          </p>
         </Row>
         <Row icon={Mail} label={t.footer.emailLabel}>
           <a href={mailtoHref()} className={cn(linkClass, 'break-all')}>
@@ -62,7 +58,8 @@ export function ContactDetails({ className }: { className?: string }) {
         </Row>
         <Row icon={MessageCircle} label={t.footer.lineLabel}>
           <a href={CONTACT.lineUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
-            LINE {CONTACT.lineId}
+            <span className="block text-text-muted">{t.contact.lineLabel}</span>
+            {CONTACT.lineId}
             <span className="sr-only"> {t.contact.opensInNewTab}</span>
           </a>
         </Row>

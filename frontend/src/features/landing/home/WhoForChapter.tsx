@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 import { useRef } from 'react';
 import { Container } from '@/components/ui/Section';
 import { cn } from '@/lib/cn';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { EASE_CORE } from '@/motion/tokens';
 import { ChapterMark } from './ChapterMark';
 import { useScrollStage } from './useScrollStage';
@@ -11,42 +12,135 @@ import { useScrollStage } from './useScrollStage';
 /* Story                                                                     */
 /* ------------------------------------------------------------------------ */
 
-const STAGES = [
-  {
-    key: 'TEAM',
-    name: 'ธุรกิจที่กำลังเติบโต',
-    en: 'Growing Business',
-    body: 'ทีมเล็กที่ทำงานใกล้ชิดกัน — แต่เริ่มมีงานที่ต้องส่งต่อ ติดตาม และจดจำมากกว่าที่คนไม่กี่คนจะถือไว้ได้',
-  },
-  {
-    key: 'DEPARTMENTS',
-    name: 'องค์กรหลายแผนก',
-    en: 'Multi-Department Organization',
-    body: 'แต่ละแผนกเริ่มมีวิธีทำงาน เอกสาร และไฟล์ของตัวเอง ข้อมูลชุดเดียวกันถูกเก็บไว้หลายที่',
-  },
-  {
-    key: 'CONNECTED OPERATIONS',
-    name: 'ธุรกิจที่งานเดินผ่านหลายมือ',
-    en: 'Operational Business',
-    body: 'งานหนึ่งชิ้นผ่านหลายแผนก มีการอนุมัติ กำหนดเวลา และการส่งต่อ ที่ต้องไม่หลุดระหว่างทาง',
-  },
-  {
-    key: 'ORGANIZATION',
-    name: 'องค์กรที่ต้องการมาตรฐานและภาพรวม',
-    en: 'Enterprise Organization',
-    body: 'ผู้บริหารต้องเห็นภาพเดียวกันทั้งองค์กร และต้องมีมาตรฐาน — โดยไม่ทำให้แต่ละแผนกทำงานช้าลง',
-  },
-] as const;
+const STAGE_KEYS = ['TEAM', 'DEPARTMENTS', 'CONNECTED OPERATIONS', 'ORGANIZATION'] as const;
 
-const SIGNALS = [
-  'กำลังเติบโต และงานเริ่มซับซ้อนขึ้นทุกไตรมาส',
-  'มีหลายแผนกที่ต้องทำงานต่อกัน',
-  'งานหนึ่งชิ้นถูกส่งต่อระหว่างทีม',
-  'มีขั้นตอนอนุมัติก่อนดำเนินการ',
-  'ผู้บริหารต้องการเห็นสถานะโดยไม่ต้องถามทีละคน',
-  'ต้องการมาตรฐานการทำงานที่ทุกคนใช้ร่วมกัน',
-  'ความผิดพลาดเล็ก ๆ เริ่มมีต้นทุนสูงขึ้น',
-];
+const th = {
+  stages: [
+    {
+      name: 'ธุรกิจที่กำลังเติบโต',
+      en: 'Growing Business',
+      body: 'ทีมเล็กที่ทำงานใกล้ชิดกัน — แต่เริ่มมีงานที่ต้องส่งต่อ ติดตาม และจดจำมากกว่าที่คนไม่กี่คนจะถือไว้ได้',
+    },
+    {
+      name: 'องค์กรหลายแผนก',
+      en: 'Multi-Department Organization',
+      body: 'แต่ละแผนกเริ่มมีวิธีทำงาน เอกสาร และไฟล์ของตัวเอง ข้อมูลชุดเดียวกันถูกเก็บไว้หลายที่',
+    },
+    {
+      name: 'ธุรกิจที่งานเดินผ่านหลายมือ',
+      en: 'Operational Business',
+      body: 'งานหนึ่งชิ้นผ่านหลายแผนก มีการอนุมัติ กำหนดเวลา และการส่งต่อ ที่ต้องไม่หลุดระหว่างทาง',
+    },
+    {
+      name: 'องค์กรที่ต้องการมาตรฐานและภาพรวม',
+      en: 'Enterprise Organization',
+      body: 'ผู้บริหารต้องเห็นภาพเดียวกันทั้งองค์กร และต้องมีมาตรฐาน — โดยไม่ทำให้แต่ละแผนกทำงานช้าลง',
+    },
+  ],
+  signals: [
+    'กำลังเติบโต และงานเริ่มซับซ้อนขึ้นทุกไตรมาส',
+    'มีหลายแผนกที่ต้องทำงานต่อกัน',
+    'งานหนึ่งชิ้นถูกส่งต่อระหว่างทีม',
+    'มีขั้นตอนอนุมัติก่อนดำเนินการ',
+    'ผู้บริหารต้องการเห็นสถานะโดยไม่ต้องถามทีละคน',
+    'ต้องการมาตรฐานการทำงานที่ทุกคนใช้ร่วมกัน',
+    'ความผิดพลาดเล็ก ๆ เริ่มมีต้นทุนสูงขึ้น',
+  ],
+  hubs: ['ฝ่ายขาย', 'ปฏิบัติการ', 'คลังสินค้า', 'จัดซื้อ · บัญชี'],
+  executive: 'ผู้บริหาร',
+  titleA: 'CORE ถูกสร้างขึ้นสำหรับองค์กร',
+  titleB: 'ที่งานเริ่มเดินผ่านหลายแผนก',
+  lead: 'ไม่ได้วัดจากขนาดรายได้ — แต่จากจำนวนแผนก งานที่ต้องส่งต่อกัน และความต้องการเห็นภาพเดียวกันทั้งองค์กร',
+  stagesLabel: 'ลำดับการเติบโตขององค์กร',
+  fitTitle: 'CORE เหมาะกับองค์กรของคุณ ถ้า…',
+  fitNote: 'ไม่จำเป็นต้องเป็นองค์กรใหญ่ — ถ้ามีหลายข้อด้านขวา CORE ถูกออกแบบมาเพื่อคุณ',
+};
+
+const COPY: Localized<typeof th> = {
+  th,
+  en: {
+    stages: [
+      {
+        name: 'A growing business',
+        en: 'Growing Business',
+        body: 'A small team working closely together — but there is starting to be more to hand over, track and remember than a few people can hold.',
+      },
+      {
+        name: 'A multi-department organization',
+        en: 'Multi-Department Organization',
+        body: 'Each department develops its own ways of working, documents and files. The same data ends up stored in many places.',
+      },
+      {
+        name: 'Work that passes through many hands',
+        en: 'Operational Business',
+        body: 'One piece of work moves through several departments, with approvals, deadlines and handoffs that must not slip along the way.',
+      },
+      {
+        name: 'An organization that needs standards and one picture',
+        en: 'Enterprise Organization',
+        body: 'Leaders need the same picture across the whole organization, and shared standards — without slowing any department down.',
+      },
+    ],
+    signals: [
+      'You are growing, and work gets more complex every quarter',
+      'Several departments need to work in sequence',
+      'One piece of work is handed between teams',
+      'Approvals are needed before work goes ahead',
+      'Leaders want status without asking people one by one',
+      'You want standard ways of working that everyone shares',
+      'Small mistakes are starting to cost more',
+    ],
+    hubs: ['Sales', 'Operations', 'Warehouse', 'Purchasing · Accounting'],
+    executive: 'Executive',
+    titleA: 'CORE is built for organizations',
+    titleB: 'where work now runs through many departments',
+    lead: 'It is not about revenue — it is about how many departments you have, how much work they hand to each other, and the need for one shared picture.',
+    stagesLabel: 'How an organization grows',
+    fitTitle: 'CORE fits your organization if…',
+    fitNote: 'You don’t need to be large — if several of these apply, CORE was designed for you.',
+  },
+  'zh-CN': {
+    stages: [
+      {
+        name: '成长中的企业',
+        en: 'Growing Business',
+        body: '小团队紧密协作——但需要交接、跟踪和记住的事情，开始超出少数人能承担的范围。',
+      },
+      {
+        name: '多部门组织',
+        en: 'Multi-Department Organization',
+        body: '各部门逐渐形成自己的工作方式、单据和文件，同一份数据被存放在多个地方。',
+      },
+      {
+        name: '工作经过多人之手的企业',
+        en: 'Operational Business',
+        body: '一项工作要经过多个部门，涉及审批、时限与交接，途中不能有任何遗漏。',
+      },
+      {
+        name: '需要标准与全局视图的组织',
+        en: 'Enterprise Organization',
+        body: '管理层需要看到全公司一致的画面，也需要统一的标准——同时不拖慢任何部门。',
+      },
+    ],
+    signals: [
+      '企业在成长，工作每个季度都更复杂',
+      '多个部门需要前后衔接地工作',
+      '一项工作会在团队之间交接',
+      '执行前需要经过审批',
+      '管理层希望不必逐个询问就能掌握状态',
+      '需要所有人共同遵循的工作标准',
+      '小错误的代价开始越来越高',
+    ],
+    hubs: ['销售部', '运营部', '仓库', '采购 · 财务'],
+    executive: '管理层',
+    titleA: 'CORE 专为这样的企业打造',
+    titleB: '工作开始流经多个部门',
+    lead: '衡量标准不是营收规模，而是部门数量、需要相互交接的工作，以及对全公司统一视图的需求。',
+    stagesLabel: '企业的成长阶段',
+    fitTitle: '如果符合以下情况，CORE 适合贵公司……',
+    fitNote: '不一定是大企业——只要符合右侧多项，CORE 就是为您设计的。',
+  },
+};
 
 /* ------------------------------------------------------------------------ */
 /* Organization evolution (SVG, 600×600)                                     */
@@ -54,10 +148,10 @@ const SIGNALS = [
 
 const C = 300;
 const HUBS = [
-  { x: 170, y: 200, label: 'ฝ่ายขาย' },
-  { x: 430, y: 200, label: 'ปฏิบัติการ' },
-  { x: 430, y: 410, label: 'คลังสินค้า' },
-  { x: 170, y: 410, label: 'จัดซื้อ · บัญชี' },
+  { x: 170, y: 200 },
+  { x: 430, y: 200 },
+  { x: 430, y: 410 },
+  { x: 170, y: 410 },
 ];
 /** Three people per department; the first three also form the early team. */
 const MEMBERS = HUBS.flatMap((h, hi) =>
@@ -81,6 +175,7 @@ function OrgEvolution({
   reduce: boolean;
   className?: string;
 }) {
+  const c = useCopy(COPY);
   const t = { duration: reduce ? 0 : 0.9, ease: EASE_CORE };
   const showHubs = stage >= 1;
   const linked = stage >= 2;
@@ -121,7 +216,7 @@ function OrgEvolution({
         />
         <circle cx={C} cy={70} r={11} fill="#0c1822" stroke="#b9f5e4" strokeOpacity="0.7" />
         <text x={C} y={44} textAnchor="middle" fill="#a3b8b2" fontSize="15">
-          ผู้บริหาร
+          {c.executive}
         </text>
       </motion.g>
 
@@ -185,7 +280,7 @@ function OrgEvolution({
             fill="#a3b8b2"
             fontSize="15"
           >
-            {h.label}
+            {c.hubs[i]}
           </text>
         </motion.g>
       ))}
@@ -246,7 +341,9 @@ function OrgEvolution({
  */
 export function WhoForChapter() {
   const pinRef = useRef<HTMLDivElement>(null);
-  const { stage, reduce } = useScrollStage(pinRef, STAGES.length);
+  const { stage, reduce } = useScrollStage(pinRef, STAGE_KEYS.length);
+  const c = useCopy(COPY);
+  const stages = STAGE_KEYS.map((key, i) => ({ key, ...c.stages[i]! }));
 
   return (
     <section id="who-for" aria-labelledby="who-for-title" className="relative overflow-x-clip">
@@ -257,21 +354,18 @@ export function WhoForChapter() {
       <Container className="pt-20 sm:pt-28">
         <ChapterMark id="who-for" />
         <h2 id="who-for-title" className="mt-6 max-w-3xl text-h1 text-text-primary">
-          CORE ถูกสร้างขึ้นสำหรับองค์กร
-          <span className="block text-text-secondary">ที่งานเริ่มเดินผ่านหลายแผนก</span>
+          {c.titleA}
+          <span className="block text-text-secondary">{c.titleB}</span>
         </h2>
-        <p className="mt-5 max-w-xl text-body-lg text-text-secondary">
-          ไม่ได้วัดจากขนาดรายได้ — แต่จากจำนวนแผนก งานที่ต้องส่งต่อกัน
-          และความต้องการเห็นภาพเดียวกันทั้งองค์กร
-        </p>
+        <p className="mt-5 max-w-xl text-body-lg text-text-secondary">{c.lead}</p>
       </Container>
 
       {/* Desktop: pinned evolution */}
       <div ref={pinRef} className="relative hidden lg:block lg:h-[250vh]">
         <div className="sticky top-0 flex h-svh items-center">
           <Container className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-center gap-12">
-            <ol aria-label="ลำดับการเติบโตขององค์กร" className="space-y-1">
-              {STAGES.map((s, i) => {
+            <ol aria-label={c.stagesLabel} className="space-y-1">
+              {stages.map((s, i) => {
                 const on = i === stage;
                 return (
                   <li
@@ -314,8 +408,8 @@ export function WhoForChapter() {
 
       {/* Phones / tablets: stacked stages */}
       <Container className="mt-12 lg:hidden">
-        <ol aria-label="ลำดับการเติบโตขององค์กร" className="space-y-12">
-          {STAGES.map((s, i) => (
+        <ol aria-label={c.stagesLabel} className="space-y-12">
+          {stages.map((s, i) => (
             <li key={s.key} className="grid items-center gap-5 sm:grid-cols-[1fr_14rem]">
               <div>
                 <p className="text-caption font-semibold tracking-[0.22em] text-brand-glow">
@@ -345,13 +439,11 @@ export function WhoForChapter() {
             <p className="text-caption font-semibold tracking-[0.2em] text-brand-glow uppercase">
               Fit
             </p>
-            <h3 className="mt-3 text-h2 text-text-primary">CORE เหมาะกับองค์กรของคุณ ถ้า…</h3>
-            <p className="mt-3 text-label text-text-muted">
-              ไม่จำเป็นต้องเป็นองค์กรใหญ่ — ถ้ามีหลายข้อด้านขวา CORE ถูกออกแบบมาเพื่อคุณ
-            </p>
+            <h3 className="mt-3 text-h2 text-text-primary">{c.fitTitle}</h3>
+            <p className="mt-3 text-label text-text-muted">{c.fitNote}</p>
           </div>
           <ul className="grid gap-x-10 sm:grid-cols-2">
-            {SIGNALS.map((s, i) => (
+            {c.signals.map((s, i) => (
               <li key={s} className="flex items-start gap-4 border-b border-border-soft py-4">
                 <span className="mt-0.5 text-caption text-text-muted tabular">
                   {String(i + 1).padStart(2, '0')}

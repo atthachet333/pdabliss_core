@@ -9,7 +9,6 @@ export const zhCN: ShellMessages = {
   shell: {
     skipToContent: '跳至主要内容',
     home: 'PDA BLISS CORE 首页',
-    contentInThai: '页面正文目前为泰语',
   },
   header: {
     primaryNav: '主导航',
@@ -23,7 +22,7 @@ export const zhCN: ShellMessages = {
   language: {
     label: '语言',
     current: (name) => `语言：${name}`,
-    note: '导航和全站通用元素已支持三种语言，中文页面正文正在准备中。',
+    note: '整个网站提供三种语言。产品界面预览显示的是产品的泰语界面。',
   },
   nav: {
     overview: '概览',
@@ -161,7 +160,7 @@ export const zhCN: ShellMessages = {
     address: '地址',
     phone: '电话',
     emailLabel: '邮箱',
-    lineLabel: 'LINE 官方账号',
+    lineLabel: 'LINE OA',
     rightsReserved: '保留所有权利。',
     legal: '法律信息',
     privacy: '隐私政策',
@@ -169,7 +168,8 @@ export const zhCN: ShellMessages = {
     cookieSettings: 'Cookie 设置',
   },
   contact: {
-    phoneLabels: { office: '办公室', pueng: 'Khun Pueng', in: 'Khun In' },
+    phoneLabel: 'Khun Win',
+    lineLabel: 'LINE OA',
     opensInNewTab: '（在新标签页中打开）',
   },
   utility: {
@@ -180,7 +180,7 @@ export const zhCN: ShellMessages = {
     panelTitle: '联系 PDA BLISS 团队',
     panelIntro: '请选择方便的联系渠道',
     call: '致电我们',
-    line: 'LINE 官方账号',
+    line: 'LINE OA',
     email: '发送邮件',
     consult: '申请咨询',
     consultDetail: '预约与 PDA BLISS 团队沟通',

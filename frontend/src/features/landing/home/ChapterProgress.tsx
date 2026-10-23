@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { CHAPTERS, type ChapterId } from './chapters';
+import { useCopy, type Localized } from '@/i18n/useCopy';
+import { CHAPTER_LABELS, CHAPTERS, type ChapterId } from './chapters';
+
+const PROGRESS_COPY: Localized<{ nav: string }> = {
+  th: { nav: 'บทของหน้า' },
+  en: { nav: 'Page chapters' },
+  'zh-CN': { nav: '页面章节' },
+};
 
 /**
  * Quiet chapter indicator (wide screens only): a column of dots, the label
@@ -8,6 +15,8 @@ import { CHAPTERS, type ChapterId } from './chapters';
  */
 export function ChapterProgress() {
   const [current, setCurrent] = useState<ChapterId>('core-world');
+  const labels = useCopy(CHAPTER_LABELS);
+  const t = useCopy(PROGRESS_COPY);
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
@@ -29,7 +38,7 @@ export function ChapterProgress() {
 
   return (
     <nav
-      aria-label="บทของหน้า"
+      aria-label={t.nav}
       className={cn(
         'fixed top-1/2 right-4 z-30 hidden -translate-y-1/2 transition-opacity duration-500 2xl:block',
         atHero && 'pointer-events-none invisible opacity-0',
@@ -48,7 +57,7 @@ export function ChapterProgress() {
               >
                 <span className="pointer-events-none absolute right-full mr-2 text-caption whitespace-nowrap text-text-secondary opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
                   <span className="mr-2 text-text-muted tabular">{c.index}</span>
-                  {c.label}
+                  {labels[c.id]}
                 </span>
                 <span
                   aria-hidden

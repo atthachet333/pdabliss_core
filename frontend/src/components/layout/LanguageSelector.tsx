@@ -100,7 +100,7 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: DURATION.fast, ease: EASE_CORE }}
-            className="absolute top-full right-0 mt-2 w-72 overflow-hidden rounded-[1.25rem] border border-border-soft bg-[rgb(6_13_20/0.99)] p-2 shadow-[0_24px_60px_-24px_rgb(0_0_0/0.9)] backdrop-blur-xl"
+            className="absolute top-full right-0 mt-2 w-72 overflow-hidden rounded-[1.25rem] border border-border-soft bg-[rgb(6_13_20)] p-2 shadow-[0_24px_60px_-24px_rgb(0_0_0/0.9)] backdrop-blur-xl"
           >
             <span
               aria-hidden

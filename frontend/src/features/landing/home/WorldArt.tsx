@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import type { WorldId } from './worlds';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 
 /*
  * Six procedural environments, one per operational world. Each has its own
@@ -12,7 +13,14 @@ import type { WorldId } from './worlds';
 const W = 1200;
 const H = 720;
 
+const ART_TEXT: Localized<{ route: string[]; approval: string[] }> = {
+  th: { route: ['PO', 'SO', 'พร้อมส่ง', 'จัดส่ง', 'ส่งครบ'], approval: ['PR', 'อนุมัติ', 'PO'] },
+  en: { route: ['PO', 'SO', 'Ready', 'Shipping', 'Delivered'], approval: ['PR', 'Approve', 'PO'] },
+  'zh-CN': { route: ['PO', 'SO', '待发货', '运输中', '已送达'], approval: ['PR', '审批', 'PO'] },
+};
+
 function Sales() {
+  const art = useCopy(ART_TEXT);
   // Demand flows in from the left and leaves as delivery routes on the right.
   const routes = [
     'M -20 180 C 300 120, 420 360, 640 330 S 980 160, 1220 220',
@@ -46,7 +54,7 @@ function Sales() {
             fontSize="13"
             opacity="0.8"
           >
-            {['PO', 'SO', 'พร้อมส่ง', 'จัดส่ง', 'ส่งครบ'][i]}
+            {art.route[i]}
           </text>
         </g>
       ))}
@@ -149,6 +157,7 @@ function Warehouse() {
 }
 
 function Purchasing({ still }: { still: boolean }) {
+  const art = useCopy(ART_TEXT);
   // Supplier network converging on purchasing, then an approval path out.
   const suppliers = [140, 250, 360, 470, 580];
   return (
@@ -201,7 +210,7 @@ function Purchasing({ still }: { still: boolean }) {
             fontSize="12"
             opacity="0.45"
           >
-            {['PR', 'อนุมัติ', 'PO'][i]}
+            {art.approval[i]}
           </text>
         </g>
       ))}

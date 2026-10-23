@@ -7,6 +7,8 @@ import { renderRoute } from '@/test/render';
 
 const LINE_URL = 'https://line.me/R/ti/p/@593oiwec';
 const ADDRESS = '186/42 หมู่ 6 ต.ทวีวัฒนา อ.ไทรน้อย จ.นนทบุรี 11110';
+const PHONE = '063-869-3614';
+const PHONE_E164 = '+66638693614';
 
 function storedConsent() {
   const raw = window.localStorage.getItem(CONSENT_STORAGE_KEY);
@@ -30,11 +32,9 @@ function acceptStored() {
 describe('central contact configuration', () => {
   it('holds the approved company contact details', () => {
     expect(CONTACT.address).toBe(ADDRESS);
-    expect(CONTACT.phones.map((p) => p.display)).toEqual([
-      '064-924-5544',
-      '090-662-5464',
-      '063-869-3614',
-    ]);
+    // EP05 revision: exactly one public phone number.
+    expect(CONTACT.phone).toEqual({ display: PHONE, e164: PHONE_E164 });
+    expect('phones' in CONTACT).toBe(false);
     expect(CONTACT.email).toBe('pdablissoffice@gmail.com');
     expect(CONTACT.lineId).toBe('@593oiwec');
     expect(CONTACT.lineUrl).toBe(LINE_URL);
@@ -88,21 +88,16 @@ describe('public footer', () => {
 
     const contact = within(footer).getByRole('heading', { name: 'ติดต่อเรา' }).closest('section')!;
     expect(contact).toHaveTextContent(ADDRESS);
-    expect(within(contact).getByRole('link', { name: '064-924-5544' })).toHaveAttribute(
-      'href',
-      'tel:+66649245544',
-    );
-    expect(within(contact).getByRole('link', { name: '090-662-5464' })).toHaveAttribute(
-      'href',
-      'tel:+66906625464',
-    );
-    expect(within(contact).getByRole('link', { name: '063-869-3614' })).toHaveAttribute(
-      'href',
-      'tel:+66638693614',
-    );
-    expect(contact).toHaveTextContent('(Office)');
-    expect(contact).toHaveTextContent('(คุณผึ้ง)');
-    expect(contact).toHaveTextContent('(คุณอิน)');
+    // A single phone row — no Office / คุณผึ้ง / คุณอิน rows any more.
+    const phones = within(contact).getAllByRole('link', { name: /^0\d{2}-\d{3}-\d{4}$/ });
+    expect(phones).toHaveLength(1);
+    expect(phones[0]).toHaveTextContent(PHONE);
+    expect(phones[0]).toHaveAttribute('href', `tel:${PHONE_E164}`);
+    expect(contact).toHaveTextContent(`${PHONE} (คุณวิน)`);
+    for (const old of ['064-924-5544', '090-662-5464', 'คุณผึ้ง', 'คุณอิน', 'Office']) {
+      expect(footer).not.toHaveTextContent(old);
+    }
+    expect(contact).toHaveTextContent('LINE OA');
     expect(within(contact).getByRole('link', { name: 'pdablissoffice@gmail.com' })).toHaveAttribute(
       'href',
       'mailto:pdablissoffice@gmail.com',
@@ -114,7 +109,7 @@ describe('public footer', () => {
     const shortcuts = within(footer).getByRole('list', { name: 'ช่องทางติดต่อด่วน' });
     expect(within(shortcuts).getByRole('link', { name: 'โทร' })).toHaveAttribute(
       'href',
-      'tel:+66649245544',
+      `tel:${PHONE_E164}`,
     );
     expect(within(shortcuts).getByRole('link', { name: /LINE/ })).toHaveAttribute('href', LINE_URL);
     expect(within(shortcuts).getByRole('link', { name: 'Email' })).toHaveAttribute(
@@ -296,8 +291,9 @@ describe('floating utilities', () => {
     const panel = screen.getByRole('region', { name: 'ติดต่อทีม PDA BLISS' });
     expect(trigger).toHaveAttribute('aria-controls', panel.id);
     const call = within(panel).getByRole('link', { name: /โทรหาเรา/ });
-    expect(call).toHaveAttribute('href', 'tel:+66649245544');
-    expect(call).toHaveTextContent('064-924-5544 (Office)');
+    // The floating panel shows the same single number as the footer.
+    expect(call).toHaveAttribute('href', `tel:${PHONE_E164}`);
+    expect(call).toHaveTextContent(`${PHONE} (คุณวิน)`);
     await waitFor(() => expect(call).toHaveFocus());
     const line = within(panel).getByRole('link', { name: /LINE OA/ });
     expect(line).toHaveAttribute('href', LINE_URL);
@@ -331,13 +327,23 @@ describe('floating utilities', () => {
     );
   });
 
-  it('waits until the homepage hero has scrolled away', async () => {
+  it('stays hidden while the homepage CORE World section is on screen', async () => {
     acceptStored();
+    let heroBottom = 2000;
+    const original = Element.prototype.getBoundingClientRect;
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      if (this.id === 'core-world') return { bottom: heroBottom } as DOMRect;
+      return original.call(this);
+    });
     renderRoute('/');
     await screen.findByRole('heading', { level: 1 });
+    fireEvent.scroll(window);
     expect(screen.queryByRole('button', { name: 'เปิดช่องทางติดต่อ' })).toBeNull();
-    Object.defineProperty(window, 'scrollY', { value: 900, configurable: true });
+    heroBottom = 120;
     fireEvent.scroll(window);
     expect(await screen.findByRole('button', { name: 'เปิดช่องทางติดต่อ' })).toBeInTheDocument();
+    spy.mockRestore();
   });
 });

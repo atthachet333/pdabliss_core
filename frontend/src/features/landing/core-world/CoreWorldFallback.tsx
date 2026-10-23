@@ -148,7 +148,7 @@ export function CoreWorldFallback({
               style={{
                 left: `${n.x / 10}%`,
                 top: `${n.y / 10}%`,
-                translate: '-50% 0.85rem',
+                translate: '-50% -50%',
                 zIndex: Math.round(100 - n.depth * 10),
               }}
             />

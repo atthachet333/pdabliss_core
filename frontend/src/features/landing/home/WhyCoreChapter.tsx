@@ -1,22 +1,87 @@
 import { motion, useTransform, type MotionValue } from 'framer-motion';
 import { useRef } from 'react';
 import { Container } from '@/components/ui/Section';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
 import { ChapterMark } from './ChapterMark';
 import { useScrollStage } from './useScrollStage';
 
-const WORKSPACES = ['ฝ่ายขาย', 'ปฏิบัติการ', 'คลังสินค้า', 'ผู้บริหาร', 'บัญชี', 'จัดซื้อ'];
+const th = {
+  workspaces: ['ฝ่ายขาย', 'ปฏิบัติการ', 'คลังสินค้า', 'ผู้บริหาร', 'บัญชี', 'จัดซื้อ'],
+  monolith: 'ระบบเดียว · เมนูรวมทุกแผนก',
+  statements: [
+    { text: 'CORE ไม่ได้เริ่มจากคำถามว่า', strong: 'องค์กรต้องมีเมนูอะไรบ้าง' },
+    { text: 'แต่เริ่มจากคำถามว่า', strong: 'แต่ละแผนกต้องทำงานอย่างไรให้ดีที่สุด' },
+    { text: 'โดยที่ทุกแผนก', strong: 'ยังทำงานอยู่บนข้อมูลชุดเดียวกัน' },
+  ],
+  title: 'แนวคิดของ CORE: เริ่มจากวิธีทำงานของแต่ละแผนก บนข้อมูลชุดเดียวกัน',
+  aTitle: 'ระบบแบบรวมศูนย์',
+  aBody: 'ทุกคนเข้าระบบเดียวกัน แล้วค้นหาเมนูของงานตัวเองจากโครงสร้างที่ออกแบบให้ทั้งองค์กร',
+  bTitle: 'พื้นที่ทำงานของแต่ละแผนก เชื่อมกันผ่าน CORE',
+  bBody:
+    'แต่ละคนเริ่มจากงานของแผนกตัวเอง ขณะที่ข้อมูลและขั้นตอนทั้งหมดยังเป็นชุดเดียวกันทั้งองค์กร',
+  aCaption: 'ทุกคนเข้าระบบเดียวกัน แล้วค้นหาเมนูของงานตัวเอง',
+  bCaption: 'ทุกแผนกเริ่มจากพื้นที่ทำงานของตัวเอง เชื่อมกันผ่าน CORE',
+};
+
+const COPY: Localized<typeof th> = {
+  th,
+  en: {
+    workspaces: ['Sales', 'Operations', 'Warehouse', 'Executive', 'Accounting', 'Purchasing'],
+    monolith: 'One system · every department’s menus',
+    statements: [
+      { text: 'CORE did not start by asking', strong: 'which menus an organization needs' },
+      { text: 'It started by asking', strong: 'how each department works best' },
+      { text: 'while every department', strong: 'still works on one shared set of data' },
+    ],
+    title: 'The CORE idea: start from how each department works, on one shared set of data',
+    aTitle: 'One centralized system',
+    aBody:
+      'Everyone enters the same system, then searches for their own work in a structure designed for the whole organization.',
+    bTitle: 'Workspaces for each department, connected through CORE',
+    bBody:
+      'Each person starts from their own department’s work, while all data and steps remain one set for the whole organization.',
+    aCaption: 'Everyone enters one system and searches for their own menus',
+    bCaption: 'Each department starts in its own workspace, connected through CORE',
+  },
+  'zh-CN': {
+    workspaces: ['销售部', '运营部', '仓库', '管理层', '财务', '采购部'],
+    monolith: '一个系统 · 汇集所有部门的菜单',
+    statements: [
+      { text: 'CORE 的出发点不是', strong: '企业需要哪些菜单' },
+      { text: '而是', strong: '每个部门怎样才能把工作做到最好' },
+      { text: '同时让所有部门', strong: '仍然在同一套数据上工作' },
+    ],
+    title: 'CORE 的理念：从各部门的工作方式出发，基于同一套数据',
+    aTitle: '集中式系统',
+    aBody: '所有人进入同一个系统，再从为整个组织设计的结构中寻找自己的工作菜单。',
+    bTitle: '各部门拥有自己的工作空间，通过 CORE 相连',
+    bBody: '每个人从本部门的工作开始，而所有数据和流程在全公司仍是同一套。',
+    aCaption: '所有人进入同一个系统，再寻找自己的菜单',
+    bCaption: '每个部门从自己的工作空间开始，通过 CORE 相连',
+  },
+};
+
+const WORKSPACE_COUNT = th.workspaces.length;
 
 /* Geometry (viewBox 800×520). A: one system, sliced into stacked menus. B: six workspaces around CORE. */
-const A = WORKSPACES.map((_, i) => ({ x: 230, y: 50 + i * 70, w: 340, h: 70 }));
+const A = Array.from({ length: WORKSPACE_COUNT }, (_, i) => ({
+  x: 230,
+  y: 50 + i * 70,
+  w: 340,
+  h: 70,
+}));
 const B = [-90, -30, 30, 90, 150, 210].map((deg) => {
   const a = (deg * Math.PI) / 180;
   const cx = 400 + Math.cos(a) * 240;
   const cy = 260 + Math.sin(a) * 196;
   return { x: cx - 88, y: cy - 38, w: 176, h: 76, cx, cy };
 });
-const USERS_A = WORKSPACES.map((_, i) => ({ x: i % 2 ? 690 : 110, y: 95 + i * 62 }));
+const USERS_A = Array.from({ length: WORKSPACE_COUNT }, (_, i) => ({
+  x: i % 2 ? 690 : 110,
+  y: 95 + i * 62,
+}));
 
 /** One slice of the system, morphing from monolith (A) to workspace (B) with scroll. */
 function Slice({ i, t }: { i: number; t: MotionValue<number> }) {
@@ -74,7 +139,7 @@ function MorphLayers({ t }: { t: MotionValue<number> }) {
           />
         ))}
       </motion.g>
-      {WORKSPACES.map((_, i) => (
+      {A.map((_, i) => (
         <Slice key={i} i={i} t={t} />
       ))}
       <motion.g style={{ opacity: aFade }}>
@@ -144,6 +209,7 @@ function StaticLayers({ state }: { state: 'A' | 'B' }) {
 }
 
 function MenuRows() {
+  const c = useCopy(COPY);
   return (
     <g>
       {A.map((a, i) => (
@@ -163,7 +229,7 @@ function MenuRows() {
         </g>
       ))}
       <text x={400} y={34} textAnchor="middle" fill="#758c86" fontSize="15">
-        ระบบเดียว · เมนูรวมทุกแผนก
+        {c.monolith}
       </text>
     </g>
   );
@@ -195,13 +261,14 @@ function UsersSearching() {
 }
 
 function WorkspaceLabels() {
+  const c = useCopy(COPY);
   return (
     <g>
       {B.map((b, i) => (
         <g key={i}>
           <circle cx={b.x + 20} cy={b.y + 38} r={6} fill="#e8fff7" />
           <text x={b.x + 34} y={b.y + 43} fill="#eef6f3" fontSize="16">
-            {WORKSPACES[i]}
+            {c.workspaces[i]}
           </text>
         </g>
       ))}
@@ -209,11 +276,7 @@ function WorkspaceLabels() {
   );
 }
 
-const STATEMENTS = [
-  { text: 'CORE ไม่ได้เริ่มจากคำถามว่า', strong: 'องค์กรต้องมีเมนูอะไรบ้าง', tone: 'muted' },
-  { text: 'แต่เริ่มจากคำถามว่า', strong: 'แต่ละแผนกต้องทำงานอย่างไรให้ดีที่สุด', tone: 'brand' },
-  { text: 'โดยที่ทุกแผนก', strong: 'ยังทำงานอยู่บนข้อมูลชุดเดียวกัน', tone: 'plain' },
-] as const;
+const TONES = ['muted', 'brand', 'plain'] as const;
 
 /**
  * Chapter 04 — why CORE exists. Editorial statements, then (desktop, pinned)
@@ -224,6 +287,8 @@ export function WhyCoreChapter() {
   const pinRef = useRef<HTMLDivElement>(null);
   const { progress, stage, reduce } = useScrollStage(pinRef, 2);
   const showCore = stage === 1;
+  const c = useCopy(COPY);
+  const statements = c.statements.map((st, i) => ({ ...st, tone: TONES[i]! }));
 
   return (
     <section id="why-core" aria-labelledby="why-core-title" className="relative overflow-x-clip">
@@ -235,10 +300,10 @@ export function WhyCoreChapter() {
       <Container className="pt-24 sm:pt-32">
         <ChapterMark id="why-core" align="center" />
         <h2 id="why-core-title" className="sr-only">
-          แนวคิดของ CORE: เริ่มจากวิธีทำงานของแต่ละแผนก บนข้อมูลชุดเดียวกัน
+          {c.title}
         </h2>
         <div className="mx-auto mt-14 max-w-4xl space-y-14 text-center sm:space-y-20">
-          {STATEMENTS.map((s, i) => (
+          {statements.map((s, i) => (
             <motion.p
               key={s.strong}
               initial={reduce ? false : { opacity: 0, y: 28, filter: 'blur(6px)' }}
@@ -272,14 +337,14 @@ export function WhyCoreChapter() {
                 {
                   on: !showCore,
                   k: 'ONE LARGE SYSTEM',
-                  t: 'ระบบแบบรวมศูนย์',
-                  b: 'ทุกคนเข้าระบบเดียวกัน แล้วค้นหาเมนูของงานตัวเองจากโครงสร้างที่ออกแบบให้ทั้งองค์กร',
+                  t: c.aTitle,
+                  b: c.aBody,
                 },
                 {
                   on: showCore,
                   k: 'CORE',
-                  t: 'พื้นที่ทำงานของแต่ละแผนก เชื่อมกันผ่าน CORE',
-                  b: 'แต่ละคนเริ่มจากงานของแผนกตัวเอง ขณะที่ข้อมูลและขั้นตอนทั้งหมดยังเป็นชุดเดียวกันทั้งองค์กร',
+                  t: c.bTitle,
+                  b: c.bBody,
                 },
               ].map((p) => (
                 <div
@@ -314,9 +379,7 @@ export function WhyCoreChapter() {
               <span className="block text-caption font-semibold tracking-[0.2em] text-text-muted">
                 ONE LARGE SYSTEM
               </span>
-              <span className="text-label text-text-secondary">
-                ทุกคนเข้าระบบเดียวกัน แล้วค้นหาเมนูของงานตัวเอง
-              </span>
+              <span className="text-label text-text-secondary">{c.aCaption}</span>
             </figcaption>
           </figure>
           <figure>
@@ -325,9 +388,7 @@ export function WhyCoreChapter() {
               <span className="block text-caption font-semibold tracking-[0.2em] text-brand-glow">
                 CORE
               </span>
-              <span className="text-label text-text-secondary">
-                ทุกแผนกเริ่มจากพื้นที่ทำงานของตัวเอง เชื่อมกันผ่าน CORE
-              </span>
+              <span className="text-label text-text-secondary">{c.bCaption}</span>
             </figcaption>
           </figure>
         </div>

@@ -35,8 +35,9 @@ export function tilt([x, y, z]: Vec3): Vec3 {
  */
 export function cameraDistance(aspect: number, withLabels: boolean): number {
   const halfH = Math.tan(((CAMERA.fov / 2) * Math.PI) / 180);
-  const needW = withLabels ? 3.9 : 3.15;
-  const needH = 2.45;
+  // World cards (EP05 revision) are wider and taller than the old name tags.
+  const needW = withLabels ? 4.15 : 3.15;
+  const needH = withLabels ? 2.7 : 2.45;
   return Math.max(needH / halfH, needW / (halfH * aspect), 7.2);
 }
 

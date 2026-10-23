@@ -31,7 +31,7 @@ function useHashScroll() {
 }
 
 function Shell() {
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   useHashScroll();
   return (
     <CookieConsent>
@@ -43,13 +43,8 @@ function Shell() {
           {t.shell.skipToContent}
         </a>
         <PublicHeader />
-        {/* Page bodies are Thai in every locale until the localization episode. */}
-        <main
-          id="main"
-          tabIndex={-1}
-          lang={locale === DEFAULT_LOCALE ? undefined : 'th'}
-          className="flex-1 outline-none"
-        >
+        {/* Page bodies follow the locale too (EP05 revision); <html lang> is set by LocaleProvider. */}
+        <main id="main" tabIndex={-1} className="flex-1 outline-none">
           <Outlet />
         </main>
         <PublicFooter />

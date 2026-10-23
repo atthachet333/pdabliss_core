@@ -13,15 +13,73 @@ import {
 } from 'lucide-react';
 import { useRef } from 'react';
 import { Container } from '@/components/ui/Section';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { ChapterMark } from './ChapterMark';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
+const th = {
+  fragments: [
+    { title: 'ไฟล์ตารางกระจายอยู่ทุกทีม', note: 'ใครถือฉบับล่าสุด?' },
+    { title: 'ไล่ถามสถานะในแชต', note: '“งานนี้ถึงไหนแล้วครับ”' },
+    { title: 'ข้อมูลเดียวกันกรอกซ้ำหลายที่', note: 'ตัวเลขไม่ตรงกัน' },
+    { title: 'ไม่รู้ว่าเอกสารฉบับไหนถูกต้อง', note: 'v3_final_แก้ล่าสุด' },
+    { title: 'งานรอโดยไม่มีเจ้าของ', note: 'ค้างมา 4 วัน' },
+    { title: 'การอนุมัติล่าช้า', note: 'รอลายเซ็น' },
+    { title: 'แผนกต้องถามกันเองตลอด', note: 'ส่งต่อหลายทอด' },
+    { title: 'สต็อกและวันหมดอายุ รู้เมื่อสายไป', note: 'พบตอนจะจ่ายของ' },
+    { title: 'ไม่มีร่องรอยว่าใครแก้อะไร', note: 'ย้อนดูไม่ได้' },
+  ],
+  titleA: 'เมื่อองค์กรเติบโต',
+  titleB: 'เร็วกว่ากระบวนการ',
+  lead: 'ไม่มีใครตั้งใจให้เป็นแบบนี้ — แต่ละทีมหาวิธีของตัวเองเพื่อให้งานเดินต่อ จนข้อมูล เอกสาร และสถานะกระจายอยู่คนละที่',
+  note: 'นี่ไม่ใช่ความผิดของคนทำงาน แต่เป็นสัญญาณว่ากระบวนการยังไม่ได้เติบโตไปพร้อมกับองค์กร',
+  listLabel: 'สัญญาณของกระบวนการที่โตไม่ทันองค์กร',
+};
+
+const COPY: Localized<typeof th> = {
+  th,
+  en: {
+    fragments: [
+      { title: 'Spreadsheets scattered across every team', note: 'Who has the latest version?' },
+      { title: 'Chasing status in chat', note: '“Where is this order now?”' },
+      { title: 'The same data typed in several places', note: 'The numbers don’t match' },
+      { title: 'Nobody knows which document is correct', note: 'v3_final_latest_edit' },
+      { title: 'Work waiting with no owner', note: 'Stuck for 4 days' },
+      { title: 'Slow approvals', note: 'Waiting for a signature' },
+      { title: 'Departments always asking each other', note: 'Passed along many times' },
+      { title: 'Stock and expiry noticed too late', note: 'Found at dispatch' },
+      { title: 'No trace of who changed what', note: 'No way to look back' },
+    ],
+    titleA: 'When an organization grows',
+    titleB: 'faster than its processes',
+    lead: 'Nobody plans it this way — each team finds its own way to keep work moving, until data, documents and status are scattered everywhere.',
+    note: 'This is not the people’s fault. It is a sign that the process has not grown with the organization.',
+    listLabel: 'Signs that process has not kept up with growth',
+  },
+  'zh-CN': {
+    fragments: [
+      { title: '表格文件分散在各个团队', note: '谁手上是最新版本？' },
+      { title: '在聊天中追问状态', note: '“这项工作进行到哪了？”' },
+      { title: '同一份数据在多处重复录入', note: '数字对不上' },
+      { title: '不知道哪份单据才是正确的', note: 'v3_final_最新修改' },
+      { title: '工作等待却无人负责', note: '已搁置 4 天' },
+      { title: '审批迟缓', note: '等待签字' },
+      { title: '部门之间总要互相询问', note: '层层转交' },
+      { title: '库存与保质期发现得太晚', note: '出货时才发现' },
+      { title: '无法追溯谁改了什么', note: '无从查起' },
+    ],
+    titleA: '当企业成长',
+    titleB: '快于流程',
+    lead: '没有人故意让事情变成这样——每个团队都用自己的办法让工作继续，最终数据、单据和状态散落各处。',
+    note: '这不是员工的错，而是流程没有跟上企业成长的信号。',
+    listLabel: '流程跟不上企业成长的信号',
+  },
+};
+
 /** Organizational friction — abstract artefacts, no third-party brands. */
 const FRAGMENTS: {
   icon: LucideIcon;
-  title: string;
-  note: string;
   /** Desktop placement (% of the field) and tilt. */
   x: number;
   y: number;
@@ -32,8 +90,6 @@ const FRAGMENTS: {
 }[] = [
   {
     icon: Table2,
-    title: 'ไฟล์ตารางกระจายอยู่ทุกทีม',
-    note: 'ใครถือฉบับล่าสุด?',
     x: 2,
     y: 4,
     r: -4,
@@ -42,8 +98,6 @@ const FRAGMENTS: {
   },
   {
     icon: MessagesSquare,
-    title: 'ไล่ถามสถานะในแชต',
-    note: '“งานนี้ถึงไหนแล้วครับ”',
     x: 52,
     y: 0,
     r: 3,
@@ -52,8 +106,6 @@ const FRAGMENTS: {
   },
   {
     icon: Copy,
-    title: 'ข้อมูลเดียวกันกรอกซ้ำหลายที่',
-    note: 'ตัวเลขไม่ตรงกัน',
     x: 28,
     y: 20,
     r: -2,
@@ -62,8 +114,6 @@ const FRAGMENTS: {
   },
   {
     icon: FileQuestion,
-    title: 'ไม่รู้ว่าเอกสารฉบับไหนถูกต้อง',
-    note: 'v3_final_แก้ล่าสุด',
     x: 64,
     y: 24,
     r: 5,
@@ -72,19 +122,15 @@ const FRAGMENTS: {
   },
   {
     icon: Hourglass,
-    title: 'งานรอโดยไม่มีเจ้าของ',
-    note: 'ค้างมา 4 วัน',
     x: 0,
     y: 42,
     r: 3,
     dx: -22,
     dy: 6,
   },
-  { icon: Stamp, title: 'การอนุมัติล่าช้า', note: 'รอลายเซ็น', x: 36, y: 44, r: -5, dx: 6, dy: 10 },
+  { icon: Stamp, x: 36, y: 44, r: -5, dx: 6, dy: 10 },
   {
     icon: Repeat,
-    title: 'แผนกต้องถามกันเองตลอด',
-    note: 'ส่งต่อหลายทอด',
     x: 14,
     y: 66,
     r: 4,
@@ -93,8 +139,6 @@ const FRAGMENTS: {
   },
   {
     icon: CalendarX2,
-    title: 'สต็อกและวันหมดอายุ รู้เมื่อสายไป',
-    note: 'พบตอนจะจ่ายของ',
     x: 60,
     y: 62,
     r: -3,
@@ -103,8 +147,6 @@ const FRAGMENTS: {
   },
   {
     icon: Unlink,
-    title: 'ไม่มีร่องรอยว่าใครแก้อะไร',
-    note: 'ย้อนดูไม่ได้',
     x: 40,
     y: 84,
     r: 6,
@@ -115,11 +157,13 @@ const FRAGMENTS: {
 
 function Fragment({
   f,
+  text,
   index,
   progress,
   reduce,
 }: {
   f: (typeof FRAGMENTS)[number];
+  text: { title: string; note: string };
   index: number;
   progress: MotionValue<number>;
   reduce: boolean;
@@ -142,9 +186,9 @@ function Fragment({
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#7d97a8]/25 bg-[#101c26]">
           <Icon className="size-4 text-[#9db3c2]" aria-hidden />
         </span>
-        <span className="text-label leading-snug text-[#d7e2e8]">{f.title}</span>
+        <span className="text-label leading-snug text-[#d7e2e8]">{text.title}</span>
       </div>
-      <p className="mt-2 pl-[2.625rem] text-caption text-[#7d97a8] italic">{f.note}</p>
+      <p className="mt-2 pl-[2.625rem] text-caption text-[#7d97a8] italic">{text.note}</p>
     </motion.li>
   );
 }
@@ -158,6 +202,7 @@ export function ComplexityChapter() {
   const ref = useRef<HTMLElement>(null);
   const reduce = usePrefersReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const c = useCopy(COPY);
   const tangle = useTransform(scrollYProgress, [0.15, 0.6], [0.12, 0.38]);
 
   return (
@@ -181,15 +226,12 @@ export function ComplexityChapter() {
           <div className="lg:sticky lg:top-32 lg:self-start">
             <ChapterMark id="complexity" tone="cold" />
             <h2 id="complexity-title" className="mt-6 text-h1 text-[#e6edf1]">
-              เมื่อองค์กรเติบโต
-              <span className="block text-[#7d97a8]">เร็วกว่ากระบวนการ</span>
+              {c.titleA}
+              <span className="block text-[#7d97a8]">{c.titleB}</span>
             </h2>
-            <p className="mt-6 max-w-md text-body-lg text-[#9db3c2]">
-              ไม่มีใครตั้งใจให้เป็นแบบนี้ — แต่ละทีมหาวิธีของตัวเองเพื่อให้งานเดินต่อ จนข้อมูล
-              เอกสาร และสถานะกระจายอยู่คนละที่
-            </p>
+            <p className="mt-6 max-w-md text-body-lg text-[#9db3c2]">{c.lead}</p>
             <p className="mt-8 max-w-md border-l border-[#7d97a8]/30 pl-5 text-label text-[#7d97a8]">
-              นี่ไม่ใช่ความผิดของคนทำงาน แต่เป็นสัญญาณว่ากระบวนการยังไม่ได้เติบโตไปพร้อมกับองค์กร
+              {c.note}
             </p>
           </div>
 
@@ -222,13 +264,14 @@ export function ComplexityChapter() {
               ))}
             </motion.svg>
             <ul
-              aria-label="สัญญาณของกระบวนการที่โตไม่ทันองค์กร"
+              aria-label={c.listLabel}
               className={cn('relative grid gap-3 sm:grid-cols-2 lg:block lg:h-[44rem]')}
             >
               {FRAGMENTS.map((f, i) => (
                 <Fragment
-                  key={f.title}
+                  key={i}
                   f={f}
+                  text={c.fragments[i]!}
                   index={i}
                   progress={scrollYProgress}
                   reduce={reduce}

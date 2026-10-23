@@ -2,20 +2,56 @@ import { animate, motion, useInView, useMotionValue, useMotionValueEvent } from 
 import { Pause, Play } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Container } from '@/components/ui/Section';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
 import { ChapterMark } from './ChapterMark';
-import { CORE_POINT, FLOWS, routeFor, STATIONS } from './flows';
-import { WORLDS, type WorldId } from './worlds';
+import { CORE_POINT, routeFor, STATIONS, useFlows } from './flows';
+import { useWorlds, WORLDS, type WorldId } from './worlds';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 const STEP_MS = 2400;
-const NAME: Record<WorldId, string> = Object.fromEntries(
-  WORLDS.map((w) => [w.id, w.nameTh]),
-) as Record<WorldId, string>;
 const ACCENT: Record<WorldId, string> = Object.fromEntries(
   WORLDS.map((w) => [w.id, w.accent]),
 ) as Record<WorldId, string>;
+
+const th = {
+  titleA: 'งานหนึ่งชิ้น เดินผ่านหลายแผนก',
+  titleB: 'โดยไม่หลุดระหว่างทาง',
+  lead: 'ทุกการส่งต่อผ่าน CORE — แผนกถัดไปเห็นงานทันทีพร้อมข้อมูลที่ต้องใช้ ไม่ต้องรอข้อความ ไม่ต้องกรอกซ้ำ',
+  choose: 'เลือกเส้นทางงาน',
+  route: (label: string) => `เส้นทาง${label}`,
+  play: 'เล่นภาพเคลื่อนไหวเส้นทาง',
+  pause: 'หยุดภาพเคลื่อนไหวเส้นทาง',
+  steps: (label: string) => `ขั้นตอนเส้นทาง${label}`,
+  note: 'เส้นทางนี้เป็นภาพประกอบ — งานจริงหลายส่วนเกิดขึ้นพร้อมกัน และแต่ละองค์กรกำหนดขั้นตอน ลำดับการอนุมัติ และแผนกที่เกี่ยวข้องได้ต่างกัน CORE ถูกออกแบบมาเพื่อรองรับเส้นทางตามที่องค์กรทำงานจริง',
+};
+
+const COPY: Localized<typeof th> = {
+  th,
+  en: {
+    titleA: 'One piece of work, through many departments',
+    titleB: 'without slipping along the way',
+    lead: 'Every handoff goes through CORE — the next department sees the work at once, with the data it needs. No waiting for messages, no re-keying.',
+    choose: 'Choose a work route',
+    route: (label) => `${label} route`,
+    play: 'Play the route animation',
+    pause: 'Pause the route animation',
+    steps: (label) => `${label} route steps`,
+    note: 'This route is illustrative — in reality many parts happen in parallel, and each organization sets its own steps, approval order and departments. CORE is designed to support routes the way your organization actually works.',
+  },
+  'zh-CN': {
+    titleA: '一项工作，流经多个部门',
+    titleB: '途中不会遗漏',
+    lead: '每一次交接都经过 CORE——下一个部门立即看到工作及所需数据，无需等待消息，也无需重复录入。',
+    choose: '选择工作路径',
+    route: (label) => `${label}路径`,
+    play: '播放路径动画',
+    pause: '暂停路径动画',
+    steps: (label) => `${label}路径步骤`,
+    note: '此路径仅为示意——实际上许多工作同时进行，每家企业对步骤、审批顺序和相关部门的设定各不相同。CORE 的设计就是为了支持企业真实的工作路径。',
+  },
+};
 
 /**
  * Chapter 06 — the organization as a route map. Pick a flow; its route draws
@@ -27,6 +63,10 @@ export function ConnectedFlowChapter() {
   const reduce = usePrefersReducedMotion();
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { amount: 0.35 });
+  const FLOWS = useFlows();
+  const worlds = useWorlds();
+  const NAME = Object.fromEntries(worlds.map((w) => [w.id, w.name])) as Record<WorldId, string>;
+  const c = useCopy(COPY);
   const [flowId, setFlowId] = useState(FLOWS[0]!.id);
   const [step, setStep] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -84,17 +124,14 @@ export function ConnectedFlowChapter() {
         <div className="max-w-3xl">
           <ChapterMark id="connected-flow" />
           <h2 id="flow-title" className="mt-6 text-h1 text-text-primary">
-            งานหนึ่งชิ้น เดินผ่านหลายแผนก
-            <span className="block text-text-secondary">โดยไม่หลุดระหว่างทาง</span>
+            {c.titleA}
+            <span className="block text-text-secondary">{c.titleB}</span>
           </h2>
-          <p className="mt-6 text-body-lg text-text-secondary">
-            ทุกการส่งต่อผ่าน CORE — แผนกถัดไปเห็นงานทันทีพร้อมข้อมูลที่ต้องใช้ ไม่ต้องรอข้อความ
-            ไม่ต้องกรอกซ้ำ
-          </p>
+          <p className="mt-6 text-body-lg text-text-secondary">{c.lead}</p>
         </div>
 
         <fieldset className="mt-10">
-          <legend className="sr-only">เลือกเส้นทางงาน</legend>
+          <legend className="sr-only">{c.choose}</legend>
           <div className="flex flex-wrap gap-2">
             {FLOWS.map((f) => (
               <label
@@ -248,7 +285,7 @@ export function ConnectedFlowChapter() {
           <div>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-h3 text-text-primary">เส้นทาง{flow.label}</h3>
+                <h3 className="text-h3 text-text-primary">{c.route(flow.label)}</h3>
                 <p className="mt-1 text-caption text-text-secondary">{flow.summary}</p>
               </div>
               {!reduce && (
@@ -263,13 +300,11 @@ export function ConnectedFlowChapter() {
                   ) : (
                     <Pause className="size-4" aria-hidden />
                   )}
-                  <span className="sr-only">
-                    {paused ? 'เล่นภาพเคลื่อนไหวเส้นทาง' : 'หยุดภาพเคลื่อนไหวเส้นทาง'}
-                  </span>
+                  <span className="sr-only">{paused ? c.play : c.pause}</span>
                 </button>
               )}
             </div>
-            <ol aria-label={`ขั้นตอนเส้นทาง${flow.label}`} className="relative mt-6 space-y-1">
+            <ol aria-label={c.steps(flow.label)} className="relative mt-6 space-y-1">
               <span
                 aria-hidden
                 className="absolute top-4 bottom-4 left-[0.9375rem] w-px bg-border-soft"
@@ -318,9 +353,7 @@ export function ConnectedFlowChapter() {
         </div>
 
         <p className="mt-10 max-w-3xl border-l border-border-strong pl-5 text-caption text-text-muted">
-          เส้นทางนี้เป็นภาพประกอบ — งานจริงหลายส่วนเกิดขึ้นพร้อมกัน และแต่ละองค์กรกำหนดขั้นตอน
-          ลำดับการอนุมัติ และแผนกที่เกี่ยวข้องได้ต่างกัน CORE
-          ถูกออกแบบมาเพื่อรองรับเส้นทางตามที่องค์กรทำงานจริง
+          {c.note}
         </p>
       </Container>
     </section>

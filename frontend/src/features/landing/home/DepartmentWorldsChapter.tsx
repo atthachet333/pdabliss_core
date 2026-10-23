@@ -3,11 +3,13 @@ import { ArrowRight, EyeOff } from 'lucide-react';
 import { lazy, Suspense, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import { Container } from '@/components/ui/Section';
+import { useLocale } from '@/i18n/useLocale';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
 import { ChapterMark } from './ChapterMark';
 import { WorldArt } from './WorldArt';
-import { WORLDS, type WorldId } from './worlds';
+import { useWorlds, type WorldId } from './worlds';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 const WorldPreview = lazy(() => import('./previews'));
@@ -25,6 +27,56 @@ function PreviewSkeleton() {
   );
 }
 
+const th = {
+  titleA: 'หกโลกการทำงาน',
+  titleB: 'ที่ออกแบบมาเพื่อหน้าที่ของแต่ละแผนก',
+  quoteA: 'แยกประสบการณ์การทำงาน',
+  quoteB: 'แต่ไม่แยกข้อมูล',
+  tabs: 'เลือกโลกการทำงานของแผนก',
+  duties: (name: string) => `หน้าที่ของ${name}`,
+  warehouseNote:
+    'พื้นที่คลังสินค้าแสดงจำนวน Lot และวันหมดอายุ — ไม่แสดงราคาหรือต้นทุน เพราะไม่เกี่ยวข้องกับหน้าที่',
+  details: (name: string) => `ดูรายละเอียด${name}`,
+  preview: (name: string) => `ตัวอย่างหน้าจอ${name} (ข้อมูลตัวอย่าง)`,
+  previewCaption: 'หน้าจอจริงจากระบบต้นแบบ แสดงด้วยข้อมูลตัวอย่าง',
+  shared:
+    'ทั้งหกพื้นที่อ่านและเขียนข้อมูลชุดเดียวกัน — สิ่งที่ฝ่ายขายบันทึก คือสิ่งที่คลัง จัดซื้อ บัญชี และผู้บริหารเห็น ตามสิทธิ์ของแต่ละหน้าที่',
+};
+
+const COPY: Localized<typeof th> = {
+  th,
+  en: {
+    titleA: 'Six worlds of work',
+    titleB: 'each designed around a department’s job',
+    quoteA: 'Separate ways of working',
+    quoteB: 'without separating the data',
+    tabs: 'Choose a department world',
+    duties: (name) => `${name} responsibilities`,
+    warehouseNote:
+      'The warehouse workspace shows lot quantities and expiry dates — never prices or costs, because they are not part of the job.',
+    details: (name) => `See ${name} in detail`,
+    preview: (name) => `${name} screen preview (sample data)`,
+    previewCaption:
+      'Real screens from the prototype, shown with sample data. The product interface is in Thai.',
+    shared:
+      'All six workspaces read and write the same data — what Sales records is what the Warehouse, Purchasing, Accounting and Executives see, according to each role’s permissions.',
+  },
+  'zh-CN': {
+    titleA: '六个工作世界',
+    titleB: '围绕各部门的职责而设计',
+    quoteA: '工作体验各自独立',
+    quoteB: '数据却始终相连',
+    tabs: '选择部门的工作世界',
+    duties: (name) => `${name}的职责`,
+    warehouseNote: '仓库工作空间只显示批次数量与保质期——不显示价格或成本，因为这与岗位无关。',
+    details: (name) => `查看${name}详情`,
+    preview: (name) => `${name}界面预览（示例数据）`,
+    previewCaption: '来自原型系统的真实界面，使用示例数据展示。产品界面为泰语。',
+    shared:
+      '六个空间读写同一套数据——销售部录入的内容，就是仓库、采购、财务与管理层按各自权限看到的内容。',
+  },
+};
+
 /**
  * Chapter 05 — six operational worlds. One stage, six environments: the
  * light, accent and procedural art shift per department while a real EP02
@@ -34,6 +86,9 @@ export function DepartmentWorldsChapter() {
   const reduce = usePrefersReducedMotion();
   const [active, setActive] = useState<WorldId>('sales');
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const WORLDS = useWorlds();
+  const { locale } = useLocale();
+  const c = useCopy(COPY);
   const world = WORLDS.find((w) => w.id === active)!;
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -73,20 +128,20 @@ export function DepartmentWorldsChapter() {
           <div>
             <ChapterMark id="department-worlds" />
             <h2 id="worlds-title" className="mt-6 max-w-3xl text-h1 text-text-primary">
-              หกโลกการทำงาน
-              <span className="block text-text-secondary">ที่ออกแบบมาเพื่อหน้าที่ของแต่ละแผนก</span>
+              {c.titleA}
+              <span className="block text-text-secondary">{c.titleB}</span>
             </h2>
           </div>
           <p className="max-w-sm border-l border-brand-glow/40 pl-5 text-h3 text-brand-soft">
-            แยกประสบการณ์การทำงาน
-            <span className="block text-text-primary">แต่ไม่แยกข้อมูล</span>
+            {c.quoteA}
+            <span className="block text-text-primary">{c.quoteB}</span>
           </p>
         </div>
 
         {/* World selector */}
         <div
           role="tablist"
-          aria-label="เลือกโลกการทำงานของแผนก"
+          aria-label={c.tabs}
           onKeyDown={onKey}
           className="mt-12 grid grid-cols-3 gap-2 sm:grid-cols-6"
         >
@@ -119,11 +174,13 @@ export function DepartmentWorldsChapter() {
                     on ? 'text-text-primary' : 'text-text-secondary',
                   )}
                 >
-                  {w.nameTh}
+                  {w.name}
                 </span>
-                <span className="hidden text-[0.6875rem] tracking-[0.14em] text-text-muted uppercase sm:block">
-                  {w.nameEn}
-                </span>
+                {locale !== 'en' && (
+                  <span className="hidden text-[0.6875rem] tracking-[0.14em] text-text-muted uppercase sm:block">
+                    {w.nameEn}
+                  </span>
+                )}
                 <span
                   aria-hidden
                   className={cn(
@@ -171,10 +228,10 @@ export function DepartmentWorldsChapter() {
                 <p className="text-caption font-semibold tracking-[0.2em] text-[var(--world)] uppercase">
                   {world.nameEn} World
                 </p>
-                <h3 className="mt-3 text-h2 text-text-primary">{world.nameTh}</h3>
+                <h3 className="mt-3 text-h2 text-text-primary">{world.name}</h3>
                 <p className="mt-2 text-caption text-text-muted">{world.mood}</p>
                 <p className="mt-6 text-body-lg text-text-secondary">{world.message}</p>
-                <ul aria-label={`หน้าที่ของ${world.nameTh}`} className="mt-6 flex flex-wrap gap-2">
+                <ul aria-label={c.duties(world.name)} className="mt-6 flex flex-wrap gap-2">
                   {world.responsibilities.map((r) => (
                     <li
                       key={r}
@@ -187,24 +244,20 @@ export function DepartmentWorldsChapter() {
                 {active === 'warehouse' && (
                   <p className="mt-6 flex items-start gap-2.5 rounded-xl border border-border-soft bg-surface-base/70 p-3.5 text-caption text-text-secondary">
                     <EyeOff className="mt-0.5 size-4 shrink-0 text-[var(--world)]" aria-hidden />
-                    พื้นที่คลังสินค้าแสดงจำนวน Lot และวันหมดอายุ — ไม่แสดงราคาหรือต้นทุน
-                    เพราะไม่เกี่ยวข้องกับหน้าที่
+                    {c.warehouseNote}
                   </p>
                 )}
                 <Link
                   to={`/departments#${world.id}`}
                   className="mt-8 inline-flex w-fit items-center gap-2 rounded-full text-label font-medium text-text-primary underline-offset-4 hover:underline"
                 >
-                  ดูรายละเอียด{world.nameTh}
+                  {c.details(world.name)}
                   <ArrowRight className="size-4" aria-hidden />
                 </Link>
               </motion.div>
             </AnimatePresence>
 
-            <figure
-              className="relative"
-              aria-label={`ตัวอย่างหน้าจอ${world.nameTh} (ข้อมูลตัวอย่าง)`}
-            >
+            <figure className="relative" aria-label={c.preview(world.name)}>
               <div
                 aria-hidden
                 inert
@@ -230,16 +283,13 @@ export function DepartmentWorldsChapter() {
                 </Suspense>
               </div>
               <figcaption className="mt-3 text-caption text-text-muted">
-                หน้าจอจริงจากระบบต้นแบบ แสดงด้วยข้อมูลตัวอย่าง
+                {c.previewCaption}
               </figcaption>
             </figure>
           </div>
         </div>
 
-        <p className="mt-6 text-caption text-text-muted">
-          ทั้งหกพื้นที่อ่านและเขียนข้อมูลชุดเดียวกัน — สิ่งที่ฝ่ายขายบันทึก คือสิ่งที่คลัง จัดซื้อ
-          บัญชี และผู้บริหารเห็น ตามสิทธิ์ของแต่ละหน้าที่
-        </p>
+        <p className="mt-6 text-caption text-text-muted">{c.shared}</p>
       </Container>
     </section>
   );

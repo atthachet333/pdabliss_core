@@ -181,6 +181,18 @@ Generated, abstract and brand-tinted (orbits, networks, racks, ledgers) — prod
 photography, no AI people, no generic SaaS illustrations. Every image is decorative
 (`alt=""`) and every surface has a CSS fallback, so the site reads fully without images.
 
+**Department scenes (EP05 revision).** Seven cinematic environments — Sales, Operations,
+Warehouse, Purchasing, Accounting, Reports, Executive — drawn in code by
+`frontend/scripts/build-department-scenes.mjs` (one-point perspective, shared camera and room
+language) and rendered to WebP at 960×540 and 400×225. Rules: dark obsidian / deep-navy rooms,
+emerald / teal / cyan light only (amber only as a tiny status accent), large luminous screens
+carrying each department's work (order pipeline, Gantt plan, lot labels, supplier network,
+verification ledger, dashboards, command view), backlit anonymous silhouettes (no faces, no
+identity), glowing floor lanes leading to the main display (the CORE thread), vignette and soft
+volumetric light. Never prices or costs in the Warehouse scene; on-screen text is limited to
+neutral codes (SO, PO, LOT, EXP, QTY). The files can be replaced by any 16:9 artwork with the
+same names — the site never depends on them for meaning.
+
 ## Voice
 
 Thai-first, calm, precise. Short declarative sentences. Talk about the work people do, not

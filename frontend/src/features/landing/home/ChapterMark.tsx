@@ -1,7 +1,8 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
-import { chapter, type ChapterId } from './chapters';
+import { useCopy } from '@/i18n/useCopy';
+import { chapter, CHAPTER_LABELS, type ChapterId } from './chapters';
 
 /**
  * The thread that ties the chapters together: a data line drops in from the
@@ -20,6 +21,7 @@ export function ChapterMark({
   className?: string;
 }) {
   const c = chapter(id);
+  const label = useCopy(CHAPTER_LABELS)[id];
   const reduce = useReducedMotion();
   const color = {
     brand: 'from-transparent to-brand-glow',
@@ -57,7 +59,7 @@ export function ChapterMark({
       >
         <span className="text-text-muted tabular">{c.index}</span>
         <span aria-hidden className="h-px w-6 bg-current opacity-40" />
-        <span className="tracking-[0.08em] normal-case">{c.label}</span>
+        <span className="tracking-[0.08em] normal-case">{label}</span>
       </p>
     </div>
   );

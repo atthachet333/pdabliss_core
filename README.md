@@ -59,7 +59,7 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 | `npm run lint`         | ESLint                         | ESLint (type-aware)             |
 | `npm test`             | Vitest + Testing Library       | Vitest + Fastify `inject`       |
 | `npm run format`       | Prettier                       | Prettier                        |
-| `npm run assets`       | regenerate WebP/AVIF/PNG assets | —                              |
+| `npm run assets`       | regenerate WebP/AVIF/PNG assets + department scenes | —          |
 | `npm run db:validate`  | —                              | validate the Prisma schema      |
 
 ## Routes
@@ -67,12 +67,11 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 Public: `/`, `/departments`, `/features`, `/solutions`, `/pricing`, `/about`, `/contact`,
 `/login`, `/privacy`, `/terms`
 
-Locales (EP05): Thai is the default and unprefixed; the same public pages are served under
-`/en/...` and `/zh/...` (Simplified Chinese) with a fully localized shell — page bodies are
-still Thai. `/login` and `/app/*` are never prefixed. See
-[docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md).
+Locales (EP05): Thai is the default and unprefixed; the whole public site is also served in
+English under `/en/...` and Simplified Chinese under `/zh/...` — shell and page content alike.
+`/login` and `/app/*` are never prefixed. See [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md).
 
-Public contact details (address, phones, email, LINE) live only in
+Public contact details (address, the single public phone, email, LINE) live only in
 `frontend/src/config/contact.ts`.
 
 Workspaces (prototype, sign-in required): `/app/executive`, `/app/sales`, `/app/warehouse`,
@@ -122,6 +121,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP04_REPORT.md](docs/EP04_REPORT.md) — flagship homepage experience
 - [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md) — public header, mega menus, localization, footer, contact, cookies, utilities
 - [docs/EP05_REPORT.md](docs/EP05_REPORT.md) — public shell & localization foundation
+- [docs/EP05_REVISION_REPORT.md](docs/EP05_REVISION_REPORT.md) — EP05 revision: full-site language, single phone, mega-menu visuals, CORE World imagery
 
 ---
 

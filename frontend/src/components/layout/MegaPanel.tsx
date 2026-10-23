@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { MEGA_GROUPS, type MegaGroupId } from '@/config/navigation';
 import { useLocale } from '@/i18n/useLocale';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
+import { MegaItemMark, MegaVisual } from './MegaVisuals';
 
 /** Faint orbit geometry for highlight panels — CORE's mark, at whisper level. */
 export function OrbitLines({ className }: { className?: string }) {
@@ -67,13 +68,10 @@ export function MegaPanel({ id, onNavigate }: { id: MegaGroupId; onNavigate: () 
 
       <ul className="grid grid-cols-2 content-start gap-1.5 self-start">
         {group.items.map((item) => {
-          const Icon = item.icon;
           const text = copy.items[item.id]!;
           const body = (
             <>
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border-soft bg-surface-base/80 transition-colors duration-200 group-hover:border-border-brand">
-                <Icon className="size-4 text-brand-soft" aria-hidden />
-              </span>
+              <MegaItemMark group={id} item={item} />
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-label font-medium text-text-primary">
                   {text.label}
@@ -112,12 +110,13 @@ export function MegaPanel({ id, onNavigate }: { id: MegaGroupId; onNavigate: () 
         })}
       </ul>
 
-      <div className="relative overflow-hidden rounded-card border border-border-soft bg-[radial-gradient(ellipse_at_85%_0%,rgb(25_195_154/0.14),transparent_62%),linear-gradient(180deg,rgb(12_24_34/0.85),rgb(7_15_22/0.7))] p-6">
+      <div className="relative overflow-hidden rounded-card border border-border-soft bg-[radial-gradient(ellipse_at_85%_0%,rgb(25_195_154/0.14),transparent_62%),linear-gradient(180deg,rgb(12_24_34/0.85),rgb(7_15_22/0.7))] p-5">
         <OrbitLines className="pointer-events-none absolute -right-14 -bottom-16 size-52 opacity-[0.22]" />
         <span
           aria-hidden
           className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-brand-glow/40 to-transparent"
         />
+        <MegaVisual id={id} />
         <p className="relative text-[0.75rem] font-semibold tracking-[0.18em] text-brand-glow uppercase">
           {copy.highlight.eyebrow}
         </p>

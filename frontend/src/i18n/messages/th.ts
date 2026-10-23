@@ -5,7 +5,6 @@ export const th: ShellMessages = {
   shell: {
     skipToContent: 'ข้ามไปยังเนื้อหาหลัก',
     home: 'PDA BLISS CORE หน้าแรก',
-    contentInThai: 'เนื้อหาหน้าเว็บเป็นภาษาไทย',
   },
   header: {
     primaryNav: 'เมนูหลัก',
@@ -19,7 +18,7 @@ export const th: ShellMessages = {
   language: {
     label: 'ภาษา',
     current: (name) => `ภาษา: ${name}`,
-    note: 'เมนูและส่วนประกอบหลักของเว็บไซต์รองรับ 3 ภาษา เนื้อหาแต่ละหน้าภาษาอังกฤษและจีนกำลังจัดทำ',
+    note: 'ทั้งเว็บไซต์แสดงผลได้ 3 ภาษา — หน้าจอตัวอย่างของระบบยังเป็นภาษาไทยตามตัวผลิตภัณฑ์',
   },
   nav: {
     overview: 'ภาพรวม',
@@ -227,7 +226,8 @@ export const th: ShellMessages = {
     cookieSettings: 'การตั้งค่าคุกกี้',
   },
   contact: {
-    phoneLabels: { office: 'Office', pueng: 'คุณผึ้ง', in: 'คุณอิน' },
+    phoneLabel: 'คุณวิน',
+    lineLabel: 'LINE OA',
     opensInNewTab: '(เปิดในแท็บใหม่)',
   },
   utility: {

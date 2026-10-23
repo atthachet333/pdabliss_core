@@ -4,10 +4,46 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent, type React
 import { useMediaQuery } from '@/components/core/hooks';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Container } from '@/components/ui/Section';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 import { CoreStage } from '../core-world/CoreStage';
 import { DepartmentDetail, DepartmentSelector } from '../core-world/DepartmentSelector';
 import type { OrbitDepartmentId } from '../core-world/types';
+
+const th = {
+  titleA: 'แต่ละแผนกทำงานได้เต็มที่',
+  titleB: 'ทุกงานเชื่อมเป็นระบบเดียว',
+  lead: 'ทุกแผนกมีพื้นที่ทำงานที่ออกแบบมาเพื่องานของตัวเองโดยเฉพาะ — และทุกพื้นที่เชื่อมถึงกันด้วย ข้อมูลชุดเดียว ไม่ต้องกรอกซ้ำ ไม่ต้องไล่ถามสถานะข้ามแผนก',
+  explore: 'สำรวจ CORE',
+  fit: 'ดูว่า CORE เหมาะกับองค์กรของคุณหรือไม่',
+  figure:
+    'CORE Universe: ฝ่ายขาย ปฏิบัติการ คลังสินค้า จัดซื้อ บัญชี และรายงาน เชื่อมเข้าสู่ PDA BLISS CORE ศูนย์กลางข้อมูลชุดเดียว',
+  caption: 'ใช้ปุ่มแผนกด้านล่างเพื่อดูว่าแต่ละแผนกเชื่อมกับ CORE อย่างไร',
+};
+
+const COPY: Localized<typeof th> = {
+  th,
+  en: {
+    titleA: 'Every department at its best',
+    titleB: 'All work connected as one',
+    lead: 'Each department gets a workspace designed for its own work — and every workspace is connected through one set of data. No re-keying, no chasing status across departments.',
+    explore: 'Explore CORE',
+    fit: 'See if CORE fits your organization',
+    figure:
+      'CORE Universe: Sales, Operations, Warehouse, Purchasing, Accounting and Reports connect to PDA BLISS CORE, one shared source of truth',
+    caption: 'Use the department buttons below to see how each department connects to CORE',
+  },
+  'zh-CN': {
+    titleA: '每个部门都能发挥所长',
+    titleB: '所有工作连成一个系统',
+    lead: '每个部门都拥有专为自身工作设计的工作空间，所有空间通过同一套数据相连——无需重复录入，也无需跨部门追问状态。',
+    explore: '探索 CORE',
+    fit: '看看 CORE 是否适合贵公司',
+    figure:
+      'CORE Universe：销售、运营、仓库、采购、财务与报表连接到 PDA BLISS CORE——统一的数据中心',
+    caption: '使用下方的部门按钮，了解各部门如何与 CORE 相连',
+  },
+};
 
 /** Staggered DOM intro; under reduced motion everything is simply present. */
 function useIntro() {
@@ -78,6 +114,7 @@ function HeroCta({
  */
 export function HeroExperience() {
   const intro = useIntro();
+  const c = useCopy(COPY);
   const reduce = useReducedMotion();
   const desktop = useMediaQuery('(min-width: 1024px)');
   const [hovered, setHovered] = useState<OrbitDepartmentId | null>(null);
@@ -185,31 +222,30 @@ export function HeroExperience() {
               className="mt-6 text-display text-text-primary lg:text-[clamp(2.25rem,2.8vw,3.25rem)]"
               {...intro(0.2)}
             >
-              <span className="block">แต่ละแผนกทำงานได้เต็มที่</span>
-              <span className="block text-gradient-brand">ทุกงานเชื่อมเป็นระบบเดียว</span>
+              <span className="block">{c.titleA}</span>
+              <span className="block text-gradient-brand">{c.titleB}</span>
             </motion.h1>
             <motion.p
               className="mt-6 max-w-[34rem] text-body-lg text-text-secondary"
               {...intro(0.32)}
             >
-              ทุกแผนกมีพื้นที่ทำงานที่ออกแบบมาเพื่องานของตัวเองโดยเฉพาะ —
-              และทุกพื้นที่เชื่อมถึงกันด้วย ข้อมูลชุดเดียว ไม่ต้องกรอกซ้ำ ไม่ต้องไล่ถามสถานะข้ามแผนก
+              {c.lead}
             </motion.p>
             <motion.div className="mt-9 flex flex-wrap items-center gap-3" {...intro(0.45)}>
               <HeroCta href="#who-for" variant="primary">
-                สำรวจ CORE
+                {c.explore}
                 <ArrowDown
                   className="size-4 transition-transform duration-200 group-hover:translate-y-0.5"
                   aria-hidden
                 />
               </HeroCta>
               <HeroCta href="#fit" variant="secondary">
-                ดูว่า CORE เหมาะกับองค์กรของคุณหรือไม่
+                {c.fit}
                 <ArrowRight className="size-4 shrink-0" aria-hidden />
               </HeroCta>
             </motion.div>
             {/* Desktop: department detail sits beside the world, never over a node. */}
-            {desktop && <div className="mt-10 lg:min-h-48">{detail}</div>}
+            {desktop && <div className="mt-8 lg:min-h-44">{detail}</div>}
           </div>
         </Container>
       </section>
@@ -223,16 +259,14 @@ export function HeroExperience() {
           transition={{ duration: 0.9, ease: EASE_CORE, delay: 0.1 }}
         >
           <figure
-            aria-label="CORE Universe: ฝ่ายขาย ปฏิบัติการ คลังสินค้า จัดซื้อ บัญชี และรายงาน เชื่อมเข้าสู่ PDA BLISS CORE ศูนย์กลางข้อมูลชุดเดียว"
-            className="relative mx-auto h-[min(24rem,92vw)] w-full sm:h-[30rem] md:h-[34rem] lg:h-full"
+            aria-label={c.figure}
+            className="relative mx-auto h-[min(24rem,92vw)] w-full sm:h-[30rem] md:h-[34rem] lg:h-[calc(100%-6rem)]"
           >
             <CoreStage hovered={hovered} selected={selected} onHover={hover} onSelect={select} />
-            <figcaption className="sr-only">
-              ใช้ปุ่มแผนกด้านล่างเพื่อดูว่าแต่ละแผนกเชื่อมกับ CORE อย่างไร
-            </figcaption>
+            <figcaption className="sr-only">{c.caption}</figcaption>
           </figure>
 
-          {/* Selector: below the scene on phones, over the stage foot on desktop. */}
+          {/* Selector: below the scene on phones; on desktop it has its own row under the world. */}
           <div className="relative z-20 px-4 sm:px-6 lg:absolute lg:inset-x-10 lg:bottom-10 lg:px-0 xl:inset-x-16">
             <div className="mx-auto flex max-w-xl flex-col gap-3 lg:max-w-2xl">
               <DepartmentSelector

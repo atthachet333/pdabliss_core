@@ -1,5 +1,9 @@
 # EP05 — Public Navigation, Localization Foundation, Premium Footer & Utility Experience
 
+> **Revised.** After owner review, EP05 received a revision pass (full-site localization,
+> single public phone, mega-menu visuals, CORE World department imagery). Where this report and
+> [EP05_REVISION_REPORT.md](EP05_REVISION_REPORT.md) differ, the revision report is current.
+
 **Date:** 2026-10-22 · **Owner:** PDA BLISS COMPANY LIMITED
 **Baseline:** `main` @ `53ad933ea62bb262194b21a1dad9b3018acfc871` (EP04, on `origin/main`) — verified
 clean before work began

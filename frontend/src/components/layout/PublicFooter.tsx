@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { Logo } from '@/components/brand/Logo';
 import { ContactDetails } from '@/components/contact/ContactDetails';
 import { Container } from '@/components/ui/Section';
-import { CONTACT, PRIMARY_PHONE, mailtoHref, telHref } from '@/config/contact';
+import { CONTACT, mailtoHref, telHref } from '@/config/contact';
 import { FOOTER_GROUPS } from '@/config/navigation';
 import { COPYRIGHT_YEAR } from '@/config/site';
 import { useCookieSettings } from '@/features/consent/useCookieSettings';
@@ -113,7 +113,7 @@ export function PublicFooter() {
           <p className="mt-2 max-w-sm text-label text-text-secondary">{t.footer.description}</p>
           <ul aria-label={t.footer.shortcuts} className="mt-6 flex flex-wrap gap-2">
             <li>
-              <Shortcut href={telHref(PRIMARY_PHONE)} icon={Phone} label={t.footer.call} />
+              <Shortcut href={telHref()} icon={Phone} label={t.footer.call} />
             </li>
             <li>
               <Shortcut

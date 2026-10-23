@@ -103,7 +103,7 @@ describe('department worlds', () => {
     await renderHome();
     const list = screen.getByRole('tablist', { name: 'เลือกโลกการทำงานของแผนก' });
     const tabs = within(list).getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(WORLDS.map((w) => w.nameTh + w.nameEn));
+    expect(tabs.map((t) => t.textContent)).toEqual(WORLDS.map((w) => w.name + w.nameEn));
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
 
     tabs[0]!.focus();

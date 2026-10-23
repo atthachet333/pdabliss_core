@@ -97,8 +97,19 @@ copy column interactive — the canvas beneath receives hover, drag and click.
 Sales, Operations, Warehouse, Purchasing, Accounting, Reports — Admin and Executive are not
 business departments in the orbit. Each has its own radius (2.5–2.85) and height (−0.7…0.62)
 in a ring plane tilted 0.42 rad toward the viewer, so back nodes rise above CORE and front nodes
-fall below it: depth without ever hiding a node behind the sphere. Labels are DOM tags
-projected from the 3D positions every frame (Thai name + English small caps + icon).
+fall below it: depth without ever hiding a node behind the sphere.
+
+**World cards (EP05 revision).** Each department is shown as a framed image card anchored on its
+node: a scene of that department's work (`public/departments/<id>-sm.webp`), an icon chip, the
+localized name and (Thai/Chinese) the English name in small caps. Cards are DOM elements
+projected from the 3D positions every frame (`NodeLabel.tsx`), centred on the node and scaled by
+depth (front ≈ 1.04, back ≈ 0.88) so the orbit keeps its depth. Hover / focus / selection lifts
+the card (scale 1.08, emerald edge, brighter image) while the others desaturate; the CORE stays
+dominant at the centre. Cards are decorative and `aria-hidden` — the accessible controls remain
+the selector buttons. The detail opened by a department shows the large scene
+(`public/departments/<id>.webp`) beside its purpose, key work and link (stacked on phones,
+side by side from 1024 px). On desktop the stage reserves its own row for the selector so no
+card overlaps it. Images: see [EP05_REVISION_REPORT.md](EP05_REVISION_REPORT.md#department-imagery).
 
 ## 5. Presentation slides (native scroll, no snapping)
 
@@ -170,8 +181,9 @@ tier (never up).
 ## 10. Mobile
 
 Order: headline → copy → CTAs → CORE scene (24–34 rem tall, low tier) → department selector
-(3 × 2 grid, ≥ 56 px targets) → detail → slides 02–04 as normal sections. Floating
-labels are removed below 640 px (the selector replaces them). Horizontal drag rotates; vertical
+(3 × 2 grid, ≥ 56 px targets) → detail → slides 02–04 as normal sections. World cards are
+removed below 640 px; instead each selector button carries its department's scene thumbnail, so
+the six worlds still read at a glance directly under the CORE. Horizontal drag rotates; vertical
 swipes scroll the page even when they start on the CORE. 320 px is fully usable.
 
 ## 11. Reduced motion

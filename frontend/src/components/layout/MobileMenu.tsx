@@ -9,6 +9,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 import { LanguageSelector } from './LanguageSelector';
+import { MegaItemMark } from './MegaVisuals';
 
 const rowClass = 'flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left';
 
@@ -136,13 +137,10 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                           )}
                           <ul className="grid gap-1 pb-3 sm:grid-cols-2">
                             {group.items.map((item) => {
-                              const Icon = item.icon;
                               const text = copy.items[item.id]!;
                               const inner = (
                                 <>
-                                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-soft bg-surface-base/80">
-                                    <Icon className="size-[1.125rem] text-brand-soft" aria-hidden />
-                                  </span>
+                                  <MegaItemMark group={entry.id} item={item} />
                                   <span className="min-w-0">
                                     <span className="flex flex-wrap items-center gap-1.5 text-label font-medium text-text-primary">
                                       {text.label}
@@ -164,7 +162,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                                     <Link
                                       to={href(item.to)}
                                       onClick={onClose}
-                                      className="flex min-h-14 items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]"
+                                      className="group flex min-h-14 items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]"
                                     >
                                       {inner}
                                     </Link>

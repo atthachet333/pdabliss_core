@@ -213,7 +213,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: DURATION.fast, ease: EASE_CORE }}
-            className="absolute inset-x-0 top-full overflow-hidden border-b border-border-soft bg-[rgb(5_11_18/0.99)] shadow-[0_40px_80px_-40px_rgb(0_0_0/0.95)]"
+            className="absolute inset-x-0 top-full overflow-hidden border-b border-border-soft bg-surface-dark shadow-[0_40px_80px_-40px_rgb(0_0_0/0.95)]"
           >
             <span
               aria-hidden

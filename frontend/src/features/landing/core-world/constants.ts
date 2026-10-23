@@ -46,16 +46,6 @@ export const PROCESS_FLOW: readonly OrbitDepartmentId[] = [
   'reports',
 ];
 
-/** Short module lists shown in department detail (hover/focus/select). */
-export const DEPARTMENT_HIGHLIGHTS: Record<OrbitDepartmentId, readonly string[]> = {
-  sales: ['Customer PO', 'Sales Order', 'การส่งมอบ'],
-  operations: ['Work Order', 'แผนงาน', 'ความคืบหน้า'],
-  warehouse: ['รับสินค้า', 'Stock', 'Lot / Batch', 'วันหมดอายุ'],
-  purchasing: ['ใบขอซื้อ', 'ใบสั่งซื้อ', 'ติดตามการรับ'],
-  accounting: ['คำขอจ่าย', 'การจ่ายเงิน', 'ยอดค้าง'],
-  reports: ['รายงานแผนก', 'ตัวชี้วัดข้ามแผนก', 'ประวัติการทำงาน'],
-};
-
 export interface QualitySettings {
   dpr: [number, number];
   particles: number;

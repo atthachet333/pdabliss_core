@@ -111,16 +111,16 @@ describe('locale routes', () => {
       '/en/contact',
     );
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
-    expect(document.documentElement.lang).toBe('en');
-    // Page bodies stay Thai and say so to assistive tech.
-    expect(document.getElementById('main')).toHaveAttribute('lang', 'th');
+    await waitFor(() => expect(document.documentElement.lang).toBe('en'));
+    // Page bodies are localized too, so <main> inherits the page language.
+    expect(document.getElementById('main')).not.toHaveAttribute('lang');
   });
 
   it('serves the Simplified Chinese shell at /zh', async () => {
     renderRoute('/zh');
     const nav = await screen.findByRole('navigation', { name: '主导航' });
     expect(within(nav).getByRole('link', { name: '概览' })).toHaveAttribute('href', '/zh');
-    expect(document.documentElement.lang).toBe('zh-CN');
+    await waitFor(() => expect(document.documentElement.lang).toBe('zh-CN'));
   });
 
   it.each([

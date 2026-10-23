@@ -12,7 +12,7 @@ import {
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useDismiss } from '@/components/core/hooks';
-import { CONTACT, PRIMARY_PHONE, mailtoHref, telHref } from '@/config/contact';
+import { CONTACT, mailtoHref, telHref } from '@/config/contact';
 import { useConsent } from '@/features/consent/consent';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { stripLocale } from '@/i18n/locales';
@@ -21,14 +21,20 @@ import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 
 /** Back-to-top appears after roughly one screen of scrolling. */
-const TOP_AFTER = () => Math.max(560, window.innerHeight * 0.9);
-/** On the homepage the dock waits until the CORE hero (and its controls) scrolls away. */
-const HERO_AFTER = () => window.innerHeight * 0.45;
+const pastTop = () => window.scrollY > Math.max(560, window.innerHeight * 0.9);
+/**
+ * On the homepage the dock waits until the CORE World section — the scene,
+ * its world cards and the department selector — has mostly left the screen.
+ */
+const pastHero = () => {
+  const hero = document.getElementById('core-world');
+  return hero ? hero.getBoundingClientRect().bottom < window.innerHeight * 0.55 : true;
+};
 
-function useScrolledPast(threshold: () => number) {
+function useScrolledPast(test: () => boolean) {
   const [past, setPast] = useState(false);
   useEffect(() => {
-    const update = () => setPast(window.scrollY > threshold());
+    const update = () => setPast(test());
     update();
     window.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update, { passive: true });
@@ -36,7 +42,7 @@ function useScrolledPast(threshold: () => number) {
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
-  }, [threshold]);
+  }, [test]);
   return past;
 }
 
@@ -88,8 +94,8 @@ export function UtilityDock() {
   const { t, href } = useLocale();
   const consent = useConsent();
   const reduced = usePrefersReducedMotion();
-  const scrolled = useScrolledPast(TOP_AFTER);
-  const pastHero = useScrolledPast(HERO_AFTER);
+  const scrolled = useScrolledPast(pastTop);
+  const heroGone = useScrolledPast(pastHero);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -137,9 +143,9 @@ export function UtilityDock() {
       key: 'call',
       icon: Phone,
       title: t.utility.call,
-      detail: `${PRIMARY_PHONE.display} (${t.contact.phoneLabels[PRIMARY_PHONE.id]})`,
+      detail: `${CONTACT.phone.display} (${t.contact.phoneLabel})`,
       render: (body) => (
-        <a href={telHref(PRIMARY_PHONE)} className={actionClass}>
+        <a href={telHref()} className={actionClass}>
           {body}
         </a>
       ),
@@ -181,7 +187,7 @@ export function UtilityDock() {
   ];
 
   const bannerPending = consent === null;
-  const overHero = onHome && !pastHero && !open;
+  const overHero = onHome && !heroGone && !open;
 
   return (
     <div

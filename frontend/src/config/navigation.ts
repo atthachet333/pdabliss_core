@@ -107,12 +107,12 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
   solutions: {
     id: 'solutions',
     items: [
-      { id: 'humanError', icon: ShieldCheck, to: '/#error-control' },
-      { id: 'multiDept', icon: Network, to: '/#department-worlds' },
-      { id: 'workflow', icon: GitBranch, to: '/how-core-works#approval' },
-      { id: 'stock', icon: Hourglass, to: '/departments/warehouse' },
-      { id: 'visibility', icon: Eye, to: '/#executive' },
-      { id: 'management', icon: Crown, to: '/departments/executive' },
+      { id: 'humanError', icon: ShieldCheck, to: '/solutions#human-error' },
+      { id: 'multiDept', icon: Network, to: '/solutions#cross-department' },
+      { id: 'workflow', icon: GitBranch, to: '/solutions#approval' },
+      { id: 'stock', icon: Hourglass, to: '/solutions#stock' },
+      { id: 'visibility', icon: Eye, to: '/solutions#visibility' },
+      { id: 'management', icon: Crown, to: '/solutions#management' },
     ],
     cta: '/solutions',
   },

@@ -85,14 +85,16 @@ describe('whole-site language switching', () => {
   it('switching language from the header changes the page body', async () => {
     const { router } = renderRoute('/solutions');
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
-      'ปัญหาเดิมระหว่างแผนก',
+      'ปัญหาไม่ได้อยู่ที่งานเยอะเสมอไป',
     );
     const header = screen.getByRole('banner');
     await userEvent.click(within(header).getByRole('button', { name: 'ภาษา: ภาษาไทย' }));
     await userEvent.click(within(header).getByRole('link', { name: /English/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/en/solutions'));
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
-      'Old problems between departments',
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'The problem isn’t always too much work',
+      ),
     );
     expect(thaiFragments(visibleMainText())).toEqual([]);
   });

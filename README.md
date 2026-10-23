@@ -71,6 +71,9 @@ Pricing (EP07): `/pricing` is the package & subscription experience — four pac
 relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a plan. See
 [docs/PRICING_AND_PACKAGES.md](docs/PRICING_AND_PACKAGES.md).
 
+Solutions (EP09): `/solutions` starts from organizational pain — a problem map, nine solution
+stories and a navigator. See [docs/SOLUTIONS_EXPERIENCE.md](docs/SOLUTIONS_EXPERIENCE.md).
+
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
 [docs/HOW_CORE_WORKS.md](docs/HOW_CORE_WORKS.md).
@@ -140,6 +143,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP07_REPORT.md](docs/EP07_REPORT.md) — package & subscription experience
 - [docs/HOW_CORE_WORKS.md](docs/HOW_CORE_WORKS.md) — the connected workflow experience: model, branches, boundaries, roles, trace
 - [docs/EP08_REPORT.md](docs/EP08_REPORT.md) — how CORE works / connected operations experience
+- [docs/SOLUTIONS_EXPERIENCE.md](docs/SOLUTIONS_EXPERIENCE.md) — problem-first solutions: model, map, navigator, boundaries
+- [docs/EP09_REPORT.md](docs/EP09_REPORT.md) — operational solutions experience
 
 ---
 

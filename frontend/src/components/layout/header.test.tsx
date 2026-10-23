@@ -189,20 +189,24 @@ describe('public header (EP05)', () => {
     await userEvent.click(within(nav).getByRole('button', { name: 'โซลูชัน' }));
     expect(screen.getByRole('region', { name: 'เมนูโซลูชัน' })).toBeInTheDocument();
     await userEvent.click(document.getElementById('main')!);
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'เมนูโซลูชัน' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'เมนูสำหรับองค์กร' })).toBeNull(),
+    );
   });
 
   it('a mega-menu section link scrolls to the homepage chapter', async () => {
     const { nav, router } = await desktopNav('/about');
-    await userEvent.click(within(nav).getByRole('button', { name: 'โซลูชัน' }));
-    const panel = screen.getByRole('region', { name: 'เมนูโซลูชัน' });
-    await userEvent.click(within(panel).getByRole('link', { name: /ลด Human Error/ }));
+    await userEvent.click(within(nav).getByRole('button', { name: 'สำหรับองค์กร' }));
+    const panel = screen.getByRole('region', { name: 'เมนูสำหรับองค์กร' });
+    await userEvent.click(within(panel).getByRole('link', { name: /Audit & Control/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(router.state.location.hash).toBe('#error-control');
     expect(
       await screen.findByRole('heading', { level: 2, name: /ไม่ควรรอให้ความผิดพลาดเกิดขึ้น/ }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'เมนูโซลูชัน' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'เมนูสำหรับองค์กร' })).toBeNull(),
+    );
   }, 15000);
 });
 

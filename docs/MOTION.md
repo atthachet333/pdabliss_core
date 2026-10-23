@@ -74,6 +74,15 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### Solutions (EP09 — see [SOLUTIONS_EXPERIENCE.md](SOLUTIONS_EXPERIENCE.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| Hero | friction marks fade in on the joins, then the CORE line draws underneath — once, no loop | 0.5 s each from 0.5 s · line 1.4 s at 2 s |
+| Problem map | joins switch from broken (warm, dashed) to connected (emerald); CORE spokes appear | 0.3–0.5 s |
+| Falling through | items move from the ownerless gap to their owner | 0.7 s |
+| Approval | stages recolour when the decision is simulated | 0.5 s |
+
 ### How CORE works (EP08 — see [HOW_CORE_WORKS.md](HOW_CORE_WORKS.md))
 
 | Where | Motion | Timing |
@@ -133,6 +142,8 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- Solutions (EP09): the hero shows its final state (frictions and the CORE line) at once; map
+  and story state changes are instant.
 - How CORE works (EP08): no moving work object or branch pulses, no autoplay replay (Play is
   removed; manual steps remain), route and lift transitions are instant.
 - Pricing (EP07): nothing autoplays; capability-stack transitions are instant and in-page

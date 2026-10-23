@@ -9,11 +9,14 @@ import {
   Stamp,
   Table2,
   Unlink,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
+import { Link } from 'react-router';
 import { useRef } from 'react';
 import { Container } from '@/components/ui/Section';
 import { useCopy, type Localized } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { ChapterMark } from './ChapterMark';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
@@ -34,6 +37,7 @@ const th = {
   titleB: 'เร็วกว่ากระบวนการ',
   lead: 'ไม่มีใครตั้งใจให้เป็นแบบนี้ — แต่ละทีมหาวิธีของตัวเองเพื่อให้งานเดินต่อ จนข้อมูล เอกสาร และสถานะกระจายอยู่คนละที่',
   note: 'นี่ไม่ใช่ความผิดของคนทำงาน แต่เป็นสัญญาณว่ากระบวนการยังไม่ได้เติบโตไปพร้อมกับองค์กร',
+  more: 'ดูว่า CORE ช่วยแก้ปัญหาอะไร',
   listLabel: 'สัญญาณของกระบวนการที่โตไม่ทันองค์กร',
 };
 
@@ -55,6 +59,7 @@ const COPY: Localized<typeof th> = {
     titleB: 'faster than its processes',
     lead: 'Nobody plans it this way — each team finds its own way to keep work moving, until data, documents and status are scattered everywhere.',
     note: 'This is not the people’s fault. It is a sign that the process has not grown with the organization.',
+    more: 'See the problems CORE helps solve',
     listLabel: 'Signs that process has not kept up with growth',
   },
   'zh-CN': {
@@ -73,6 +78,7 @@ const COPY: Localized<typeof th> = {
     titleB: '快于流程',
     lead: '没有人故意让事情变成这样——每个团队都用自己的办法让工作继续，最终数据、单据和状态散落各处。',
     note: '这不是员工的错，而是流程没有跟上企业成长的信号。',
+    more: '了解 CORE 帮助解决哪些问题',
     listLabel: '流程跟不上企业成长的信号',
   },
 };
@@ -203,6 +209,7 @@ export function ComplexityChapter() {
   const reduce = usePrefersReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
   const c = useCopy(COPY);
+  const { href } = useLocale();
   const tangle = useTransform(scrollYProgress, [0.15, 0.6], [0.12, 0.38]);
 
   return (
@@ -233,6 +240,13 @@ export function ComplexityChapter() {
             <p className="mt-8 max-w-md border-l border-[#7d97a8]/30 pl-5 text-label text-[#7d97a8]">
               {c.note}
             </p>
+            <Link
+              to={href('/solutions')}
+              className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-label text-brand-soft hover:text-text-primary"
+            >
+              {c.more}
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
           </div>
 
           <div className="relative lg:min-h-[44rem]">

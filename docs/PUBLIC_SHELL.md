@@ -87,7 +87,7 @@ list of links:
 | แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) | ดูวิธีการทำงาน → `/how-core-works` |
-| โซลูชัน | ลด Human Error `/#error-control` · เชื่อมการทำงานหลายแผนก `/#department-worlds` · Workflow & Approval `/how-core-works#approval` · Stock & Expiry Control `/departments/warehouse` · Operational Visibility `/#executive` · Management Control `/departments/executive` | ดูตัวอย่างการใช้งาน → `/solutions` |
+| โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตัวอย่างการใช้งาน → `/solutions` |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/#enterprise` · **Security & Access** (planned) · Audit & Control `/#error-control` · Custom Workflow `/how-core-works#adapt` · **API & Integration** (planned) · Implementation & Support `/contact` | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/#trust` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/contact` | ติดต่อทีมงาน → `/contact` |
 

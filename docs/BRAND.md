@@ -174,6 +174,19 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   categories are not in use. No invented clients, uptime, certifications, counts or awards.
   (Approved package prices arrived in EP07 — see below.)
 
+## Solutions (EP09)
+
+See [SOLUTIONS_EXPERIENCE.md](SOLUTIONS_EXPERIENCE.md). EP08 is movement; EP09 is **friction →
+resolution**:
+
+- **Stable system, broken joins.** Departments stay calm and solid; problems appear between
+  them as warm, dashed gaps — muted amber, red only for genuinely blocked states.
+- **Clarity returns in emerald/teal.** Every "with CORE" state uses the brand light again.
+- **Different visual logic per story** — tracks, lenses, lifecycle, paused pipeline, inventory
+  timeline, receipt bar, document gates, rising signals, workspace line — never nine identical
+  card grids.
+- **Qualitative only.** Before/after pairs in users' own words; no numbers that imply results.
+
 ## How CORE works (EP08)
 
 See [HOW_CORE_WORKS.md](HOW_CORE_WORKS.md). More kinetic than EP06, because the page explains

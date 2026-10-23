@@ -96,3 +96,31 @@ Chinese characters in Chinese copy.
 - The problem map simplifies to a list below 768 px (by design).
 - QA used headless Chrome with emulated viewports — no real devices, Safari, Firefox or
   screen-reader testing.
+
+## Revision — visual layout & composition polish
+
+Owner feedback: content and animation approved; layout and composition needed work. Only
+layout changed — stories, problem map, navigator, interactions, animation, privacy and
+accounting boundaries, localization, links and business tests are unchanged.
+
+- Every chapter recomposed with its own structure (see SOLUTIONS_EXPERIENCE.md): cinematic
+  hero, architectural map, editorial asymmetry, full-width split-screen, dark inspection layer,
+  horizontal process stage, operational control surface, cause-and-effect timeline, compact
+  gate, executive vertical hierarchy, wide synthesis, calm navigator, quiet CTA.
+- New primitives: background planes (obsidian, navy, grid, glow, deep, clear), width frames
+  (narrow / base / wide 1440 / full 1640), title scales (statement / title / compact), and
+  open meta blocks (three arrangements) built from typography, hairlines and planes.
+- Visible bordered boxes on the page: **188 → 28** (16 of the remaining are the problem map's
+  department and friction chips; most others are segmented controls).
+- Removed from boxes: fact cards, response chips, before/after cards, department link pills,
+  hero story card, lens and stock cards, lifecycle and approval stage cards, signal cards,
+  navigator option buttons, CTA box.
+- The executive preview was removed from the Management chapter (it rendered too narrow
+  inside the new executive band and broke the vertical hierarchy); the warehouse preview
+  remains in the Stock chapter.
+- Added short anchor phrases for layout: *ทุกงานต้องมีเจ้าของ*, *ต้องถาม*,
+  *งานปกติควรไหล / สิ่งผิดปกติควรถูกเห็น*, *ชั้นตรวจสอบระหว่างทาง* (th / en / zh).
+- Bundle: `SolutionsPage` 28.6 → 32.3 KB gz; CSS +1.5 KB gz; entry unchanged.
+- QA: 27 viewport × locale runs (320 → 1920) with interactions — no overflow, collision,
+  small targets or console errors; 96-check regression clean; 365 frontend and 21 backend tests
+  pass; visual review at 1440, 1920 and 390.

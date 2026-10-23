@@ -18,23 +18,31 @@ departments, at the joins.
 EP08 showed movement (a route); EP09 shows **friction → resolution**: a stable system,
 breakdowns at the joins in a restrained warm tone, and clarity restored in emerald/teal.
 
-## Page structure
+## Page structure and composition (EP09 revision)
 
-| # | Section | Anchor | Visual logic |
-| - | ------- | ------ | ------------ |
-| 01 | Hero — problems live between departments | — | Five stable departments; friction marks appear on the joins; CORE reconnects underneath (plays once). The core story: six causes. |
-| 02 | Problem map | `#problem-map` | Operational network of six departments; frictions sit on the joins; toggle *จุดสะดุด / เมื่อมี CORE*; each friction links to its story. Phones: department pairs + friction chips. |
-| 03 | Work falling through | `#falling-through` | Work items on handoff tracks stuck in an ownerless gap → owned, with owner / state / next action / waiting on / handoff history. |
-| 04 | Status chasing | `#visibility` | Split: the questions people ask vs one shared state seen through five department lenses. |
-| 05 | Human error | `#human-error` | Error lifecycle for six mistakes: possible mistake → CORE check → PREVENT / DETECT / ALERT / CONTROL → trace. |
-| 06 | Approval bottleneck | `#approval` | Request → rule → approver → **waiting (pause, elapsed)** → decision → continue, for four request types. |
-| 07 | Stock / Lot / Expiry | `#stock` | Quantity by location → lot identity → expiry timeline → FEFO pick → movement / count / hold–release, plus the real warehouse preview. |
-| 08 | Supplier visibility | `#supplier` | PR → PO → expected receipt → partial receipt → outstanding → affected work; ordered 100 / received 60 / outstanding 40. |
-| 09 | Document / payment dependency | `#payment` | Four document gates (switches) before *พร้อมจ่าย*; the accounting boundary. |
-| 10 | Management visibility | `#management` | Quiet activity per department below; exceptions rise into the executive panel, plus the real executive preview. |
-| 11 | Cross-department operations | `#cross-department` | Six department workspaces (EP06 imagery) on one shared state line — *แยกวิธีทำงาน แต่ไม่แยกกระบวนการ*. |
-| 12 | Navigator | `#navigator` | *องค์กรคุณกำลังเจออะไร?* — eight symptoms → cause, capability, department, mechanism, next story. |
-| 13 | CTA | — | ดูว่า CORE ทำงานอย่างไร (`/how-core-works`) · สำรวจแต่ละแผนก (`/departments`) · ขอ Demo (`/contact`). |
+The page is paced as one editorial narrative — large → quiet → asymmetric → immersive →
+compact → wide → editorial → interactive — with varied section heights, background planes
+and widths.
+
+| # | Section | Anchor | Composition |
+| - | ------- | ------ | ----------- |
+| 01 | Hero | — | Cinematic first screen (≈ viewport height at desktop): large statement left, the friction → reconnect system visual dominating the right and bleeding toward the edge; the six causes as an open strip under a hairline. Animation unchanged (plays once). |
+| 02 | Problem map | `#problem-map` | Near full width on a faint grid plane: narrow copy column with the view toggle and a compact tone legend integrated beside the network; the network dominates. No surrounding card. Phones: a divided list of department pairs. |
+| 03 | Work falling through | `#falling-through` | Asymmetric editorial: statement + anchor *ทุกงานต้องมีเจ้าของ* + facts as prose on the left; the handoff track on a soft plane on the right. Situations set as one leading quote and two smaller ones. |
+| 04 | Status chasing | `#visibility` | True split-screen across the full width: a dim warm half with scattered questions (*ต้องถาม*) against an emerald half with one shared state and role views (*เมื่อมี CORE*). |
+| 05 | Human error | `#human-error` | Immersive dark inspection layer: the selected scenario lit in the centre; PREVENT / DETECT / ALERT / CONTROL as structural anchors left and right, the active one lit; TRACE as the base layer underneath. |
+| 06 | Approval bottleneck | `#approval` | Horizontal process stage on one open line; *Waiting* opens a wider dashed gap with pause and elapsed state. Vertical sequence on phones. |
+| 07 | Stock / Lot / Expiry | `#stock` | Operational control surface: locations · lot identity · expiry timeline & FEFO in three divided columns, movement & count beneath; warehouse preview beside the heading. |
+| 08 | Supplier visibility | `#supplier` | Wide timeline PR → PO → expected → partial → outstanding; under the delay point, the receipt bar and the affected downstream work hang below a dashed line (cause → effect). |
+| 09 | Document / payment | `#payment` | Compact, calm gate on a narrower frame: documents (switches) on the left, a gate that opens in the middle, readiness on the right. |
+| 10 | Management visibility | `#management` | Flagship vertical hierarchy: executive attention band on top; signal lines converge upward from the floor; quiet department fields below with only exceptions lit; anchor *งานปกติควรไหล / สิ่งผิดปกติควรถูกเห็น* sits between the layers. |
+| 11 | Cross-department | `#cross-department` | Wide synthesis: centred statement; six workspaces across the width connected down to one CORE line. |
+| 12 | Navigator | `#navigator` | Calm: a symptom list on the left, one focused response on the right. |
+| 13 | CTA | — | Quiet, narrow and spacious — no box. |
+
+Widths vary on purpose: editorial copy narrow, interactive visuals wide (1440), map / split /
+management / stock surface near full width (1640), CTA narrow again. Stories close with one
+of three meta arrangements (strip, split, quiet) so they don't all end the same way.
 
 Every story answers: problem · where it happens · impact · what CORE does · who benefits ·
 departments involved · the How CORE works chapter · boundary where needed — plus a
@@ -101,7 +109,7 @@ chapter ends with a quiet link to `/solutions`.
 
 Thai is the source of truth; English (enterprise operations tone) and Simplified Chinese are
 complete. Users' own words are used: ค้างรับ, รออนุมัติ, เอกสารไม่ครบ, ของไม่พอ, Supplier
-เลท, ใกล้หมดอายุ. The only Thai in EN/ZH is the inert product previews, captioned as Thai
+เลท, ใกล้หมดอายุ. The only Thai in EN/ZH is the inert warehouse product preview, captioned as Thai
 product UI.
 
 ## Motion

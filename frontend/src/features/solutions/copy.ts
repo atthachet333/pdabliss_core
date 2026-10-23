@@ -501,6 +501,12 @@ const th = {
     } satisfies Partial<Record<SolutionId, { label: string; cause: string }>>,
   },
   previewCaption: 'หน้าจอจริงจากต้นแบบ แสดงด้วยข้อมูลตัวอย่าง',
+  anchors: {
+    owner: 'ทุกงานต้องมีเจ้าของ',
+    asking: 'ต้องถาม',
+    normal: 'งานปกติควรไหล\nสิ่งผิดปกติควรถูกเห็น',
+    inspection: 'ชั้นตรวจสอบระหว่างทาง',
+  },
   cta: {
     title: 'ดูว่าปัญหาเหล่านี้ถูกจัดการอย่างไรในงานจริง',
     lead: 'ตามงานหนึ่งชิ้นเดินผ่านทุกแผนก หรือดูพื้นที่ทำงานของแต่ละแผนก',
@@ -1016,6 +1022,12 @@ const en: SolutionsCopy = {
     },
   },
   previewCaption: 'A real prototype screen with sample data. The product interface is in Thai.',
+  anchors: {
+    owner: 'Every piece of work needs an owner',
+    asking: 'Asking around',
+    normal: 'Normal work should flow.\nWhat’s abnormal should be seen.',
+    inspection: 'An inspection layer along the way',
+  },
   cta: {
     title: 'See how these problems are handled in real work',
     lead: 'Follow one piece of work through every department, or explore each department’s workspace.',
@@ -1419,6 +1431,12 @@ const zh: SolutionsCopy = {
     },
   },
   previewCaption: '来自原型系统的真实界面，使用示例数据。产品界面为泰语。',
+  anchors: {
+    owner: '每项工作都要有负责人',
+    asking: '到处追问',
+    normal: '正常的工作应顺畅流转\n异常应被看见',
+    inspection: '过程中的检查层',
+  },
   cta: {
     title: '看看这些问题在实际工作中如何被处理',
     lead: '跟随一项工作流经各部门，或查看每个部门的工作空间。',

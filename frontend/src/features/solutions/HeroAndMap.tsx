@@ -5,10 +5,8 @@ import { Link } from 'react-router';
 import { useMediaQuery } from '@/components/core/hooks';
 import { Segmented } from '@/components/ui/Segmented';
 import { buttonClasses } from '@/components/ui/buttonStyles';
-import { Container } from '@/components/ui/Section';
 import { useDepartments } from '@/config/departments';
 import type { DeptKey } from '@/features/departments/catalog';
-import { Section, SectionHead } from '@/features/departments/ui';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
@@ -24,7 +22,7 @@ import {
   SOLUTIONS,
   type MapNode,
 } from './model';
-import { ToneBadge } from './parts';
+import { Chapter, ChapterTitle, Frame, Kicker, ToneBadge } from './parts';
 
 const deptName = (list: ReturnType<typeof useDepartments>, id: DeptKey) =>
   list.find((d) => d.id === id)!.name;
@@ -54,7 +52,7 @@ function HeroVisual() {
   const joins = [1, 2, 3, 4];
   const labels = [c.frictions[1], c.frictions[2], c.frictions[3], c.frictions[4]];
   return (
-    <figure aria-label={c.visual} className="relative mx-auto w-full max-w-[42rem]">
+    <figure aria-label={c.visual} className="relative mx-auto w-full max-w-[56rem]">
       <svg aria-hidden viewBox="0 0 640 330" className="hidden w-full overflow-visible sm:block">
         {/* Executive observes */}
         <circle
@@ -254,24 +252,24 @@ export function SolutionsHero() {
   return (
     <section
       aria-labelledby="solutions-title"
-      className="relative isolate overflow-hidden pt-28 pb-14 sm:pt-36 sm:pb-20"
+      className="relative isolate flex flex-col overflow-hidden pt-28 pb-16 sm:pt-36 lg:min-h-[min(100svh,64rem)] lg:pt-40 lg:pb-20"
     >
       <div aria-hidden className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_55%_at_75%_40%,rgb(245_184_75/0.06),transparent_70%),radial-gradient(ellipse_55%_60%_at_60%_70%,rgb(25_195_154/0.1),transparent_72%)]" />
-        <div className="absolute inset-0 bg-grid [mask-image:linear-gradient(to_bottom,black,transparent_80%)] opacity-50" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_78%_38%,rgb(245_184_75/0.06),transparent_70%),radial-gradient(ellipse_60%_65%_at_70%_65%,rgb(25_195_154/0.11),transparent_72%)]" />
+        <div className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_70%_70%_at_70%_45%,black,transparent_80%)] opacity-60" />
       </div>
-      <Container>
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10">
-          <div>
+      <Frame width="full" className="flex flex-1 flex-col">
+        <div className="grid flex-1 grid-cols-1 items-center gap-14 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-8">
+          <div className="max-w-2xl">
             <p className="eyebrow">{c.eyebrow}</p>
             <h1
               id="solutions-title"
-              className="mt-4 text-[clamp(1.875rem,1.25rem+2.2vw,3rem)] leading-[1.32] font-semibold text-balance whitespace-pre-line text-text-primary"
+              className="mt-6 text-[clamp(2rem,1.2rem+2.6vw,3.6rem)] leading-[1.26] font-semibold tracking-tight text-balance whitespace-pre-line text-text-primary"
             >
               {c.title}
             </h1>
-            <p className="mt-6 max-w-xl text-body-lg text-text-secondary">{c.lead}</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <p className="mt-8 max-w-lg text-body-lg text-text-secondary">{c.lead}</p>
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <a href={`#${SECTION.map}`} className={buttonClasses('primary', 'lg')}>
                 {c.map}
                 <ArrowDown className="size-4" aria-hidden />
@@ -282,27 +280,31 @@ export function SolutionsHero() {
               </Link>
             </div>
           </div>
-          <HeroVisual />
+          <div className="lg:-mr-6 xl:-mr-10">
+            <HeroVisual />
+          </div>
         </div>
-        {/* The core story: information exists, but it is scattered */}
+        {/* The core story — an open strip, not a card */}
         <div
-          className="mt-14 grid grid-cols-1 gap-6 rounded-[1.75rem] border border-border-soft bg-surface-base/60 p-6 sm:p-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+          className="mt-16 grid grid-cols-1 gap-6 border-t border-border-soft pt-8 lg:mt-20 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-8"
           data-hero-story
         >
           <div>
             <p className="text-body-lg font-semibold text-text-primary">{c.storyTitle}</p>
-            <p className="mt-1 text-label text-text-secondary">{c.story}</p>
+            <p className="mt-1 text-label text-text-muted">{c.story}</p>
           </div>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {c.causes.map((cause) => (
-              <li key={cause} className="flex items-start gap-2 text-label text-text-secondary">
-                <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-warning/80" />
+          <ul className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            {c.causes.map((cause, i) => (
+              <li key={cause} className="flex items-baseline gap-3 text-label text-text-secondary">
+                <span aria-hidden className="text-caption text-warning tabular">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
                 {cause}
               </li>
             ))}
           </ul>
         </div>
-      </Container>
+      </Frame>
     </section>
   );
 }
@@ -345,177 +347,197 @@ export function ProblemMap() {
     </a>
   );
   return (
-    <Section id={SECTION.map} labelledBy="map-title" className="scroll-mt-20">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <SectionHead id="map-title" eyebrow={m.eyebrow} title={m.title} lead={m.lead} />
-        <Segmented<'before' | 'after'>
-          label={m.view}
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'before', label: m.before },
-            { value: 'after', label: m.after },
-          ]}
-          className="grid w-full shrink-0 grid-cols-2 sm:w-80"
-        />
-      </div>
-
-      {wide ? (
-        <div
-          className="relative mx-auto mt-10 w-full max-w-[52rem]"
-          style={{ aspectRatio: `${W} / ${H}` }}
-          data-problem-map
-          data-view={view}
-        >
-          <svg
-            aria-hidden
-            viewBox={`0 0 ${W} ${H}`}
-            className="absolute inset-0 size-full overflow-visible"
-          >
-            {MAP_EDGES.map((e) => {
-              const a = MAP_NODES[e[0]];
-              const b = MAP_NODES[e[1]];
-              const friction = placed.find((s) => sameEdge(e, s.between));
-              if (!friction || resolved) {
-                return (
-                  <line
-                    key={e.join('-')}
-                    x1={a.x}
-                    y1={a.y}
-                    x2={b.x}
-                    y2={b.y}
-                    stroke={resolved ? 'var(--color-brand-glow)' : 'var(--color-border-soft)'}
-                    strokeOpacity={resolved ? 0.55 : 1}
-                    strokeWidth={resolved ? 1.8 : 1.2}
-                    className="transition-[stroke] duration-500"
-                  />
-                );
-              }
-              // A broken join: the line stops short on both sides of the friction.
-              const p = frictionPoint(friction)!;
-              const t = 0.18;
-              return (
-                <g key={e.join('-')}>
-                  <line
-                    x1={a.x}
-                    y1={a.y}
-                    x2={p.x + (a.x - p.x) * t}
-                    y2={p.y + (a.y - p.y) * t}
-                    stroke="var(--color-warning)"
-                    strokeOpacity="0.45"
-                    strokeWidth="1.4"
-                    strokeDasharray="5 4"
-                  />
-                  <line
-                    x1={b.x}
-                    y1={b.y}
-                    x2={p.x + (b.x - p.x) * t}
-                    y2={p.y + (b.y - p.y) * t}
-                    stroke="var(--color-warning)"
-                    strokeOpacity="0.45"
-                    strokeWidth="1.4"
-                    strokeDasharray="5 4"
-                  />
-                </g>
-              );
-            })}
-            {/* With CORE: every department also connects through the centre */}
-            {resolved &&
-              (Object.keys(MAP_NODES) as MapNode[]).map((n) => (
-                <line
-                  key={`spoke-${n}`}
-                  x1={MAP_CORE.x}
-                  y1={MAP_CORE.y}
-                  x2={MAP_NODES[n].x}
-                  y2={MAP_NODES[n].y}
-                  stroke="var(--color-brand-glow)"
-                  strokeOpacity="0.22"
-                  strokeDasharray="2 5"
-                />
-              ))}
-            {/* CORE at the centre when the joins are reconnected */}
-            <g style={{ opacity: resolved ? 1 : 0.25 }} className="transition-opacity duration-500">
-              <circle
-                cx={MAP_CORE.x}
-                cy={MAP_CORE.y}
-                r="38"
-                fill="var(--color-surface-base)"
-                stroke="var(--color-brand-glow)"
-                strokeWidth="1.5"
-                strokeDasharray={resolved ? undefined : '4 5'}
-              />
-              <text
-                x={MAP_CORE.x}
-                y={MAP_CORE.y + 5}
-                textAnchor="middle"
-                fontSize="14"
-                fontWeight="700"
-                letterSpacing="2"
-                fill="var(--color-brand-soft)"
-              >
-                {m.core}
-              </text>
-            </g>
-          </svg>
-          {/* Department nodes — stable */}
-          {(Object.keys(MAP_NODES) as MapNode[]).map((n) => (
-            <span
-              key={n}
-              data-map-node={n}
-              className="absolute inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-border-strong bg-surface-raised px-3.5 py-2 text-label font-medium text-text-primary"
-              style={{ left: pct(MAP_NODES[n].x, W), top: pct(MAP_NODES[n].y, H) }}
-            >
-              {n === 'executive' ? (
-                <Eye aria-hidden className="size-4 text-[var(--color-ws-executive)]" />
-              ) : (
-                <span
-                  aria-hidden
-                  className="size-2.5 rounded-full"
-                  style={{ background: `var(--color-ws-${n})` }}
-                />
-              )}
-              {deptName(departments, n)}
-            </span>
-          ))}
-          {/* Frictions sit on the joins */}
-          <ul>
-            {placed.map((s) => {
-              const p = frictionPoint(s)!;
-              return (
-                <li
-                  key={s.id}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: pct(p.x, W), top: pct(p.y, H) }}
-                >
-                  {chip(s)}
-                </li>
-              );
-            })}
-            <li
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: pct(MAP_CORE.x, W), top: pct(MAP_CORE.y + 62, H) }}
-            >
-              {chip(cross)}
-            </li>
+    <Chapter id={SECTION.map} labelledBy="map-title" plane="grid" space="lg">
+      <Frame
+        width="full"
+        className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]"
+      >
+        <div className="relative z-10">
+          <Kicker tone="clear">{m.eyebrow}</Kicker>
+          <ChapterTitle id="map-title" className="mt-4">
+            {m.title}
+          </ChapterTitle>
+          <p className="mt-5 text-body text-text-secondary">{m.lead}</p>
+          <Segmented<'before' | 'after'>
+            label={m.view}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'before', label: m.before },
+              { value: 'after', label: m.after },
+            ]}
+            className="mt-8 grid w-full grid-cols-2"
+          />
+          {/* Compact legend */}
+          <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-2">
+            {(['attention', 'blocked', 'waiting', 'resolved'] as const).map((t) => (
+              <li key={t}>
+                <ToneBadge tone={t} />
+              </li>
+            ))}
           </ul>
         </div>
-      ) : (
-        <ul className="mt-8 space-y-2" data-problem-map data-view={view}>
-          {[...placed, cross].map((s) => (
-            <li
-              key={s.id}
-              className="flex flex-col gap-2 rounded-2xl border border-border-soft bg-surface-base/60 p-3"
+        {wide ? (
+          <div
+            className="relative mx-auto w-full max-w-[64rem]"
+            style={{ aspectRatio: `${W} / ${H}` }}
+            data-problem-map
+            data-view={view}
+          >
+            <svg
+              aria-hidden
+              viewBox={`0 0 ${W} ${H}`}
+              className="absolute inset-0 size-full overflow-visible"
             >
-              <span className="text-caption text-text-muted">
-                {s.between
-                  ? `${deptName(departments, s.between[0])} ↔ ${deptName(departments, s.between[1])}`
-                  : c.common.departments}
+              {MAP_EDGES.map((e) => {
+                const a = MAP_NODES[e[0]];
+                const b = MAP_NODES[e[1]];
+                const friction = placed.find((s) => sameEdge(e, s.between));
+                if (!friction || resolved) {
+                  return (
+                    <line
+                      key={e.join('-')}
+                      x1={a.x}
+                      y1={a.y}
+                      x2={b.x}
+                      y2={b.y}
+                      stroke={resolved ? 'var(--color-brand-glow)' : 'var(--color-border-soft)'}
+                      strokeOpacity={resolved ? 0.55 : 1}
+                      strokeWidth={resolved ? 1.8 : 1.2}
+                      className="transition-[stroke] duration-500"
+                    />
+                  );
+                }
+                // A broken join: the line stops short on both sides of the friction.
+                const p = frictionPoint(friction)!;
+                const t = 0.18;
+                return (
+                  <g key={e.join('-')}>
+                    <line
+                      x1={a.x}
+                      y1={a.y}
+                      x2={p.x + (a.x - p.x) * t}
+                      y2={p.y + (a.y - p.y) * t}
+                      stroke="var(--color-warning)"
+                      strokeOpacity="0.45"
+                      strokeWidth="1.4"
+                      strokeDasharray="5 4"
+                    />
+                    <line
+                      x1={b.x}
+                      y1={b.y}
+                      x2={p.x + (b.x - p.x) * t}
+                      y2={p.y + (b.y - p.y) * t}
+                      stroke="var(--color-warning)"
+                      strokeOpacity="0.45"
+                      strokeWidth="1.4"
+                      strokeDasharray="5 4"
+                    />
+                  </g>
+                );
+              })}
+              {/* With CORE: every department also connects through the centre */}
+              {resolved &&
+                (Object.keys(MAP_NODES) as MapNode[]).map((n) => (
+                  <line
+                    key={`spoke-${n}`}
+                    x1={MAP_CORE.x}
+                    y1={MAP_CORE.y}
+                    x2={MAP_NODES[n].x}
+                    y2={MAP_NODES[n].y}
+                    stroke="var(--color-brand-glow)"
+                    strokeOpacity="0.22"
+                    strokeDasharray="2 5"
+                  />
+                ))}
+              {/* CORE at the centre when the joins are reconnected */}
+              <g
+                style={{ opacity: resolved ? 1 : 0.25 }}
+                className="transition-opacity duration-500"
+              >
+                <circle
+                  cx={MAP_CORE.x}
+                  cy={MAP_CORE.y}
+                  r="38"
+                  fill="var(--color-surface-base)"
+                  stroke="var(--color-brand-glow)"
+                  strokeWidth="1.5"
+                  strokeDasharray={resolved ? undefined : '4 5'}
+                />
+                <text
+                  x={MAP_CORE.x}
+                  y={MAP_CORE.y + 5}
+                  textAnchor="middle"
+                  fontSize="14"
+                  fontWeight="700"
+                  letterSpacing="2"
+                  fill="var(--color-brand-soft)"
+                >
+                  {m.core}
+                </text>
+              </g>
+            </svg>
+            {/* Department nodes — stable */}
+            {(Object.keys(MAP_NODES) as MapNode[]).map((n) => (
+              <span
+                key={n}
+                data-map-node={n}
+                className="absolute inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-border-strong bg-surface-raised px-3.5 py-2 text-label font-medium text-text-primary"
+                style={{ left: pct(MAP_NODES[n].x, W), top: pct(MAP_NODES[n].y, H) }}
+              >
+                {n === 'executive' ? (
+                  <Eye aria-hidden className="size-4 text-[var(--color-ws-executive)]" />
+                ) : (
+                  <span
+                    aria-hidden
+                    className="size-2.5 rounded-full"
+                    style={{ background: `var(--color-ws-${n})` }}
+                  />
+                )}
+                {deptName(departments, n)}
               </span>
-              <span>{chip(s)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
+            ))}
+            {/* Frictions sit on the joins */}
+            <ul>
+              {placed.map((s) => {
+                const p = frictionPoint(s)!;
+                return (
+                  <li
+                    key={s.id}
+                    className="absolute -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: pct(p.x, W), top: pct(p.y, H) }}
+                  >
+                    {chip(s)}
+                  </li>
+                );
+              })}
+              <li
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: pct(MAP_CORE.x, W), top: pct(MAP_CORE.y + 62, H) }}
+              >
+                {chip(cross)}
+              </li>
+            </ul>
+          </div>
+        ) : (
+          <ul
+            className="divide-y divide-border-soft border-y border-border-soft"
+            data-problem-map
+            data-view={view}
+          >
+            {[...placed, cross].map((s) => (
+              <li key={s.id} className="flex flex-col gap-1.5 py-3">
+                <span className="text-caption text-text-muted">
+                  {s.between
+                    ? `${deptName(departments, s.between[0])} ↔ ${deptName(departments, s.between[1])}`
+                    : c.common.departments}
+                </span>
+                <span>{chip(s)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Frame>
+    </Chapter>
   );
 }

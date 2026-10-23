@@ -88,13 +88,16 @@ list of links:
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) | ดูวิธีการทำงาน → `/how-core-works` |
 | โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตัวอย่างการใช้งาน → `/solutions` |
-| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/#enterprise` · **Security & Access** (planned) · Audit & Control `/#error-control` · Custom Workflow `/how-core-works#adapt` · **API & Integration** (planned) · Implementation & Support `/contact` | พูดคุยกับทีม PDA BLISS → `/contact` |
+| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Access `/enterprise#access` · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/#trust` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/contact` | ติดต่อทีมงาน → `/contact` |
 
 **No dead links.** Every destination is a live route or an existing anchor (`plan-*` on
 `/pricing` and `approach` on `/about` were added as plain ids). An item without `to` renders as
 information with an *อยู่ในแผนพัฒนา* tag — never a link to an unfinished page. The สำหรับองค์กร
-panel also says *บางความสามารถอยู่ในแผนพัฒนา*. Tests enforce both rules.
+panel also says *บางความสามารถอยู่ในแผนพัฒนา*. Tests enforce both rules. Since EP10 every
+สำหรับองค์กร item links to a chapter of `/enterprise`, where each capability carries its own
+status (current prototype · configured by scope · architecture-ready · planned); the footer's
+สำหรับองค์กร link goes to `/enterprise` too.
 
 **Behaviour.** Disclosure pattern — each mega item is a `button` with `aria-expanded` /
 `aria-controls` controlling a `region` of ordinary links (no ARIA menu roles). Hover intent:
@@ -161,7 +164,8 @@ the same language. Existing URLs are unchanged.
 
 **Scope.** The whole public site switches language: header, mega menus, mobile navigation,
 footer, cookie UI, floating contact, the homepage (hero, all eleven chapters, CTAs, labels),
-the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/pricing`,
+the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/how-core-works`,
+`/enterprise`, `/pricing`,
 `/about`, `/contact` (including form validation), `/privacy`, `/terms` and the 404 page.
 Deliberate exceptions: the company address is printed in Thai in every locale (`lang="th"`),
 and the homepage product previews render the real EP02 product UI, which is Thai — their

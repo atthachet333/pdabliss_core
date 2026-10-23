@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = [
   '/how-core-works',
   '/departments',
   '/solutions',
+  '/enterprise',
   '/about',
   '/contact',
   '/privacy',
@@ -132,12 +133,25 @@ describe('public header (EP05)', () => {
     );
   });
 
-  it('marks planned enterprise capabilities as information, not links', async () => {
+  it('links every enterprise capability to its /enterprise chapter', async () => {
     const { nav } = await desktopNav();
     await userEvent.click(within(nav).getByRole('button', { name: 'สำหรับองค์กร' }));
     const panel = screen.getByRole('region', { name: 'เมนูสำหรับองค์กร' });
-    expect(within(panel).queryByRole('link', { name: /API & Integration/ })).toBeNull();
-    expect(within(panel).getAllByText('อยู่ในแผนพัฒนา').length).toBe(2);
+    for (const [label, href] of [
+      ['สำหรับองค์กรขนาดใหญ่', '/enterprise'],
+      ['Security & Access', '/enterprise#access'],
+      ['Audit & Control', '/enterprise#audit'],
+      ['Custom Workflow', '/enterprise#workflow'],
+      ['API & Integration', '/enterprise#integration'],
+      ['Implementation & Support', '/enterprise#implementation'],
+    ] as const) {
+      expect(within(panel).getByRole('link', { name: new RegExp(label) })).toHaveAttribute(
+        'href',
+        href,
+      );
+    }
+    // Nothing is presented as planned-only in the menu any more; the page carries statuses.
+    expect(within(panel).queryByText('อยู่ในแผนพัฒนา')).toBeNull();
     expect(within(panel).getByRole('link', { name: /พูดคุยกับทีม PDA BLISS/ })).toHaveAttribute(
       'href',
       '/contact',
@@ -194,15 +208,15 @@ describe('public header (EP05)', () => {
     );
   });
 
-  it('a mega-menu section link scrolls to the homepage chapter', async () => {
+  it('a mega-menu section link opens the chapter on another page', async () => {
     const { nav, router } = await desktopNav('/about');
     await userEvent.click(within(nav).getByRole('button', { name: 'สำหรับองค์กร' }));
     const panel = screen.getByRole('region', { name: 'เมนูสำหรับองค์กร' });
     await userEvent.click(within(panel).getByRole('link', { name: /Audit & Control/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
-    expect(router.state.location.hash).toBe('#error-control');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/enterprise'));
+    expect(router.state.location.hash).toBe('#audit');
     expect(
-      await screen.findByRole('heading', { level: 2, name: /ไม่ควรรอให้ความผิดพลาดเกิดขึ้น/ }),
+      await screen.findByRole('heading', { level: 2, name: /ทุกการเปลี่ยนแปลง/ }),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.queryByRole('region', { name: 'เมนูสำหรับองค์กร' })).toBeNull(),

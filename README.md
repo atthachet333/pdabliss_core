@@ -64,8 +64,8 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 
 ## Routes
 
-Public: `/`, `/departments`, `/features`, `/solutions`, `/pricing`, `/about`, `/contact`,
-`/login`, `/privacy`, `/terms`
+Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`, `/pricing`,
+`/about`, `/contact`, `/login`, `/privacy`, `/terms`
 
 Pricing (EP07): `/pricing` is the package & subscription experience — four packages, annual
 relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a plan. See
@@ -73,6 +73,12 @@ relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a 
 
 Solutions (EP09): `/solutions` starts from organizational pain — a problem map, nine solution
 stories and a navigator. See [docs/SOLUTIONS_EXPERIENCE.md](docs/SOLUTIONS_EXPERIENCE.md).
+
+For organizations (EP10): `/enterprise` shows the same CORE philosophy with stronger
+organizational controls — role-based visibility, approval control, traceability, executive
+visibility, custom workflow, integration, multi-branch, implementation, support and an honest
+readiness model (every capability carries a status). See
+[docs/ENTERPRISE_EXPERIENCE.md](docs/ENTERPRISE_EXPERIENCE.md).
 
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
@@ -145,6 +151,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP08_REPORT.md](docs/EP08_REPORT.md) — how CORE works / connected operations experience
 - [docs/SOLUTIONS_EXPERIENCE.md](docs/SOLUTIONS_EXPERIENCE.md) — problem-first solutions: model, map, navigator, boundaries
 - [docs/EP09_REPORT.md](docs/EP09_REPORT.md) — operational solutions experience
+- [docs/ENTERPRISE_EXPERIENCE.md](docs/ENTERPRISE_EXPERIENCE.md) — for organizations: model, statuses, access, control, readiness
+- [docs/EP10_REPORT.md](docs/EP10_REPORT.md) — enterprise organization experience
 
 ---
 

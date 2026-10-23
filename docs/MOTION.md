@@ -74,6 +74,13 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### For organizations (EP10 — see [ENTERPRISE_EXPERIENCE.md](ENTERPRISE_EXPERIENCE.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| Hero | the four organizational floors rise once, from the teams up to executive visibility — no loop, no pulse | 0.6 s each, staggered 0.22 s from 0.25 s |
+| Growth staircase, role masks, approval rails, audit, drill-down, workflow | state changes recolour / fade; nothing autoplays | 0.2–0.3 s |
+
 ### Solutions (EP09 — see [SOLUTIONS_EXPERIENCE.md](SOLUTIONS_EXPERIENCE.md))
 
 | Where | Motion | Timing |
@@ -142,6 +149,8 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- For organizations (EP10): the hero shows all four floors at once; every interactive state
+  change is instant; nothing pulses or autoplays.
 - Solutions (EP09): the hero shows its final state (frictions and the CORE line) at once; map
   and story state changes are instant.
 - How CORE works (EP08): no moving work object or branch pulses, no autoplay replay (Play is

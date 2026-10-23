@@ -174,6 +174,23 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   categories are not in use. No invented clients, uptime, certifications, counts or awards.
   (Approved package prices arrived in EP07 — see below.)
 
+## For organizations (EP10)
+
+See [ENTERPRISE_EXPERIENCE.md](ENTERPRISE_EXPERIENCE.md). EP09 is friction → resolution; EP10 is
+**structure, control and scale** — architectural, calm, intensity 6–8/10:
+
+- **Floors, not cards.** Layered slabs (teams → processes → control → executive visibility),
+  a growth staircase, an orbit of workspaces, a masked work object, terraces that descend to the
+  source, a company tree, a roadmap and a readiness stack — thirteen chapters, thirteen
+  compositions, no card grid.
+- **Palette**: obsidian and graphite planes, navy bands, emerald/teal light for what is
+  controlled or selected, silver for the System admin, amber only for conditions and the
+  readiness boundary.
+- **Honest status everywhere.** Four statuses, always icon + words: มีในต้นแบบปัจจุบัน ·
+  กำหนดตามขอบเขต · เตรียมโครงสร้างไว้ · อยู่ในแผนพัฒนา. *พร้อมรองรับ ≠ การรับรองมาตรฐาน.*
+- **Never claimed**: certifications, compliance, uptime, response times, customer size,
+  partnerships, finished integrations or security guarantees (enforced by tests on all copy).
+
 ## Solutions (EP09)
 
 See [SOLUTIONS_EXPERIENCE.md](SOLUTIONS_EXPERIENCE.md). EP08 is movement; EP09 is **friction →

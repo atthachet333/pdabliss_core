@@ -1,7 +1,10 @@
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import { useRef } from 'react';
+import { Link } from 'react-router';
 import { Container } from '@/components/ui/Section';
 import { useCopy, type Localized } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
 import { ChapterMark } from './ChapterMark';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
@@ -33,6 +36,7 @@ const th = {
   lead: 'ไม่ต้องเปลี่ยนทั้งองค์กรในวันเดียว — เริ่มจากแผนกและงานที่สำคัญที่สุด แล้วเพิ่มแผนก บทบาท และขั้นตอนเมื่อองค์กรพร้อม บนโครงสร้างเดียวกัน',
   layersLabel: 'ชั้นโครงสร้างของ CORE',
   note: '“ready” หมายถึงโครงสร้างที่ CORE ถูกออกแบบมาเพื่อรองรับ — ความสามารถแต่ละส่วนเปิดใช้ตามแผนการพัฒนา และตามความต้องการของแต่ละองค์กร ไม่ใช่การรับรองมาตรฐานจากหน่วยงานภายนอก',
+  more: 'ดูประสบการณ์สำหรับองค์กร',
 };
 
 const COPY: Localized<typeof th> = {
@@ -53,6 +57,7 @@ const COPY: Localized<typeof th> = {
     lead: 'There is no need to change the whole organization in a day — start with the most important departments and work, then add departments, roles and steps when you are ready, on the same structure.',
     layersLabel: 'CORE structural layers',
     note: '“Ready” describes the structure CORE is designed to support — each capability is enabled according to the development roadmap and each organization’s needs. It is not a certification from any external body.',
+    more: 'See CORE for organizations',
   },
   'zh-CN': {
     layers: [
@@ -70,6 +75,7 @@ const COPY: Localized<typeof th> = {
     lead: '无需在一天之内改变整个组织——从最重要的部门和工作开始，在准备好时再基于同一结构增加部门、角色与步骤。',
     layersLabel: 'CORE 的结构层',
     note: '“ready” 指 CORE 在设计上支持的结构——各项能力按开发规划及各企业需求启用，并非外部机构的标准认证。',
+    more: '了解面向组织的 CORE',
   },
 };
 
@@ -124,6 +130,7 @@ function Plate({ i, spread }: { i: number; spread: MotionValue<number> }) {
  */
 export function EnterpriseChapter() {
   const c = useCopy(COPY);
+  const { href } = useLocale();
   const ref = useRef<HTMLElement>(null);
   const reduce = usePrefersReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'center center'] });
@@ -173,6 +180,13 @@ export function EnterpriseChapter() {
             <p className="mt-8 border-l border-border-strong pl-5 text-caption text-text-muted">
               {c.note}
             </p>
+            <Link
+              to={href('/enterprise')}
+              className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-label text-brand-soft hover:text-text-primary"
+            >
+              {c.more}
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
           </div>
         </div>
       </Container>

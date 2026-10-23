@@ -119,12 +119,12 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
   enterprise: {
     id: 'enterprise',
     items: [
-      { id: 'scale', icon: Building, to: '/#enterprise' },
-      { id: 'security', icon: KeyRound },
-      { id: 'audit', icon: FileCheck2, to: '/#error-control' },
-      { id: 'customWorkflow', icon: Workflow, to: '/how-core-works#adapt' },
-      { id: 'integration', icon: Plug },
-      { id: 'support', icon: LifeBuoy, to: '/contact' },
+      { id: 'scale', icon: Building, to: '/enterprise' },
+      { id: 'security', icon: KeyRound, to: '/enterprise#access' },
+      { id: 'audit', icon: FileCheck2, to: '/enterprise#audit' },
+      { id: 'customWorkflow', icon: Workflow, to: '/enterprise#workflow' },
+      { id: 'integration', icon: Plug, to: '/enterprise#integration' },
+      { id: 'support', icon: LifeBuoy, to: '/enterprise#implementation' },
     ],
     cta: '/contact',
   },
@@ -171,7 +171,7 @@ export const FOOTER_GROUPS = [
     id: 'company',
     links: [
       { id: 'solutions', to: '/solutions' },
-      { id: 'enterprise', to: '/#enterprise' },
+      { id: 'enterprise', to: '/enterprise' },
       { id: 'about', to: '/about' },
       { id: 'contact', to: '/contact' },
     ],

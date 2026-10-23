@@ -124,3 +124,37 @@ accounting boundaries, localization, links and business tests are unchanged.
 - QA: 27 viewport × locale runs (320 → 1920) with interactions — no overflow, collision,
   small targets or console errors; 96-check regression clean; 365 frontend and 21 backend tests
   pass; visual review at 1440, 1920 and 390.
+
+## Revision round 2 — beauty / composition upgrade
+
+Owner feedback: still not beautiful enough; too empty; sections felt placed rather than
+composed. Only layout and finish changed — logic, interactions, animation, localization,
+Warehouse privacy and the accounting boundary are unchanged.
+
+- **Stage surfaces**: a layered backplate (deep gradient, faint inner grid, one controlled
+  glow, hairline inner edge via inset light) now holds each dominant visual, so content no
+  longer floats.
+- **Hero**: the visual sits on a deep stage that bleeds to the right edge; the lead gets an
+  accent rule; the six causes became an index band with numbered cells.
+- **Approval**: rebuilt as one stage board — request-type selector and simulate-approve in the
+  board header, the process line across the board, and *Waiting* as a lit tension zone with a
+  larger pause node and elapsed time; support content is inset at the bottom of the board.
+- **Human error / trace**: an audit layer on a stage — principles wired into a central lit
+  scenario panel with a spine, before and with-CORE paired either side of the TRACE root,
+  response and links inset beneath.
+- **Stock**: the control surface stays dominant; the support below became a three-zone panel.
+- **Supplier**: the timeline on a warm stage; the delay node drops a dashed line into an
+  impact zone — receipt bar → outstanding → affected work, in one row.
+- **Management**: a luminous executive band with signal icons; every department line
+  converges into one lit node; the floor sits on its own dark plane.
+- **Navigator**: on a stage — a numbered symptom list with a lit selected row, and a focused
+  response surface ending in a "read next" action.
+- **Support compositions**: before/after is now one paired comparison (warm tile → arrow →
+  emerald tile); three arrangements (band panel, pair-led, inset in a stage) replace the flat
+  strips.
+- **Typography**: larger statements and titles, kickers with an accent rule, facts set as a
+  readable lead sentence with quiet annotations; Thai line breaks rebalanced (hero, stock).
+- Visible bordered boxes stay at **28** (structure comes from planes and inset light).
+- Bundle: `SolutionsPage` 32.3 → 34.0 KB gz; CSS +1.2 KB gz; entry unchanged.
+- QA: visual review at 1440, 1536, 1920 and 390; 27 viewport × locale runs clean; 96-check
+  regression clean; 365 frontend and 21 backend tests pass.

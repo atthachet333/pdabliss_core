@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowDown,
   ArrowRight,
   Ban,
   Check,
@@ -19,8 +20,8 @@ import { SOLUTIONS_COPY } from './copy';
 import { getSolution, type SolutionId, type Tone } from './model';
 
 /*
- * Layout primitives for /solutions (EP09 revision). Hierarchy comes from
- * planes, width, spacing and type — not from outlining every element.
+ * Layout primitives for /solutions. Hierarchy comes from planes, stages,
+ * width, spacing and type — content is held by the layout, not boxed.
  */
 
 /* ------------------------------------------------------------------ */
@@ -39,8 +40,8 @@ const PLANES: Record<Plane, string> = {
 };
 
 const SPACE = {
-  lg: 'py-24 sm:py-32 lg:py-40',
-  md: 'py-20 sm:py-28 lg:py-32',
+  lg: 'py-24 sm:py-28 lg:py-36',
+  md: 'py-20 sm:py-24 lg:py-28',
   sm: 'py-16 sm:py-20 lg:py-24',
 } as const;
 
@@ -103,35 +104,85 @@ export function Frame({
 }
 
 /* ------------------------------------------------------------------ */
+/* Stage — the layered surface that holds a section's dominant visual   */
+/* ------------------------------------------------------------------ */
+
+const STAGE_GLOW = {
+  clear: 'bg-[radial-gradient(ellipse_70%_60%_at_70%_0%,rgb(25_195_154/0.13),transparent_70%)]',
+  warm: 'bg-[radial-gradient(ellipse_70%_60%_at_30%_0%,rgb(245_184_75/0.08),transparent_70%)]',
+  executive: 'bg-[radial-gradient(ellipse_60%_80%_at_50%_0%,rgb(62_224_180/0.16),transparent_70%)]',
+  none: '',
+} as const;
+
+/**
+ * A layered stage: a deep gradient backplate, a faint inner grid, one
+ * controlled glow and a hairline inner edge. Holds content without boxing it.
+ */
+export function Stage({
+  children,
+  className,
+  glow = 'clear',
+  grid = true,
+}: {
+  children: ReactNode;
+  className?: string;
+  glow?: keyof typeof STAGE_GLOW;
+  grid?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'relative isolate overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,rgb(13_25_36/0.92),rgb(6_13_20/0.94))] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.06),0_50px_140px_-70px_rgb(0_0_0/0.9)] sm:rounded-[2.5rem]',
+        className,
+      )}
+    >
+      <div aria-hidden className={cn('absolute inset-0 -z-10', STAGE_GLOW[glow])} />
+      {grid && (
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-grid [mask-image:linear-gradient(to_bottom,black,transparent_75%)] opacity-40"
+        />
+      )}
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Type                                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Section label with a short accent rule. */
 export function Kicker({
   children,
   tone = 'warm',
+  rule = true,
   className,
 }: {
   children: ReactNode;
   tone?: 'warm' | 'clear' | 'muted';
+  rule?: boolean;
   className?: string;
 }) {
   return (
     <p
       className={cn(
-        'text-caption font-semibold',
+        'flex items-center gap-3 text-caption font-semibold',
         tone === 'warm' ? 'text-warning' : tone === 'clear' ? 'text-brand-soft' : 'text-text-muted',
         className,
       )}
     >
+      {rule && <span aria-hidden className="h-px w-6 shrink-0 bg-current opacity-70" />}
       {children}
     </p>
   );
 }
 
 const TITLE = {
-  statement: 'text-[clamp(2rem,1.2rem+3vw,3.75rem)] leading-[1.22] font-semibold tracking-tight',
-  title: 'text-h2',
-  compact: 'text-h3',
+  statement:
+    'text-[clamp(2.125rem,1.25rem+3.1vw,4rem)] leading-[1.18] font-semibold tracking-tight',
+  title: 'text-[clamp(1.75rem,1.2rem+1.9vw,2.85rem)] leading-[1.25] font-semibold tracking-tight',
+  compact: 'text-h2',
 } as const;
 
 export function ChapterTitle({
@@ -202,66 +253,67 @@ export function ToneBadge({
 }
 
 /* ------------------------------------------------------------------ */
-/* Story meta — open, typographic                                       */
+/* Story facts and support                                              */
 /* ------------------------------------------------------------------ */
 
-/** Problem / where / impact. `prose` reads as one paragraph; `rows` as quiet labelled lines. */
+/**
+ * Problem / where / impact. `lead` sets the problem as a readable lead with
+ * the other two as quiet annotations; `columns` lays all three across.
+ */
 export function Facts({
   id,
-  variant = 'rows',
+  variant = 'lead',
   className,
 }: {
   id: SolutionId;
-  variant?: 'rows' | 'prose' | 'columns';
+  variant?: 'lead' | 'columns';
   className?: string;
 }) {
   const c = useCopy(SOLUTIONS_COPY);
   const st = c.stories[id];
-  const rows = [
-    { k: c.common.problem, v: st.problem },
-    { k: c.common.where, v: st.where },
-    { k: c.common.impact, v: st.impact },
-  ];
-  if (variant === 'prose') {
+  if (variant === 'columns') {
+    const rows = [
+      { k: c.common.problem, v: st.problem },
+      { k: c.common.where, v: st.where },
+      { k: c.common.impact, v: st.impact },
+    ];
     return (
-      <dl className={cn('space-y-3', className)} data-facts>
+      <dl className={cn('grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-10', className)} data-facts>
         {rows.map((r) => (
-          <div key={r.k} className="flex flex-wrap gap-x-2">
-            <dt className="text-label text-text-muted">{r.k} —</dt>
-            <dd className="text-body text-text-secondary">{r.v}</dd>
+          <div key={r.k} className="border-t border-border-soft pt-4">
+            <dt className="text-caption text-text-muted">{r.k}</dt>
+            <dd className="mt-1.5 text-body text-text-primary">{r.v}</dd>
           </div>
         ))}
       </dl>
     );
   }
   return (
-    <dl
-      className={cn(
-        variant === 'columns' ? 'grid grid-cols-1 gap-6 md:grid-cols-3' : 'space-y-4',
-        className,
-      )}
-      data-facts
-    >
-      {rows.map((r) => (
-        <div key={r.k}>
-          <dt className="text-caption text-text-muted">{r.k}</dt>
-          <dd className="mt-1 text-label text-text-primary">{r.v}</dd>
+    <dl className={cn('max-w-xl', className)} data-facts>
+      <dt className="sr-only">{c.common.problem}</dt>
+      <dd className="text-body-lg text-text-primary">{st.problem}</dd>
+      <div className="mt-5 grid grid-cols-1 gap-4 border-t border-border-soft pt-5 sm:grid-cols-2">
+        <div>
+          <dt className="text-caption text-text-muted">{c.common.where}</dt>
+          <dd className="mt-1 text-label text-text-secondary">{st.where}</dd>
         </div>
-      ))}
+        <div>
+          <dt className="text-caption text-text-muted">{c.common.impact}</dt>
+          <dd className="mt-1 text-label text-text-secondary">{st.impact}</dd>
+        </div>
+      </div>
     </dl>
   );
 }
 
-/** What CORE does — a plain list with check marks, no chips. */
+/** What CORE does — a check list, no chips. */
 export function ResponseList({
   id,
   columns = 1,
-  inline = false,
   className,
 }: {
   id: SolutionId;
   columns?: 1 | 2;
-  inline?: boolean;
   className?: string;
 }) {
   const c = useCopy(SOLUTIONS_COPY);
@@ -271,29 +323,33 @@ export function ResponseList({
       <Kicker tone="clear">{c.common.response}</Kicker>
       <ul
         className={cn(
-          'mt-3 gap-x-6 gap-y-2',
-          inline
-            ? 'flex flex-wrap'
-            : columns === 2
-              ? 'grid grid-cols-1 sm:grid-cols-2'
-              : 'grid grid-cols-1',
+          'mt-4 grid gap-x-6 gap-y-2.5',
+          columns === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1',
         )}
       >
         {st.response.map((r) => (
-          <li key={r} className="flex items-start gap-2 text-label text-text-primary">
-            <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-glow" />
+          <li key={r} className="flex items-start gap-2.5 text-label text-text-primary">
+            <span
+              aria-hidden
+              className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-primary/15"
+            >
+              <Check className="size-3 text-brand-glow" />
+            </span>
             {r}
           </li>
         ))}
       </ul>
-      <p className="mt-4 text-caption text-text-muted">
+      <p className="mt-5 text-caption text-text-muted">
         {c.common.who} · <span className="text-text-secondary">{st.who}</span>
       </p>
     </div>
   );
 }
 
-/** “Before” in a restrained warm tone, “with CORE” back in emerald — separated by a line, not boxed. */
+/**
+ * Before → with CORE, as one paired comparison: a dim warm tile, an arrow,
+ * a lit emerald tile. Vertical when `stacked` or on small screens.
+ */
 export function BeforeAfter({
   id,
   stacked = false,
@@ -307,27 +363,36 @@ export function BeforeAfter({
   const st = c.stories[id];
   return (
     <dl
-      className={cn('grid grid-cols-1 gap-5', !stacked && 'sm:grid-cols-2 sm:gap-0', className)}
+      className={cn(
+        'grid grid-cols-1 items-stretch gap-2',
+        !stacked && 'md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
+        className,
+      )}
       data-before-after
     >
-      <div className={cn(!stacked && 'sm:pr-6')}>
+      <div className="rounded-2xl bg-[linear-gradient(135deg,rgb(245_184_75/0.08),rgb(245_184_75/0.02))] p-5">
         <dt className="text-caption font-semibold text-warning">{c.common.before}</dt>
-        <dd className="mt-1.5 text-label text-text-secondary">“{st.before}”</dd>
+        <dd className="mt-2 text-label text-text-secondary">“{st.before}”</dd>
       </div>
-      <div
-        className={cn(
-          'border-t border-border-soft pt-5',
-          !stacked && 'sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6',
+      <div aria-hidden className="flex items-center justify-center text-brand-glow">
+        {stacked ? (
+          <ArrowDown className="size-4" />
+        ) : (
+          <>
+            <ArrowDown className="size-4 md:hidden" />
+            <ArrowRight className="hidden size-4 md:block" />
+          </>
         )}
-      >
+      </div>
+      <div className="rounded-2xl bg-[linear-gradient(135deg,rgb(25_195_154/0.14),rgb(25_195_154/0.04))] p-5 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.12)]">
         <dt className="text-caption font-semibold text-brand-soft">{c.common.after}</dt>
-        <dd className="mt-1.5 text-label text-text-primary">{st.after}</dd>
+        <dd className="mt-2 text-label text-text-primary">{st.after}</dd>
       </div>
     </dl>
   );
 }
 
-/** Departments and the How CORE works chapter — locale preserved, as quiet text links. */
+/** Departments and the How CORE works chapter — locale preserved. */
 export function StoryLinks({ id, className }: { id: SolutionId; className?: string }) {
   const c = useCopy(SOLUTIONS_COPY).common;
   const { href } = useLocale();
@@ -336,7 +401,7 @@ export function StoryLinks({ id, className }: { id: SolutionId; className?: stri
   return (
     <div className={className} data-story-links={id}>
       <Kicker tone="muted">{c.departments}</Kicker>
-      <ul className="mt-1 flex flex-wrap gap-x-4">
+      <ul className="mt-2 flex flex-wrap gap-x-5">
         {s.departments.map((d) => (
           <li key={d}>
             <Link
@@ -357,10 +422,13 @@ export function StoryLinks({ id, className }: { id: SolutionId; className?: stri
       <Link
         to={href(`/how-core-works#${s.workflow}`)}
         data-workflow-link={s.workflow}
-        className="inline-flex min-h-11 items-center gap-1.5 text-label text-brand-soft hover:text-text-primary"
+        className="group mt-2 inline-flex min-h-11 items-center gap-2 text-label font-medium text-brand-soft hover:text-text-primary"
       >
         {c.workflow}
-        <ArrowRight aria-hidden className="size-4" />
+        <ArrowRight
+          aria-hidden
+          className="size-4 transition-transform group-hover:translate-x-0.5"
+        />
       </Link>
     </div>
   );
@@ -385,56 +453,50 @@ export function Boundary({ id, className }: { id: SolutionId; className?: string
 }
 
 /**
- * The quiet footer of a chapter: what CORE does, before/after and links,
- * divided by hairlines instead of boxes. Three arrangements, so the nine
- * stories don't all end the same way.
+ * The support composition that closes a story: what CORE does, the paired
+ * before/after and where to go next.
+ * - `band`: a low-contrast panel with three zones
+ * - `pair`: the before/after pair leads, response and links follow
+ * - `inset`: no panel of its own — for use inside a Stage
  */
 export function MetaStrip({
   id,
-  variant = 'strip',
+  variant = 'band',
   className,
 }: {
   id: SolutionId;
-  variant?: 'strip' | 'split' | 'quiet';
+  variant?: 'band' | 'pair' | 'inset';
   className?: string;
 }) {
-  if (variant === 'split') {
+  if (variant === 'pair') {
     return (
-      <div
-        className={cn(
-          'grid grid-cols-1 gap-10 border-t border-border-soft pt-8 lg:grid-cols-2 lg:gap-16',
-          className,
-        )}
-      >
-        <div className="space-y-6">
+      <div className={cn('space-y-10', className)}>
+        <BeforeAfter id={id} />
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-16">
           <ResponseList id={id} columns={2} />
           <StoryLinks id={id} />
         </div>
-        <BeforeAfter id={id} stacked />
       </div>
     );
   }
-  if (variant === 'quiet') {
-    return (
-      <div className={cn('space-y-8 border-t border-border-soft pt-8', className)}>
-        <ResponseList id={id} inline />
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-14">
-          <BeforeAfter id={id} />
-          <StoryLinks id={id} />
-        </div>
-      </div>
-    );
+  const inner = (
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)_minmax(0,0.8fr)] lg:gap-12">
+      <ResponseList id={id} />
+      <BeforeAfter id={id} stacked className="lg:px-2" />
+      <StoryLinks id={id} />
+    </div>
+  );
+  if (variant === 'inset') {
+    return <div className={cn('border-t border-white/[0.06] pt-10', className)}>{inner}</div>;
   }
   return (
     <div
       className={cn(
-        'grid grid-cols-1 gap-8 border-t border-border-soft pt-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,0.85fr)] lg:gap-10',
+        'rounded-[2rem] bg-surface-base/45 p-6 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.05)] sm:p-10',
         className,
       )}
     >
-      <ResponseList id={id} />
-      <BeforeAfter id={id} className="lg:border-x lg:border-border-soft lg:px-10" />
-      <StoryLinks id={id} />
+      {inner}
     </div>
   );
 }

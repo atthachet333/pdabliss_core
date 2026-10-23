@@ -8,7 +8,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { SOLUTIONS_COPY } from './copy';
 import { getSolution, NAVIGATOR, SECTION } from './model';
-import { Chapter, ChapterTitle, Frame, Kicker } from './parts';
+import { Chapter, ChapterTitle, Frame, Kicker, Stage } from './parts';
 
 type NavId = (typeof NAVIGATOR)[number];
 
@@ -53,105 +53,129 @@ export function SolutionNavigator() {
           </ChapterTitle>
           <p className="mt-4 text-body text-text-secondary">{n.lead}</p>
         </div>
-        <div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-16">
-          <div>
-            <p id="navigator-options" className="text-caption font-semibold text-text-muted">
-              {n.options}
-            </p>
+        <Stage glow="clear" grid={false} className="mt-14">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <div className="bg-white/[0.015] p-5 sm:p-8 lg:p-10">
+              <p id="navigator-options" className="text-caption font-semibold text-text-muted">
+                {n.options}
+              </p>
+              <div
+                role="radiogroup"
+                aria-labelledby="navigator-options"
+                onKeyDown={onKey}
+                className="mt-4 space-y-1"
+              >
+                {NAVIGATOR.map((x, i) => {
+                  const on = x === id;
+                  return (
+                    <button
+                      key={x}
+                      ref={(el) => {
+                        refs.current[i] = el;
+                      }}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      tabIndex={on ? 0 : -1}
+                      onClick={() => setId(x)}
+                      className={cn(
+                        'relative flex min-h-12 w-full items-center gap-3 rounded-xl px-4 text-left text-body transition-[background-color,color] duration-200',
+                        on
+                          ? 'bg-[linear-gradient(90deg,rgb(25_195_154/0.16),rgb(25_195_154/0.03))] text-text-primary'
+                          : 'text-text-secondary hover:bg-white/[0.03] hover:text-text-primary',
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'absolute top-2 bottom-2 left-0 w-0.5 rounded-full transition-colors',
+                          on ? 'bg-brand-glow shadow-[0_0_12px_rgb(62_240_192)]' : 'bg-transparent',
+                        )}
+                      />
+                      <span className="text-caption text-text-muted tabular">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span className="flex-1">{n.items[x]!.label}</span>
+                      {on && <Check aria-hidden className="size-4 text-brand-glow" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div
-              role="radiogroup"
-              aria-labelledby="navigator-options"
-              onKeyDown={onKey}
-              className="mt-3 border-t border-border-soft"
+              aria-live="polite"
+              data-navigator={id}
+              className="flex flex-col p-6 sm:p-10 lg:p-12"
             >
-              {NAVIGATOR.map((x, i) => {
-                const on = x === id;
-                return (
-                  <button
-                    key={x}
-                    ref={(el) => {
-                      refs.current[i] = el;
-                    }}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    tabIndex={on ? 0 : -1}
-                    onClick={() => setId(x)}
-                    className={cn(
-                      'flex min-h-12 w-full items-center gap-3 border-b border-border-soft text-left text-body transition-colors duration-200',
-                      on ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
-                    )}
+              <p className="flex items-center gap-1.5 text-caption font-semibold text-warning">
+                <CircleDot aria-hidden className="size-3.5" />
+                {n.cause}
+              </p>
+              <p className="mt-3 text-[clamp(1.375rem,1.1rem+1vw,2rem)] leading-snug font-semibold text-text-primary">
+                {item.cause}
+              </p>
+              <div className="mt-10 grid grid-cols-1 gap-8 border-t border-white/[0.06] pt-8 sm:grid-cols-2">
+                <div>
+                  <Kicker tone="clear">{n.capability}</Kicker>
+                  <ul className="mt-4 space-y-2">
+                    {story.response.slice(0, 3).map((r) => (
+                      <li key={r} className="flex items-start gap-2.5 text-label text-text-primary">
+                        <span
+                          aria-hidden
+                          className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-primary/15"
+                        >
+                          <Check className="size-3 text-brand-glow" />
+                        </span>
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-1">
+                  <Kicker tone="muted">{n.department}</Kicker>
+                  <Link
+                    to={href(`/departments/${primary.id}`)}
+                    data-nav-dept={primary.id}
+                    className="flex min-h-11 items-center gap-2 text-label text-text-primary hover:text-brand-soft"
                   >
                     <span
                       aria-hidden
-                      className={cn(
-                        'h-5 w-0.5 rounded-full transition-colors',
-                        on ? 'bg-brand-glow' : 'bg-transparent',
-                      )}
+                      className="size-2 rounded-full"
+                      style={{ background: `var(--color-ws-${primary.id})` }}
                     />
-                    <span className="flex-1">{n.items[x]!.label}</span>
-                    {on && <Check aria-hidden className="size-4 text-brand-glow" />}
-                  </button>
-                );
-              })}
+                    {primary.name}
+                    <ArrowRight aria-hidden className="size-4" />
+                  </Link>
+                  <Kicker tone="muted" className="pt-3">
+                    {n.chapter}
+                  </Kicker>
+                  <Link
+                    to={href(`/how-core-works#${s.workflow}`)}
+                    data-nav-workflow={s.workflow}
+                    className="flex min-h-11 items-center gap-1.5 text-label text-brand-soft hover:text-text-primary"
+                  >
+                    {c.common.workflow}
+                    <ArrowRight aria-hidden className="size-4" />
+                  </Link>
+                </div>
+              </div>
+              <a
+                href={`#${s.anchor}`}
+                data-nav-next={s.anchor}
+                className="group mt-auto inline-flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-5 pt-0 text-label text-text-primary hover:bg-white/[0.06] lg:mt-10"
+              >
+                <span>
+                  <span className="text-text-muted">{n.next} · </span>
+                  {story.eyebrow.replace(/^\d+\s·\s/, '')}
+                </span>
+                <ArrowRight
+                  aria-hidden
+                  className="size-4 text-brand-glow transition-transform group-hover:translate-x-0.5"
+                />
+              </a>
             </div>
           </div>
-          <div aria-live="polite" data-navigator={id} className="lg:pt-8">
-            <p className="flex items-center gap-1.5 text-caption font-semibold text-warning">
-              <CircleDot aria-hidden className="size-3.5" />
-              {n.cause}
-            </p>
-            <p className="mt-2 text-h3 text-text-primary">{item.cause}</p>
-            <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2">
-              <div>
-                <Kicker tone="clear">{n.capability}</Kicker>
-                <ul className="mt-3 space-y-1.5">
-                  {story.response.slice(0, 3).map((r) => (
-                    <li key={r} className="flex items-start gap-2 text-label text-text-primary">
-                      <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-glow" />
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="space-y-1">
-                <Kicker tone="muted">{n.department}</Kicker>
-                <Link
-                  to={href(`/departments/${primary.id}`)}
-                  data-nav-dept={primary.id}
-                  className="flex min-h-11 items-center gap-2 text-label text-text-primary hover:text-brand-soft"
-                >
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-full"
-                    style={{ background: `var(--color-ws-${primary.id})` }}
-                  />
-                  {primary.name}
-                  <ArrowRight aria-hidden className="size-4" />
-                </Link>
-                <Kicker tone="muted" className="pt-3">
-                  {n.chapter}
-                </Kicker>
-                <Link
-                  to={href(`/how-core-works#${s.workflow}`)}
-                  data-nav-workflow={s.workflow}
-                  className="flex min-h-11 items-center gap-1.5 text-label text-brand-soft hover:text-text-primary"
-                >
-                  {c.common.workflow}
-                  <ArrowRight aria-hidden className="size-4" />
-                </Link>
-              </div>
-            </div>
-            <a
-              href={`#${s.anchor}`}
-              data-nav-next={s.anchor}
-              className="mt-8 inline-flex min-h-11 items-center gap-2 border-t border-border-soft pt-4 text-label text-text-secondary hover:text-text-primary"
-            >
-              {n.next}: {story.eyebrow.replace(/^\d+\s·\s/, '')}
-              <ArrowRight aria-hidden className="size-4" />
-            </a>
-          </div>
-        </div>
+        </Stage>
       </Frame>
     </Chapter>
   );

@@ -31,7 +31,18 @@ import {
   type MistakeId,
   type SolutionId,
 } from './model';
-import { Chapter, ChapterTitle, Facts, Frame, Kicker, MetaStrip, Plane, ToneBadge } from './parts';
+import {
+  Chapter,
+  ChapterTitle,
+  Facts,
+  Frame,
+  Kicker,
+  MetaStrip,
+  ResponseList,
+  Stage,
+  StoryLinks,
+  ToneBadge,
+} from './parts';
 
 const titleId = (id: SolutionId) => `${getSolution(id).anchor}-title`;
 
@@ -50,7 +61,7 @@ function FallingTrack() {
   const after = view === 'after';
   const tones = ['blocked', 'waiting', 'attention'] as const;
   return (
-    <Plane tone={after ? 'clear' : 'warm'} className="lg:p-10">
+    <Stage glow={after ? 'clear' : 'warm'} className="p-6 sm:p-8 lg:p-10">
       <Segmented<'before' | 'after'>
         label={c.map.view}
         value={view}
@@ -145,7 +156,7 @@ function FallingTrack() {
           </div>
         </dl>
       )}
-    </Plane>
+    </Stage>
   );
 }
 
@@ -168,7 +179,7 @@ export function FallingThroughStory() {
               {st.title}
             </ChapterTitle>
             <p className="mt-8 text-h3 text-brand-soft">{c.anchors.owner}</p>
-            <Facts id="fallingThrough" variant="prose" className="mt-8 max-w-xl" />
+            <Facts id="fallingThrough" className="mt-8" />
           </div>
           <FallingTrack />
         </div>
@@ -311,14 +322,14 @@ export function StatusChasingStory() {
         </div>
       </Frame>
       <Frame width="wide">
-        <MetaStrip id="statusChasing" variant="quiet" className="mt-16" />
+        <MetaStrip id="statusChasing" variant="pair" className="mt-16" />
       </Frame>
     </Chapter>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* 05 — Human error · immersive inspection layer                        */
+/* 05 — Human error · control / audit layer around a TRACE spine        */
 /* ------------------------------------------------------------------ */
 
 const PRINCIPLE_ICON: Record<'prevent' | 'detect' | 'alert' | 'control' | 'trace', LucideIcon> = {
@@ -329,14 +340,15 @@ const PRINCIPLE_ICON: Record<'prevent' | 'detect' | 'alert' | 'control' | 'trace
   trace: History,
 };
 
+/** A principle on the side of the audit layer, wired back into the spine. */
 function PrincipleAnchor({
   p,
   active,
-  align,
+  side,
 }: {
-  p: keyof typeof PRINCIPLE_ICON;
+  p: 'prevent' | 'detect' | 'alert' | 'control';
   active: boolean;
-  align: 'left' | 'right';
+  side: 'left' | 'right';
 }) {
   const c = useCopy(SOLUTIONS_COPY);
   const Icon = PRINCIPLE_ICON[p];
@@ -345,19 +357,26 @@ function PrincipleAnchor({
       data-principle-anchor={p}
       data-active={active}
       className={cn(
-        'relative flex items-center gap-4 py-5 transition-opacity duration-500',
-        align === 'right' && 'lg:flex-row-reverse lg:text-right',
-        active ? 'opacity-100' : 'opacity-35',
+        'flex items-center gap-4 py-6 transition-opacity duration-500',
+        side === 'right' && 'lg:flex-row-reverse lg:text-right',
+        active ? 'opacity-100' : 'opacity-40',
       )}
     >
-      <Icon
+      <span
         aria-hidden
-        className={cn('size-5 shrink-0 sm:size-7', active ? 'text-brand-glow' : 'text-text-muted')}
-      />
-      <div>
+        className={cn(
+          'flex size-11 shrink-0 items-center justify-center rounded-2xl transition-colors',
+          active
+            ? 'bg-brand-primary/15 text-brand-glow shadow-[0_0_30px_-6px_rgb(62_240_192/0.5)]'
+            : 'bg-white/[0.03] text-text-muted',
+        )}
+      >
+        <Icon className="size-5" />
+      </span>
+      <div className="min-w-0">
         <p
           className={cn(
-            'text-[1.0625rem] leading-none font-semibold tracking-[0.08em] sm:text-[1.5rem] sm:tracking-[0.12em]',
+            'text-[1.0625rem] leading-none font-semibold tracking-[0.08em] sm:text-[1.375rem] sm:tracking-[0.12em]',
             active ? 'text-text-primary' : 'text-text-muted',
           )}
         >
@@ -365,13 +384,22 @@ function PrincipleAnchor({
         </p>
         <p className="mt-1.5 text-label text-text-secondary">{c.humanError.principles[p]}</p>
       </div>
-      {/* A light line toward the scenario when this principle acts */}
+      {/* The wire back to the spine */}
       <span
         aria-hidden
         className={cn(
-          'absolute top-1/2 hidden h-px w-10 lg:block',
-          align === 'left' ? '-right-12 bg-gradient-to-r' : '-left-12 bg-gradient-to-l',
-          active ? 'from-transparent to-brand-glow' : 'from-transparent to-transparent',
+          'hidden h-px flex-1 lg:block',
+          side === 'left' ? 'bg-gradient-to-r' : 'bg-gradient-to-l',
+          active
+            ? 'from-transparent via-brand-glow/50 to-brand-glow'
+            : 'from-transparent to-white/10',
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          'hidden size-2 shrink-0 rounded-full lg:block',
+          active ? 'bg-brand-glow shadow-[0_0_12px_rgb(62_240_192)]' : 'bg-white/15',
         )}
       />
     </div>
@@ -395,108 +423,136 @@ export function HumanErrorStory() {
       space="lg"
       data={{ solution: 'humanError' }}
     >
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_50%_45%_at_50%_58%,rgb(25_195_154/0.08),transparent_70%)]"
-      />
       <Frame width="wide">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end">
           <div>
             <Kicker>{st.eyebrow}</Kicker>
-            <ChapterTitle id={titleId('humanError')} size="statement" className="mt-5">
+            <ChapterTitle id={titleId('humanError')} size="statement" className="mt-6">
               {st.title}
             </ChapterTitle>
           </div>
           <div>
-            <p className="text-caption font-semibold text-brand-soft">{c.anchors.inspection}</p>
-            <Facts id="humanError" variant="prose" className="mt-4" />
+            <p className="text-h3 text-brand-soft">{c.anchors.inspection}</p>
+            <Facts id="humanError" className="mt-5" />
           </div>
         </div>
-        <p id="error-choose" className="mt-16 text-caption font-semibold text-text-muted">
-          {h.choose}
-        </p>
-        <Segmented<MistakeId>
-          labelledBy="error-choose"
-          size="sm"
-          value={id}
-          onChange={setId}
-          options={MISTAKES.map((x) => ({ value: x.id, label: h.mistakes[x.id].title }))}
-          className="mt-3 grid w-full grid-cols-2 lg:grid-cols-6"
-        />
-        {/* The inspection layer: principles as structural anchors around the scenario */}
-        <div className="mt-14 grid grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-16">
-          <div className="order-2 grid grid-cols-2 gap-x-6 lg:order-1 lg:grid-cols-1">
-            <PrincipleAnchor p="prevent" active={principle === 'prevent'} align="left" />
-            <PrincipleAnchor p="detect" active={principle === 'detect'} align="left" />
+      </Frame>
+      <Frame width="full" className="mt-14 lg:mt-20">
+        <Stage glow="clear" className="px-5 py-8 sm:px-10 sm:py-12 lg:px-14">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <p id="error-choose" className="text-label font-semibold text-text-secondary">
+              {h.choose}
+            </p>
+            <Segmented<MistakeId>
+              labelledBy="error-choose"
+              size="sm"
+              value={id}
+              onChange={setId}
+              options={MISTAKES.map((x) => ({ value: x.id, label: h.mistakes[x.id].title }))}
+              className="grid w-full grid-cols-2 sm:grid-cols-3 lg:w-auto lg:grid-cols-6"
+            />
           </div>
-          <div
-            data-lifecycle={id}
-            className="order-1 rounded-[2rem] bg-surface-base/70 bg-[radial-gradient(ellipse_90%_70%_at_50%_0%,rgb(25_195_154/0.12),transparent_70%)] p-6 shadow-[0_40px_120px_-60px_rgb(25_195_154/0.45)] sm:p-9 lg:order-2"
-          >
-            <span className="inline-flex items-center gap-1.5 text-caption font-semibold text-brand-soft">
-              {principle.toUpperCase()} · {h.principles[principle]}
-            </span>
-            <ol className="relative mt-6 space-y-6">
-              <span
-                aria-hidden
-                className="absolute top-3 bottom-3 left-[0.9375rem] w-px bg-gradient-to-b from-warning/60 via-border-strong to-brand-glow/70"
-              />
-              {LIFECYCLE.map((stage, i) => {
-                const Icon = stageIcon[i]!;
-                return (
-                  <li key={stage} data-stage={stage} className="relative flex gap-4">
-                    <span
-                      className={cn(
-                        'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-dark',
-                        i === 0
-                          ? 'text-warning'
-                          : i === 1
-                            ? 'text-text-secondary'
-                            : 'text-brand-glow',
-                      )}
-                    >
-                      <Icon aria-hidden className="size-4" />
-                    </span>
-                    <div>
-                      <p className="text-caption text-text-muted">
-                        <span className="tabular">{String(i + 1).padStart(2, '0')}</span> ·{' '}
-                        {h.stages[stage]}
-                      </p>
-                      <p
+          {/* The audit layer: principles wired into one spine */}
+          <div className="mt-10 grid grid-cols-1 items-center gap-2 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-0">
+            <div className="order-2 grid grid-cols-1 sm:grid-cols-2 lg:order-1 lg:grid-cols-1">
+              <PrincipleAnchor p="prevent" active={principle === 'prevent'} side="left" />
+              <PrincipleAnchor p="detect" active={principle === 'detect'} side="left" />
+            </div>
+            <div
+              data-lifecycle={id}
+              className="relative order-1 rounded-[1.75rem] bg-surface-dark/70 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgb(25_195_154/0.16),transparent_75%)] px-6 py-8 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.12),0_40px_100px_-50px_rgb(25_195_154/0.5)] sm:px-9 lg:order-2"
+            >
+              <p className="text-center text-caption font-semibold text-brand-soft">
+                {principle.toUpperCase()} · {h.principles[principle]}
+              </p>
+              <ol className="relative mt-7 space-y-7">
+                {/* The spine */}
+                <span
+                  aria-hidden
+                  className="absolute top-2 -bottom-8 left-[1.125rem] w-px bg-gradient-to-b from-warning/70 via-white/15 to-brand-glow"
+                />
+                {LIFECYCLE.map((stage, i) => {
+                  const Icon = stageIcon[i]!;
+                  return (
+                    <li key={stage} data-stage={stage} className="relative flex gap-5">
+                      <span
                         className={cn(
-                          'mt-1 text-body',
-                          i === 0 ? 'text-text-secondary' : 'text-text-primary',
+                          'relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-dark ring-1',
+                          i === 0
+                            ? 'text-warning ring-warning/40'
+                            : i === 1
+                              ? 'text-text-secondary ring-white/15'
+                              : 'text-brand-glow ring-brand-glow/40',
                         )}
                       >
-                        {values[i]}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+                        <Icon aria-hidden className="size-4" />
+                      </span>
+                      <div className="pt-1">
+                        <p className="text-caption text-text-muted">
+                          <span className="tabular">{String(i + 1).padStart(2, '0')}</span> ·{' '}
+                          {h.stages[stage]}
+                        </p>
+                        <p
+                          className={cn(
+                            'mt-1.5 text-body',
+                            i === 0 ? 'text-text-secondary' : 'text-text-primary',
+                          )}
+                        >
+                          {values[i]}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+            <div className="order-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1">
+              <PrincipleAnchor p="alert" active={principle === 'alert'} side="right" />
+              <PrincipleAnchor p="control" active={principle === 'control'} side="right" />
+            </div>
           </div>
-          <div className="order-3 grid grid-cols-2 gap-x-6 lg:grid-cols-1">
-            <PrincipleAnchor p="alert" active={principle === 'alert'} align="right" />
-            <PrincipleAnchor p="control" active={principle === 'control'} align="right" />
+          {/* Before and with CORE, paired on either side of the TRACE root */}
+          <div
+            className="mt-10 grid grid-cols-1 items-center gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-8"
+            data-before-after
+          >
+            <div className="order-2 rounded-2xl bg-[linear-gradient(135deg,rgb(245_184_75/0.09),rgb(245_184_75/0.02))] p-5 lg:order-1">
+              <p className="text-caption font-semibold text-warning">{c.common.before}</p>
+              <p className="mt-2 text-label text-text-secondary">“{st.before}”</p>
+            </div>
+            <div className="order-1 flex flex-col items-center py-2 text-center lg:order-2">
+              <span
+                aria-hidden
+                className="mb-3 hidden h-10 w-px bg-gradient-to-b from-white/10 to-brand-glow/80 lg:block"
+              />
+              <span
+                aria-hidden
+                className="flex size-14 items-center justify-center rounded-full bg-brand-primary/15 text-brand-glow shadow-[0_0_50px_-8px_rgb(62_240_192/0.6)] ring-1 ring-brand-glow/40"
+              >
+                <History className="size-6" />
+              </span>
+              <p className="mt-3 text-[1.375rem] leading-none font-semibold tracking-[0.14em] text-text-primary">
+                TRACE
+              </p>
+              <p className="mt-1.5 text-label text-text-secondary">{h.principles.trace}</p>
+            </div>
+            <div className="order-3 rounded-2xl bg-[linear-gradient(135deg,rgb(25_195_154/0.15),rgb(25_195_154/0.04))] p-5 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.12)]">
+              <p className="text-caption font-semibold text-brand-soft">{c.common.after}</p>
+              <p className="mt-2 text-label text-text-primary">{st.after}</p>
+            </div>
           </div>
-        </div>
-        {/* TRACE runs underneath everything — the history layer */}
-        <div className="mx-auto mt-8 flex max-w-xl flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-brand-glow/25 pt-6">
-          <History aria-hidden className="size-6 text-brand-glow" />
-          <p className="text-[1.0625rem] leading-none font-semibold tracking-[0.08em] text-text-primary sm:text-[1.5rem] sm:tracking-[0.12em]">
-            TRACE
-          </p>
-          <p className="text-label text-text-secondary">{h.principles.trace}</p>
-        </div>
-        <MetaStrip id="humanError" variant="split" className="mt-20" />
+          <div className="mt-12 grid grid-cols-1 gap-10 border-t border-white/[0.06] pt-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-16">
+            <ResponseList id="humanError" columns={2} />
+            <StoryLinks id="humanError" />
+          </div>
+        </Stage>
       </Frame>
     </Chapter>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* 06 — Approval bottleneck · horizontal process stage                  */
+/* 06 — Approval bottleneck · one approval stage board                  */
 /* ------------------------------------------------------------------ */
 
 export function ApprovalStory() {
@@ -516,135 +572,148 @@ export function ApprovalStory() {
     <Chapter
       id={getSolution('approval').anchor}
       labelledBy={titleId('approval')}
+      plane="grid"
       space="lg"
       data={{ solution: 'approval' }}
     >
-      <Frame width="wide">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end">
-          <div>
+      <Frame width="full">
+        <div className="grid grid-cols-1 gap-12 xl:grid-cols-[minmax(0,0.3fr)_minmax(0,0.7fr)] xl:gap-14">
+          <div className="xl:pt-10">
             <Kicker>{st.eyebrow}</Kicker>
-            <ChapterTitle id={titleId('approval')} className="mt-5">
+            <ChapterTitle id={titleId('approval')} className="mt-6">
               {st.title}
             </ChapterTitle>
-            <Facts id="approval" variant="prose" className="mt-6 max-w-2xl" />
+            <Facts id="approval" className="mt-8" />
           </div>
-          <div className="space-y-4 lg:justify-self-end">
-            <div>
-              <p id="approval-kind" className="text-caption font-semibold text-text-muted">
-                {a.kindsLabel}
-              </p>
-              <Segmented<ApprovalKind>
-                labelledBy="approval-kind"
-                size="sm"
-                value={kind}
-                onChange={(v) => {
-                  setKind(v);
-                  setDecided(false);
-                }}
-                options={APPROVAL_KINDS.map((x) => ({ value: x, label: a.kinds[x].name }))}
-                className="mt-2 grid w-full grid-cols-2 sm:grid-cols-4"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setDecided(!decided)}
-              className={buttonClasses(decided ? 'secondary' : 'primary', 'md')}
-            >
-              {decided ? (
-                <RotateCcw className="size-4" aria-hidden />
-              ) : (
-                <Check className="size-4" aria-hidden />
-              )}
-              {decided ? a.reset : a.decide}
-            </button>
-          </div>
-        </div>
-      </Frame>
-      {/* The stage: open nodes on one line; "waiting" opens a deliberate gap */}
-      <Frame width="full" className="mt-16 lg:mt-24">
-        <ol
-          className="relative flex flex-col lg:flex-row lg:items-stretch"
-          data-approval-flow={decided ? 'continued' : 'waiting'}
-        >
-          {APPROVAL_STAGES.map((stage, i) => {
-            const paused = !decided && i === waitAt;
-            const done = i < waitAt || decided;
-            const ahead = !decided && i > waitAt;
-            return (
-              <li
-                key={stage}
-                data-stage={stage}
-                data-state={paused ? 'waiting' : ahead ? 'ahead' : 'done'}
-                className={cn(
-                  'relative flex gap-4 pb-8 transition-opacity duration-500 lg:flex-col lg:gap-0 lg:pb-0',
-                  stage === 'waiting' ? 'lg:flex-[2.4]' : 'lg:flex-1',
-                  ahead && 'opacity-45',
-                )}
+          {/* The stage board — controls, process and outcome in one system */}
+          <Stage glow="clear" className="p-5 sm:p-8 lg:p-10">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="w-full lg:max-w-lg">
+                <p id="approval-kind" className="text-caption font-semibold text-text-muted">
+                  {a.kindsLabel}
+                </p>
+                <Segmented<ApprovalKind>
+                  labelledBy="approval-kind"
+                  size="sm"
+                  value={kind}
+                  onChange={(v) => {
+                    setKind(v);
+                    setDecided(false);
+                  }}
+                  options={APPROVAL_KINDS.map((x) => ({ value: x, label: a.kinds[x].name }))}
+                  className="mt-2 grid w-full grid-cols-2 sm:grid-cols-4"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setDecided(!decided)}
+                className={buttonClasses(decided ? 'secondary' : 'primary', 'md', 'shrink-0')}
               >
-                {/* line + node */}
-                <div className="relative flex w-8 shrink-0 justify-center lg:h-8 lg:w-full lg:justify-start">
-                  <span
-                    aria-hidden
+                {decided ? (
+                  <RotateCcw className="size-4" aria-hidden />
+                ) : (
+                  <Check className="size-4" aria-hidden />
+                )}
+                {decided ? a.reset : a.decide}
+              </button>
+            </div>
+            <ol
+              className="relative mt-10 flex flex-col lg:mt-14 lg:flex-row lg:items-stretch"
+              data-approval-flow={decided ? 'continued' : 'waiting'}
+            >
+              {APPROVAL_STAGES.map((stage, i) => {
+                const paused = !decided && i === waitAt;
+                const done = i < waitAt || decided;
+                const ahead = !decided && i > waitAt;
+                return (
+                  <li
+                    key={stage}
+                    data-stage={stage}
+                    data-state={paused ? 'waiting' : ahead ? 'ahead' : 'done'}
                     className={cn(
-                      'absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 lg:top-1/2 lg:right-0 lg:bottom-auto lg:left-0 lg:h-px lg:w-full lg:translate-x-0',
-                      paused
-                        ? 'bg-[repeating-linear-gradient(to_bottom,var(--color-info)_0_6px,transparent_6px_12px)] lg:bg-[repeating-linear-gradient(to_right,var(--color-info)_0_6px,transparent_6px_12px)]'
-                        : done
-                          ? 'bg-brand-glow/60'
-                          : 'bg-border-strong',
-                    )}
-                  />
-                  <span
-                    aria-hidden
-                    className={cn(
-                      'relative z-10 flex size-8 items-center justify-center rounded-full bg-surface-dark ring-2',
-                      paused ? 'ring-info' : done ? 'ring-brand-glow' : 'ring-border-strong',
-                    )}
-                  >
-                    {paused ? (
-                      <Pause className="size-3.5 text-info" />
-                    ) : done ? (
-                      <Check className="size-3.5 text-brand-glow" />
-                    ) : null}
-                  </span>
-                </div>
-                <div className={cn('lg:mt-5 lg:pr-6', paused && 'lg:pr-10')}>
-                  <p className="text-caption text-text-muted tabular">
-                    {String(i + 1).padStart(2, '0')}
-                  </p>
-                  <p
-                    className={cn(
-                      'mt-0.5 font-semibold text-text-primary',
-                      paused ? 'text-h3' : 'text-body',
+                      'relative flex gap-4 pb-8 transition-opacity duration-500 lg:flex-col lg:gap-0 lg:pb-0',
+                      stage === 'waiting' ? 'lg:flex-[2.6]' : 'lg:flex-1',
+                      ahead && 'opacity-40',
                     )}
                   >
-                    {a.stages[stage]}
-                  </p>
-                  {detail[stage] && (
-                    <p className="mt-1 text-label text-text-secondary">{detail[stage]}</p>
-                  )}
-                  {paused && (
-                    <>
-                      <p className="mt-3 flex items-center gap-1.5 text-label font-medium text-info">
-                        <Pause aria-hidden className="size-4" />
-                        {a.pause}
+                    {/* The tension zone behind "waiting" */}
+                    {paused && (
+                      <span
+                        aria-hidden
+                        className="absolute -inset-x-2 -inset-y-3 -z-10 rounded-[1.5rem] bg-[linear-gradient(180deg,rgb(108_184_255/0.14),rgb(108_184_255/0.03))] shadow-[inset_0_0_0_1px_rgb(108_184_255/0.25)] lg:-inset-x-0 lg:-inset-y-6"
+                      />
+                    )}
+                    <div className="relative flex w-10 shrink-0 justify-center lg:h-10 lg:w-full lg:justify-start">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'absolute top-0 bottom-0 left-1/2 w-0.5 -translate-x-1/2 lg:top-1/2 lg:right-0 lg:bottom-auto lg:left-0 lg:h-0.5 lg:w-full lg:translate-x-0',
+                          paused
+                            ? 'bg-[repeating-linear-gradient(to_bottom,var(--color-info)_0_6px,transparent_6px_12px)] lg:bg-[repeating-linear-gradient(to_right,var(--color-info)_0_6px,transparent_6px_12px)]'
+                            : done
+                              ? 'bg-brand-glow/70'
+                              : 'bg-white/10',
+                        )}
+                      />
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'relative z-10 flex items-center justify-center rounded-full bg-surface-dark ring-2',
+                          paused
+                            ? 'size-10 shadow-[0_0_30px_-4px_rgb(108_184_255/0.7)] ring-info'
+                            : 'size-8 ring-brand-glow/80',
+                          !paused && !done && 'ring-white/15',
+                          paused && 'lg:ml-[calc(50%-1.25rem)]',
+                        )}
+                      >
+                        {paused ? (
+                          <Pause className="size-4 text-info" />
+                        ) : done ? (
+                          <Check className="size-3.5 text-brand-glow" />
+                        ) : null}
+                      </span>
+                    </div>
+                    <div className={cn('lg:mt-5 lg:pr-5', paused && 'lg:px-6 lg:text-center')}>
+                      <p className="text-caption text-text-muted tabular">
+                        {String(i + 1).padStart(2, '0')}
                       </p>
-                      <p className="mt-1 text-label text-text-secondary">{a.elapsed}</p>
-                    </>
-                  )}
-                  {done && stage !== 'waiting' && <ToneBadge tone="resolved" className="mt-2" />}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-        <p aria-live="polite" className="mt-10 text-body text-text-secondary">
-          {decided ? a.continued : `${a.pause} — ${k.approver}`}
-        </p>
-        <p className="mt-2 text-caption text-text-muted">{a.note}</p>
-      </Frame>
-      <Frame width="wide">
-        <MetaStrip id="approval" className="mt-16" />
+                      <p
+                        className={cn(
+                          'mt-0.5 font-semibold text-text-primary',
+                          paused ? 'text-h3' : 'text-body',
+                        )}
+                      >
+                        {a.stages[stage]}
+                      </p>
+                      {detail[stage] && (
+                        <p className="mt-1 text-label text-text-secondary">{detail[stage]}</p>
+                      )}
+                      {paused && (
+                        <>
+                          <p className="mt-3 text-[clamp(1.25rem,1rem+0.8vw,1.75rem)] leading-tight font-semibold text-info">
+                            {a.elapsed}
+                          </p>
+                          <p className="mt-2 flex items-center gap-1.5 text-label text-text-secondary lg:justify-center">
+                            <Pause aria-hidden className="size-4 text-info" />
+                            {a.pause} — {k.approver}
+                          </p>
+                        </>
+                      )}
+                      {done && stage !== 'waiting' && (
+                        <ToneBadge tone="resolved" className="mt-2" />
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            <p aria-live="polite" className="mt-10 text-body text-text-primary lg:mt-14">
+              {decided ? a.continued : `${a.pause} — ${k.approver}`}
+            </p>
+            <p className="mt-2 text-caption text-text-muted">{a.note}</p>
+            <MetaStrip id="approval" variant="inset" className="mt-10" />
+          </Stage>
+        </div>
       </Frame>
     </Chapter>
   );

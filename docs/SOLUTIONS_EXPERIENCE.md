@@ -30,15 +30,19 @@ and widths.
 | 02 | Problem map | `#problem-map` | Near full width on a faint grid plane: narrow copy column with the view toggle and a compact tone legend integrated beside the network; the network dominates. No surrounding card. Phones: a divided list of department pairs. |
 | 03 | Work falling through | `#falling-through` | Asymmetric editorial: statement + anchor *ทุกงานต้องมีเจ้าของ* + facts as prose on the left; the handoff track on a soft plane on the right. Situations set as one leading quote and two smaller ones. |
 | 04 | Status chasing | `#visibility` | True split-screen across the full width: a dim warm half with scattered questions (*ต้องถาม*) against an emerald half with one shared state and role views (*เมื่อมี CORE*). |
-| 05 | Human error | `#human-error` | Immersive dark inspection layer: the selected scenario lit in the centre; PREVENT / DETECT / ALERT / CONTROL as structural anchors left and right, the active one lit; TRACE as the base layer underneath. |
-| 06 | Approval bottleneck | `#approval` | Horizontal process stage on one open line; *Waiting* opens a wider dashed gap with pause and elapsed state. Vertical sequence on phones. |
+| 05 | Human error | `#human-error` | Audit layer on a stage: PREVENT / DETECT / ALERT / CONTROL wired into a central lit scenario with a spine; before and with-CORE paired either side of the TRACE root. |
+| 06 | Approval bottleneck | `#approval` | One stage board: request type and simulate-approve in its header, the process across it, *Waiting* as a lit tension zone (pause, elapsed time), support inset below. Vertical sequence on phones. |
 | 07 | Stock / Lot / Expiry | `#stock` | Operational control surface: locations · lot identity · expiry timeline & FEFO in three divided columns, movement & count beneath; warehouse preview beside the heading. |
-| 08 | Supplier visibility | `#supplier` | Wide timeline PR → PO → expected → partial → outstanding; under the delay point, the receipt bar and the affected downstream work hang below a dashed line (cause → effect). |
+| 08 | Supplier visibility | `#supplier` | Timeline on a warm stage; the delay node drops a dashed line into an impact zone: receipt bar → outstanding → affected work. |
 | 09 | Document / payment | `#payment` | Compact, calm gate on a narrower frame: documents (switches) on the left, a gate that opens in the middle, readiness on the right. |
 | 10 | Management visibility | `#management` | Flagship vertical hierarchy: executive attention band on top; signal lines converge upward from the floor; quiet department fields below with only exceptions lit; anchor *งานปกติควรไหล / สิ่งผิดปกติควรถูกเห็น* sits between the layers. |
 | 11 | Cross-department | `#cross-department` | Wide synthesis: centred statement; six workspaces across the width connected down to one CORE line. |
 | 12 | Navigator | `#navigator` | Calm: a symptom list on the left, one focused response on the right. |
 | 13 | CTA | — | Quiet, narrow and spacious — no box. |
+
+Dominant visuals sit on **stage** surfaces (deep gradient backplate, faint grid, one controlled
+glow, inset light) — Approval, Human error, Supplier, Management, Navigator, Falling-through
+and Payment use them; before/after is always a paired comparison.
 
 Widths vary on purpose: editorial copy narrow, interactive visuals wide (1440), map / split /
 management / stock surface near full width (1640), CTA narrow again. Stories close with one

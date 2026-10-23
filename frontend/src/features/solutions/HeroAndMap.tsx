@@ -252,23 +252,24 @@ export function SolutionsHero() {
   return (
     <section
       aria-labelledby="solutions-title"
-      className="relative isolate flex flex-col overflow-hidden pt-28 pb-16 sm:pt-36 lg:min-h-[min(100svh,64rem)] lg:pt-40 lg:pb-20"
+      className="relative isolate flex flex-col overflow-hidden pt-28 pb-16 sm:pt-36 lg:min-h-[min(100svh,66rem)] lg:pt-36 lg:pb-20"
     >
       <div aria-hidden className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_78%_38%,rgb(245_184_75/0.06),transparent_70%),radial-gradient(ellipse_60%_65%_at_70%_65%,rgb(25_195_154/0.11),transparent_72%)]" />
-        <div className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_70%_70%_at_70%_45%,black,transparent_80%)] opacity-60" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_50%_at_20%_30%,rgb(25_195_154/0.06),transparent_70%)]" />
       </div>
       <Frame width="full" className="flex flex-1 flex-col">
-        <div className="grid flex-1 grid-cols-1 items-center gap-14 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-8">
-          <div className="max-w-2xl">
-            <p className="eyebrow">{c.eyebrow}</p>
+        <div className="relative grid flex-1 grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:gap-0">
+          <div className="relative z-10 max-w-2xl lg:pr-14">
+            <Kicker tone="clear">{c.eyebrow}</Kicker>
             <h1
               id="solutions-title"
-              className="mt-6 text-[clamp(2rem,1.2rem+2.6vw,3.6rem)] leading-[1.26] font-semibold tracking-tight text-balance whitespace-pre-line text-text-primary"
+              className="mt-7 text-[clamp(2rem,1.2rem+2.4vw,3.35rem)] leading-[1.24] font-semibold tracking-tight text-balance whitespace-pre-line text-text-primary"
             >
               {c.title}
             </h1>
-            <p className="mt-8 max-w-lg text-body-lg text-text-secondary">{c.lead}</p>
+            <p className="mt-8 max-w-lg border-l border-brand-glow/40 pl-5 text-body-lg text-text-secondary">
+              {c.lead}
+            </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <a href={`#${SECTION.map}`} className={buttonClasses('primary', 'lg')}>
                 {c.map}
@@ -280,23 +281,36 @@ export function SolutionsHero() {
               </Link>
             </div>
           </div>
-          <div className="lg:-mr-6 xl:-mr-10">
-            <HeroVisual />
+          {/* The visual sits on a deep stage that bleeds to the right edge */}
+          <div className="relative">
+            <div
+              aria-hidden
+              className="absolute -inset-y-10 -right-4 -left-4 -z-10 rounded-[2.5rem] bg-[linear-gradient(160deg,rgb(14_28_40/0.95),rgb(5_11_18/0.6)_70%)] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.06)] lg:-inset-y-16 lg:-right-[20vw] lg:-left-4 lg:rounded-r-none"
+            >
+              <div className="absolute inset-0 rounded-[inherit] bg-grid [mask-image:radial-gradient(ellipse_70%_75%_at_45%_45%,black,transparent_85%)] opacity-50" />
+              <div className="absolute inset-0 rounded-[inherit] bg-[radial-gradient(ellipse_55%_55%_at_45%_62%,rgb(25_195_154/0.16),transparent_70%),radial-gradient(ellipse_40%_35%_at_35%_32%,rgb(245_184_75/0.07),transparent_70%)]" />
+            </div>
+            <div className="px-2 py-6 sm:px-6 lg:py-10 lg:pr-0 lg:pl-10">
+              <HeroVisual />
+            </div>
           </div>
         </div>
-        {/* The core story — an open strip, not a card */}
+        {/* The core story — an index band of six causes */}
         <div
-          className="mt-16 grid grid-cols-1 gap-6 border-t border-border-soft pt-8 lg:mt-20 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-8"
+          className="relative mt-20 grid grid-cols-1 overflow-hidden rounded-[2rem] bg-surface-base/55 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.05)] backdrop-blur-sm lg:mt-24 lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.38fr)]"
           data-hero-story
         >
-          <div>
-            <p className="text-body-lg font-semibold text-text-primary">{c.storyTitle}</p>
-            <p className="mt-1 text-label text-text-muted">{c.story}</p>
+          <div className="bg-[linear-gradient(135deg,rgb(245_184_75/0.07),transparent_70%)] p-6 sm:p-8">
+            <p className="text-h3 text-text-primary">{c.storyTitle}</p>
+            <p className="mt-2 text-label text-text-muted">{c.story}</p>
           </div>
-          <ul className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {c.causes.map((cause, i) => (
-              <li key={cause} className="flex items-baseline gap-3 text-label text-text-secondary">
-                <span aria-hidden className="text-caption text-warning tabular">
+              <li
+                key={cause}
+                className="flex items-start gap-3 border-t border-white/[0.05] px-6 py-5 text-label text-text-secondary sm:px-7 lg:border-l"
+              >
+                <span aria-hidden className="text-caption font-semibold text-warning tabular">
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 {cause}

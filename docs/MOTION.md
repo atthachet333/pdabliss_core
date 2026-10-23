@@ -74,7 +74,20 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
-### Scroll
+### Department experience (EP06 — see [DEPARTMENT_EXPERIENCE.md](DEPARTMENT_EXPERIENCE.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| Overview hero | six environments open outward from CORE (staggered 70 ms); connection lines flow (CSS dash) | 0.6 s, flow loop 6 s |
+| Overview stage | selected department panel slides in 24 px, previous slides out | 0.45 s |
+| Overview connected map | pulses travel each handoff (SVG `animateMotion`, ≥ sm only) | 4 s + 0.6 s per line |
+| Executive hero | signals travel from the departments into the command surface | 3.2 s + 0.5 s per line |
+| Sales hero | the order token moves station to station; route dashes flow | 1.7 s / station, dash 8 s |
+| Operations hero | the "now" line sweeps the week (SVG `animate`) | 16 s |
+| Purchasing hero | requests travel PR → PO; goods travel supplier → Warehouse (SVG `animateMotion`) | 2.8 s + 0.4 s / 3.6 s + 0.6 s per line |
+| Accounting hero | documents check off one by one, then the payment unlocks | 1.2 s / document |
+| Sections | `Reveal` / `RevealItem` entrances; tab panels crossfade | tokens |
+
 
 - Section headers and content reveal once (`y: 24 → 0`, fade in).
 - Card groups stagger by 80 ms.
@@ -101,6 +114,9 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- Department pages (EP06): every hero loop and SVG pulse is removed; Sales shows the order at
+  "ready", Accounting shows every document checked and the payment ready, Operations shows a
+  static now line, and tab panels switch without sliding.
 
 The page is fully readable and complete in this mode — motion never carries information that
 is not also present statically.

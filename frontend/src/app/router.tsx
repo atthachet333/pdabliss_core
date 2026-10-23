@@ -22,6 +22,15 @@ import { RouteError, WorkspaceNotFound } from '@/workspaces/RouteStates';
 // Public pages other than the landing page are code-split.
 const FeaturesPage = lazy(() => import('@/pages/public/FeaturesPage'));
 const DepartmentsPage = lazy(() => import('@/pages/public/DepartmentsPage'));
+// EP06: one chunk per department page.
+const DEPARTMENT_PAGES = {
+  executive: lazy(() => import('@/features/departments/executive/ExecutivePage')),
+  sales: lazy(() => import('@/features/departments/sales/SalesPage')),
+  operations: lazy(() => import('@/features/departments/operations/OperationsPage')),
+  warehouse: lazy(() => import('@/features/departments/warehouse/WarehousePage')),
+  purchasing: lazy(() => import('@/features/departments/purchasing/PurchasingPage')),
+  accounting: lazy(() => import('@/features/departments/accounting/AccountingPage')),
+} as const;
 const SolutionsPage = lazy(() => import('@/pages/public/SolutionsPage'));
 const PricingPage = lazy(() => import('@/pages/public/PricingPage'));
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
@@ -123,6 +132,10 @@ function publicPages(): RouteObject[] {
     { index: true, element: <HomePage /> },
     { path: 'features', element: lazyPage(FeaturesPage) },
     { path: 'departments', element: lazyPage(DepartmentsPage) },
+    ...Object.entries(DEPARTMENT_PAGES).map(([id, Page]) => ({
+      path: `departments/${id}`,
+      element: lazyPage(Page),
+    })),
     { path: 'solutions', element: lazyPage(SolutionsPage) },
     { path: 'pricing', element: lazyPage(PricingPage) },
     { path: 'about', element: lazyPage(AboutPage) },

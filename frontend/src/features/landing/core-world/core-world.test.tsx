@@ -63,7 +63,7 @@ describe('CORE World department imagery', () => {
     expect(detail).toHaveTextContent('Receive goods, check quality');
     expect(within(detail).getByRole('link', { name: /View this department/ })).toHaveAttribute(
       'href',
-      '/en/departments#warehouse',
+      '/en/departments/warehouse',
     );
     expect(within(group).getByRole('button', { name: 'Warehouse' })).toHaveAttribute(
       'aria-pressed',

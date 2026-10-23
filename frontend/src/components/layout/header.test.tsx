@@ -15,6 +15,13 @@ const PUBLIC_ROUTES = [
   '/contact',
   '/privacy',
   '/terms',
+  // EP06 department pages
+  '/departments/executive',
+  '/departments/sales',
+  '/departments/operations',
+  '/departments/warehouse',
+  '/departments/purchasing',
+  '/departments/accounting',
 ];
 
 const THAI_TOP_LEVEL = [
@@ -214,7 +221,7 @@ describe('mobile navigation', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: /แผนก/ }));
     expect(within(dialog).getByRole('link', { name: /คลังสินค้า/ })).toHaveAttribute(
       'href',
-      '/departments#warehouse',
+      '/departments/warehouse',
     );
 
     const language = within(dialog).getByRole('navigation', { name: 'ภาษา' });

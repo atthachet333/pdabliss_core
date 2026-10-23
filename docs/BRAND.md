@@ -174,6 +174,23 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   *โครงสร้างแพ็คเกจตัวอย่าง · ราคาอยู่ระหว่างกำหนด*; cookie UI states which categories are not
   in use. No invented clients, uptime, certifications, counts or awards.
 
+## Department experience (EP06)
+
+See [DEPARTMENT_EXPERIENCE.md](DEPARTMENT_EXPERIENCE.md). One kit, six identities:
+
+- **The workspace accent is the department's signature.** Each page exposes its
+  `--color-ws-*` accent as `--dept`; small identifiers (eyebrows, rules, active states, hero
+  strokes) use it through `color-mix(in oklab, var(--dept) N%, transparent)`. Emerald stays
+  the brand light; the accent never replaces it on CTAs.
+- **A page-wide backdrop motif per department**, at whisper intensity (≈ 4–10 % accent,
+  masked at top and bottom): Executive horizon strata, Sales route arcs, Operations day
+  columns, Warehouse floor grid, Purchasing supplier nodes, Accounting ruled ledger.
+- **A unique hero visual and signature sections** for each department, so a mid-page
+  screenshot still identifies it. Shared sections (Today, In/Do/Out, Manager, Preview,
+  Connected, CTA) keep the rhythm calm and consistent.
+- **Honest sample data.** Example states are labelled as examples; Warehouse shows quantities,
+  lots, dates and locations only; Accounting shows "per PO terms", never figures.
+
 ## Imagery
 
 Generated, abstract and brand-tinted (orbits, networks, racks, ledgers) — produced by

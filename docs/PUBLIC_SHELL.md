@@ -84,10 +84,10 @@ list of links:
 
 | Menu | Items → destination | Highlight CTA |
 | --- | --- | --- |
-| แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments#<id>` | สำรวจทุกแผนก → `/departments` |
+| แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing#plan-<id>` (no prices) | ขอคำปรึกษา → `/contact` |
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/#why-core` · การทำงานข้ามแผนก `/#connected-flow` · Workflow และ Approval `/features` · การติดตามสถานะ `/#executive` · Human Error Prevention `/#error-control` | ดูวิธีการทำงาน → `/#connected-flow` |
-| โซลูชัน | ลด Human Error `/#error-control` · เชื่อมการทำงานหลายแผนก `/#department-worlds` · Workflow & Approval `/#connected-flow` · Stock & Expiry Control `/departments#warehouse` · Operational Visibility `/#executive` · Management Control `/departments#executive` | ดูตัวอย่างการใช้งาน → `/solutions` |
+| โซลูชัน | ลด Human Error `/#error-control` · เชื่อมการทำงานหลายแผนก `/#department-worlds` · Workflow & Approval `/#connected-flow` · Stock & Expiry Control `/departments/warehouse` · Operational Visibility `/#executive` · Management Control `/departments/executive` | ดูตัวอย่างการใช้งาน → `/solutions` |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/#enterprise` · **Security & Access** (planned) · Audit & Control `/#error-control` · Custom Workflow `/#connected-flow` · **API & Integration** (planned) · Implementation & Support `/contact` | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/#trust` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/contact` | ติดต่อทีมงาน → `/contact` |
 
@@ -144,7 +144,7 @@ the same language. Existing URLs are unchanged.
   keyed by those ids. `ShellMessages` (in `types.ts`) types all three dictionaries, so a missing
   string is a compile error; a test also checks every nav item has text in every locale.
 - `LocaleProvider` exposes `useLocale()` → `{ locale, t, href }`; `href()` localizes internal
-  paths (`/departments#sales` → `/en/departments#sales`) and leaves `/login`, `/app/*` and
+  paths (`/departments/sales` → `/en/departments/sales`) and leaves `/login`, `/app/*` and
   external URLs alone.
 - The language selector links to the same page in the other locale (`switchLocalePath`), with
   `lang` and `hreflang` on each option.

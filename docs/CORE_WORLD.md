@@ -85,7 +85,7 @@ parallax page. Pointer = interact with CORE; scroll = move through the story. Th
 | Mouse drag | Only a press **on the CORE / orbit area** (a circle of 42 % of the stage's short side) starts a drag; grab/grabbing cursor. Rotates yaw ±0.6 rad and pitch ±0.15 rad (clamped); restrained inertia (settles < 1 s); after 2.6 s idle the composition eases home. A mouse rotates only while its button is held — a stale drag (button released outside the page) ends on the next move |
 | Touch | Horizontal drag on the CORE rotates; vertical movement is left to the page (`touch-action: pan-y` + axis lock) — scrolling is never trapped |
 | Hover / focus department | Node brightens and grows 35 %, its spoke brightens and its pulses speed up, CORE answers with a stronger rim; other nodes dim; detail panel shows. No camera move. Node ↔ label transitions are debounced (80 ms) so hover never flickers |
-| Click / Enter department | Selects it (persistent emphasis + detail with **ดูแผนกนี้** → `/departments#id`); DOM button `aria-pressed` stays in sync. A drag never counts as a click (6 px threshold) |
+| Click / Enter department | Selects it (persistent emphasis + detail with **ดูแผนกนี้** → `/departments/<id>` since EP06); DOM button `aria-pressed` stays in sync. A drag never counts as a click (6 px threshold) |
 | Click CORE | Clears the selection (overview). Keyboard: a "กลับสู่ภาพรวม CORE" button appears on focus while a department is selected |
 | Escape | Clears the selection |
 

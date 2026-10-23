@@ -67,6 +67,10 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 Public: `/`, `/departments`, `/features`, `/solutions`, `/pricing`, `/about`, `/contact`,
 `/login`, `/privacy`, `/terms`
 
+Department pages (EP06): `/departments/executive`, `/departments/sales`,
+`/departments/operations`, `/departments/warehouse`, `/departments/purchasing`,
+`/departments/accounting` — see [docs/DEPARTMENT_EXPERIENCE.md](docs/DEPARTMENT_EXPERIENCE.md).
+
 Locales (EP05): Thai is the default and unprefixed; the whole public site is also served in
 English under `/en/...` and Simplified Chinese under `/zh/...` — shell and page content alike.
 `/login` and `/app/*` are never prefixed. See [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md).
@@ -122,6 +126,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md) — public header, mega menus, localization, footer, contact, cookies, utilities
 - [docs/EP05_REPORT.md](docs/EP05_REPORT.md) — public shell & localization foundation
 - [docs/EP05_REVISION_REPORT.md](docs/EP05_REVISION_REPORT.md) — EP05 revision: full-site language, single phone, mega-menu visuals, CORE World imagery
+- [docs/DEPARTMENT_EXPERIENCE.md](docs/DEPARTMENT_EXPERIENCE.md) — the `/departments` philosophy page and the six department pages
+- [docs/EP06_REPORT.md](docs/EP06_REPORT.md) — department experience
 
 ---
 

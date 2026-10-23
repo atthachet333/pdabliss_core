@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { useDepartment, useDepartments } from '@/config/departments';
 import { useLocale } from '@/i18n/useLocale';
 import { useCopy, type Localized } from '@/i18n/useCopy';
+import { departmentLink } from '@/features/departments/catalog';
 import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 import { ORBIT_LIST } from './orbitList';
@@ -203,7 +204,7 @@ function DetailBody({ id }: { id: OrbitDepartmentId }) {
           ))}
         </ul>
         <Link
-          to={href(`/departments#${id}`)}
+          to={href(departmentLink(id))}
           className="group mt-4 inline-flex items-center gap-1.5 text-label font-medium text-brand-glow lg:mt-3"
         >
           {c.view}

@@ -120,7 +120,7 @@ describe('department worlds', () => {
     await waitFor(() => expect(panel).toHaveTextContent(WORLDS[3]!.message));
     expect(within(panel).getByRole('link', { name: /ดูรายละเอียด/ })).toHaveAttribute(
       'href',
-      `/departments#${WORLDS[3]!.id}`,
+      `/departments/${WORLDS[3]!.id}`,
     );
   });
 

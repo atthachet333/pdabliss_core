@@ -80,7 +80,7 @@ describe('homepage hero — CORE Universe', () => {
     }
     expect(within(detail).getByRole('link', { name: /ดูแผนกนี้/ })).toHaveAttribute(
       'href',
-      '/departments#warehouse',
+      '/departments/warehouse',
     );
     // Warehouse detail never mentions money.
     expect(detail.textContent).not.toMatch(/฿|บาท|ราคา|ต้นทุน/);

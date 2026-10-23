@@ -7,6 +7,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
+import { departmentLink } from '@/features/departments/catalog';
 import { ChapterMark } from './ChapterMark';
 import { WorldArt } from './WorldArt';
 import { useWorlds, type WorldId } from './worlds';
@@ -87,7 +88,7 @@ export function DepartmentWorldsChapter() {
   const [active, setActive] = useState<WorldId>('sales');
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({});
   const WORLDS = useWorlds();
-  const { locale } = useLocale();
+  const { locale, href } = useLocale();
   const c = useCopy(COPY);
   const world = WORLDS.find((w) => w.id === active)!;
 
@@ -248,7 +249,7 @@ export function DepartmentWorldsChapter() {
                   </p>
                 )}
                 <Link
-                  to={`/departments#${world.id}`}
+                  to={href(departmentLink(world.id))}
                   className="mt-8 inline-flex w-fit items-center gap-2 rounded-full text-label font-medium text-text-primary underline-offset-4 hover:underline"
                 >
                   {c.details(world.name)}

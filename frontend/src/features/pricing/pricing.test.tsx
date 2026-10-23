@@ -436,6 +436,23 @@ describe('recommendation, comparison and services', () => {
     expect(early.textContent).not.toMatch(/%|฿/);
   });
 
+  it('splits the FAQ into two columns in reading order', async () => {
+    await openPricing();
+    const cols = [...document.querySelectorAll<HTMLElement>('[data-faq-column]')];
+    expect(cols).toHaveLength(2);
+    const idx = cols.map((c) =>
+      [...c.querySelectorAll<HTMLElement>('[data-faq]')].map((li) => Number(li.dataset.faq)),
+    );
+    expect(idx[0]!.length - idx[1]!.length).toBeLessThanOrEqual(1);
+    expect([...idx[0]!, ...idx[1]!]).toEqual([...Array(idx[0]!.length + idx[1]!.length).keys()]);
+    // One answer open at a time across both columns.
+    const faq = document.getElementById('faq')!;
+    const last = idx[1]![idx[1]!.length - 1]!;
+    await userEvent.click(faq.querySelector<HTMLElement>(`#faq-q-${last}`)!);
+    expect(faq.querySelector(`#faq-a-${last}`)).not.toHaveAttribute('hidden');
+    expect(faq.querySelector('#faq-a-0')).toHaveAttribute('hidden');
+  });
+
   it('answers the FAQ from plan data', async () => {
     await openPricing();
     const faq = document.getElementById('faq')!;

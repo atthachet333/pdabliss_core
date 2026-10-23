@@ -147,47 +147,61 @@ export function PricingFaq() {
     year2Months: ANNUAL_POLICY.year2PaidMonths,
     year3Discount: ANNUAL_POLICY.year3DiscountPercent,
   };
+  // Reading order stays 1…n: the first half fills the left column, the rest the right.
+  const indexed = c.faq.items.map((item, i) => ({ item, i }));
+  const half = Math.ceil(indexed.length / 2);
+  const columns = [indexed.slice(0, half), indexed.slice(half)];
   return (
     <Section id={SECTION.faq} labelledBy="faq-title" className="scroll-mt-20">
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
-        <SectionHead id="faq-title" eyebrow={c.faq.eyebrow} title={c.faq.title} />
-        <ul className="divide-y divide-border-soft border-y border-border-soft">
-          {c.faq.items.map((item, i) => {
-            const isOpen = open === i;
-            return (
-              <li key={item.q} data-faq={i}>
-                <h3>
-                  <button
-                    type="button"
-                    id={`faq-q-${i}`}
-                    aria-expanded={isOpen}
-                    aria-controls={`faq-a-${i}`}
-                    onClick={() => setOpen(isOpen ? null : i)}
-                    className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left text-body font-medium text-text-primary"
+      <SectionHead id="faq-title" eyebrow={c.faq.eyebrow} title={c.faq.title} />
+      {/* Desktop: two independent columns, so opening an answer never shifts the other column. */}
+      <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-12">
+        {columns.map((col, ci) => (
+          <ul
+            key={ci}
+            data-faq-column={ci}
+            className={cn(
+              'divide-y divide-border-soft border-b border-border-soft',
+              ci === 0 ? 'border-t' : 'lg:border-t',
+            )}
+          >
+            {col.map(({ item, i }) => {
+              const isOpen = open === i;
+              return (
+                <li key={item.q} data-faq={i}>
+                  <h3>
+                    <button
+                      type="button"
+                      id={`faq-q-${i}`}
+                      aria-expanded={isOpen}
+                      aria-controls={`faq-a-${i}`}
+                      onClick={() => setOpen(isOpen ? null : i)}
+                      className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left text-body font-medium text-text-primary"
+                    >
+                      {item.q}
+                      <ChevronDown
+                        aria-hidden
+                        className={cn(
+                          'size-5 shrink-0 text-text-muted transition-transform duration-300',
+                          isOpen && 'rotate-180',
+                        )}
+                      />
+                    </button>
+                  </h3>
+                  <div
+                    id={`faq-a-${i}`}
+                    role="region"
+                    aria-labelledby={`faq-q-${i}`}
+                    hidden={!isOpen}
+                    className="pb-5 text-label text-text-secondary"
                   >
-                    {item.q}
-                    <ChevronDown
-                      aria-hidden
-                      className={cn(
-                        'size-5 shrink-0 text-text-muted transition-transform duration-300',
-                        isOpen && 'rotate-180',
-                      )}
-                    />
-                  </button>
-                </h3>
-                <div
-                  id={`faq-a-${i}`}
-                  role="region"
-                  aria-labelledby={`faq-q-${i}`}
-                  hidden={!isOpen}
-                  className="pb-5 text-label text-text-secondary"
-                >
-                  {item.a(facts)}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    {item.a(facts)}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ))}
       </div>
     </Section>
   );

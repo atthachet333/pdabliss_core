@@ -166,7 +166,8 @@ team.
    screens, one plan at a time on phones.
 8. **Add-ons** (`#add-ons`), 9. **Onboarding & support** (`#onboarding`),
    10. **Enterprise** (`#enterprise`), 11. **Early Access** (`#early-access`),
-   12. **FAQ** (`#faq`, answers built from `plans.ts`), 13. closing CTA.
+   12. **FAQ** (`#faq`, answers built from `plans.ts`; heading on top, questions in two
+   independent columns on desktop, one column below `lg`), 13. closing CTA.
 
 ### URL state
 

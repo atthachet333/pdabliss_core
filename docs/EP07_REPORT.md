@@ -63,10 +63,10 @@ VAT statement. Lot / Batch, Expiry, Stock Age and FEFO come with Warehouse in ev
 
 | Package | npm ci | typecheck | lint | format | test | build |
 | ------- | ------ | --------- | ---- | ------ | ---- | ----- |
-| frontend | ✓ | ✓ | ✓ | ✓ (`format` made no changes; `format:check` clean) | ✓ 305 / 305 (15 files) | ✓ |
+| frontend | ✓ | ✓ | ✓ | ✓ (`format` made no changes; `format:check` clean) | ✓ 306 / 306 (15 files) | ✓ |
 | backend | ✓ | ✓ | ✓ | ✓ | ✓ 21 / 21 (4 files) | ✓ |
 
-New `features/pricing/pricing.test.tsx` — 42 tests: four plans and exact prices; Business
+New `features/pricing/pricing.test.tsx` — 43 tests: four plans and exact prices; Business
 recommended; Enterprise without price and in quote mode; department limits 2 / 4 / all /
 custom; Starter without Executive (logic and UI, with reason); all branches; storage
 3 / 10 / 30 / agreed; API, reporting, workflow, support tiers; annual year 1 / 2 / 3+ values
@@ -75,7 +75,7 @@ VAT, countdown or invented proof; Demo CTA; monthly cancellation, upgrade / down
 add-ons without prices; migration statement and note; training and support model; department
 enforcement and safe adjustment on plan change; add-ons never summed; future purchase flow
 without payment fields; recommendation logic and UI; grouped comparison consistent with plan
-data; FAQ answers from plan data; URL state (load, fallback, hash, write); English and Chinese
+data; FAQ answers from plan data; FAQ split into two columns in reading order; URL state (load, fallback, hash, write); English and Chinese
 rendering with no Thai; unique metadata per locale; localized mega-menu links; contact topic
 pre-selection; reduced motion.
 
@@ -129,6 +129,12 @@ Chinese characters in Chinese copy.
   scope" lines.
 - Thai H1 orphaned its last word → line break rebalanced.
 - `scrollIntoView` guarded for environments without it.
+
+## Owner revision (after visual review)
+
+- FAQ: heading across the top and the questions in two independent columns on desktop
+  (first half left, second half right, reading order preserved; one answer open at a time).
+  One column below `lg`. Verified at 1440 (th), 1280 (zh) and 390 (en): no overflow.
 
 ## Known limitations
 

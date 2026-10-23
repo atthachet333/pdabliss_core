@@ -53,9 +53,8 @@ central) are unchanged. Tests assert exactly one phone link, the exact `tel:` va
 floating panel matches the footer, and that 064-924-5544, 090-662-5464, Office, คุณผึ้ง and
 คุณอิน appear nowhere in the footer or source.
 
-> **Needs owner confirmation:** the brief named “คุณวิน” but gave no number. The number used is
-> 063-869-3614, on the assumption that “วิน” refers to the existing คุณอิน entry. It is one value
-> in `src/config/contact.ts` (`CONTACT.phone`) and the label is `contact.phoneLabel` in the three
+> **Confirmed by the owner (2026-10-23):** 063-869-3614 is คุณวิน's number. It is one value in
+> `src/config/contact.ts` (`CONTACT.phone`); the label is `contact.phoneLabel` in the three
 > dictionaries.
 
 ## 3. Header and mega-menu visuals
@@ -185,7 +184,6 @@ labels (Office, คุณผึ้ง, คุณอิน) appear nowhere in `fr
 
 ## Known limitations
 
-- **Phone number** for คุณวิน is inferred (063-869-3614) — please confirm (see §2).
 - Department imagery is **illustrated in code**, not photographic; swap in photographs by
   replacing the files if preferred.
 - Homepage product previews show the Thai product UI in every locale (captioned).

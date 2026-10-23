@@ -1,8 +1,10 @@
 import { animate, motion, useInView, useMotionValue, useMotionValueEvent } from 'framer-motion';
-import { Pause, Play } from 'lucide-react';
+import { ArrowRight, Pause, Play } from 'lucide-react';
+import { Link } from 'react-router';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Container } from '@/components/ui/Section';
 import { useCopy, type Localized } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
 import { ChapterMark } from './ChapterMark';
@@ -25,6 +27,7 @@ const th = {
   pause: 'หยุดภาพเคลื่อนไหวเส้นทาง',
   steps: (label: string) => `ขั้นตอนเส้นทาง${label}`,
   note: 'เส้นทางนี้เป็นภาพประกอบ — งานจริงหลายส่วนเกิดขึ้นพร้อมกัน และแต่ละองค์กรกำหนดขั้นตอน ลำดับการอนุมัติ และแผนกที่เกี่ยวข้องได้ต่างกัน CORE ถูกออกแบบมาเพื่อรองรับเส้นทางตามที่องค์กรทำงานจริง',
+  more: 'ดูว่า CORE ทำงานอย่างไร',
 };
 
 const COPY: Localized<typeof th> = {
@@ -39,6 +42,7 @@ const COPY: Localized<typeof th> = {
     pause: 'Pause the route animation',
     steps: (label) => `${label} route steps`,
     note: 'This route is illustrative — in reality many parts happen in parallel, and each organization sets its own steps, approval order and departments. CORE is designed to support routes the way your organization actually works.',
+    more: 'See how CORE works',
   },
   'zh-CN': {
     titleA: '一项工作，流经多个部门',
@@ -50,6 +54,7 @@ const COPY: Localized<typeof th> = {
     pause: '暂停路径动画',
     steps: (label) => `${label}路径步骤`,
     note: '此路径仅为示意——实际上许多工作同时进行，每家企业对步骤、审批顺序和相关部门的设定各不相同。CORE 的设计就是为了支持企业真实的工作路径。',
+    more: '了解 CORE 如何运作',
   },
 };
 
@@ -67,6 +72,7 @@ export function ConnectedFlowChapter() {
   const worlds = useWorlds();
   const NAME = Object.fromEntries(worlds.map((w) => [w.id, w.name])) as Record<WorldId, string>;
   const c = useCopy(COPY);
+  const { href } = useLocale();
   const [flowId, setFlowId] = useState(FLOWS[0]!.id);
   const [step, setStep] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -355,6 +361,13 @@ export function ConnectedFlowChapter() {
         <p className="mt-10 max-w-3xl border-l border-border-strong pl-5 text-caption text-text-muted">
           {c.note}
         </p>
+        <Link
+          to={href('/how-core-works')}
+          className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-label text-brand-soft hover:text-text-primary"
+        >
+          {c.more}
+          <ArrowRight className="size-4" aria-hidden />
+        </Link>
       </Container>
     </section>
   );

@@ -86,9 +86,9 @@ list of links:
 | --- | --- | --- |
 | แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
-| วิธีการทำงาน | CORE ทำงานอย่างไร `/#why-core` · การทำงานข้ามแผนก `/#connected-flow` · Workflow และ Approval `/features` · การติดตามสถานะ `/#executive` · Human Error Prevention `/#error-control` | ดูวิธีการทำงาน → `/#connected-flow` |
-| โซลูชัน | ลด Human Error `/#error-control` · เชื่อมการทำงานหลายแผนก `/#department-worlds` · Workflow & Approval `/#connected-flow` · Stock & Expiry Control `/departments/warehouse` · Operational Visibility `/#executive` · Management Control `/departments/executive` | ดูตัวอย่างการใช้งาน → `/solutions` |
-| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/#enterprise` · **Security & Access** (planned) · Audit & Control `/#error-control` · Custom Workflow `/#connected-flow` · **API & Integration** (planned) · Implementation & Support `/contact` | พูดคุยกับทีม PDA BLISS → `/contact` |
+| วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) | ดูวิธีการทำงาน → `/how-core-works` |
+| โซลูชัน | ลด Human Error `/#error-control` · เชื่อมการทำงานหลายแผนก `/#department-worlds` · Workflow & Approval `/how-core-works#approval` · Stock & Expiry Control `/departments/warehouse` · Operational Visibility `/#executive` · Management Control `/departments/executive` | ดูตัวอย่างการใช้งาน → `/solutions` |
+| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/#enterprise` · **Security & Access** (planned) · Audit & Control `/#error-control` · Custom Workflow `/how-core-works#adapt` · **API & Integration** (planned) · Implementation & Support `/contact` | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/#trust` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/contact` | ติดต่อทีมงาน → `/contact` |
 
 **No dead links.** Every destination is a live route or an existing anchor (`plan-*` on
@@ -183,7 +183,7 @@ CORE orbit (desktop/tablet only; phones keep just the glow).
 | Column | Content |
 | --- | --- |
 | 1 — Brand | Logo, *by PDA BLISS*, *Department Operations Platform สำหรับองค์กร* + one sentence, quick contact chips (โทร · LINE · Email), *พัฒนาโดย PDA BLISS COMPANY LIMITED* |
-| 2 — ลิงก์ด่วน | ภาพรวม · แผนก · แพ็คเกจ · วิธีการทำงาน (visually lighter) |
+| 2 — ลิงก์ด่วน | ภาพรวม · แผนก · แพ็คเกจ · วิธีการทำงาน → `/how-core-works` (visually lighter) |
 | 3 — องค์กร | โซลูชัน · สำหรับองค์กร · เกี่ยวกับเรา · ติดต่อเรา (visually lighter) |
 | 4 — ติดต่อเรา | `ContactDetails`: address, one phone number with its contact person, email, LINE OA |
 

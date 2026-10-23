@@ -174,6 +174,20 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   categories are not in use. No invented clients, uptime, certifications, counts or awards.
   (Approved package prices arrived in EP07 — see below.)
 
+## How CORE works (EP08)
+
+See [HOW_CORE_WORKS.md](HOW_CORE_WORKS.md). More kinetic than EP06, because the page explains
+movement — but every motion carries meaning (travel, handoff, waiting, branching, completion).
+
+- **Departments as lanes, work as light.** Each department is a quiet band with its workspace
+  accent as a small tick; the route is one emerald line weaving between bands. What is done
+  glows, what is ahead is dashed.
+- **Status by shape and word**: circle (normal), triangle (attention), square with bar
+  (blocked), dashed ring (waiting), filled check (complete) — never colour alone.
+- **Calm until something is wrong.** Exceptions lift one step out of a still route; no red
+  screens or alarm styling. The executive band marks only what needs attention.
+- **Sample records, not data**: SO-1042, PO-2215, LOT-2410-A — no names, no amounts.
+
 ## Pricing (EP07)
 
 See [PRICING_AND_PACKAGES.md](PRICING_AND_PACKAGES.md). Pricing must feel like CORE, not a

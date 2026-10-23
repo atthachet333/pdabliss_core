@@ -71,6 +71,10 @@ Pricing (EP07): `/pricing` is the package & subscription experience — four pac
 relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a plan. See
 [docs/PRICING_AND_PACKAGES.md](docs/PRICING_AND_PACKAGES.md).
 
+How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
+company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
+[docs/HOW_CORE_WORKS.md](docs/HOW_CORE_WORKS.md).
+
 Department pages (EP06): `/departments/executive`, `/departments/sales`,
 `/departments/operations`, `/departments/warehouse`, `/departments/purchasing`,
 `/departments/accounting` — see [docs/DEPARTMENT_EXPERIENCE.md](docs/DEPARTMENT_EXPERIENCE.md).
@@ -134,6 +138,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP06_REPORT.md](docs/EP06_REPORT.md) — department experience
 - [docs/PRICING_AND_PACKAGES.md](docs/PRICING_AND_PACKAGES.md) — packages, annual policy, add-ons, quote model, future checkout
 - [docs/EP07_REPORT.md](docs/EP07_REPORT.md) — package & subscription experience
+- [docs/HOW_CORE_WORKS.md](docs/HOW_CORE_WORKS.md) — the connected workflow experience: model, branches, boundaries, roles, trace
+- [docs/EP08_REPORT.md](docs/EP08_REPORT.md) — how CORE works / connected operations experience
 
 ---
 

@@ -8,7 +8,8 @@ import { Section, SectionHead } from '@/features/departments/ui';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
-import { BillingToggle, Segmented } from './controls';
+import { Segmented } from '@/components/ui/Segmented';
+import { BillingToggle } from './controls';
 import { fill, PRICING } from './copy';
 import { PlanPrice } from './PlanPrice';
 import {

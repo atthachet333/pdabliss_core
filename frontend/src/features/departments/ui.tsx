@@ -584,7 +584,7 @@ export function DeptCta({ id = 'dept-cta' }: { id?: string }) {
             {c.cta.consult}
             <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link to={href('/#connected-flow')} className={buttonClasses('secondary', 'lg')}>
+          <Link to={href('/how-core-works')} className={buttonClasses('secondary', 'lg')}>
             {c.cta.how}
           </Link>
         </div>

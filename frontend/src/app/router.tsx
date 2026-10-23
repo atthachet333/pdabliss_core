@@ -33,6 +33,7 @@ const DEPARTMENT_PAGES = {
 } as const;
 const SolutionsPage = lazy(() => import('@/pages/public/SolutionsPage'));
 const PricingPage = lazy(() => import('@/pages/public/PricingPage'));
+const HowCoreWorksPage = lazy(() => import('@/pages/public/HowCoreWorksPage'));
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
@@ -138,6 +139,7 @@ function publicPages(): RouteObject[] {
     })),
     { path: 'solutions', element: lazyPage(SolutionsPage) },
     { path: 'pricing', element: lazyPage(PricingPage) },
+    { path: 'how-core-works', element: lazyPage(HowCoreWorksPage) },
     { path: 'about', element: lazyPage(AboutPage) },
     { path: 'contact', element: lazyPage(ContactPage) },
     {

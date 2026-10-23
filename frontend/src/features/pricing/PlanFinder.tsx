@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { Section, SectionHead } from '@/features/departments/ui';
 import { useCopy } from '@/i18n/useCopy';
 import { buttonClasses } from '@/components/ui/buttonStyles';
-import { Segmented } from './controls';
+import { Segmented } from '@/components/ui/Segmented';
 import { PRICING } from './copy';
 import { PlanPrice } from './PlanPrice';
 import { getPlan, recommendPlan, type DeptRange, type FitAnswers } from './plans';

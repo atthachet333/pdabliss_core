@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
   '/',
   '/features',
   '/pricing',
+  '/how-core-works',
   '/departments',
   '/solutions',
   '/about',
@@ -260,7 +261,8 @@ describe('mobile navigation', () => {
     const dialog = screen.getByRole('dialog', { name: 'เมนู' });
     await userEvent.click(within(dialog).getByRole('button', { name: /วิธีการทำงาน/ }));
     await userEvent.click(within(dialog).getByRole('link', { name: /Workflow และ Approval/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/features'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/how-core-works'));
+    expect(router.state.location.hash).toBe('#approval');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'เมนู' })).toBeNull());
   });
 });

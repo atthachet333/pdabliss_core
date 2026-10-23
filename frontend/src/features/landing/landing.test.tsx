@@ -137,7 +137,8 @@ describe('homepage hero — CORE Universe', () => {
     await userEvent.click(within(nav).getByRole('button', { name: 'วิธีการทำงาน' }));
     const panel = screen.getByRole('region', { name: 'เมนูวิธีการทำงาน' });
     await userEvent.click(within(panel).getByRole('link', { name: /Workflow และ Approval/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/features'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/how-core-works'));
+    expect(router.state.location.hash).toBe('#approval');
   });
 });
 

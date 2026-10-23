@@ -4,7 +4,7 @@ import { useMediaQuery } from '@/components/core/hooks';
 import { Section, SectionHead } from '@/features/departments/ui';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
-import { Segmented } from './controls';
+import { Segmented } from '@/components/ui/Segmented';
 import { PRICING, type PricingCopy } from './copy';
 import { ADDON_AVAILABILITY, PLANS, type Availability, type PlanFacts, type PlanId } from './plans';
 import { SECTION, usePricing } from './state';

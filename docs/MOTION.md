@@ -74,6 +74,16 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### How CORE works (EP08 — see [HOW_CORE_WORKS.md](HOW_CORE_WORKS.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| Hero | the work object travels into CORE, then pulses travel each department branch (SVG `animateMotion`) | 1.6 s in · 3.2 s per branch, staggered 0.4 s |
+| Route map | the travelled part of the route glows; steps ahead stay quiet; the work token moves to the current step | 0.7 s transform |
+| Exceptions | the selected step lifts 10 px out of the calm route | 0.5 s |
+| Replay | one step every 1.6 s — only after the visitor presses Play | manual by default |
+| Approval, roles, decisions | state changes fade / recolour; dimmed steps recede | 0.3–0.5 s |
+
 ### Pricing (EP07 — see [PRICING_AND_PACKAGES.md](PRICING_AND_PACKAGES.md))
 
 | Where | Motion | Timing |
@@ -123,6 +133,8 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- How CORE works (EP08): no moving work object or branch pulses, no autoplay replay (Play is
+  removed; manual steps remain), route and lift transitions are instant.
 - Pricing (EP07): nothing autoplays; capability-stack transitions are instant and in-page
   links jump instead of scrolling smoothly.
 - Department pages (EP06): every hero loop and SVG pulse is removed; Sales shows the order at

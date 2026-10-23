@@ -24,8 +24,8 @@ and the EP03 scene in `features/landing/core-world/`).
 | 10 | `#trust` | **Trust** — PDA BLISS COMPANY LIMITED | Editorial, quiet, typographic; one philosophy quote | Links: รู้จัก PDA BLISS (`/about`), Why We Built CORE (`/#why-core`), ติดต่อเรา (`/contact`) |
 | 11 | `#begin` | **Final CTA** — *ระบบที่ดีควรเข้ากับวิธีที่องค์กรของคุณทำงาน ไม่ใช่บังคับให้องค์กรทำงานตามระบบ* | The CORE language returns: CSS orbits and a breathing light (no second WebGL canvas) | ขอคำปรึกษา (`/contact`), สำรวจ CORE เพิ่มเติม (`/features`), ดูแผนกทั้งหมด (`/departments`). No price |
 
-There is **no pricing section** on the homepage. `/pricing` still exists (header แพ็คเกจ menu
-and the footer).
+There is **no pricing section** on the homepage. `/pricing` (the EP07 package experience) is
+reached from the header แพ็คเกจ menu and the footer.
 
 A quiet chapter indicator (dots, labels on hover/focus; plain anchor links) appears on very wide
 screens (≥ 1536 px) once the visitor leaves the hero — it never sits over the CORE stage, and

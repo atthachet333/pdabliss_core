@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CircleCheck, Info } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { ContactDetails } from '@/components/contact/ContactDetails';
 import { PageHero } from '@/components/layout/PageHero';
@@ -132,13 +133,16 @@ export default function ContactPage() {
   usePageMeta(c.metaTitle, c.metaDescription);
   const [submitted, setSubmitted] = useState(false);
   const schema = useMemo(() => makeSchema(c.errors), [c.errors]);
+  // `?interest=plans` (from /pricing) pre-selects the topic; anything else keeps "demo".
+  const [params] = useSearchParams();
+  const initialInterest = params.get('interest') === 'plans' ? 'plans' : 'demo';
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ContactValues>({
     resolver: zodResolver(schema),
-    defaultValues: { interest: 'demo' },
+    defaultValues: { interest: initialInterest },
   });
 
   // EP00: the form validates on the client only and sends nothing anywhere.

@@ -67,7 +67,7 @@ export const en: ShellMessages = {
         heading: 'Choose the setup that fits your organization',
         intro:
           'From teams just starting to organize their processes to organizations that need more advanced workflow, control and integration.',
-        note: 'Sample package structure · pricing to be confirmed',
+        note: 'Priced per company · every branch in one workspace',
         items: {
           starter: { label: 'Starter', description: 'For teams starting to organize their work' },
           business: {

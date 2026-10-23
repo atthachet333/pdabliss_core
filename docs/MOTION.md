@@ -74,6 +74,15 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### Pricing (EP07 — see [PRICING_AND_PACKAGES.md](PRICING_AND_PACKAGES.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| Capability stack | plates above the selected plan fade and lift 6 px; layer content fades | 0.5 s CSS transition, no autoplay |
+| Plan tabs, choices | border / background colour transitions | 0.2–0.3 s |
+| Comparison, FAQ | chevron rotates; panels open without animation | 0.3 s |
+| In-page links | smooth scroll to the section (instant under reduced motion) | browser |
+
 ### Department experience (EP06 — see [DEPARTMENT_EXPERIENCE.md](DEPARTMENT_EXPERIENCE.md))
 
 | Where | Motion | Timing |
@@ -114,6 +123,8 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- Pricing (EP07): nothing autoplays; capability-stack transitions are instant and in-page
+  links jump instead of scrolling smoothly.
 - Department pages (EP06): every hero loop and SVG pulse is removed; Sales shows the order at
   "ready", Accounting shows every document checked and the payment ready, Operations shows a
   static now line, and tab panels switch without sliding.

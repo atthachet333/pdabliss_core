@@ -64,7 +64,7 @@ export const th: ShellMessages = {
         heading: 'เลือกรูปแบบที่เหมาะกับองค์กร',
         intro:
           'ตั้งแต่ทีมที่กำลังเริ่มวางระบบ ไปจนถึงองค์กรที่ต้องการ Workflow, Control และ Integration ที่ซับซ้อนขึ้น',
-        note: 'โครงสร้างแพ็คเกจตัวอย่าง · ราคาอยู่ระหว่างกำหนด',
+        note: 'คิดค่าบริการต่อบริษัท · ทุกสาขาอยู่ใน Workspace เดียว',
         items: {
           starter: { label: 'Starter', description: 'สำหรับทีมที่ต้องการเริ่มจัดกระบวนการทำงาน' },
           business: { label: 'Business', description: 'สำหรับองค์กรที่มีหลายแผนกทำงานร่วมกัน' },

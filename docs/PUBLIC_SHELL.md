@@ -64,7 +64,7 @@ by shrinking type. Measured clearances: 1280 → 34 px on each side of the nav; 
 list of links:
 
 1. **Intro** — English overline, Thai heading (intentional line breaks via `\n`), one paragraph,
-   optional honesty note (e.g. *โครงสร้างแพ็คเกจตัวอย่าง · ราคาอยู่ระหว่างกำหนด*).
+   optional note (e.g. *คิดค่าบริการต่อบริษัท · ทุกสาขาอยู่ใน Workspace เดียว*).
 2. **Items** — two-column grid; a leading mark, label, description; arrow reveal on hover/focus.
    The mark is a department scene thumbnail (แผนก), a 1–4 tier indicator (แพ็คเกจ) or an icon
    tile (`MegaItemMark` in `MegaVisuals.tsx`).
@@ -85,7 +85,7 @@ list of links:
 | Menu | Items → destination | Highlight CTA |
 | --- | --- | --- |
 | แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
-| แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing#plan-<id>` (no prices) | ขอคำปรึกษา → `/contact` |
+| แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/#why-core` · การทำงานข้ามแผนก `/#connected-flow` · Workflow และ Approval `/features` · การติดตามสถานะ `/#executive` · Human Error Prevention `/#error-control` | ดูวิธีการทำงาน → `/#connected-flow` |
 | โซลูชัน | ลด Human Error `/#error-control` · เชื่อมการทำงานหลายแผนก `/#department-worlds` · Workflow & Approval `/#connected-flow` · Stock & Expiry Control `/departments/warehouse` · Operational Visibility `/#executive` · Management Control `/departments/executive` | ดูตัวอย่างการใช้งาน → `/solutions` |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/#enterprise` · **Security & Access** (planned) · Audit & Control `/#error-control` · Custom Workflow `/#connected-flow` · **API & Integration** (planned) · Implementation & Support `/contact` | พูดคุยกับทีม PDA BLISS → `/contact` |

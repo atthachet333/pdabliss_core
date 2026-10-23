@@ -86,10 +86,10 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
   packages: {
     id: 'packages',
     items: [
-      { id: 'starter', icon: Sprout, to: '/pricing#plan-starter' },
-      { id: 'business', icon: Blocks, to: '/pricing#plan-business' },
-      { id: 'professional', icon: Layers, to: '/pricing#plan-professional' },
-      { id: 'enterprise', icon: Building2, to: '/pricing#plan-enterprise' },
+      { id: 'starter', icon: Sprout, to: '/pricing?plan=starter#packages' },
+      { id: 'business', icon: Blocks, to: '/pricing?plan=business#packages' },
+      { id: 'professional', icon: Layers, to: '/pricing?plan=professional#packages' },
+      { id: 'enterprise', icon: Building2, to: '/pricing?plan=enterprise#packages' },
     ],
     cta: '/contact',
   },

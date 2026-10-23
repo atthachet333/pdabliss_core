@@ -54,7 +54,7 @@ export const zhCN: ShellMessages = {
         heading: '选择适合企业的方案',
         intro:
           '从刚开始梳理流程的团队，到需要更复杂的工作流、管控与系统集成的企业，都有对应的方案。',
-        note: '方案结构仅供参考 · 价格待定',
+        note: '按公司计费 · 所有分支机构同在一个工作空间',
         items: {
           starter: { label: 'Starter', description: '适合开始梳理工作流程的团队' },
           business: { label: 'Business', description: '适合多个部门协同工作的企业' },

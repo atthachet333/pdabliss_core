@@ -100,7 +100,9 @@ describe('public header (EP05)', () => {
       }
       for (const a of within(panel).getAllByRole('link')) {
         const href = a.getAttribute('href')!;
-        expect(PUBLIC_ROUTES, `${copy.label}: ${a.textContent}`).toContain(href.split('#')[0]);
+        expect(PUBLIC_ROUTES, `${copy.label}: ${a.textContent}`).toContain(
+          href.split('#')[0]!.split('?')[0],
+        );
       }
     }
   });

@@ -35,10 +35,16 @@ describe('public website', () => {
     }
   });
 
-  it('labels plans as a sample structure and invents no prices', async () => {
+  it('shows the four approved packages (EP07)', async () => {
     renderRoute('/pricing');
-    expect((await screen.findAllByText(/โครงสร้างแพ็กเกจตัวอย่าง/)).length).toBeGreaterThan(0);
-    expect(document.body.textContent).not.toMatch(/฿\s?\d/);
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+    const tabs = screen.getAllByRole('tab').filter((t) => t.id.startsWith('plan-tab-'));
+    expect(tabs.map((t) => t.dataset.plan)).toEqual([
+      'starter',
+      'business',
+      'professional',
+      'enterprise',
+    ]);
   });
 
   it.each([

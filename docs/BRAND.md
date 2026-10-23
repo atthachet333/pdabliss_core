@@ -170,9 +170,27 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   restrained network curves; it should feel like a calm ending.
 - **Contact styling stays on-brand.** Floating contact uses dark emerald icon tiles — no
   social-media blues/greens, no LINE brand colour, no chat-widget bubble.
-- **Honest copy.** Planned capabilities are tagged *อยู่ในแผนพัฒนา*; packages say
-  *โครงสร้างแพ็คเกจตัวอย่าง · ราคาอยู่ระหว่างกำหนด*; cookie UI states which categories are not
-  in use. No invented clients, uptime, certifications, counts or awards.
+- **Honest copy.** Planned capabilities are tagged *อยู่ในแผนพัฒนา*; cookie UI states which
+  categories are not in use. No invented clients, uptime, certifications, counts or awards.
+  (Approved package prices arrived in EP07 — see below.)
+
+## Pricing (EP07)
+
+See [PRICING_AND_PACKAGES.md](PRICING_AND_PACKAGES.md). Pricing must feel like CORE, not a
+hosting, telecom or discount page:
+
+- **Plans are layers of capability** — Foundation, Connected, Controlled, Tailored — drawn as
+  stacked isometric plates on the CORE spine. The selected plan lights its layers and gains
+  departments, cross-department links, controls, API ports and integrations.
+- **Editorial first, cards second.** The page opens with the idea and the starting price; the
+  four plans live in an explorer where the selected plan expands and the others stay visible.
+- **Business is recommended quietly** — a small emerald badge, no oversized card. Enterprise is
+  quieter still: neutral border, no price, a consultative CTA.
+- **Calm commercial language.** No crossed-out prices, countdowns, urgency or red discount
+  styling. Early Access is a premium panel, not a sale banner.
+- **Prices are typographic, not decorative**: large tabular figures for the monthly price, a
+  three-row relationship for annual, "ประมาณ" on rounded year-3 figures.
+- Thai labels never use letter-spacing or uppercase; tracking is reserved for Latin eyebrows.
 
 ## Department experience (EP06)
 

@@ -33,8 +33,9 @@ function visibleMainText() {
   return (main.textContent ?? '').replace(CONTACT.address, '');
 }
 
+/** Thai script runs. The baht sign (฿, U+0E3F) is a currency symbol, allowed in every locale. */
 function thaiFragments(text: string) {
-  return text.match(/[฀-๿][฀-๿\s]{0,30}/g) ?? [];
+  return text.replace(/฿/g, '').match(/[฀-๿][฀-๿\s]{0,30}/g) ?? [];
 }
 
 describe('whole-site language switching', () => {

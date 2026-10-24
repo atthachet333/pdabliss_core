@@ -44,11 +44,17 @@ export function EnterpriseFlow() {
             ))}
           </ul>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link to={href('/contact?interest=plans')} className={buttonClasses('primary', 'lg')}>
+            <Link
+              to={href('/contact?interest=enterprise&plan=enterprise')}
+              className={buttonClasses('primary', 'lg')}
+            >
               {e.quote}
               <ArrowRight className="size-4" aria-hidden />
             </Link>
-            <Link to={href('/contact')} className={buttonClasses('secondary', 'lg')}>
+            <Link
+              to={href('/contact?interest=consulting')}
+              className={buttonClasses('secondary', 'lg')}
+            >
               {e.talk}
             </Link>
           </div>
@@ -218,11 +224,11 @@ export function PricingCta() {
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-body text-text-secondary">{c.cta.lead}</p>
         <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <Link to={href('/contact')} className={buttonClasses('primary', 'lg')}>
+          <Link to={href('/contact?interest=demo')} className={buttonClasses('primary', 'lg')}>
             {c.cta.demo}
             <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link to={href('/contact')} className={buttonClasses('secondary', 'lg')}>
+          <Link to={href('/contact?interest=plans')} className={buttonClasses('secondary', 'lg')}>
             {c.cta.consult}
           </Link>
         </div>

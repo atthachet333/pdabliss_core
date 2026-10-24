@@ -102,8 +102,8 @@ export const IMPLEMENTATION = [
 ] as const;
 export type ImplementationStep = (typeof IMPLEMENTATION)[number];
 
-/** Product, not a custom codebase: one foundation, adapted on top. */
-export const LAYERS = ['integration', 'configuration', 'foundation'] as const;
+/** Product, not a custom codebase: one foundation, adapted on top (top → bottom). */
+export const LAYERS = ['integration', 'workflow', 'configuration', 'foundation'] as const;
 export type Layer = (typeof LAYERS)[number];
 
 export const TRUST = ['identity', 'status', 'boundaries', 'noClaims'] as const;
@@ -117,4 +117,61 @@ export const ABOUT_LINKS = {
   implementation: '/enterprise#implementation',
   industries: '/industries',
   contact: '/contact',
+  /** EP13: About conversations open the consultation path. */
+  consult: '/contact?interest=consulting',
 } as const;
+
+/* ------------------------------------------------------------------ */
+/* EP13 scenes                                                          */
+/* ------------------------------------------------------------------ */
+
+/** The five departments the hero's fragments resolve into, in lane order. */
+export const HERO_LANES = ['sales', 'warehouse', 'purchasing', 'accounting', 'operations'] as const;
+export type HeroLane = (typeof HERO_LANES)[number];
+
+export type FragmentKind = 'chat' | 'sheet' | 'slip' | 'checklist' | 'po' | 'approval' | 'note';
+
+/** Real-work fragments in the hero: what they are and who owns them. */
+export const FRAGMENTS = [
+  { id: 'chat', kind: 'chat', lane: 'sales' },
+  { id: 'quote', kind: 'sheet', lane: 'sales' },
+  { id: 'grn', kind: 'slip', lane: 'warehouse' },
+  { id: 'count', kind: 'checklist', lane: 'warehouse' },
+  { id: 'po', kind: 'po', lane: 'purchasing' },
+  { id: 'supplier', kind: 'chat', lane: 'purchasing' },
+  { id: 'approval', kind: 'approval', lane: 'accounting' },
+  { id: 'ledger', kind: 'sheet', lane: 'accounting' },
+  { id: 'status', kind: 'note', lane: 'operations' },
+  { id: 'plan', kind: 'checklist', lane: 'operations' },
+] as const satisfies readonly { id: string; kind: FragmentKind; lane: HeroLane }[];
+export type FragmentId = (typeof FRAGMENTS)[number]['id'];
+
+/** Disorder → structure, in five readable stages. */
+export const HERO_STAGES = ['scattered', 'aligned', 'linked', 'departments', 'core'] as const;
+
+/** The path a piece of work takes across the lanes once it is linked. */
+export const HERO_LINKS: readonly (readonly [FragmentId, FragmentId])[] = [
+  ['chat', 'po'],
+  ['po', 'grn'],
+  ['grn', 'status'],
+  ['status', 'approval'],
+  ['quote', 'chat'],
+  ['supplier', 'po'],
+  ['count', 'grn'],
+  ['ledger', 'approval'],
+  ['plan', 'status'],
+];
+
+/** Which zone of the design table each methodology step works on. */
+export const STEP_ZONE: Record<MethodStep, 'notes' | 'map' | 'screen'> = {
+  realWork: 'notes',
+  observe: 'notes',
+  responsibility: 'map',
+  process: 'map',
+  failure: 'map',
+  workflow: 'map',
+  interface: 'screen',
+  build: 'screen',
+  test: 'screen',
+  improve: 'screen',
+};

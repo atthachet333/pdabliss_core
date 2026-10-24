@@ -149,9 +149,12 @@ describe('/about page', () => {
     expect(h1).toHaveTextContent('องค์กรทำงานจริงอย่างไร');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(main()).toHaveTextContent(COMPANY.legalNameTh);
-    expect(
-      screen.getByRole('figure', { name: /บันทึกงาน ข้อความแชต/ }).querySelectorAll('[data-state]'),
-    ).toHaveLength(5);
+    // EP13: the chaos → CORE scene and its readable stages.
+    const scene = screen.getByRole('figure', { name: /ภาพเคลื่อนไหว: แชต/ });
+    expect(scene.querySelectorAll('[data-fragment]')).toHaveLength(10);
+    expect(scene.querySelectorAll('[data-chip]')).toHaveLength(5);
+    expect(scene.querySelector('[data-core-state]')).toHaveTextContent('SO-1042');
+    expect(document.querySelectorAll('[data-hero-stages] li')).toHaveLength(5);
   });
 
   it('tells the story in order, with every chapter labelled', async () => {
@@ -199,12 +202,14 @@ describe('/about page', () => {
     expect(systems.querySelectorAll('[data-path="traditional"] li')).toHaveLength(3);
     expect(systems.querySelectorAll('[data-path="core"] li')).toHaveLength(4);
     expect(systems).toHaveTextContent('ไม่ใช่การบอกว่าระบบแบบรวมศูนย์ไม่ดี');
-    expect([...systems.querySelectorAll('[data-guard] dd')].map((d) => d.textContent)).toEqual([
-      'PREVENT',
-      'DETECT',
-      'ALERT',
-      'CONTROL',
-      'TRACE',
+    expect(systems.querySelector('[data-system-shift]')).not.toBeNull();
+    const guards = [...systems.querySelectorAll<HTMLButtonElement>('button[data-guard]')];
+    expect(guards.map((g) => g.textContent)).toEqual([
+      'นำทางPREVENT',
+      'ตรวจสอบDETECT',
+      'ทำให้มองเห็นALERT',
+      'ควบคุมCONTROL',
+      'เก็บบริบทTRACE',
     ]);
     expect(systems.querySelector('a[href="/how-core-works"]')).toHaveTextContent(
       'ดูว่าแนวคิดนี้ทำงานจริงอย่างไร',
@@ -252,7 +257,8 @@ describe('/about page', () => {
     const lt = section(ABOUT_CHAPTER.longTerm);
     expect(
       [...lt.querySelectorAll('[data-layer]')].map((l) => l.getAttribute('data-layer')),
-    ).toEqual(['integration', 'configuration', 'foundation']);
+    ).toEqual(['integration', 'workflow', 'configuration', 'foundation']);
+    expect(lt.querySelector('[data-not]')).toHaveTextContent('เขียนระบบใหม่ทั้งชุดให้ทุกองค์กร');
     expect(lt).toHaveTextContent('ไม่ใช่การเขียนระบบใหม่ทั้งชุดสำหรับแต่ละองค์กร');
     expect(
       [...lt.querySelectorAll('[data-product]')].map((p) => p.getAttribute('data-product')),
@@ -285,9 +291,10 @@ describe('/about page', () => {
   it('ends with a conversation, LINE and quiet next steps', async () => {
     await open();
     const talk = section(ABOUT_CHAPTER.talk);
+    expect(talk).toHaveTextContent('อยากให้เราช่วยดู Process ขององค์กรคุณ?');
     expect(within(talk).getByRole('link', { name: /พูดคุยกับ PDA BLISS/ })).toHaveAttribute(
       'href',
-      '/contact',
+      '/contact?interest=consulting',
     );
     expect(talk.querySelector('[data-cta="line"]')).toHaveAttribute('href', CONTACT.lineUrl);
     expect(talk.querySelector('a[href="/industries"]')).not.toBeNull();
@@ -313,11 +320,22 @@ describe('reduced motion', () => {
       matches: query.includes('prefers-reduced-motion'),
     })) as typeof window.matchMedia;
     await open();
-    const parts = document.querySelectorAll<HTMLElement>(
-      '[data-hero-visual] [data-fragment], [data-hero-visual] [data-state]',
+    // The final, calm composition: departments and one CORE state; the
+    // loose fragments have been gathered into them.
+    const scene = document.querySelector<HTMLElement>('[data-scene="hero"]')!;
+    expect(scene).toHaveAttribute('data-stage', 'core');
+    expect(scene.querySelector<HTMLElement>('[data-core-state]')!.style.opacity).toBe('1');
+    for (const chip of scene.querySelectorAll<HTMLElement>('[data-chip]')) {
+      expect(chip.style.opacity).toBe('1');
+    }
+    for (const f of scene.querySelectorAll<HTMLElement>('[data-fragment]')) {
+      expect(f.style.opacity).toBe('0');
+    }
+    expect(document.querySelector('[data-hero-stages] [aria-current="step"]')).toHaveTextContent(
+      'หนึ่งสถานะใน CORE',
     );
-    expect(parts).toHaveLength(11);
-    for (const p of parts) expect(p.style.opacity).not.toBe('0');
+    // Every manifesto line is already locked; nothing waits on scrolling.
+    expect(document.querySelectorAll('[data-manifesto] [data-locked]')).toHaveLength(7);
   });
 });
 
@@ -355,7 +373,7 @@ describe('localization and links', () => {
   it('keeps the locale in every page link', async () => {
     await open('/zh/about');
     for (const href of [
-      '/zh/contact',
+      '/zh/contact?interest=consulting',
       '/zh/why-core',
       '/zh/solutions',
       '/zh/how-core-works',
@@ -406,5 +424,125 @@ describe('localization and links', () => {
       }
       unmount();
     }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* EP13 — signature scenes                                              */
+/* ------------------------------------------------------------------ */
+
+describe('signature scenes (EP13)', () => {
+  it('the design table moves through the methodology and asks the stage question', async () => {
+    await open();
+    const approach = section('approach');
+    const table = approach.querySelector('[data-design-table]')!;
+    expect(table.querySelector('[data-zone="notes"]')).toHaveAttribute('data-zone-state', 'active');
+    expect(table.querySelector('[data-zone="screen"]')).toHaveAttribute('data-zone-state', 'ahead');
+    expect(approach.querySelector('[data-question]')).toHaveTextContent(
+      'วันนี้งานเดินอย่างไรจริง ๆ?',
+    );
+
+    await userEvent.click(within(approach).getByRole('button', { name: /หาจุดที่มักผิดพลาด/ }));
+    expect(approach.querySelector('[data-question]')).toHaveTextContent('ตรงไหนผิดได้ง่าย?');
+    expect(approach.querySelector('[data-output]')).toHaveTextContent('รายการจุดเสี่ยง');
+    expect(table.querySelector('[data-zone="notes"]')).toHaveAttribute('data-zone-state', 'done');
+    expect(table.querySelector('[data-zone="map"]')).toHaveAttribute('data-zone-state', 'active');
+
+    await userEvent.click(within(approach).getByRole('button', { name: 'ขั้นถัดไป' }));
+    expect(approach.querySelector('[data-question]')).toHaveTextContent('อะไรต้องเกิดก่อน/หลัง?');
+    await userEvent.click(within(approach).getByRole('button', { name: /ออกแบบหน้าจอ/ }));
+    expect(approach.querySelector('[data-question]')).toHaveTextContent(
+      'ผู้ใช้ต้องเห็นอะไรตอนนี้?',
+    );
+    expect(table.querySelector('[data-zone="screen"]')).toHaveAttribute(
+      'data-zone-state',
+      'active',
+    );
+    const pressed = approach.querySelectorAll('[data-step] button[aria-pressed="true"]');
+    expect(pressed).toHaveLength(1);
+  });
+
+  it('the defense rings stop the work item at the chosen layer', async () => {
+    await open();
+    const he = document.querySelector<HTMLElement>('[data-human-error]')!;
+    const defense = he.querySelector('[data-defense]')!;
+    expect(defense).toHaveAttribute('data-selected', 'guide');
+    expect(he.querySelector('[data-defense-detail]')).toHaveTextContent('FEFO');
+    await userEvent.click(within(he).getByRole('button', { name: /ควบคุม/ }));
+    expect(defense).toHaveAttribute('data-selected', 'control');
+    expect(within(he).getByRole('button', { name: /ควบคุม/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(he.querySelector('[data-defense-detail]')).toHaveTextContent(
+      'ปรับยอดสต็อกโดยไม่มีผู้อนุมัติ',
+    );
+    expect(he).toHaveTextContent('ไม่ใช่การรับประกัน');
+  });
+
+  it('the work table shows what each side contributes to the chosen topic', async () => {
+    await open();
+    const consulting = section('consulting');
+    const table = consulting.querySelector<HTMLElement>('[data-work-table]')!;
+    expect(table.querySelectorAll('[data-artifact]')).toHaveLength(5);
+    expect(table.querySelector('[data-contribution="us"]')).toHaveTextContent('Process Mapping');
+    await userEvent.click(within(table).getByRole('button', { name: /การควบคุม/ }));
+    expect(table).toHaveAttribute('data-topic', 'controls');
+    expect(table.querySelector('[data-contribution="org"]')).toHaveTextContent(
+      'กฎและเงื่อนไขที่ต้องรักษา',
+    );
+    expect(table.querySelector('[data-contribution="us"]')).toHaveTextContent(
+      'ออกแบบเงื่อนไขและการอนุมัติ',
+    );
+    expect(table.querySelector('[data-contribution="core"]')).toHaveTextContent(
+      'กฎธุรกิจและสายอนุมัติ',
+    );
+  });
+
+  it('keeps every approved story element in the page text without any motion', async () => {
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: query.includes('prefers-reduced-motion'),
+    })) as typeof window.matchMedia;
+    await open();
+    const text = main().textContent ?? '';
+    for (const s of [
+      ...PRINCIPLES.map((p) => ABOUT.th.belief.principles[p].body),
+      ...SYMPTOMS.map((p) => ABOUT.th.problem.symptoms[p].title),
+      ...METHOD_STEPS.map((p) => ABOUT.th.approach.steps[p].body),
+      ...EXCHANGE.map((e) => ABOUT.th.consulting.exchange[e].core),
+      ...IMPLEMENTATION.map((i) => ABOUT.th.implementation.steps[i]),
+      ...LAYERS.map((l) => ABOUT.th.longTerm.layers[l].title),
+      ABOUT.th.consulting.boundary,
+      CONTACT.address,
+    ]) {
+      expect(text, s).toContain(s);
+    }
+    // Implementation steps are all reached, the stack is assembled.
+    expect(document.querySelectorAll('[data-implementation-step][data-reached]')).toHaveLength(9);
+  });
+
+  it('marks each chapter with a ghost number and a system notation', async () => {
+    await open();
+    expect(main().querySelectorAll('[data-ghost-number]').length).toBeGreaterThanOrEqual(8);
+    expect(section('approach').querySelector('[data-notation]')).toHaveTextContent('fig. 05');
+  });
+
+  it('publishes factual Organization structured data only', async () => {
+    const { unmount } = await open();
+    const script = document.head.querySelector('script[data-schema="organization"]')!;
+    const data = JSON.parse(script.textContent!);
+    expect(data['@type']).toBe('Organization');
+    expect(data.legalName).toBe(COMPANY.legalName);
+    expect(data.alternateName).toContain(COMPANY.legalNameTh);
+    expect(data.address.streetAddress).toBe(CONTACT.address);
+    expect(data.telephone).toBe(CONTACT.phone.e164);
+    expect(data.email).toBe(CONTACT.email);
+    expect(data.sameAs).toEqual([CONTACT.lineUrl]);
+    for (const k of ['logo', 'geo', 'foundingDate', 'numberOfEmployees', 'aggregateRating']) {
+      expect(data, k).not.toHaveProperty(k);
+    }
+    unmount();
+    expect(document.head.querySelector('script[data-schema="organization"]')).toBeNull();
   });
 });

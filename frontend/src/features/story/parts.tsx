@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -5,6 +6,7 @@ import { Kicker } from '@/components/editorial/Layout';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { Reveal } from '@/motion/Reveal';
+import { EASE_CORE } from '@/motion/tokens';
 
 /*
  * Shared primitives for the company story pages (/about, /why-core — EP12).
@@ -37,7 +39,12 @@ const TITLE = {
   quiet: 'text-[clamp(1.5rem,1.15rem+1.3vw,2.25rem)] leading-[1.3]',
 } as const;
 
-/** Chapter number + label, then an editorial title and an optional lead. */
+/**
+ * Chapter number + label, then an editorial title and an optional lead.
+ * EP13 (/about): `ghost` adds an oversized, near-invisible chapter number
+ * behind the head and a rule that draws on entry; `notation` adds a small
+ * figure note in system notation. Numbers never outweigh the content.
+ */
 export function StoryHead({
   index,
   kicker,
@@ -46,6 +53,8 @@ export function StoryHead({
   lead,
   size = 'title',
   center = false,
+  ghost = false,
+  notation,
   className,
   children,
 }: {
@@ -56,11 +65,28 @@ export function StoryHead({
   lead?: string;
   size?: keyof typeof TITLE;
   center?: boolean;
+  ghost?: boolean;
+  notation?: string;
   className?: string;
   children?: ReactNode;
 }) {
   return (
-    <div className={cn(center ? 'mx-auto max-w-4xl text-center' : 'max-w-3xl', className)}>
+    <div
+      className={cn(
+        center ? 'mx-auto max-w-4xl text-center' : 'max-w-3xl',
+        ghost && 'relative isolate',
+        className,
+      )}
+    >
+      {ghost && index && (
+        <span
+          aria-hidden
+          data-ghost-number
+          className="pointer-events-none absolute -top-16 -left-3 -z-10 text-[clamp(7rem,5rem+8vw,13rem)] leading-none font-semibold tracking-tighter text-white/[0.035] tabular select-none sm:-top-24"
+        >
+          {index}
+        </span>
+      )}
       <Kicker tone="clear" className={cn(center && 'justify-center')}>
         {index && (
           <span className="text-text-muted tabular" aria-hidden>
@@ -69,6 +95,24 @@ export function StoryHead({
         )}
         {kicker}
       </Kicker>
+      {ghost && (
+        <motion.span
+          aria-hidden
+          className="mt-3 block h-px w-full max-w-[14rem] origin-left bg-[linear-gradient(90deg,rgb(62_240_192/0.6),transparent)]"
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
+          viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+          transition={{ duration: 1.1, ease: EASE_CORE }}
+        />
+      )}
+      {notation && (
+        <p
+          data-notation
+          className="mt-2 font-mono text-[0.6875rem] tracking-wide text-text-muted/80"
+        >
+          {notation}
+        </p>
+      )}
       <Reveal>
         <h2
           id={id}

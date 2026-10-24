@@ -57,7 +57,10 @@ export function PricingHero() {
                 {c.hero.see}
                 <ArrowDown className="size-4" aria-hidden />
               </a>
-              <Link to={href('/contact')} className={buttonClasses('secondary', 'lg')}>
+              <Link
+                to={href('/contact?interest=demo')}
+                className={buttonClasses('secondary', 'lg')}
+              >
                 {c.hero.demo}
                 <ArrowRight className="size-4" aria-hidden />
               </Link>

@@ -378,7 +378,7 @@ export default function SalesPage() {
         lead={c.preview.lead}
       />
       <ConnectedDepartments id="sales-connected" dept="sales" copy={c.connections} />
-      <DeptCta id="sales-cta" />
+      <DeptCta id="sales-cta" dept="sales" />
     </DeptPage>
   );
 }

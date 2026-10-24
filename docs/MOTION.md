@@ -74,6 +74,28 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### About — state transformation (EP13 — see [ABOUT_PDA_BLISS.md](ABOUT_PDA_BLISS.md))
+
+One progress value per scene; every element derives its state from it (`features/about/motion.ts`:
+`segment`, `easeInOut`, `useSceneScroll`, `usePlayOnce`, `useFinePointer`). No scroll
+hijacking — pins are tall sections with a sticky viewport over native scroll.
+
+| Where | Motion | Driver |
+| ----- | ------ | ------ |
+| Hero | fragments loose (CSS `loose` drift, 7 s, first stage only) → align into lanes → emerald links draw → compress into department chips → one CORE state | native scroll through a 240vh pin (desktop); plays once over 5.5 s on phones |
+| Hero pointer | fragments lean ≤ 9 px away from a nearby fine pointer; the CORE glow rises near it | `(hover: hover) and (pointer: fine)` only |
+| Chapter heads | the rule draws once on entry | 1.1 s |
+| Manifesto | lines lock (clarity + check) as they reach the reading band | in view |
+| Problem slips | drift ±6–14 px and turn slightly | scroll |
+| Systems shift | 16 modules expand and wire to users; 20 tasks collapse into 5 workspaces; the shared state line draws | scroll |
+| Design table / defense rings / work table | zone states, barrier arc, item travel (spring), artifact to the centre (spring) | selection |
+| Implementation | the blueprint path draws; points light as reached | scroll |
+| Product stack | layers drop and lock from the foundation up | in view, once |
+
+### Contact (EP13 — see [CONTACT_EXPERIENCE.md](CONTACT_EXPERIENCE.md))
+
+Each step fades up 10 px (0.4 s); the prepared panel fades in; nothing else moves.
+
 ### Company story (EP12 — see [ABOUT_PDA_BLISS.md](ABOUT_PDA_BLISS.md), [WHY_CORE.md](WHY_CORE.md))
 
 | Where | Motion | Timing |
@@ -168,6 +190,10 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- About (EP13): every scene shows its final state — departments and one CORE state in the hero
+  (no pin, no drifting fragments, no path tracing), all manifesto lines locked, the systems shift
+  complete, implementation fully drawn, the product stack assembled; no glow pulses; selections
+  switch instantly. Contact: steps switch without movement.
 - Company story (EP12): both heroes render their final composition (fragments resting, every
   state shown, islands and the CORE layer in place); waiting markers do not pulse; the view-as
   switch is instant. Nothing depends on movement.

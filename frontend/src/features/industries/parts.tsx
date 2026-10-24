@@ -498,7 +498,13 @@ export function Ending({ id, children }: { id: IndustryId | null; children?: Rea
     <div className="mx-auto max-w-3xl text-center" data-ending>
       {children}
       <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-        <Link to={href('/contact')} data-cta="consult" className={buttonClasses('primary', 'lg')}>
+        <Link
+          to={href(
+            id ? `/contact?interest=consulting&industry=${id}` : '/contact?interest=consulting',
+          )}
+          data-cta="consult"
+          className={buttonClasses('primary', 'lg')}
+        >
           {c.common.consult}
           <ArrowRight className="size-4" aria-hidden />
         </Link>

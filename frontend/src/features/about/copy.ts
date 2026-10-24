@@ -40,19 +40,6 @@ const th = {
     lead: 'PDA BLISS พัฒนาระบบโดยมองจากคน งาน ความรับผิดชอบ และจุดที่กระบวนการมักผิดพลาด ก่อนเปลี่ยนสิ่งเหล่านั้นให้กลายเป็น Software ที่ใช้งานได้จริง',
     talk: 'พูดคุยกับ PDA BLISS',
     why: 'ทำไมเราถึงสร้าง CORE',
-    visual:
-      'ภาพประกอบ: บันทึกงาน ข้อความแชต และคำถามที่กระจัดกระจาย ค่อย ๆ เรียงตัวเป็นสถานะงานที่เชื่อมกันใน CORE',
-    fragments: [
-      'ใครอนุมัติ?',
-      'ส่งในไลน์แล้วนะ',
-      'ยอดไม่ตรง',
-      'PO ฉบับไหน?',
-      'รอของเข้า',
-      'ไฟล์ล่าสุดอยู่ไหน',
-    ],
-    fragmentsLabel: 'งานจริง',
-    structuredLabel: 'ระบบที่มีโครงสร้าง',
-    states: ['รับคำสั่งซื้อ', 'อนุมัติ', 'จัดเตรียม', 'ส่งมอบ', 'ตรวจเอกสาร'],
   },
   company: {
     kicker: 'PDA BLISS',
@@ -294,15 +281,19 @@ const th = {
     title: 'เราปรับ Workflow |ให้เข้ากับองค์กรได้\nแต่ CORE |ยังคงเป็นผลิตภัณฑ์',
     lead: 'ทุกองค์กรเริ่มจากพื้นฐานเดียวกันของ CORE แล้วปรับการตั้งค่าและ Workflow ให้เข้ากับการทำงาน — ไม่ใช่การเขียนระบบใหม่ทั้งชุดสำหรับแต่ละองค์กร',
     visual:
-      'ภาพประกอบ: พื้นฐานมาตรฐานของ CORE อยู่ด้านล่าง การตั้งค่าอยู่ด้านบน และการเชื่อมต่อเฉพาะโครงการอยู่บนสุดเมื่อจำเป็น',
+      'ภาพประกอบ: พื้นฐานมาตรฐานของ CORE อยู่ด้านล่าง ตามด้วยการตั้งค่า การปรับ Workflow และการเชื่อมต่อเฉพาะโครงการอยู่บนสุดเมื่อจำเป็น',
     layers: {
       foundation: {
         title: 'พื้นฐานมาตรฐานของ CORE',
         body: 'พื้นที่ทำงานของแผนก เอกสาร สถานะ สิทธิ์ และการตรวจสอบย้อนหลัง',
       },
       configuration: {
-        title: 'การตั้งค่าและการปรับ Workflow',
-        body: 'สายอนุมัติ เงื่อนไข บทบาท และขั้นตอน ตามวิธีทำงานขององค์กร',
+        title: 'การตั้งค่า',
+        body: 'บทบาท สิทธิ์ แผนก และค่าเริ่มต้น ตามโครงสร้างขององค์กร',
+      },
+      workflow: {
+        title: 'การปรับ Workflow',
+        body: 'สายอนุมัติ เงื่อนไข และขั้นตอน ตามวิธีทำงานขององค์กร',
       },
       integration: {
         title: 'การเชื่อมต่อเฉพาะโครงการ เมื่อจำเป็น',
@@ -352,8 +343,8 @@ const th = {
     } satisfies Record<Trust, string>,
   },
   talk: {
-    title: 'เล่าให้เราฟัง|ว่างานในองค์กรของคุณเดินอย่างไร',
-    body: 'แล้วเราจะคุยกันว่า CORE ช่วยได้ตรงไหน — และตรงไหนที่ยังไม่ใช่',
+    title: 'อยากให้เราช่วยดู Process |ขององค์กรคุณ?',
+    body: 'เล่าให้เราฟังว่างานในองค์กรของคุณเดินอย่างไร แล้วเราจะคุยกันว่า CORE ช่วยได้ตรงไหน — และตรงไหนที่ยังไม่ใช่',
     primary: 'พูดคุยกับ PDA BLISS',
     line: 'LINE OA',
     industries: 'ดู CORE ในบริบทแต่ละประเภทธุรกิจ',
@@ -377,19 +368,6 @@ export const ABOUT: Localized<AboutCopy> = {
       lead: 'PDA BLISS designs systems by looking at people, work, responsibility and the points where processes tend to fail — then turns them into software that works in practice.',
       talk: 'Talk to PDA BLISS',
       why: 'Why we built CORE',
-      visual:
-        'Illustration: scattered notes, chat messages and questions gradually align into connected work states in CORE',
-      fragments: [
-        'Who approved this?',
-        'Sent it on chat',
-        'Totals don’t match',
-        'Which PO?',
-        'Waiting for stock',
-        'Where is the latest file?',
-      ],
-      fragmentsLabel: 'Real work',
-      structuredLabel: 'A structured system',
-      states: ['Order received', 'Approved', 'Picking', 'Delivered', 'Documents checked'],
     },
     company: {
       kicker: 'PDA BLISS',
@@ -657,15 +635,19 @@ export const ABOUT: Localized<AboutCopy> = {
       title: 'We adapt workflows to the organization —\nCORE remains a product',
       lead: 'Every organization starts from the same CORE foundation, then configuration and workflows are adapted to how it works. It is not a new codebase written for each organization.',
       visual:
-        'Illustration: the standard CORE foundation at the base, configuration above it, and project-specific integrations on top where needed',
+        'Illustration: the standard CORE foundation at the base, then configuration, workflow adaptation, and project-specific integrations on top where needed',
       layers: {
         foundation: {
           title: 'Standard CORE foundation',
           body: 'Department workspaces, documents, states, permissions and audit trail.',
         },
         configuration: {
-          title: 'Configuration and workflow adaptation',
-          body: 'Approval chains, conditions, roles and steps that follow how the organization works.',
+          title: 'Configuration',
+          body: 'Roles, permissions, departments and defaults that follow the organization’s structure.',
+        },
+        workflow: {
+          title: 'Workflow adaptation',
+          body: 'Approval chains, conditions and steps that follow how the organization works.',
         },
         integration: {
           title: 'Project-specific integrations, where needed',
@@ -715,8 +697,8 @@ export const ABOUT: Localized<AboutCopy> = {
       },
     },
     talk: {
-      title: 'Tell us how work moves\nin your organization',
-      body: 'Then we can talk about where CORE helps — and where it is not the right fit.',
+      title: 'Would you like us to look at\nyour organization’s process?',
+      body: 'Tell us how work moves in your organization, then we can talk about where CORE helps — and where it is not the right fit.',
       primary: 'Talk to PDA BLISS',
       line: 'LINE OA',
       industries: 'See CORE in different types of business',
@@ -735,18 +717,6 @@ export const ABOUT: Localized<AboutCopy> = {
       lead: 'PDA BLISS 从人员、工作、职责以及流程容易出错的环节出发设计系统，再把这些转化为真正可用的软件。',
       talk: '与 PDA BLISS 交流',
       why: '我们为何打造 CORE',
-      visual: '示意图：零散的笔记、聊天消息和问题，逐渐整理成 CORE 中相互连接的工作状态',
-      fragments: [
-        '谁批准的？',
-        '已经在聊天里发了',
-        '数量对不上',
-        '哪张采购单？',
-        '等货中',
-        '最新文件在哪？',
-      ],
-      fragmentsLabel: '真实工作',
-      structuredLabel: '有结构的系统',
-      states: ['接收订单', '审批', '备货', '交付', '核对单据'],
     },
     company: {
       kicker: 'PDA BLISS',
@@ -944,13 +914,12 @@ export const ABOUT: Localized<AboutCopy> = {
       kicker: '为长期使用而设计',
       title: '我们可以让工作流适应组织\n但 CORE 始终是一个产品',
       lead: '每个组织都从同一个 CORE 基础开始，再根据工作方式调整配置和工作流——而不是为每个组织重新编写一整套系统。',
-      visual: '示意图：底层是标准的 CORE 基础，上面是配置，最上层是必要时的项目专属集成',
+      visual:
+        '示意图：底层是标准的 CORE 基础，其上是配置和工作流调整，最上层是必要时的项目专属集成',
       layers: {
         foundation: { title: '标准 CORE 基础', body: '部门工作空间、单据、状态、权限与审计记录。' },
-        configuration: {
-          title: '配置与工作流调整',
-          body: '按组织工作方式设定的审批链、条件、角色与步骤。',
-        },
+        configuration: { title: '配置', body: '按组织结构设定的角色、权限、部门与默认值。' },
+        workflow: { title: '工作流调整', body: '按组织工作方式设定的审批链、条件与步骤。' },
         integration: { title: '必要时的项目专属集成', body: '在约定范围内连接组织现有的系统。' },
       },
       whyTitle: '为什么重要',
@@ -990,8 +959,8 @@ export const ABOUT: Localized<AboutCopy> = {
       },
     },
     talk: {
-      title: '告诉我们\n您的组织中工作如何流转',
-      body: '然后我们一起看看 CORE 能在哪里帮上忙——以及哪里并不合适。',
+      title: '希望我们帮您\n看看组织的流程吗？',
+      body: '告诉我们您的组织中工作如何流转，然后一起看看 CORE 能在哪里帮上忙——以及哪里并不合适。',
       primary: '与 PDA BLISS 交流',
       line: 'LINE OA',
       industries: '查看 CORE 在不同业务类型中的应用',

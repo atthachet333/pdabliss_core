@@ -388,7 +388,7 @@ export default function AccountingPage() {
         lead={c.preview.lead}
       />
       <ConnectedDepartments id="acc-connected" dept="accounting" copy={c.connections} />
-      <DeptCta id="acc-cta" />
+      <DeptCta id="acc-cta" dept="accounting" />
     </DeptPage>
   );
 }

@@ -98,6 +98,14 @@ centric yet connected, Human Error, executive signals. Company names live in
 `frontend/src/config/company.ts`; contact values stay in `config/contact.ts`. See
 [docs/ABOUT_PDA_BLISS.md](docs/ABOUT_PDA_BLISS.md) and [docs/WHY_CORE.md](docs/WHY_CORE.md).
 
+EP13: `/about` gained a cinematic layer — four signature scenes (real work → CORE, the
+design table, Human Error defense rings, the consulting work table) whose motion is state
+transformation over native scroll, with full reduced-motion final states. `/contact` became a
+guided consultation (topic → organization → situation → reply method → details → review) with a
+stable prefill contract and honest delivery: nothing is sent by the website yet; the prepared
+message is handed to email, LINE OA or phone. See
+[docs/CONTACT_EXPERIENCE.md](docs/CONTACT_EXPERIENCE.md).
+
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
 [docs/HOW_CORE_WORKS.md](docs/HOW_CORE_WORKS.md).
@@ -176,6 +184,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/ABOUT_PDA_BLISS.md](docs/ABOUT_PDA_BLISS.md) — `/about`: company identity, philosophy, methodology, consulting, claim boundaries
 - [docs/WHY_CORE.md](docs/WHY_CORE.md) — `/why-core`: product origin, ONE LARGE SYSTEM → CORE, Human Error, executive view
 - [docs/EP12_REPORT.md](docs/EP12_REPORT.md) — PDA BLISS and CORE story experience
+- [docs/CONTACT_EXPERIENCE.md](docs/CONTACT_EXPERIENCE.md) — `/contact`: inquiry model, prefill contract, delivery limitation, privacy
+- [docs/EP13_REPORT.md](docs/EP13_REPORT.md) — consultation experience and About enhancement
 
 ---
 

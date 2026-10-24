@@ -501,7 +501,7 @@ export default function OperationsPage() {
         lead={c.preview.lead}
       />
       <ConnectedDepartments id="ops-connected" dept="operations" copy={c.connections} />
-      <DeptCta id="ops-cta" />
+      <DeptCta id="ops-cta" dept="operations" />
     </DeptPage>
   );
 }

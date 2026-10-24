@@ -345,7 +345,7 @@ export default function ExecutivePage() {
         lead={c.preview.lead}
       />
       <ConnectedDepartments id="exec-connected" dept="executive" copy={c.connections} />
-      <DeptCta id="exec-cta" />
+      <DeptCta id="exec-cta" dept="executive" />
     </DeptPage>
   );
 }

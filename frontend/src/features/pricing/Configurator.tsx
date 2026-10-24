@@ -386,11 +386,23 @@ export function Configurator() {
               <p className="mt-4 text-caption text-text-secondary">{k.summary.assessNote}</p>
             )}
             <div className="mt-6 flex flex-col gap-2.5">
-              <Link to={href('/contact?interest=plans')} className={buttonClasses('primary', 'md')}>
+              <Link
+                to={href(
+                  quote
+                    ? '/contact?interest=enterprise&plan=enterprise'
+                    : `/contact?interest=plans&plan=${planId}`,
+                )}
+                className={buttonClasses('primary', 'md')}
+              >
                 {quote ? c.enterprise.quote : k.summary.send}
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
-              <Link to={href('/contact')} className={buttonClasses('secondary', 'md')}>
+              <Link
+                to={href(
+                  quote ? '/contact?interest=consulting' : `/contact?interest=demo&plan=${planId}`,
+                )}
+                className={buttonClasses('secondary', 'md')}
+              >
                 {quote ? c.enterprise.talk : c.explorer.demo}
               </Link>
             </div>

@@ -91,10 +91,13 @@ describe('whole-site language switching', () => {
     expect(thaiFragments(visibleMainText())).toEqual([]);
   });
 
-  it('validates the contact form in the visitor’s language', async () => {
-    renderRoute('/en/contact');
-    await userEvent.click(await screen.findByRole('button', { name: 'Check and send message' }));
-    expect(await screen.findByText('Please enter your full name')).toBeInTheDocument();
-    expect(screen.getByLabelText('Full name')).toHaveAttribute('aria-invalid', 'true');
+  it('validates the contact flow in the visitor’s language', async () => {
+    renderRoute('/en/contact?interest=demo');
+    for (let i = 0; i < 4; i++) {
+      await userEvent.click(await screen.findByRole('button', { name: /^Next/ }));
+    }
+    await userEvent.click(await screen.findByRole('button', { name: /^Next/ }));
+    expect(await screen.findByText('Please enter a contact name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Contact name')).toHaveAttribute('aria-invalid', 'true');
   });
 });

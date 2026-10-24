@@ -56,13 +56,11 @@ describe('public website', () => {
     },
   );
 
-  it('validates the contact form with Thai messages before anything is submitted', async () => {
+  it('asks what to talk about before anything else on /contact (EP13)', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     renderRoute('/contact');
-    const submit = await screen.findByRole('button', { name: /ตรวจสอบและส่งข้อความ/ });
-    await userEvent.click(submit);
-    expect(await screen.findByText('กรุณากรอกชื่อ-นามสกุล')).toBeInTheDocument();
-    expect(screen.getByLabelText('ชื่อ-นามสกุล')).toHaveAttribute('aria-invalid', 'true');
+    await userEvent.click(await screen.findByRole('button', { name: /ถัดไป/ }));
+    expect(await screen.findByText('กรุณาเลือกเรื่องที่อยากคุย')).toBeInTheDocument();
   });
 });
 

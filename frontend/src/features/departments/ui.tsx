@@ -569,7 +569,7 @@ export function ConnectedDepartments({
 }
 
 /** Quiet closing call to action — no hard sell, no pricing. */
-export function DeptCta({ id = 'dept-cta' }: { id?: string }) {
+export function DeptCta({ id = 'dept-cta', dept }: { id?: string; dept?: DeptKey }) {
   const c = useCopy(COMMON);
   const { href } = useLocale();
   return (
@@ -580,7 +580,14 @@ export function DeptCta({ id = 'dept-cta' }: { id?: string }) {
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-body text-text-secondary">{c.cta.lead}</p>
         <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <Link to={href('/contact')} className={buttonClasses('primary', 'lg')}>
+          <Link
+            to={href(
+              dept
+                ? `/contact?interest=consulting&department=${dept}`
+                : '/contact?interest=consulting',
+            )}
+            className={buttonClasses('primary', 'lg')}
+          >
             {c.cta.consult}
             <ArrowRight className="size-4" aria-hidden />
           </Link>

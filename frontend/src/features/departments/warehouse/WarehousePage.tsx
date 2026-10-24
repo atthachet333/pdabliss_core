@@ -663,7 +663,7 @@ export default function WarehousePage() {
         lead={c.preview.lead}
       />
       <ConnectedDepartments id="wh-connected" dept="warehouse" copy={c.connections} />
-      <DeptCta id="wh-cta" />
+      <DeptCta id="wh-cta" dept="warehouse" />
     </DeptPage>
   );
 }

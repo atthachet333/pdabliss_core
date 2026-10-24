@@ -40,3 +40,24 @@ export const PRODUCTS = [
 ] as const;
 
 export type ProductId = (typeof PRODUCTS)[number]['id'];
+
+/**
+ * schema.org Organization (EP13) — factual fields only: the registered names,
+ * the site URL from config, the office address as printed, phone, email and
+ * the LINE Official Account. No logo, coordinates, founding date, headcount
+ * or social profiles that do not exist.
+ */
+export function organizationSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: COMPANY.legalName,
+    legalName: COMPANY.legalName,
+    alternateName: [COMPANY.legalNameTh, COMPANY.brand],
+    url: SITE.url,
+    address: { '@type': 'PostalAddress', streetAddress: COMPANY.address, addressCountry: 'TH' },
+    telephone: COMPANY.telephone,
+    email: COMPANY.email,
+    sameAs: [...COMPANY.sameAs],
+  };
+}

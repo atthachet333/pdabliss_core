@@ -199,7 +199,7 @@ describe('/pricing page', () => {
     expect(main()).toHaveTextContent('เริ่มต้น฿399/ เดือน');
     const demo = screen.getAllByRole('link', { name: /ขอ Demo/ });
     expect(demo.length).toBeGreaterThan(0);
-    expect(demo[0]).toHaveAttribute('href', '/contact');
+    expect(demo[0]).toHaveAttribute('href', '/contact?interest=demo');
   });
 
   it('shows four plan tabs with exact prices, Business recommended and selected by default', async () => {
@@ -232,7 +232,7 @@ describe('/pricing page', () => {
     expect(panel().textContent).not.toMatch(/฿/);
     expect(within(panel()).getByRole('link', { name: /ขอใบเสนอราคา/ })).toHaveAttribute(
       'href',
-      '/contact?interest=plans',
+      '/contact?interest=enterprise&plan=enterprise',
     );
   });
 
@@ -354,7 +354,7 @@ describe('configurator', () => {
     expect(summary().textContent).not.toMatch(/฿/);
     expect(within(summary()).getByRole('link', { name: /ขอใบเสนอราคา/ })).toHaveAttribute(
       'href',
-      '/contact?interest=plans',
+      '/contact?interest=enterprise&plan=enterprise',
     );
   });
 
@@ -537,10 +537,10 @@ describe('localization', () => {
     }
   });
 
-  it('pre-selects the plans topic on the contact form from a quotation link', async () => {
-    renderRoute('/contact?interest=plans');
-    const select = await screen.findByRole('combobox');
-    expect(select).toHaveValue('plans');
+  it('pre-selects the package topic on the contact flow from a pricing link (EP13)', async () => {
+    renderRoute('/contact?interest=plans&plan=business');
+    expect(await screen.findByRole('radio', { name: /ปรึกษา Package/ })).toBeChecked();
+    expect(document.querySelector('[data-context]')).toHaveTextContent('Business');
   });
 });
 

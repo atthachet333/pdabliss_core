@@ -273,14 +273,18 @@ export function ConsultChapter() {
 
         <div className="mt-12 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           <Link
-            to={href('/contact?interest=plans')}
+            to={href('/contact?interest=enterprise')}
             data-cta="quote"
             className={buttonClasses('primary', 'lg')}
           >
             {all.common.quote}
             <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link to={href('/contact')} data-cta="talk" className={buttonClasses('secondary', 'lg')}>
+          <Link
+            to={href('/contact?interest=consulting')}
+            data-cta="talk"
+            className={buttonClasses('secondary', 'lg')}
+          >
             {all.common.talk}
           </Link>
         </div>

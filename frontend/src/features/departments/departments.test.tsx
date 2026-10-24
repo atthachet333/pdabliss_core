@@ -193,8 +193,10 @@ describe('navigation between departments', () => {
     for (const next of ADJACENT[id]) {
       expect(main.querySelector(`a[href="/zh/departments/${next}"]`)).not.toBeNull();
     }
-    // Quiet CTA: back to the overview and to a consultation.
-    expect(main.querySelector('a[href="/zh/contact"]')).not.toBeNull();
+    // Quiet CTA: back to the overview and to a consultation about this department (EP13).
+    expect(
+      main.querySelector(`a[href="/zh/contact?interest=consulting&department=${id}"]`),
+    ).not.toBeNull();
     expect(main.querySelector('a[href="/zh/departments"]')).not.toBeNull();
   });
 

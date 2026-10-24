@@ -162,6 +162,8 @@
   --animate-scan: scan-line 7s var(--ease-calm) infinite alternate;
   --animate-verify: verify 4.5s var(--ease-calm) infinite;
   --animate-horizon: horizon 6s var(--ease-core) infinite;
+  /* About (EP13) — loose real-work fragments, only before they align */
+  --animate-loose: loose 7s var(--ease-calm) infinite;
 
   @keyframes core-breathe {
     0%,
@@ -223,6 +225,15 @@
     to {
       transform: scale(2.6);
       opacity: 0;
+    }
+  }
+  @keyframes loose {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 2px -4px;
     }
   }
   @keyframes sweep {

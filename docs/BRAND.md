@@ -174,6 +174,28 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   categories are not in use. No invented clients, uptime, certifications, counts or awards.
   (Approved package prices arrived in EP07 — see below.)
 
+## About — cinematic layer (EP13)
+
+See [ABOUT_PDA_BLISS.md](ABOUT_PDA_BLISS.md). The page is meant to make a visitor pause: four
+signature scenes (real work → CORE, the design table, the defense rings, the work table) built
+from DOM, SVG and CSS. Rules:
+
+- **Motion is state, not decoration.** Disorder becomes structure; nothing floats for its own
+  sake; the final state is always the calmest one.
+- **Full width, not boxed.** The hero scene runs behind the headline across the viewport, with
+  depth from three layers (foreground slips, mid connections, distant system lines).
+- **Crafted chapter system.** Ghost numbers stay near-invisible; the notation (`fig. 05 — …`) is
+  small mono text; numbers never outweigh content.
+- **Amber = unstructured reality, teal = structure** (unchanged from EP12).
+- **Calm ending.** Company information has no animation.
+
+## Contact (EP13)
+
+See [CONTACT_EXPERIENCE.md](CONTACT_EXPERIENCE.md). A working-session look: one question at a
+time on a deep panel, choices as quiet rows and chips (never seven equal cards), a persistent
+*talk directly* panel, LINE OA as the highlighted channel, an honest amber notice before the
+final step. Voice: *start from the problem*; never "we will reply within…".
+
 ## Company story (EP12)
 
 See [ABOUT_PDA_BLISS.md](ABOUT_PDA_BLISS.md) and [WHY_CORE.md](WHY_CORE.md). EP08 movement, EP09

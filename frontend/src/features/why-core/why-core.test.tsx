@@ -251,7 +251,10 @@ describe('/why-core page', () => {
       'href',
       '/departments',
     );
-    expect(within(see).getByRole('link', { name: /ขอ Demo/ })).toHaveAttribute('href', '/contact');
+    expect(within(see).getByRole('link', { name: /ขอ Demo/ })).toHaveAttribute(
+      'href',
+      '/contact?interest=demo',
+    );
   });
 
   it('is not a copy of /about', async () => {
@@ -319,7 +322,7 @@ describe('localization and links', () => {
       '/en/solutions#human-error',
       '/en/departments',
       '/en/departments/executive',
-      '/en/contact',
+      '/en/contact?interest=demo',
       '/en/about',
     ]) {
       expect(main().querySelector(`a[href="${href}"]`), href).not.toBeNull();

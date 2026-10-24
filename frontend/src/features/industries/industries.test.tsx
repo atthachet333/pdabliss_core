@@ -365,7 +365,7 @@ describe('/industries overview', () => {
   it('ends with consultation, a quiet enterprise link and a quiet pricing link', async () => {
     await open('/industries');
     const end = document.querySelector('[data-ending]')!;
-    expect(end.querySelector('a[href="/contact"]')).not.toBeNull();
+    expect(end.querySelector('a[href="/contact?interest=consulting"]')).not.toBeNull();
     expect(end.querySelector('a[href="/enterprise"]')).not.toBeNull();
     expect(end.querySelector('a[href="/pricing"]')).not.toBeNull();
   });

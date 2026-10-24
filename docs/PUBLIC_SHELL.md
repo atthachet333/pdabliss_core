@@ -170,7 +170,11 @@ the same language. Existing URLs are unchanged.
 footer, cookie UI, floating contact, the homepage (hero, all eleven chapters, CTAs, labels),
 the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/how-core-works`,
 `/enterprise`, `/industries` and its six pages, `/pricing`,
-`/about`, `/why-core`, `/contact` (including form validation), `/privacy`, `/terms` and the 404 page.
+`/about`, `/why-core`, `/contact` (the EP13 consultation flow, including validation), `/privacy`, `/terms` and the 404 page.
+
+**Contact links (EP13).** Shell links (header, footer, floating panel) go to `/contact`; page
+CTAs carry context through the stable query contract (`?interest=`, `?plan=`, `?industry=`,
+`?department=`) — see [CONTACT_EXPERIENCE.md](CONTACT_EXPERIENCE.md). `href()` keeps the locale.
 Deliberate exceptions: the company address is printed in Thai in every locale (`lang="th"`),
 and the homepage product previews render the real EP02 product UI, which is Thai — their
 captions say so. `/login` and `/app/*` are not part of the public site and stay Thai.

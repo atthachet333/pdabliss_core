@@ -428,7 +428,7 @@ export default function PurchasingPage() {
         lead={c.preview.lead}
       />
       <ConnectedDepartments id="pur-connected" dept="purchasing" copy={c.connections} />
-      <DeptCta id="pur-cta" />
+      <DeptCta id="pur-cta" dept="purchasing" />
     </DeptPage>
   );
 }

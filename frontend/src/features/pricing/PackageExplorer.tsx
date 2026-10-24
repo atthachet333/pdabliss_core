@@ -183,7 +183,7 @@ export function PackageExplorer() {
               {quote ? (
                 <>
                   <Link
-                    to={href('/contact?interest=plans')}
+                    to={href('/contact?interest=enterprise&plan=enterprise')}
                     className={buttonClasses('primary', 'lg')}
                   >
                     {c.explorer.quote}
@@ -202,7 +202,10 @@ export function PackageExplorer() {
                 </>
               ) : (
                 <>
-                  <Link to={href('/contact')} className={buttonClasses('primary', 'lg')}>
+                  <Link
+                    to={href(`/contact?interest=demo&plan=${plan.id}`)}
+                    className={buttonClasses('primary', 'lg')}
+                  >
                     {c.explorer.demo}
                     <ArrowRight className="size-4" aria-hidden />
                   </Link>

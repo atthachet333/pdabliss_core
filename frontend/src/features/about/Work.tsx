@@ -1,13 +1,16 @@
-import { ArrowLeftRight, ArrowRight, MessageCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowRight, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router';
 import { Chapter, Frame, Kicker } from '@/components/editorial/Layout';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { COMPANY, PRODUCTS } from '@/config/company';
 import { CONTACT, mailtoHref, telHref } from '@/config/contact';
+import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { Lines, QuietLink, StoryHead } from '@/features/story/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
+import { EASE_CORE } from '@/motion/tokens';
 import { Reveal } from '@/motion/Reveal';
 import { ABOUT } from './copy';
 import {
@@ -15,100 +18,102 @@ import {
   ABOUT_LINKS,
   ACTIVITIES,
   EXCHANGE,
-  IMPLEMENTATION,
   LAYERS,
   TRUST,
+  type Layer,
 } from './model';
+import { ABOUT_SCENES } from './scenes/copy';
+import { ImplementationPath } from './scenes/ImplementationPath';
+import { WorkTable } from './scenes/WorkTable';
 
 /* ------------------------------------------------------------------ */
-/* 06 Consulting — a working session, not a service grid                */
+/* 06 Consulting — a working session on one table                       */
 /* ------------------------------------------------------------------ */
 
 const PARTIES = ['org', 'us', 'core'] as const;
 
+/** Every topic at a glance — the same content as the work table, as a table. */
+function Overview() {
+  const c = useCopy(ABOUT).consulting;
+  const w = useCopy(ABOUT_SCENES).work;
+  return (
+    <div className="mt-16">
+      <Kicker tone="muted">{w.overview}</Kicker>
+      <table data-exchange className="mt-5 w-full max-md:block md:table-fixed">
+        <caption className="sr-only">{c.tableCaption}</caption>
+        <thead className="max-md:sr-only">
+          <tr className="text-left">
+            <th scope="col" className="w-40 pb-3 text-caption font-semibold text-text-muted">
+              {c.columns.topic}
+            </th>
+            {PARTIES.map((p) => (
+              <th
+                key={p}
+                scope="col"
+                className={cn(
+                  'px-4 pb-3 text-caption font-semibold',
+                  p === 'core' ? 'text-brand-glow' : 'text-text-muted',
+                )}
+              >
+                {c.columns[p]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="max-md:block max-md:space-y-6">
+          {EXCHANGE.map((e) => {
+            const row = c.exchange[e];
+            return (
+              <tr
+                key={e}
+                data-exchange-row={e}
+                className="border-t border-border-soft max-md:block max-md:pt-4"
+              >
+                <th
+                  scope="row"
+                  className="text-left align-top text-caption font-semibold text-brand-soft max-md:block md:py-4 md:pr-4"
+                >
+                  {row.topic}
+                </th>
+                {PARTIES.map((p) => (
+                  <td
+                    key={p}
+                    className={cn(
+                      'align-top text-label max-md:mt-2 max-md:block max-md:pl-4 md:px-4 md:py-4',
+                      p === 'core' ? 'text-text-primary' : 'text-text-secondary',
+                    )}
+                  >
+                    <span className="block text-caption text-text-muted md:hidden">
+                      {c.columns[p]}
+                    </span>
+                    {row[p]}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ConsultingChapter() {
   const c = useCopy(ABOUT).consulting;
+  const s = useCopy(ABOUT_SCENES);
   return (
     <Chapter id={ABOUT_CHAPTER.consulting} labelledBy="consulting-title" plane="navy" space="lg">
       <Frame width="wide">
         <StoryHead
           index="06"
+          ghost
+          notation={s.notation.consulting}
           kicker={c.kicker}
           id="consulting-title"
           title={c.title}
           lead={c.lead}
         />
-
-        <table data-exchange className="mt-16 w-full max-md:block md:table-fixed">
-          <caption className="sr-only">{c.tableCaption}</caption>
-          {/* The three parties of the working session */}
-          <thead data-parties className="max-md:sr-only">
-            <tr>
-              <th scope="col" className="w-40 pb-6 text-left">
-                <span className="sr-only">{c.columns.topic}</span>
-              </th>
-              {PARTIES.map((p, i) => (
-                <th key={p} scope="col" className="relative px-2 pb-6">
-                  <span
-                    className={cn(
-                      'inline-block rounded-full px-4 py-2 text-caption font-semibold uppercase',
-                      p === 'core'
-                        ? 'bg-brand-primary/15 text-brand-glow shadow-[inset_0_0_0_1px_rgb(62_240_192/0.35)]'
-                        : p === 'us'
-                          ? 'bg-white/[0.06] text-text-primary'
-                          : 'bg-white/[0.03] text-text-secondary',
-                    )}
-                  >
-                    {c.columns[p]}
-                  </span>
-                  {i < PARTIES.length - 1 && (
-                    <ArrowLeftRight
-                      aria-hidden
-                      className="absolute top-2.5 right-0 size-4 translate-x-1/2 text-brand-soft/70"
-                    />
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="max-md:block max-md:space-y-8">
-            {EXCHANGE.map((e) => {
-              const row = c.exchange[e];
-              return (
-                <tr
-                  key={e}
-                  data-exchange-row={e}
-                  className="border-t border-border-soft max-md:block max-md:pt-5"
-                >
-                  <th
-                    scope="row"
-                    className="text-left align-top text-caption font-semibold text-brand-soft max-md:block md:py-6 md:pr-4"
-                  >
-                    {row.topic}
-                  </th>
-                  {PARTIES.map((p) => (
-                    <td
-                      key={p}
-                      className={cn(
-                        'align-top text-label max-md:mt-3 max-md:block max-md:border-l-2 max-md:pl-4 md:px-5 md:py-6 md:text-center',
-                        p === 'core'
-                          ? 'text-text-primary max-md:border-brand-glow/60 md:bg-brand-primary/[0.07]'
-                          : p === 'us'
-                            ? 'text-text-primary max-md:border-border-strong md:bg-white/[0.03]'
-                            : 'text-text-secondary max-md:border-border-soft',
-                      )}
-                    >
-                      <span className="block text-caption text-text-muted md:hidden">
-                        {c.columns[p]}
-                      </span>
-                      {row[p]}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <WorkTable />
 
         <div className="mt-16 grid grid-cols-1 gap-10 border-t border-border-soft pt-12 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-20">
           <div>
@@ -129,23 +134,27 @@ export function ConsultingChapter() {
             {c.boundary}
           </p>
         </div>
+        <Overview />
       </Frame>
     </Chapter>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* 07 Implementation — the company's side of the journey                */
+/* 07 Implementation — one continuous path                              */
 /* ------------------------------------------------------------------ */
 
 export function ImplementationChapter() {
   const c = useCopy(ABOUT).implementation;
+  const s = useCopy(ABOUT_SCENES);
   return (
     <Chapter id={ABOUT_CHAPTER.implementation} labelledBy="implementation-approach-title">
       <Frame width="wide">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <StoryHead
             index="07"
+            ghost
+            notation={s.notation.implementation}
             kicker={c.kicker}
             id="implementation-approach-title"
             title={c.title}
@@ -155,53 +164,81 @@ export function ImplementationChapter() {
             {c.link}
           </QuietLink>
         </div>
-        <ol
-          data-implementation
-          className="relative mt-14 grid grid-cols-1 gap-5 lg:grid-cols-9 lg:gap-3"
-        >
-          <span
-            aria-hidden
-            className="absolute top-2 bottom-2 left-[0.4375rem] w-px bg-[linear-gradient(to_bottom,rgb(62_240_192/0.7),rgb(62_240_192/0.2))] lg:top-[0.4375rem] lg:right-0 lg:bottom-auto lg:left-0 lg:h-px lg:w-auto lg:bg-[linear-gradient(90deg,rgb(62_240_192/0.7),rgb(62_240_192/0.25))]"
-          />
-          {IMPLEMENTATION.map((s, i) => (
-            <li
-              key={s}
-              data-implementation-step={s}
-              className="relative flex items-baseline gap-4 pl-8 lg:block lg:pl-0"
-            >
-              <span
-                aria-hidden
-                className="absolute top-1.5 left-0 size-[0.875rem] rounded-full bg-surface-dark shadow-[inset_0_0_0_2px_rgb(62_240_192/0.7)] lg:static lg:block"
-              />
-              <span aria-hidden className="text-caption text-text-muted tabular lg:mt-4 lg:block">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span className="text-label font-semibold text-text-primary lg:mt-1 lg:block">
-                {c.steps[s]}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <ImplementationPath />
       </Frame>
     </Chapter>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* 08 Built for long-term use — a product, adapted                      */
+/* 08 Built for long-term use — one product, adapted                    */
 /* ------------------------------------------------------------------ */
 
-const LAYER_STYLE = {
+const LAYER_STYLE: Record<Layer, string> = {
   integration:
-    'mx-[14%] border border-dashed border-border-strong bg-transparent text-text-secondary',
+    'mx-[15%] border border-dashed border-border-strong bg-transparent text-text-secondary',
+  workflow:
+    'mx-[9%] bg-white/[0.05] text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.12)]',
   configuration:
-    'mx-[6%] bg-white/[0.045] text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]',
+    'mx-[4%] bg-white/[0.04] text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]',
   foundation:
     'bg-[linear-gradient(90deg,rgb(25_195_154/0.22),rgb(25_195_154/0.08))] text-text-primary shadow-[inset_0_0_0_1px_rgb(62_240_192/0.32),0_24px_70px_-36px_rgb(62_240_192/0.6)]',
-} as const;
+};
+
+/** NOT: a separate, differently-shaped codebase for every organization. */
+function NotACodebasePerOrg() {
+  const s = useCopy(ABOUT_SCENES).longTerm;
+  const shapes = [
+    [70, 55, 85],
+    [90, 40, 60, 75],
+    [50, 80],
+  ];
+  return (
+    <div data-not className="mt-8 rounded-2xl border border-dashed border-danger/30 p-5">
+      <p className="flex items-center gap-2 text-caption font-semibold text-danger">
+        <span aria-hidden className="inline-block h-px w-4 bg-current" />
+        {s.not}: <span className="line-through decoration-danger/70">{s.notTitle}</span>
+      </p>
+      <div aria-hidden className="relative mt-4 grid grid-cols-3 gap-4">
+        {shapes.map((stack, i) => (
+          <div key={i}>
+            <div className="flex flex-col items-center gap-1">
+              {stack.map((w, k) => (
+                <span
+                  key={k}
+                  className="block h-2.5 rounded-sm bg-white/[0.08]"
+                  style={{ width: `${w}%` }}
+                />
+              ))}
+            </div>
+            <p className="mt-2 text-center text-[0.6875rem] text-text-muted">{s.orgs[i]}</p>
+          </div>
+        ))}
+        <svg
+          className="pointer-events-none absolute inset-0 size-full"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 100"
+        >
+          <line
+            x1="2"
+            y1="92"
+            x2="98"
+            y2="6"
+            stroke="#f47272"
+            strokeOpacity="0.6"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 export function LongTermChapter() {
   const c = useCopy(ABOUT).longTerm;
+  const s = useCopy(ABOUT_SCENES);
+  const reduce = usePrefersReducedMotion();
   return (
     <Chapter id={ABOUT_CHAPTER.longTerm} labelledBy="long-term-title" plane="grid" space="lg">
       <Frame width="wide">
@@ -209,6 +246,8 @@ export function LongTermChapter() {
           <div>
             <StoryHead
               index="08"
+              ghost
+              notation={s.notation.longTerm}
               kicker={c.kicker}
               id="long-term-title"
               title={c.title}
@@ -227,65 +266,109 @@ export function LongTermChapter() {
               ))}
             </ul>
           </div>
-          <figure aria-label={c.visual}>
+          <figure aria-label={c.visual} className="m-0">
+            {/* The stack assembles from the foundation up */}
             <ol data-layers className="space-y-3">
-              {LAYERS.map((l) => (
-                <li
+              {LAYERS.map((l, i) => (
+                <motion.li
                   key={l}
                   data-layer={l}
+                  initial={reduce ? false : { opacity: 0, y: -22 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '0px 0px -15% 0px' }}
+                  transition={{
+                    duration: 0.6,
+                    ease: EASE_CORE,
+                    delay: (LAYERS.length - 1 - i) * 0.16,
+                  }}
                   className={cn('rounded-2xl px-5 py-4 sm:px-6 sm:py-5', LAYER_STYLE[l])}
                 >
                   <p className="text-label font-semibold">
-                    {l === 'configuration' && (
-                      <span aria-hidden className="mr-2 text-brand-glow">
-                        +
-                      </span>
-                    )}
-                    {l === 'integration' && (
-                      <span aria-hidden className="mr-2 text-text-muted">
+                    {l !== 'foundation' && (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'mr-2',
+                          l === 'integration' ? 'text-text-muted' : 'text-brand-glow',
+                        )}
+                      >
                         +
                       </span>
                     )}
                     {c.layers[l].title}
                   </p>
                   <p className="mt-1 text-caption text-text-secondary">{c.layers[l].body}</p>
-                </li>
+                </motion.li>
               ))}
             </ol>
+            <NotACodebasePerOrg />
           </figure>
         </div>
 
+        {/* The PDA BLISS product family */}
         <div data-products className="mt-24 border-t border-border-soft pt-12">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)] lg:gap-20">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)] lg:gap-20">
             <div>
               <Kicker tone="muted">{c.productsTitle}</Kicker>
               <p className="mt-3 text-label text-text-muted">{c.productsNote}</p>
             </div>
-            <dl className="divide-y divide-border-soft">
-              {PRODUCTS.map((p) => (
-                <div
-                  key={p.id}
-                  data-product={p.id}
-                  className="grid grid-cols-1 gap-1 py-5 first:pt-0 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:gap-8"
-                >
-                  <dt>
-                    <span
-                      className={cn(
-                        'block text-body font-semibold',
-                        p.current ? 'text-brand-glow' : 'text-text-primary',
-                      )}
-                    >
-                      {p.name}
-                    </span>
-                    <span className="mt-0.5 block text-caption text-text-muted">
-                      {c.products[p.id].role}
-                      {p.current && <span className="text-brand-soft"> · {c.current}</span>}
-                    </span>
-                  </dt>
-                  <dd className="text-label text-text-secondary">{c.products[p.id].body}</dd>
-                </div>
-              ))}
-            </dl>
+            <div>
+              <p
+                aria-hidden
+                className="text-center font-mono text-[0.6875rem] tracking-[0.2em] text-text-muted"
+              >
+                PDA BLISS
+              </p>
+              <svg
+                aria-hidden
+                viewBox="0 0 300 30"
+                preserveAspectRatio="none"
+                className="mt-2 hidden h-6 w-full sm:block"
+              >
+                <path
+                  d="M 150 0 L 150 12 M 50 30 L 50 12 L 250 12 L 250 30 M 150 12 L 150 30"
+                  fill="none"
+                  stroke="#a3b8b2"
+                  strokeOpacity="0.35"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+              <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {PRODUCTS.map((p) => (
+                  <div
+                    key={p.id}
+                    data-product={p.id}
+                    className={cn(
+                      'rounded-2xl px-5 py-4',
+                      p.current
+                        ? 'bg-brand-primary/[0.08] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.4)] sm:order-2'
+                        : 'bg-white/[0.02] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.07)]',
+                      p.id === 'one' && 'sm:order-1',
+                      p.id === 'property' && 'sm:order-3',
+                    )}
+                  >
+                    <dt>
+                      <span
+                        className={cn(
+                          'block text-body font-semibold',
+                          p.current ? 'text-brand-glow' : 'text-text-primary',
+                        )}
+                      >
+                        {p.name}
+                      </span>
+                      <span className="mt-0.5 block text-caption text-text-muted">
+                        {c.products[p.id].role}
+                        {p.current && <span className="text-brand-soft"> · {c.current}</span>}
+                      </span>
+                    </dt>
+                    <dd className="mt-2 text-caption text-text-secondary">
+                      {c.products[p.id].body}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-center text-caption text-text-muted">{s.longTerm.family}</p>
+            </div>
           </div>
         </div>
       </Frame>
@@ -294,7 +377,7 @@ export function LongTermChapter() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 09 Company information — every value from the central config         */
+/* 09 Company information — calm, factual, from the central config      */
 /* ------------------------------------------------------------------ */
 
 const linkClass =
@@ -302,6 +385,7 @@ const linkClass =
 
 export function CompanyInfoChapter() {
   const c = useCopy(ABOUT).info;
+  const s = useCopy(ABOUT_SCENES);
   const { locale, t } = useLocale();
   return (
     <Chapter id={ABOUT_CHAPTER.info} labelledBy="company-information-title" space="lg">
@@ -310,6 +394,7 @@ export function CompanyInfoChapter() {
           <div>
             <StoryHead
               index="09"
+              notation={s.notation.info}
               kicker={c.kicker}
               id="company-information-title"
               title={c.title}
@@ -424,7 +509,7 @@ export function TalkChapter() {
         <p className="mx-auto mt-6 max-w-xl text-body-lg text-text-secondary">{c.body}</p>
         <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           <Link
-            to={href(ABOUT_LINKS.contact)}
+            to={href(ABOUT_LINKS.consult)}
             data-cta="contact"
             className={buttonClasses('primary', 'lg')}
           >

@@ -24,6 +24,7 @@ export const PUBLIC_ROUTES = [
   '/industries/manufacturing',
   '/pricing',
   '/about',
+  '/why-core',
   '/contact',
   '/privacy',
   '/terms',

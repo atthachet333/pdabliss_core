@@ -7,7 +7,7 @@ import { useCopy, type Localized } from '@/i18n/useCopy';
 import { Reveal } from '@/motion/Reveal';
 import { ChapterMark } from './ChapterMark';
 
-const LINK_TARGETS = ['/about', '/#why-core', '/contact'] as const;
+const LINK_TARGETS = ['/about', '/why-core', '/contact'] as const;
 
 const th = {
   links: ['รู้จัก PDA BLISS', 'Why We Built CORE', 'ติดต่อเรา'],

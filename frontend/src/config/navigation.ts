@@ -133,9 +133,9 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
     id: 'about',
     items: [
       { id: 'company', icon: Info, to: '/about' },
-      { id: 'why', icon: Lightbulb, to: '/#trust' },
+      { id: 'why', icon: Lightbulb, to: '/why-core' },
       { id: 'approach', icon: BadgeCheck, to: '/about#approach' },
-      { id: 'consulting', icon: Handshake, to: '/contact' },
+      { id: 'consulting', icon: Handshake, to: '/about#consulting' },
     ],
     cta: '/contact',
   },

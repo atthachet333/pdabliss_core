@@ -46,6 +46,7 @@ const INDUSTRY_PAGES = {
   manufacturing: lazy(() => import('@/features/industries/pages/ManufacturingPage')),
 } as const;
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
+const WhyCorePage = lazy(() => import('@/pages/public/WhyCorePage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const LegalPage = lazy(() => import('@/pages/public/LegalPage'));
@@ -158,6 +159,7 @@ function publicPages(): RouteObject[] {
       element: lazyPage(Page),
     })),
     { path: 'about', element: lazyPage(AboutPage) },
+    { path: 'why-core', element: lazyPage(WhyCorePage) },
     { path: 'contact', element: lazyPage(ContactPage) },
     {
       path: 'privacy',

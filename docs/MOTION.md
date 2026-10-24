@@ -74,6 +74,15 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### Company story (EP12 — see [ABOUT_PDA_BLISS.md](ABOUT_PDA_BLISS.md), [WHY_CORE.md](WHY_CORE.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| `/about` hero | fragments settle from a wider turn; the thread draws; work states appear in order | 0.55–1.1 s, staggered 0.08–0.12 s, once |
+| `/about` methodology | the four stages rise into view, once | 0.7 s, staggered 0.12 s |
+| `/why-core` hero | islands appear; the CORE layer widens; threads drop to it; waiting markers pulse softly | 0.5–0.9 s once; pulse is CSS `motion-safe` only |
+| `/why-core` ONE LARGE SYSTEM → CORE | choosing a department re-lights modules and swaps the workspace | 0.3–0.45 s |
+
 ### Industries (EP11 — see [INDUSTRIES_EXPERIENCE.md](INDUSTRIES_EXPERIENCE.md))
 
 | Where | Motion | Timing |
@@ -159,6 +168,9 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- Company story (EP12): both heroes render their final composition (fragments resting, every
+  state shown, islands and the CORE layer in place); waiting markers do not pulse; the view-as
+  switch is instant. Nothing depends on movement.
 - Industries (EP11): every hero and the overview orbit render in their final state; selector and
   signature changes are instant; nothing loops or autoplays.
 - For organizations (EP10): the hero shows all four floors at once; every interactive state

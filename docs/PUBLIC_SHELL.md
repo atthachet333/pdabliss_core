@@ -89,7 +89,7 @@ list of links:
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) | ดูวิธีการทำงาน → `/how-core-works` |
 | โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตามประเภทธุรกิจ → `/industries` (EP11 — the highlight already says *ปัญหาของแต่ละองค์กรไม่เหมือนกัน*) |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Access `/enterprise#access` · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
-| เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/#trust` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/contact` | ติดต่อทีมงาน → `/contact` |
+| เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/why-core` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/about#consulting` (EP12) | ติดต่อทีมงาน → `/contact` |
 
 **No dead links.** Every destination is a live route or an existing anchor (`plan-*` on
 `/pricing` and `approach` on `/about` were added as plain ids). An item without `to` renders as
@@ -170,7 +170,7 @@ the same language. Existing URLs are unchanged.
 footer, cookie UI, floating contact, the homepage (hero, all eleven chapters, CTAs, labels),
 the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/how-core-works`,
 `/enterprise`, `/industries` and its six pages, `/pricing`,
-`/about`, `/contact` (including form validation), `/privacy`, `/terms` and the 404 page.
+`/about`, `/why-core`, `/contact` (including form validation), `/privacy`, `/terms` and the 404 page.
 Deliberate exceptions: the company address is printed in Thai in every locale (`lang="th"`),
 and the homepage product previews render the real EP02 product UI, which is Thai — their
 captions say so. `/login` and `/app/*` are not part of the public site and stay Thai.

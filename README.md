@@ -65,7 +65,7 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 ## Routes
 
 Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`,
-`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/contact`, `/login`,
+`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/login`,
 `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
 `frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
 keeps the two in sync).
@@ -88,6 +88,15 @@ retail operations, property operations and manufacturing — show how the same C
 adapt to different operating environments, each with its own visual motif, example workflow,
 manager signals and explicit boundaries. See
 [docs/INDUSTRIES_EXPERIENCE.md](docs/INDUSTRIES_EXPERIENCE.md).
+
+About PDA BLISS and Why CORE (EP12): `/about` is the company story — process before
+features, what PDA BLISS believes, the operational problem, the signature methodology (real
+work → responsibility map → workflow → CORE screen), consulting, implementation, product vs
+customization and the approved company details. `/why-core` is the product origin — work stuck
+between departments, organizational growth, ONE LARGE SYSTEM → CORE (interactive), department-
+centric yet connected, Human Error, executive signals. Company names live in
+`frontend/src/config/company.ts`; contact values stay in `config/contact.ts`. See
+[docs/ABOUT_PDA_BLISS.md](docs/ABOUT_PDA_BLISS.md) and [docs/WHY_CORE.md](docs/WHY_CORE.md).
 
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
@@ -164,6 +173,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP10_REPORT.md](docs/EP10_REPORT.md) — enterprise organization experience
 - [docs/INDUSTRIES_EXPERIENCE.md](docs/INDUSTRIES_EXPERIENCE.md) — industries: shared vs variable model, six environments, boundaries
 - [docs/EP11_REPORT.md](docs/EP11_REPORT.md) — industry experience pages
+- [docs/ABOUT_PDA_BLISS.md](docs/ABOUT_PDA_BLISS.md) — `/about`: company identity, philosophy, methodology, consulting, claim boundaries
+- [docs/WHY_CORE.md](docs/WHY_CORE.md) — `/why-core`: product origin, ONE LARGE SYSTEM → CORE, Human Error, executive view
+- [docs/EP12_REPORT.md](docs/EP12_REPORT.md) — PDA BLISS and CORE story experience
 
 ---
 

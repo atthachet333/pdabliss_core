@@ -505,6 +505,30 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://core.pdabliss.com/why-core</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/why-core" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/why-core" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/why-core" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/why-core" />
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/why-core</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/why-core" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/why-core" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/why-core" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/why-core" />
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/why-core</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/why-core" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/why-core" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/why-core" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/why-core" />
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://core.pdabliss.com/contact</loc>
     <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/contact" />
     <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/contact" />

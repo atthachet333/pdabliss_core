@@ -174,6 +174,24 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   categories are not in use. No invented clients, uptime, certifications, counts or awards.
   (Approved package prices arrived in EP07 — see below.)
 
+## Company story (EP12)
+
+See [ABOUT_PDA_BLISS.md](ABOUT_PDA_BLISS.md) and [WHY_CORE.md](WHY_CORE.md). EP08 movement, EP09
+friction, EP10 architecture, EP11 environments; EP12 is **belief, identity and craft** — the
+most human, editorial pages on the site:
+
+- **Statements first.** Two-tone display headlines (muted question → bright answer), generous
+  whitespace, a manifesto instead of value cards, editorial definition lists instead of boxes.
+- **Reality → structure.** Warm amber marks unstructured reality (notes, chat, slips, waiting
+  gaps); CORE teal marks structure (states, workspaces, the shared layer). The methodology
+  sketches move from hand-drawn to fully structured across four stages.
+- **No stock imagery, no faces, no social proof.** Process fragments, department signals,
+  documents, states and workflow only. No logo wall, counts, awards or testimonials.
+- **Company vs product.** *PDA BLISS* is the company; *CORE* is the product. The Thai registered
+  name appears on Thai pages; *PDA BLISS COMPANY LIMITED* in English and Chinese.
+- **Thai typography.** Display lines carry authored wrap points (`|`) so Thai breaks
+  naturally at 320–430 px; Thai labels never get wide letter-spacing.
+
 ## Industries (EP11)
 
 See [INDUSTRIES_EXPERIENCE.md](INDUSTRIES_EXPERIENCE.md). EP08 is movement, EP09 friction, EP10

@@ -174,6 +174,22 @@ The header, mega menus, footer, cookie UI and floating utilities share one langu
   categories are not in use. No invented clients, uptime, certifications, counts or awards.
   (Approved package prices arrived in EP07 — see below.)
 
+## Industries (EP11)
+
+See [INDUSTRIES_EXPERIENCE.md](INDUSTRIES_EXPERIENCE.md). EP08 is movement, EP09 friction, EP10
+architecture; EP11 is **operational environments**:
+
+- **Geometry, not colour.** The CORE palette stays; each industry is told apart by its motif —
+  network (distribution), schedule grid (services), milestone architecture (projects), branch
+  map (retail), skyline of sites (property), material lanes (manufacturing) — and by hero
+  composition, section rhythm and signature section.
+- **Environment patterns.** Dot grids, ruled schedules, phase columns, building grids and lane
+  rules sit behind each hero at low contrast; the overview's windows carry the same patterns.
+- **Shared language, different compositions.** Parts are shared (status tags, principle fit,
+  boundaries, links); page layouts are not.
+- **Boundaries are designed, not buried.** Retail (not a POS) and Property (not the Property &
+  Rental Management product) state their boundary right after the hero.
+
 ## For organizations (EP10)
 
 See [ENTERPRISE_EXPERIENCE.md](ENTERPRISE_EXPERIENCE.md). EP09 is friction → resolution; EP10 is

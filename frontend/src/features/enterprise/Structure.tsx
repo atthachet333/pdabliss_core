@@ -1,11 +1,14 @@
 import { Building2, Eye, Lock, Minus, Plus, Settings2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { Chapter, Frame, Kicker, Stage } from '@/components/editorial/Layout';
 import { Segmented } from '@/components/ui/Segmented';
 import { useDepartments } from '@/config/departments';
 import { DEPT_PAGES } from '@/features/departments/catalog';
 import { tabKeys } from '@/features/departments/tabs';
+import { industryPath, type IndustryId } from '@/features/industries/model';
 import { useCopy } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { ENTERPRISE } from './copy';
 import {
@@ -26,8 +29,19 @@ import { Head, Note } from './parts';
 /* 01 Growing complexity — a staircase of growth                        */
 /* ------------------------------------------------------------------ */
 
+/** EP11: each industry in the strip opens its industry page. */
+const INDUSTRY_PAGE: Record<(typeof INDUSTRIES)[number], IndustryId> = {
+  distribution: 'distribution',
+  service: 'services',
+  projects: 'projects',
+  retail: 'retail',
+  property: 'property',
+  production: 'manufacturing',
+};
+
 export function ComplexityChapter() {
   const c = useCopy(ENTERPRISE).complexity;
+  const { href } = useLocale();
   const [active, setActive] = useState(2);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const stage = GROWTH_STAGES[active]!;
@@ -144,7 +158,12 @@ export function ComplexityChapter() {
                     ·
                   </span>
                 )}
-                {c.industries[x]}
+                <Link
+                  to={href(industryPath(INDUSTRY_PAGE[x]))}
+                  className="inline-flex min-h-11 items-center underline-offset-4 hover:text-text-primary hover:underline"
+                >
+                  {c.industries[x]}
+                </Link>
               </li>
             ))}
           </ul>

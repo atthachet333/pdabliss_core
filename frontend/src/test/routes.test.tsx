@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { getPrototypeSession, prototypeSignIn, prototypeSignOut } from '@/prototype/session';
 import { WORKSPACE_ORDER, WORKSPACES } from '@/workspaces/registry';
+import { PUBLIC_ROUTES } from '@/test/publicRoutes';
 import { renderRoute } from './render';
 
 describe('public website', () => {
@@ -47,19 +48,13 @@ describe('public website', () => {
     ]);
   });
 
-  it.each([
-    '/features',
-    '/departments',
-    '/solutions',
-    '/about',
-    '/contact',
-    '/login',
-    '/privacy',
-    '/terms',
-  ])('renders %s with a level-1 heading', async (path) => {
-    renderRoute(path);
-    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
-  });
+  it.each([...PUBLIC_ROUTES.filter((r) => r !== '/'), '/login'])(
+    'renders %s with a level-1 heading',
+    async (path) => {
+      renderRoute(path);
+      expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+    },
+  );
 
   it('validates the contact form with Thai messages before anything is submitted', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');

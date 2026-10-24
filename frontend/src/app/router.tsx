@@ -35,6 +35,16 @@ const SolutionsPage = lazy(() => import('@/pages/public/SolutionsPage'));
 const PricingPage = lazy(() => import('@/pages/public/PricingPage'));
 const HowCoreWorksPage = lazy(() => import('@/pages/public/HowCoreWorksPage'));
 const EnterprisePage = lazy(() => import('@/pages/public/EnterprisePage'));
+const IndustriesPage = lazy(() => import('@/pages/public/IndustriesPage'));
+// EP11: one chunk per industry page.
+const INDUSTRY_PAGES = {
+  distribution: lazy(() => import('@/features/industries/pages/DistributionPage')),
+  services: lazy(() => import('@/features/industries/pages/ServicesPage')),
+  projects: lazy(() => import('@/features/industries/pages/ProjectsPage')),
+  retail: lazy(() => import('@/features/industries/pages/RetailPage')),
+  property: lazy(() => import('@/features/industries/pages/PropertyPage')),
+  manufacturing: lazy(() => import('@/features/industries/pages/ManufacturingPage')),
+} as const;
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
@@ -142,6 +152,11 @@ function publicPages(): RouteObject[] {
     { path: 'pricing', element: lazyPage(PricingPage) },
     { path: 'how-core-works', element: lazyPage(HowCoreWorksPage) },
     { path: 'enterprise', element: lazyPage(EnterprisePage) },
+    { path: 'industries', element: lazyPage(IndustriesPage) },
+    ...Object.entries(INDUSTRY_PAGES).map(([id, Page]) => ({
+      path: `industries/${id}`,
+      element: lazyPage(Page),
+    })),
     { path: 'about', element: lazyPage(AboutPage) },
     { path: 'contact', element: lazyPage(ContactPage) },
     {

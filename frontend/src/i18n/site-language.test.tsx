@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { CONTACT } from '@/config/contact';
+import { PUBLIC_ROUTES } from '@/test/publicRoutes';
 import { renderRoute } from '@/test/render';
 
 /*
@@ -9,17 +10,8 @@ import { renderRoute } from '@/test/render';
  * bodies included, not only the shell.
  */
 
-const PAGES = [
-  '',
-  '/features',
-  '/departments',
-  '/solutions',
-  '/pricing',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-];
+// Every public page (the permanent regression set); '' is the locale home.
+const PAGES = PUBLIC_ROUTES.map((r) => (r === '/' ? '' : r));
 const THAI = /[฀-๿]/;
 
 /**

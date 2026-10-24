@@ -127,6 +127,6 @@ endings. The Chinese copy contains no Traditional characters.
   data; nothing is computed or enforced.
 - Statuses reflect the brief; they need owner confirmation as the product evolves.
 - `public/sitemap.xml` still lists only the original pages (no `/how-core-works` or
-  `/enterprise`). It was left unchanged, as in earlier episodes.
+  `/enterprise`). It was left unchanged, as in earlier episodes. *(Fixed in EP11.)*
 - QA used headless Chrome with emulated viewports. There was no testing on real devices,
   Safari, Firefox or screen readers.

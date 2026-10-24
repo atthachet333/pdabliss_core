@@ -104,7 +104,7 @@ export const zhCN: ShellMessages = {
           eyebrow: 'Built around your process',
           statement: '每家企业的问题各不相同。',
           body: 'CORE 的设计从企业的真实流程出发，而不是强迫每家公司采用同一种方式。',
-          cta: '查看应用示例',
+          cta: '按行业查看',
         },
       },
       enterprise: {
@@ -156,6 +156,7 @@ export const zhCN: ShellMessages = {
     email: '邮箱',
     developedBy: '由 PDA BLISS COMPANY LIMITED 开发',
     groups: { quick: '快速链接', company: '公司' },
+    industries: '行业',
     contactHeading: '联系我们',
     address: '地址',
     phone: '电话',

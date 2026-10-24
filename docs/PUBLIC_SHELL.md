@@ -87,7 +87,7 @@ list of links:
 | แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) | ดูวิธีการทำงาน → `/how-core-works` |
-| โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตัวอย่างการใช้งาน → `/solutions` |
+| โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตามประเภทธุรกิจ → `/industries` (EP11 — the highlight already says *ปัญหาของแต่ละองค์กรไม่เหมือนกัน*) |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Access `/enterprise#access` · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/#trust` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/contact` | ติดต่อทีมงาน → `/contact` |
 
@@ -98,6 +98,10 @@ panel also says *บางความสามารถอยู่ในแผ
 สำหรับองค์กร item links to a chapter of `/enterprise`, where each capability carries its own
 status (current prototype · configured by scope · architecture-ready · planned); the footer's
 สำหรับองค์กร link goes to `/enterprise` too.
+
+**Industries (EP11).** No new top-level item: `/industries` is reached from the โซลูชัน highlight
+CTA, a footer link (องค์กร group: โซลูชัน · ประเภทธุรกิจ · สำหรับองค์กร · เกี่ยวกับเรา · ติดต่อเรา),
+and the industries strip on `/enterprise`, whose six names link to the six industry pages.
 
 **Behaviour.** Disclosure pattern — each mega item is a `button` with `aria-expanded` /
 `aria-controls` controlling a `region` of ordinary links (no ARIA menu roles). Hover intent:
@@ -165,12 +169,13 @@ the same language. Existing URLs are unchanged.
 **Scope.** The whole public site switches language: header, mega menus, mobile navigation,
 footer, cookie UI, floating contact, the homepage (hero, all eleven chapters, CTAs, labels),
 the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/how-core-works`,
-`/enterprise`, `/pricing`,
+`/enterprise`, `/industries` and its six pages, `/pricing`,
 `/about`, `/contact` (including form validation), `/privacy`, `/terms` and the 404 page.
 Deliberate exceptions: the company address is printed in Thai in every locale (`lang="th"`),
 and the homepage product previews render the real EP02 product UI, which is Thai — their
 captions say so. `/login` and `/app/*` are not part of the public site and stay Thai.
-A test scans every page under `/en` and `/zh` and fails on visible Thai text.
+A test scans every page under `/en` and `/zh` and fails on visible Thai text (the page list is the
+shared `test/publicRoutes.ts`, also used by the header and sitemap tests).
 
 **Typography.** IBM Plex Sans Thai covers Thai and Latin only. `:lang(zh-CN)` switches to
 `--font-zh`: Plex for Latin, then PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC /

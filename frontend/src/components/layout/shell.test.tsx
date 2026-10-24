@@ -84,7 +84,7 @@ describe('public footer', () => {
       within(org)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['โซลูชัน', 'สำหรับองค์กร', 'เกี่ยวกับเรา', 'ติดต่อเรา']);
+    ).toEqual(['โซลูชัน', 'ประเภทธุรกิจ', 'สำหรับองค์กร', 'เกี่ยวกับเรา', 'ติดต่อเรา']);
 
     const contact = within(footer).getByRole('heading', { name: 'ติดต่อเรา' }).closest('section')!;
     expect(contact).toHaveTextContent(ADDRESS);

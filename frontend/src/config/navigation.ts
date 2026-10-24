@@ -114,7 +114,8 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
       { id: 'visibility', icon: Eye, to: '/solutions#visibility' },
       { id: 'management', icon: Crown, to: '/solutions#management' },
     ],
-    cta: '/solutions',
+    // EP11: the highlight ("every organization's problems differ") leads to industries.
+    cta: '/industries',
   },
   enterprise: {
     id: 'enterprise',
@@ -171,6 +172,7 @@ export const FOOTER_GROUPS = [
     id: 'company',
     links: [
       { id: 'solutions', to: '/solutions' },
+      { id: 'industries', to: '/industries' },
       { id: 'enterprise', to: '/enterprise' },
       { id: 'about', to: '/about' },
       { id: 'contact', to: '/contact' },

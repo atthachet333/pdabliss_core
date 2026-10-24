@@ -74,6 +74,16 @@ CTA magnetic pull is ≤ 3 px with a critically-damped spring.
 Pins use a tall wrapper with a `sticky` viewport and read progress from the native scroll
 position — no snapping, no wheel or touch handling.
 
+### Industries (EP11 — see [INDUSTRIES_EXPERIENCE.md](INDUSTRIES_EXPERIENCE.md))
+
+| Where | Motion | Timing |
+| ----- | ------ | ------ |
+| Overview hero | the six environment windows fade/scale in around CORE, once | 0.6 s each, staggered 0.12 s |
+| Selector (wide) | the open environment widens; the others narrow to slivers | 0.5 s flex transition |
+| Distribution / Projects / Manufacturing heroes | network paths, phase bars or the material path draw once | 0.6–1.8 s |
+| Services / Retail / Property heroes | schedule blocks, branch nodes or buildings appear once | 0.5–0.7 s, staggered |
+| Signature sections | state changes recolour; nothing autoplays | 0.2–0.5 s |
+
 ### For organizations (EP10 — see [ENTERPRISE_EXPERIENCE.md](ENTERPRISE_EXPERIENCE.md))
 
 | Where | Motion | Timing |
@@ -149,6 +159,8 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 - Homepage chapters (EP04) read the preference live: pins show their final composition,
   scroll-linked transforms are disabled, Connected Flow shows every step at once and Human
   Error shows the finished annotated scenario — no autoplay, so no pause controls are needed.
+- Industries (EP11): every hero and the overview orbit render in their final state; selector and
+  signature changes are instant; nothing loops or autoplays.
 - For organizations (EP10): the hero shows all four floors at once; every interactive state
   change is instant; nothing pulses or autoplays.
 - Solutions (EP09): the hero shows its final state (frictions and the CORE line) at once; map

@@ -13,6 +13,7 @@ import type { ShellMessages } from '@/i18n/types';
 type FooterLinkId = (typeof FOOTER_GROUPS)[number]['links'][number]['id'];
 
 function linkLabel(t: ShellMessages, id: FooterLinkId) {
+  if (id === 'industries') return t.footer.industries;
   return id === 'overview' || id === 'contact' ? t.nav[id] : t.nav.groups[id].label;
 }
 

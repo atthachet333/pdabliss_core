@@ -3,28 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { MEGA_GROUPS, MEGA_ORDER } from '@/config/navigation';
 import { th } from '@/i18n/messages/th';
+import { PUBLIC_ROUTES } from '@/test/publicRoutes';
 import { renderRoute } from '@/test/render';
-
-const PUBLIC_ROUTES = [
-  '/',
-  '/features',
-  '/pricing',
-  '/how-core-works',
-  '/departments',
-  '/solutions',
-  '/enterprise',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-  // EP06 department pages
-  '/departments/executive',
-  '/departments/sales',
-  '/departments/operations',
-  '/departments/warehouse',
-  '/departments/purchasing',
-  '/departments/accounting',
-];
 
 const THAI_TOP_LEVEL = [
   'ภาพรวม',

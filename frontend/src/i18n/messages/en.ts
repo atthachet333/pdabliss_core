@@ -159,7 +159,7 @@ export const en: ShellMessages = {
           eyebrow: 'Built around your process',
           statement: 'Every organization’s problems are different.',
           body: 'CORE is designed to start from your real processes — not to force every company into the same way of working.',
-          cta: 'See use cases',
+          cta: 'Explore by industry',
         },
       },
       enterprise: {
@@ -239,6 +239,7 @@ export const en: ShellMessages = {
     email: 'Email',
     developedBy: 'Developed by PDA BLISS COMPANY LIMITED',
     groups: { quick: 'Quick links', company: 'Company' },
+    industries: 'Industries',
     contactHeading: 'Contact us',
     address: 'Address',
     phone: 'Phone',

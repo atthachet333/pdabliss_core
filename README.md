@@ -64,8 +64,11 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 
 ## Routes
 
-Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`, `/pricing`,
-`/about`, `/contact`, `/login`, `/privacy`, `/terms`
+Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`,
+`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/contact`, `/login`,
+`/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
+`frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
+keeps the two in sync).
 
 Pricing (EP07): `/pricing` is the package & subscription experience — four packages, annual
 relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a plan. See
@@ -79,6 +82,12 @@ organizational controls — role-based visibility, approval control, traceabilit
 visibility, custom workflow, integration, multi-branch, implementation, support and an honest
 readiness model (every capability carries a status). See
 [docs/ENTERPRISE_EXPERIENCE.md](docs/ENTERPRISE_EXPERIENCE.md).
+
+Industries (EP11): `/industries` and six industry pages — distribution, services, projects,
+retail operations, property operations and manufacturing — show how the same CORE principles
+adapt to different operating environments, each with its own visual motif, example workflow,
+manager signals and explicit boundaries. See
+[docs/INDUSTRIES_EXPERIENCE.md](docs/INDUSTRIES_EXPERIENCE.md).
 
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
@@ -153,6 +162,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP09_REPORT.md](docs/EP09_REPORT.md) — operational solutions experience
 - [docs/ENTERPRISE_EXPERIENCE.md](docs/ENTERPRISE_EXPERIENCE.md) — for organizations: model, statuses, access, control, readiness
 - [docs/EP10_REPORT.md](docs/EP10_REPORT.md) — enterprise organization experience
+- [docs/INDUSTRIES_EXPERIENCE.md](docs/INDUSTRIES_EXPERIENCE.md) — industries: shared vs variable model, six environments, boundaries
+- [docs/EP11_REPORT.md](docs/EP11_REPORT.md) — industry experience pages
 
 ---
 

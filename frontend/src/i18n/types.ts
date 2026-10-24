@@ -81,6 +81,8 @@ export interface ShellMessages {
     email: string;
     developedBy: string;
     groups: { quick: string; company: string };
+    /** Footer link to /industries (not a mega group). */
+    industries: string;
     contactHeading: string;
     address: string;
     phone: string;

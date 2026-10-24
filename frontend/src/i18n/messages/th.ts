@@ -138,7 +138,7 @@ export const th: ShellMessages = {
           eyebrow: 'Built around your process',
           statement: 'ปัญหาของแต่ละองค์กรไม่เหมือนกัน',
           body: 'CORE ถูกออกแบบให้เริ่มจากกระบวนการจริงขององค์กร ไม่ใช่บังคับทุกบริษัทให้ใช้วิธีเดียวกัน',
-          cta: 'ดูตัวอย่างการใช้งาน',
+          cta: 'ดูตามประเภทธุรกิจ',
         },
       },
       enterprise: {
@@ -214,6 +214,7 @@ export const th: ShellMessages = {
     email: 'Email',
     developedBy: 'พัฒนาโดย PDA BLISS COMPANY LIMITED',
     groups: { quick: 'ลิงก์ด่วน', company: 'องค์กร' },
+    industries: 'ประเภทธุรกิจ',
     contactHeading: 'ติดต่อเรา',
     address: 'ที่อยู่',
     phone: 'โทรศัพท์',

@@ -357,7 +357,13 @@ function Swimlanes() {
                           : 'bg-white/[0.06] text-text-primary',
                       )}
                     >
-                      <span className="block text-text-muted tabular">
+                      {/* EP19: the step number keeps AA on the amber "stuck" tint too. */}
+                      <span
+                        className={cn(
+                          'block tabular',
+                          w.id === IND.stuckAt ? 'text-warning/80' : 'text-text-muted',
+                        )}
+                      >
                         {String(i + 1).padStart(2, '0')}
                       </span>
                       {s.steps[w.id]}

@@ -1,6 +1,7 @@
 import {
   BellRing,
   Check,
+  CircleDashed,
   FileWarning,
   History,
   Hourglass,
@@ -176,21 +177,34 @@ export function ApprovalChapter() {
                     ? 'border-info/60 bg-info/[0.06]'
                     : done
                       ? 'border-border-brand/50 bg-surface-raised'
-                      : 'border-border-soft',
-                  ahead && 'opacity-50',
+                      : // EP19: stages not reached yet read as dashed and quieter, with a label —
+                        // not faded below readable contrast.
+                        'border-dashed border-border-soft',
                 )}
               >
                 <span className="text-caption text-text-muted tabular">
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <p className="mt-1 text-label font-semibold text-text-primary">
+                <p
+                  className={cn(
+                    'mt-1 text-label font-semibold',
+                    ahead ? 'text-text-secondary' : 'text-text-primary',
+                  )}
+                >
                   {a.stages[stage].title}
                 </p>
                 <p className="mt-1 text-caption text-text-secondary">{a.stages[stage].body}</p>
-                <StatusBadge
-                  status={status === 'normal' ? 'waiting' : status}
-                  className={cn('mt-2', ahead && 'invisible')}
-                />
+                {ahead ? (
+                  <span
+                    data-not-yet
+                    className="mt-2 inline-flex items-center gap-1 text-caption text-text-muted"
+                  >
+                    <CircleDashed aria-hidden className="size-3.5 shrink-0" />
+                    {a.notYet}
+                  </span>
+                ) : (
+                  <StatusBadge status={status === 'normal' ? 'waiting' : status} className="mt-2" />
+                )}
                 {waiting && (
                   <span className="mt-2 flex items-center gap-1.5 text-caption font-medium text-info">
                     <Hourglass aria-hidden className="size-3.5" />

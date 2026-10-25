@@ -301,7 +301,7 @@ export function DataChapter() {
             </ol>
           </div>
 
-          <aside
+          <section
             data-go-live
             aria-labelledby="go-live-title"
             className="self-start rounded-[2rem] bg-surface-base/60 bg-[radial-gradient(ellipse_90%_80%_at_20%_0%,rgb(245_184_75/0.07),transparent_70%)] p-6 sm:p-8 lg:mt-16"
@@ -324,7 +324,7 @@ export function DataChapter() {
             <p className="mt-6 border-t border-white/[0.06] pt-5 text-caption text-text-muted">
               {c.goLive.note}
             </p>
-          </aside>
+          </section>
         </div>
       </Frame>
     </Chapter>

@@ -118,8 +118,10 @@ export function SelectorChapter() {
         <Head id="environments-title" eyebrow={c.selector.eyebrow} title={c.selector.title} />
 
         {wide ? (
+          // EP19: an expanding-column accordion, not ARIA tabs — each panel opens inside its
+          // own column, which a tablist may not contain. Arrow keys, Home and End still move.
           <div
-            role="tablist"
+            role="group"
             aria-label={c.selector.label}
             onKeyDown={(e) => tabKeys(INDUSTRY_IDS.length, index, setIndex, refs)(e)}
             className="mt-14 flex min-h-[40rem] gap-2"
@@ -142,11 +144,9 @@ export function SelectorChapter() {
                       refs.current[i] = el;
                     }}
                     type="button"
-                    role="tab"
                     id={`env-tab-${x}`}
-                    aria-selected={on}
+                    aria-expanded={on}
                     aria-controls={on ? 'env-panel' : undefined}
-                    tabIndex={on ? 0 : -1}
                     onClick={() => setIndex(i)}
                     data-env-tab={x}
                     className={cn(
@@ -174,7 +174,7 @@ export function SelectorChapter() {
                   {on && (
                     <div
                       id="env-panel"
-                      role="tabpanel"
+                      role="region"
                       aria-labelledby={`env-tab-${x}`}
                       className="flex-1 px-8 pt-6 pb-8"
                     >

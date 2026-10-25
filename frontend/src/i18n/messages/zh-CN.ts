@@ -8,7 +8,7 @@ import type { ShellMessages } from '../types';
 export const zhCN: ShellMessages = {
   shell: {
     skipToContent: '跳至主要内容',
-    home: 'PDA BLISS CORE 首页',
+    home: 'PDA BLISS CORE Department Operations — 首页',
   },
   header: {
     primaryNav: '主导航',

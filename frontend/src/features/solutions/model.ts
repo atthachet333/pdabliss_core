@@ -138,8 +138,9 @@ export const MAP_NODES: Record<MapNode, { x: number; y: number }> = {
   sales: { x: 100, y: 150 },
   operations: { x: 540, y: 150 },
   accounting: { x: 90, y: 330 },
-  purchasing: { x: 260, y: 405 },
-  warehouse: { x: 470, y: 395 },
+  // EP19: spread so the receipt chip between them never covers either name (≥ 768 px map).
+  purchasing: { x: 255, y: 405 },
+  warehouse: { x: 510, y: 395 },
 };
 
 /** CORE sits at the centre of the map. */

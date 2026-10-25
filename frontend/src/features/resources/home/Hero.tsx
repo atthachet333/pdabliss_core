@@ -51,7 +51,7 @@ export function ResourceSearch() {
           autoComplete="off"
           aria-describedby={`${id}-status`}
           aria-controls={`${id}-results`}
-          className="h-13 w-full rounded-full border border-border-strong bg-surface-raised/70 pr-12 pl-11 text-body text-text-primary placeholder:text-text-muted focus:border-brand-glow focus:shadow-glow-sm focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+          className="h-13 w-full rounded-full border border-border-strong bg-surface-raised/70 pr-12 pl-11 text-body text-text-primary placeholder:text-text-muted focus:border-brand-glow focus:shadow-glow-sm [&::-webkit-search-cancel-button]:hidden"
         />
         {query && (
           <button

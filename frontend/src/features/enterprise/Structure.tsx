@@ -395,7 +395,8 @@ export function AccessChapter() {
                     )}
                   >
                     <dt
-                      className={cn('text-caption', on ? 'text-text-muted' : 'text-text-muted/70')}
+                      // EP19: the hatched cell already marks 'not visible'; the label keeps AA contrast.
+                      className="text-caption text-text-muted"
                     >
                       {c.fields[f].label}
                     </dt>

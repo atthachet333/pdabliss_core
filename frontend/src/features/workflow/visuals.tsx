@@ -1,5 +1,5 @@
 import { AlertTriangle, Ban, CheckCircle2, Circle, Clock, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link } from 'react-router';
 import { useMediaQuery } from '@/components/core/hooks';
 import { isDeptKey } from '@/features/departments/catalog';
@@ -208,6 +208,9 @@ function nodeShape(status: Status, x: number, y: number, color: string, active: 
 
 /** Desktop: the work as a glowing line across department rails. */
 export function RouteMap({ steps, current, emphasis, raised, label, className }: RouteViewProps) {
+  // EP19: unique per instance — the scene renders twice (desktop / phone), and a duplicate
+  // id can resolve to the hidden copy, which some browsers do not paint.
+  const glowId = useId();
   const c = useCopy(WORKFLOW).common;
   const laneName = useLaneName();
   const n = steps.length;
@@ -232,7 +235,7 @@ export function RouteMap({ steps, current, emphasis, raised, label, className }:
     <figure aria-label={label} className={cn('relative', className)} data-route-map>
       <svg aria-hidden viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
         <defs>
-          <filter id="route-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="4" />
           </filter>
         </defs>
@@ -318,7 +321,7 @@ export function RouteMap({ steps, current, emphasis, raised, label, className }:
               stroke="var(--color-brand-glow)"
               strokeOpacity="0.35"
               strokeWidth="7"
-              filter="url(#route-glow)"
+              filter={`url(#${glowId})`}
             />
             <path d={seg(0, upto)} fill="none" stroke="var(--color-brand-glow)" strokeWidth="2.4" />
           </>
@@ -406,12 +409,12 @@ export function RouteMap({ steps, current, emphasis, raised, label, className }:
               aria-current={current !== undefined && i === upto ? 'step' : undefined}
               className={cn(
                 'flex items-baseline gap-2',
+                // EP19: steps ahead stay at readable contrast (no extra fade); the map shows progress.
                 current !== undefined && i === upto ? 'text-text-primary' : 'text-text-muted',
-                ahead && 'opacity-60',
               )}
             >
               <span className="w-5 shrink-0 text-right tabular">{i + 1}</span>
-              <span className="min-w-0 truncate">
+              <span className="min-w-0">
                 {c.steps[s.id].title}
                 <span className="sr-only">
                   {' '}
@@ -469,18 +472,26 @@ export function RouteStack({
               className={cn(
                 'relative flex gap-3 rounded-xl py-2 pr-2 pl-0 transition-opacity duration-300',
                 focus && 'bg-surface-raised/70',
-                dim && 'opacity-45',
               )}
             >
               <span
                 aria-hidden
-                className="relative z-10 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border text-caption font-semibold tabular"
+                className={cn(
+                  'relative z-10 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border text-caption font-semibold tabular',
+                  dim && 'opacity-45',
+                )}
                 style={{ borderColor: laneColor(s.actor), background: 'var(--color-surface-base)' }}
               >
                 {i + 1}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-label font-medium text-text-primary">
+                {/* EP19: de-emphasis by a quieter title and step mark, never below readable contrast. */}
+                <span
+                  className={cn(
+                    'block text-label font-medium',
+                    dim ? 'text-text-secondary' : 'text-text-primary',
+                  )}
+                >
                   {c.steps[s.id].title}
                 </span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-caption text-text-muted">

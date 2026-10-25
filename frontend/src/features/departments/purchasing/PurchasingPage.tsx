@@ -15,6 +15,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { Reveal, RevealItem } from '@/motion/Reveal';
+import { useScrollRegion } from '@/components/ui/useScrollRegion';
 import {
   ConnectedDepartments,
   DeptCta,
@@ -212,10 +213,11 @@ function NeedToPr() {
 function SupplierCompare() {
   const c = useCopy(PURCHASING);
   const s = c.supplier;
+  const scroll = useScrollRegion('pur-supplier');
   return (
     <Section labelledBy="pur-supplier">
       <SectionHead id="pur-supplier" eyebrow={s.eyebrow} title={s.title} lead={s.lead} />
-      <Reveal className="mt-10 overflow-x-auto rounded-card border border-line">
+      <Reveal {...scroll} className="mt-10 overflow-x-auto rounded-card border border-line">
         <table className="w-full min-w-[36rem] text-left text-label">
           <thead className="bg-panel-raised text-caption text-fg-muted">
             <tr>
@@ -224,7 +226,9 @@ function SupplierCompare() {
                   {h}
                 </th>
               ))}
-              <th scope="col" className="px-4 py-3" />
+              <th scope="col" className="px-4 py-3">
+                <span className="sr-only">{s.chosen}</span>
+              </th>
             </tr>
           </thead>
           <tbody>

@@ -137,8 +137,8 @@ export function ResourceArticle({
       {/* Read next — contextual, never "latest" */}
       <Frame width="base" className="mt-12">
         <div className="mx-auto max-w-[46rem]">
-          <section aria-labelledby="next-title" data-next>
-            <h2 id="next-title" className="text-h3 text-text-primary">
+          <section aria-labelledby="read-next-title" data-next>
+            <h2 id="read-next-title" className="text-h3 text-text-primary">
               {a.next}
             </h2>
             <p className="mt-1 text-caption text-text-muted">{a.nextLead}</p>
@@ -329,7 +329,7 @@ export function Callout({
   children: ReactNode;
 }) {
   return (
-    <aside
+    <div
       data-callout={tone}
       className={cn(
         'mt-7 rounded-2xl px-5 py-4 sm:px-6',
@@ -344,7 +344,7 @@ export function Callout({
       <div className={cn('text-label leading-[1.8] text-text-secondary', title && 'mt-1')}>
         {children}
       </div>
-    </aside>
+    </div>
   );
 }
 

@@ -228,6 +228,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/GLOBAL_NAVIGATION.md](docs/GLOBAL_NAVIGATION.md) — four-menu header, menus, mobile menu, footer zones, active state
 - [docs/EP18_REPORT.md](docs/EP18_REPORT.md) — global navigation, visual and motion refinement
 - [docs/EP18_1_REPORT.md](docs/EP18_1_REPORT.md) — dropdown, overlay and disclosure visual polish
+- [docs/ACCESSIBILITY_RESPONSIVE.md](docs/ACCESSIBILITY_RESPONSIVE.md) — public accessibility, keyboard, responsive and browser baseline
+- [docs/EP19_REPORT.md](docs/EP19_REPORT.md) — responsive and accessibility hardening report
 
 ---
 

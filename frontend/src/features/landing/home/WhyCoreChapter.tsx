@@ -1,5 +1,5 @@
 import { motion, useTransform, type MotionValue } from 'framer-motion';
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { Container } from '@/components/ui/Section';
 import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
@@ -107,26 +107,29 @@ function Slice({ i, t }: { i: number; t: MotionValue<number> }) {
 }
 
 function Philosophy({ t, state }: { t: MotionValue<number> | null; state: 'A' | 'B' }) {
+  // EP19: unique per instance — the scene renders twice (desktop / phone), and a duplicate
+  // id can resolve to the hidden copy, which some browsers do not paint.
+  const glowId = useId();
   return (
     <svg viewBox="0 0 800 520" className="w-full" aria-hidden>
       <defs>
-        <radialGradient id="why-core-glow">
+        <radialGradient id={glowId}>
           <stop offset="0%" stopColor="#3ef0c0" stopOpacity="0.55" />
           <stop offset="100%" stopColor="#19c39a" stopOpacity="0" />
         </radialGradient>
       </defs>
-      {t ? <MorphLayers t={t} /> : <StaticLayers state={state} />}
+      {t ? <MorphLayers t={t} glowId={glowId} /> : <StaticLayers state={state} glowId={glowId} />}
     </svg>
   );
 }
 
-function MorphLayers({ t }: { t: MotionValue<number> }) {
+function MorphLayers({ t, glowId }: { t: MotionValue<number>; glowId: string }) {
   const aFade = useTransform(t, [0.15, 0.4], [1, 0]);
   const bFade = useTransform(t, [0.55, 0.8], [0, 1]);
   return (
     <>
       <motion.g style={{ opacity: bFade }}>
-        <circle cx={400} cy={260} r={120} fill="url(#why-core-glow)" />
+        <circle cx={400} cy={260} r={120} fill={`url(#${glowId})`} />
         {B.map((b, i) => (
           <line
             key={i}
@@ -157,13 +160,13 @@ function MorphLayers({ t }: { t: MotionValue<number> }) {
   );
 }
 
-function StaticLayers({ state }: { state: 'A' | 'B' }) {
+function StaticLayers({ state, glowId }: { state: 'A' | 'B'; glowId: string }) {
   const geo = state === 'A' ? A : B;
   return (
     <>
       {state === 'B' && (
         <>
-          <circle cx={400} cy={260} r={120} fill="url(#why-core-glow)" />
+          <circle cx={400} cy={260} r={120} fill={`url(#${glowId})`} />
           {B.map((b, i) => (
             <line
               key={i}
@@ -351,7 +354,7 @@ export function WhyCoreChapter() {
                   key={p.k}
                   aria-hidden={!p.on}
                   className={cn(
-                    'absolute inset-0 transition-[opacity,transform] duration-700',
+                    'absolute inset-0 transition-[opacity,translate] duration-700',
                     p.on
                       ? 'translate-y-0 opacity-100'
                       : 'pointer-events-none translate-y-3 opacity-0',

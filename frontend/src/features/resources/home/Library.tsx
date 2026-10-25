@@ -112,7 +112,8 @@ export function SecurityAndImplementation() {
   const c = useCopy(RESOURCES_COPY);
   const names = useCopy(JOURNEY_NAMES);
   return (
-    <Chapter id="practice" labelledBy="security-teaser-title" plane="deep" space="md">
+    // EP19: no chapter name — its two teasers are the named regions (no duplicate landmark).
+    <Chapter id="practice" plane="deep" space="md">
       <Frame width="wide" className="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:gap-20">
         <section aria-labelledby="security-teaser-title" data-teaser="security">
           <Kicker tone="clear">{c.security.eyebrow}</Kicker>

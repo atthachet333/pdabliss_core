@@ -361,9 +361,9 @@ function PrincipleAnchor({
       data-principle-anchor={p}
       data-active={active}
       className={cn(
-        'flex items-center gap-4 py-6 transition-opacity duration-500',
+        'flex items-center gap-4 py-6',
         side === 'right' && 'lg:flex-row-reverse lg:text-right',
-        active ? 'opacity-100' : 'opacity-40',
+        // EP19: inactive principles are quieter by colour and icon, not faded below AA.
       )}
     >
       <span
@@ -386,7 +386,14 @@ function PrincipleAnchor({
         >
           {p.toUpperCase()}
         </p>
-        <p className="mt-1.5 text-label text-text-secondary">{c.humanError.principles[p]}</p>
+        <p
+          className={cn(
+            'mt-1.5 text-label transition-colors duration-500',
+            active ? 'text-text-secondary' : 'text-text-muted',
+          )}
+        >
+          {c.humanError.principles[p]}
+        </p>
       </div>
       {/* The wire back to the spine */}
       <span
@@ -637,7 +644,6 @@ export function ApprovalStory() {
                     className={cn(
                       'relative flex gap-4 pb-8 transition-opacity duration-500 lg:flex-col lg:gap-0 lg:pb-0',
                       stage === 'waiting' ? 'lg:flex-[2.6]' : 'lg:flex-1',
-                      ahead && 'opacity-40',
                     )}
                   >
                     {/* The tension zone behind "waiting" */}
@@ -666,7 +672,8 @@ export function ApprovalStory() {
                           paused
                             ? 'size-10 shadow-[0_0_30px_-4px_rgb(108_184_255/0.7)] ring-info'
                             : 'size-8 ring-brand-glow/80',
-                          !paused && !done && 'ring-white/15',
+                          // EP19: a stage not reached yet has a dashed marker (shape, not only fade).
+                          !paused && !done && 'ring-0 outline-1 outline-white/30 outline-dashed',
                           paused && 'lg:ml-[calc(50%-1.25rem)]',
                         )}
                       >
@@ -683,7 +690,8 @@ export function ApprovalStory() {
                       </p>
                       <p
                         className={cn(
-                          'mt-0.5 font-semibold text-text-primary',
+                          'mt-0.5 font-semibold',
+                          ahead ? 'text-text-secondary' : 'text-text-primary',
                           paused ? 'text-h3' : 'text-body',
                         )}
                       >
@@ -705,6 +713,11 @@ export function ApprovalStory() {
                       )}
                       {done && stage !== 'waiting' && (
                         <ToneBadge tone="resolved" className="mt-2" />
+                      )}
+                      {ahead && (
+                        <p data-not-yet className="mt-2 text-caption text-text-muted">
+                          {a.notYet}
+                        </p>
                       )}
                     </div>
                   </li>

@@ -67,7 +67,7 @@ function statusOf(phase: GatePhase): keyof typeof STATUS_ICON {
 
 export function LoginGateway() {
   const c = useCopy(LOGIN_COPY);
-  const { href } = useLocale();
+  const { t, href } = useLocale();
   // Sign-in is not a landing page: keep it out of search results (EP15, EP17).
   usePageMeta(c.meta.title, c.meta.description, { index: false });
   const reduce = usePrefersReducedMotion();
@@ -132,6 +132,13 @@ export function LoginGateway() {
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-surface-dark">
+      {/* EP19: the same skip link as the public shell — past the home links to the form. */}
+      <a
+        href="#main"
+        className="sr-only z-90 rounded-full bg-brand-primary px-4 py-2 text-text-inverse focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        {t.shell.skipToContent}
+      </a>
       <div
         aria-hidden
         className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_45%_55%_at_70%_45%,rgb(25_195_154/0.12),transparent_70%),radial-gradient(ellipse_60%_50%_at_10%_100%,rgb(9_19_31/0.9),transparent_70%)]"
@@ -161,7 +168,8 @@ export function LoginGateway() {
 
       <main
         id="main"
-        className="mx-auto grid w-full max-w-[1640px] flex-1 grid-cols-1 content-start px-4 pb-10 sm:px-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(25rem,28rem)] lg:content-center lg:items-center lg:px-10 lg:pb-14"
+        tabIndex={-1}
+        className="mx-auto grid w-full max-w-[1640px] flex-1 grid-cols-1 content-start px-4 pb-10 outline-none sm:px-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(25rem,28rem)] lg:content-center lg:items-center lg:px-10 lg:pb-14"
       >
         {/* Outside → gate. Compact above the form on smaller screens. */}
         <div className="pointer-events-none lg:flex lg:h-[min(36rem,calc(100dvh-9rem))] lg:items-center lg:justify-end 2xl:h-[min(46rem,calc(100dvh-9rem))]">
@@ -290,8 +298,9 @@ export function LoginGateway() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
+                    // EP19: the label alone carries the state ("Show" / "Hide password");
+                    // aria-pressed as well announced it twice ("Hide password, pressed").
                     aria-label={showPassword ? c.hide : c.show}
-                    aria-pressed={showPassword}
                     aria-controls="login-password"
                     className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-control text-text-muted hover:text-text-primary"
                   >

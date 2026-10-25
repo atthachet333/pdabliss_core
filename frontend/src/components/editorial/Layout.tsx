@@ -39,7 +39,8 @@ export function Chapter({
   data,
 }: {
   id?: string;
-  labelledBy: string;
+  /** Omit when the chapter only groups sections that carry their own names (EP19). */
+  labelledBy?: string;
   plane?: Plane;
   space?: keyof typeof SPACE;
   className?: string;

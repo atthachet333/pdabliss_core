@@ -250,7 +250,8 @@ export function DepartmentWorldsChapter() {
                 )}
                 <Link
                   to={href(departmentLink(world.id))}
-                  className="mt-8 inline-flex w-fit items-center gap-2 rounded-full text-label font-medium text-text-primary underline-offset-4 hover:underline"
+                  // EP19: a 44 px target (was 23 px tall); the visual weight is unchanged.
+                  className="mt-6 inline-flex min-h-11 w-fit items-center gap-2 rounded-full text-label font-medium text-text-primary underline-offset-4 hover:underline"
                 >
                   {c.details(world.name)}
                   <ArrowRight className="size-4" aria-hidden />

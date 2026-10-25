@@ -274,7 +274,9 @@ function Planning() {
                 <th
                   scope="col"
                   className="w-20 px-3 py-2 text-left font-medium text-text-muted sm:w-24"
-                />
+                >
+                  <span className="sr-only">{c.planning.team}</span>
+                </th>
                 {c.planning.days.map((d) => (
                   <th key={d} scope="col" className="px-1 py-2 font-medium text-text-secondary">
                     {d}

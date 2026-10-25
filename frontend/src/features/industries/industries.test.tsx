@@ -321,18 +321,25 @@ describe('/industries overview', () => {
     );
   });
 
-  it('uses a cinematic tab rail on wide screens with keyboard support', async () => {
+  it('uses a cinematic expanding rail on wide screens with keyboard support', async () => {
     window.matchMedia = ((query: string) => ({
       ...original(query),
       matches: query.includes('min-width: 64rem'),
     })) as typeof window.matchMedia;
     await open('/industries');
-    const tabs = within(document.getElementById('environments')!).getAllByRole('tab');
-    expect(tabs).toHaveLength(6);
-    tabs[0]!.focus();
+    const env = document.getElementById('environments')!;
+    // EP19: an accordion of disclosure buttons — no tab roles around nested panels.
+    expect(within(env).queryAllByRole('tab')).toHaveLength(0);
+    const columns = within(env).getAllByRole('button', { expanded: false });
+    expect(within(env).getAllByRole('button', { expanded: true })).toHaveLength(1);
+    expect(columns).toHaveLength(5);
+    const first = within(env).getByRole('button', { expanded: true });
+    first.focus();
     await userEvent.keyboard('{End}');
-    expect(tabs[5]).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('Work Order');
+    const opened = within(env).getByRole('button', { expanded: true });
+    expect(opened).toHaveFocus();
+    expect(opened).toHaveAttribute('aria-controls', 'env-panel');
+    expect(within(env).getByRole('region')).toHaveTextContent('Work Order');
   });
 
   it('draws six different workflow silhouettes', async () => {

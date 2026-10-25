@@ -49,7 +49,7 @@ export function NodeLabel({
     >
       <div
         className={cn(
-          'w-[7.5rem] overflow-hidden rounded-xl border bg-surface-base/90 transition-[transform,border-color,box-shadow,opacity,filter] duration-300 ease-out lg:w-[9.25rem] xl:w-[10rem]',
+          'w-[7.5rem] overflow-hidden rounded-xl border bg-surface-base/90 transition-[scale,border-color,box-shadow,opacity,filter] duration-300 ease-out lg:w-[9.25rem] xl:w-[10rem]',
           active
             ? 'scale-[1.08] border-border-brand shadow-[0_0_0_1px_rgb(62_240_192/0.35),0_18px_40px_-14px_rgb(25_195_154/0.55)]'
             : 'border-border-strong shadow-[0_16px_34px_-18px_rgb(0_0_0/0.9)] hover:border-border-brand',

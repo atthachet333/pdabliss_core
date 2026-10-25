@@ -36,6 +36,9 @@ describe('CORE World department imagery', () => {
       expect(card).toHaveAttribute('aria-hidden', 'true');
       expect(card.querySelector('img')).toHaveAttribute('src', `/departments/${id}-sm.webp`);
       expect(card.querySelector('img')).toHaveAttribute('alt', '');
+      expect(card.firstElementChild).toHaveClass(
+        'transition-[scale,border-color,box-shadow,opacity,filter]',
+      );
     }
     expect(cards[0]).toHaveTextContent('ฝ่ายขาย');
     expect(cards[0]).toHaveTextContent('Sales');

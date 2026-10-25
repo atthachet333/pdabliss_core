@@ -300,7 +300,10 @@ export function VisibilityChapter() {
                       <span
                         className={cn(
                           'max-w-[55%] min-w-0 text-right break-words tabular',
-                          on ? 'text-text-secondary' : 'text-text-muted/60',
+                          // EP19: a value that stops here is struck through at readable contrast (was 2.6:1).
+                          on
+                            ? 'text-text-secondary'
+                            : 'text-text-muted line-through decoration-text-muted/70',
                         )}
                       >
                         {c.fields[f].value}

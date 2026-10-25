@@ -74,7 +74,9 @@ export default function WarehousePrivacyGuide() {
           <table data-clearance className="w-full table-fixed border-collapse text-left">
             <thead>
               <tr>
-                <td className="w-[36%] sm:w-[28%]" />
+                <th scope="col" className="w-[36%] sm:w-[28%]">
+                  <span className="sr-only">{c.classes.view}</span>
+                </th>
                 {CLASSES.map((k) => (
                   <th
                     key={k}

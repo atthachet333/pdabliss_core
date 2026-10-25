@@ -291,6 +291,13 @@ describe('/pricing page', () => {
 });
 
 describe('configurator', () => {
+  it('exposes the configuration summary as a named region inside main', async () => {
+    await openPricing();
+    expect(within(main()).getByRole('region', { name: 'สรุปการตั้งค่า' })).toContainElement(
+      summary(),
+    );
+  });
+
   it('blocks Executive in Starter, explaining why, and enforces 2 departments', async () => {
     await openPricing('/pricing?plan=starter');
     expect(deptButton('executive')).toHaveAttribute('aria-disabled', 'true');

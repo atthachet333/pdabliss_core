@@ -57,7 +57,7 @@ describe('public header (EP18)', () => {
     expect(login.querySelector('.sr-only')).toBeNull();
     expect(login).toHaveTextContent('เข้าสู่ระบบ');
     expect(contact.compareDocumentPosition(login) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(header).getByRole('button', { name: 'ภาษา: ภาษาไทย' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'ภาษา: ภาษาไทย (TH)' })).toBeInTheDocument();
   });
 
   it('every menu has an intro, titled sections, live links and one featured destination', async () => {
@@ -301,7 +301,9 @@ describe('mobile navigation', () => {
     );
 
     // Shift+Tab from the first control wraps inside the dialog.
-    within(dialog).getByRole('link', { name: 'PDA BLISS CORE หน้าแรก' }).focus();
+    within(dialog)
+      .getByRole('link', { name: 'PDA BLISS CORE Department Operations — หน้าแรก' })
+      .focus();
     await userEvent.tab({ shift: true });
     expect(dialog.contains(document.activeElement)).toBe(true);
 

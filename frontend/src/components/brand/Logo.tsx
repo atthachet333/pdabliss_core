@@ -55,6 +55,7 @@ export function Logo({ className, compact = false }: { className?: string; compa
         <span className="text-[0.95rem] font-semibold tracking-[0.14em] text-text-primary">
           PDA BLISS <span className="text-brand-glow">CORE</span>
         </span>
+        {/* EP19: a real space, so the accessible text reads "… CORE Department Operations". */}{' '}
         {!compact && (
           <span className="mt-1 text-[0.6875rem] tracking-[0.16em] text-text-muted uppercase">
             Department Operations

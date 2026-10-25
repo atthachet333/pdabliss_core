@@ -337,7 +337,8 @@ export function ProblemMap() {
   const c = useCopy(SOLUTIONS_COPY);
   const m = c.map;
   const departments = useDepartments();
-  const wide = useMediaQuery('(min-width: 48rem)');
+  // EP19: the spatial map needs a ~750 px canvas; narrower screens get the list (no overlaps).
+  const wide = useMediaQuery('(min-width: 50rem)');
   const [view, setView] = useState<'before' | 'after'>('before');
   const resolved = view === 'after';
   const placed = SOLUTIONS.filter((s) => s.between);
@@ -362,9 +363,11 @@ export function ProblemMap() {
   );
   return (
     <Chapter id={SECTION.map} labelledBy="map-title" plane="grid" space="lg">
+      {/* EP19: side by side only from 1280 px — in a ~600 px column (1024–1279) the
+          fixed-size chips collided and covered department names. */}
       <Frame
         width="full"
-        className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]"
+        className="grid grid-cols-1 items-center gap-12 xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] xl:gap-6"
       >
         <div className="relative z-10">
           <Kicker tone="clear">{m.eyebrow}</Kicker>

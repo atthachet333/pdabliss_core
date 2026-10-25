@@ -18,6 +18,7 @@ import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { EASE_CORE } from '@/motion/tokens';
 import { Reveal, RevealItem } from '@/motion/Reveal';
+import { useScrollRegion } from '@/components/ui/useScrollRegion';
 import { tabKeys } from '../tabs';
 import {
   ConnectedDepartments,
@@ -269,10 +270,11 @@ function Receiving() {
 function Stock() {
   const c = useCopy(WAREHOUSE);
   const s = c.stock;
+  const scroll = useScrollRegion('wh-stock');
   return (
     <Section labelledBy="wh-stock">
       <SectionHead id="wh-stock" eyebrow={s.eyebrow} title={s.title} lead={s.lead} />
-      <Reveal className="mt-10 overflow-x-auto rounded-card border border-line">
+      <Reveal {...scroll} className="mt-10 overflow-x-auto rounded-card border border-line">
         <table className="w-full min-w-[32rem] text-left text-label">
           <thead className="bg-panel-raised text-caption text-fg-muted">
             <tr>
@@ -558,15 +560,21 @@ function Movement() {
 function Count() {
   const c = useCopy(WAREHOUSE);
   const k = c.count;
+  const scroll = useScrollRegion('wh-count');
   return (
     <Section labelledBy="wh-count">
       <SectionHead id="wh-count" eyebrow={k.eyebrow} title={k.title} lead={k.lead} />
       <div className="mt-10 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Reveal className="overflow-x-auto rounded-card border border-line">
+        <Reveal {...scroll} className="overflow-x-auto rounded-card border border-line">
           <table className="w-full min-w-[28rem] text-left text-label">
             <thead className="bg-panel-raised text-caption text-fg-muted">
               <tr>
-                <th scope="col" className="px-4 py-3 font-medium" />
+                {/* EP19: the row-label column is named for screen readers (location · lot). */}
+                <th scope="col" className="px-4 py-3 font-medium">
+                  <span className="sr-only">
+                    {c.stock.cols.location} · {c.stock.cols.lots}
+                  </span>
+                </th>
                 <th scope="col" className="px-4 py-3 font-medium">
                   {k.system}
                 </th>

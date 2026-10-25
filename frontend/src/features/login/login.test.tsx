@@ -128,9 +128,9 @@ describe('prototype sign-in (mechanics preserved)', () => {
     expect(toggle).toHaveClass('w-12');
     await userEvent.click(toggle);
     expect(input).toHaveAttribute('type', 'text');
-    expect(screen.getByRole('button', { name: 'ซ่อนรหัสผ่าน' })).toHaveAttribute(
+    // EP19: one state signal — the label — not label + aria-pressed.
+    expect(screen.getByRole('button', { name: 'ซ่อนรหัสผ่าน' })).not.toHaveAttribute(
       'aria-pressed',
-      'true',
     );
     await userEvent.click(screen.getByRole('button', { name: 'ซ่อนรหัสผ่าน' }));
     expect(input).toHaveAttribute('type', 'password');

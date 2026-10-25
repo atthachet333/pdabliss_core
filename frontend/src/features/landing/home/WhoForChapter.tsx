@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { Container } from '@/components/ui/Section';
 import { cn } from '@/lib/cn';
 import { useCopy, type Localized } from '@/i18n/useCopy';
@@ -175,6 +175,9 @@ function OrgEvolution({
   reduce: boolean;
   className?: string;
 }) {
+  // EP19: unique per instance — the scene renders twice (desktop / phone), and a duplicate
+  // id can resolve to the hidden copy, which some browsers do not paint.
+  const glowId = useId();
   const c = useCopy(COPY);
   const t = { duration: reduce ? 0 : 0.9, ease: EASE_CORE };
   const showHubs = stage >= 1;
@@ -183,7 +186,7 @@ function OrgEvolution({
   return (
     <svg viewBox="0 0 600 600" className={className} aria-hidden>
       <defs>
-        <radialGradient id="org-core">
+        <radialGradient id={glowId}>
           <stop offset="0%" stopColor="#3ef0c0" stopOpacity="0.9" />
           <stop offset="60%" stopColor="#19c39a" stopOpacity="0.35" />
           <stop offset="100%" stopColor="#19c39a" stopOpacity="0" />
@@ -319,7 +322,7 @@ function OrgEvolution({
         transition={{ ...t, delay: reduce ? 0 : 0.15 }}
         style={{ transformOrigin: '300px 300px' }}
       >
-        <circle cx={C} cy={C} r={70} fill="url(#org-core)" />
+        <circle cx={C} cy={C} r={70} fill={`url(#${glowId})`} />
         <circle cx={C} cy={C} r={30} fill="#0a1620" stroke="#3ef0c0" strokeWidth="1.5" />
         <text x={C} y={C + 5} textAnchor="middle" fill="#3ef0c0" fontSize="13" letterSpacing="3">
           CORE
@@ -372,14 +375,27 @@ export function WhoForChapter() {
                     key={s.key}
                     aria-current={on ? 'step' : undefined}
                     className={cn(
-                      'border-l py-4 pl-6 transition-[border-color,opacity] duration-500',
-                      on ? 'border-brand-glow opacity-100' : 'border-border-soft opacity-45',
+                      'border-l py-4 pl-6 transition-colors duration-500',
+                      // EP19: inactive stages are quieter by colour, not faded below AA contrast.
+                      on ? 'border-brand-glow' : 'border-border-soft',
                     )}
                   >
-                    <p className="text-caption font-semibold tracking-[0.22em] text-brand-glow">
+                    <p
+                      className={cn(
+                        'text-caption font-semibold tracking-[0.22em] transition-colors duration-500',
+                        on ? 'text-brand-glow' : 'text-text-muted',
+                      )}
+                    >
                       {s.key}
                     </p>
-                    <h3 className="mt-1 text-h3 text-text-primary">{s.name}</h3>
+                    <h3
+                      className={cn(
+                        'mt-1 text-h3 transition-colors duration-500',
+                        on ? 'text-text-primary' : 'text-text-secondary',
+                      )}
+                    >
+                      {s.name}
+                    </h3>
                     <p className="text-caption tracking-[0.12em] text-text-muted uppercase">
                       {s.en}
                     </p>

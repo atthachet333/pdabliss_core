@@ -264,7 +264,15 @@ export function ConsultChapter() {
                     : 'bg-white/[0.04] text-text-secondary',
                 )}
               >
-                <span className="text-caption text-text-muted tabular">{i + 1}</span>
+                {/* EP19: on the emerald-tinted step the number takes the soft brand tone (AA). */}
+                <span
+                  className={cn(
+                    'text-caption tabular',
+                    s === 'quotation' ? 'text-brand-soft' : 'text-text-muted',
+                  )}
+                >
+                  {i + 1}
+                </span>
                 {c.flow[s]}
               </span>
               {i < QUOTE_FLOW.length - 1 && (

@@ -98,7 +98,7 @@ export function UtilityDock() {
   const scrolled = useScrolledPast(pastTop);
   const heroGone = useScrolledPast(pastHero);
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -191,9 +191,9 @@ export function UtilityDock() {
   const overHero = onHome && !heroGone && !open;
 
   return (
-    <div
+    // EP19: a labelled complementary landmark, so nothing on the page sits outside landmarks.
+    <aside
       ref={rootRef}
-      role="group"
       aria-label={t.utility.label}
       data-shell="utility-dock"
       onBlur={(e) => {
@@ -337,6 +337,6 @@ export function UtilityDock() {
           </motion.span>
         </AnimatePresence>
       </button>
-    </div>
+    </aside>
   );
 }

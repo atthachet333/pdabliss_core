@@ -181,9 +181,9 @@ export function PricingFaq() {
                     </button>
                   </h3>
                   <div
+                    // EP19: no region role — fifteen answers would flood the landmark list;
+                    // the button's aria-controls / aria-expanded carry the relationship.
                     id={`faq-a-${i}`}
-                    role="region"
-                    aria-labelledby={`faq-q-${i}`}
                     hidden={!isOpen}
                     className="px-5 pb-5 text-label leading-relaxed text-text-secondary"
                   >

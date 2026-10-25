@@ -618,7 +618,17 @@ describe('warehouse privacy', () => {
     for (const prefix of Object.values(PREFIX)) {
       const { unmount } = await page(`${prefix}/resources/warehouse-privacy`);
       expect(document.getElementById('main')!.textContent).not.toMatch(MONEY_VALUE);
+      const headers = document.querySelectorAll('[data-clearance] thead th[scope="col"]');
+      expect(headers).toHaveLength(4);
+      for (const header of headers) expect(header).toHaveAccessibleName();
       unmount();
     }
   }, 30000);
+
+  it('keeps inline callouts as annotations rather than nested complementary landmarks', async () => {
+    await page('/resources/warehouse-privacy');
+    const callouts = [...document.querySelectorAll('[data-callout]')];
+    expect(callouts.length).toBeGreaterThan(0);
+    for (const callout of callouts) expect(callout.tagName).toBe('DIV');
+  });
 });

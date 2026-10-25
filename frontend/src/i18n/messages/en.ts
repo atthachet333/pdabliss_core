@@ -4,7 +4,7 @@ import type { ShellMessages } from '../types';
 export const en: ShellMessages = {
   shell: {
     skipToContent: 'Skip to main content',
-    home: 'PDA BLISS CORE home',
+    home: 'PDA BLISS CORE Department Operations — home',
   },
   header: {
     primaryNav: 'Main navigation',

@@ -95,10 +95,9 @@ describe('public footer', () => {
       'href',
       '/contact',
     );
-    expect(within(footer).getByRole('link', { name: 'PDA BLISS CORE หน้าแรก' })).toHaveAttribute(
-      'href',
-      '/',
-    );
+    expect(
+      within(footer).getByRole('link', { name: 'PDA BLISS CORE Department Operations — หน้าแรก' }),
+    ).toHaveAttribute('href', '/');
 
     const contact = within(footer).getByRole('heading', { name: 'ติดต่อเรา' }).closest('section')!;
     expect(contact).toHaveTextContent(ADDRESS);
@@ -150,6 +149,20 @@ describe('public footer', () => {
     // footer shortcut + footer details + contact page + floating panel
     expect(lines.length).toBeGreaterThanOrEqual(4);
     for (const a of lines) expect(a.getAttribute('href')).toBe(LINE_URL);
+  });
+});
+
+describe('hash navigation', () => {
+  it('aligns a lazy route target after scroll restoration settles', async () => {
+    acceptStored();
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderRoute('/solutions#approval');
+    await screen.findByRole('heading', { level: 1 });
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    await waitFor(() => expect(scrollIntoView.mock.calls.length).toBeGreaterThanOrEqual(2));
+    Element.prototype.scrollIntoView = original;
   });
 });
 

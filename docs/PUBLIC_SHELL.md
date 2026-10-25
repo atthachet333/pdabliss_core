@@ -380,6 +380,12 @@ in-use chips, switch glyphs); disclosure state shown by the icon's turn as well 
 (EP18.1); touch targets ≥ 44 px (footer text links ≥ 36 px tall in a
 spaced list); `lang` on locale options, the Thai address and `<main>`.
 
+EP19 adds the same skip-link contract to Login, includes each visible Logo/language token in its
+accessible name, lets public pill buttons wrap at enlarged text, and aligns lazy hash targets only
+after router scroll restoration settles. Mobile navigation was keyboard-opened at 320, 375, 390,
+430 and 768 CSS pixels, including a 667×390 landscape viewport; its scrolling region kept
+Language, Contact and Login reachable.
+
 ## SEO, 404 and language switching (EP17)
 
 - **Metadata:** every page calls `usePageMeta(title, description)`. It sets the title,

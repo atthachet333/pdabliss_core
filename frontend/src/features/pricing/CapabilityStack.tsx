@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { cn } from '@/lib/cn';
 
 /*
@@ -234,11 +235,14 @@ export function CapabilityStack({
   label: string;
   className?: string;
 }) {
+  // EP19: unique per instance — the scene renders twice (desktop / phone), and a duplicate
+  // id can resolve to the hidden copy, which some browsers do not paint.
+  const plateId = useId();
   return (
     <figure aria-label={label} className={cn('relative w-full', className)}>
       <svg aria-hidden viewBox="0 0 480 400" className="w-full overflow-visible">
         <defs>
-          <linearGradient id="cap-plate" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={plateId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="var(--color-brand-glow)" stopOpacity="0.2" />
             <stop offset="1" stopColor="var(--color-brand-primary)" stopOpacity="0.06" />
           </linearGradient>
@@ -281,7 +285,7 @@ export function CapabilityStack({
               />
               <path
                 d={rhombus(y)}
-                fill={on ? 'url(#cap-plate)' : 'transparent'}
+                fill={on ? `url(#${plateId})` : 'transparent'}
                 stroke={on ? 'var(--color-brand-glow)' : 'var(--color-border-strong)'}
                 strokeOpacity={top ? 0.85 : on ? 0.45 : 0.6}
                 strokeWidth={top ? 1.6 : 1}

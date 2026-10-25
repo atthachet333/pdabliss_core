@@ -20,13 +20,30 @@ function useHashScroll() {
     const id = decodeURIComponent(hash.slice(1));
     let tries = 0;
     let frame = 0;
+    let settle = 0;
+    let cancelled = false;
+    const align = () => {
+      if (cancelled) return;
+      document.getElementById(id)?.scrollIntoView?.({ block: 'start' });
+    };
     const attempt = () => {
       const el = document.getElementById(id);
-      if (el) el.scrollIntoView?.({ block: 'start' });
-      else if (tries++ < 30) frame = requestAnimationFrame(attempt);
+      if (el) {
+        el.scrollIntoView?.({ block: 'start' });
+        // ScrollRestoration and a lazy route can both settle after this effect.
+        // Align once more after layout, then after the restoration tick.
+        frame = requestAnimationFrame(() => {
+          align();
+          settle = window.setTimeout(align, 50);
+        });
+      } else if (tries++ < 120) frame = requestAnimationFrame(attempt);
     };
     frame = requestAnimationFrame(attempt);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(settle);
+    };
   }, [pathname, hash]);
 }
 

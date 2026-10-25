@@ -89,8 +89,9 @@ function ScheduleBoard() {
                 {...(reduce
                   ? {}
                   : {
-                      initial: { opacity: 0, x: -8 },
-                      animate: { opacity: 1, x: 0 },
+                      // Keep the label at full contrast throughout its short entrance.
+                      initial: { x: -8 },
+                      animate: { x: 0 },
                       transition: {
                         delay: 0.2 + (ti * 2 + k) * 0.1,
                         duration: 0.5,

@@ -61,6 +61,7 @@ const th = {
   },
   classes: {
     title: 'ข้อมูลถูกแยกอย่างไร',
+    view: 'มุมมอง',
     p: 'CORE แบ่งข้อมูลเป็นสามประเภท แล้วกำหนดว่ามุมมองใดรับข้อมูลประเภทใดได้ — แทนที่จะตัดสินทีละช่องบนหน้าจอ',
     names: {
       operational: { name: 'ปฏิบัติงาน', body: 'จำนวน Lot วันที่ สถานะ — สิ่งที่ต้องใช้ทำงาน' },
@@ -175,6 +176,7 @@ export const WAREHOUSE_PRIVACY_GUIDE: Localized<typeof th> = {
     },
     classes: {
       title: 'How information is separated',
+      view: 'View',
       p: 'CORE sorts data into three classes, then decides which view may receive which class — instead of deciding field by field on a screen.',
       names: {
         operational: {
@@ -278,6 +280,7 @@ export const WAREHOUSE_PRIVACY_GUIDE: Localized<typeof th> = {
     },
     classes: {
       title: '信息如何分开',
+      view: '视图',
       p: 'CORE 把数据分为三类，再决定哪个视图可以接收哪一类——而不是在界面上逐个字段地决定。',
       names: {
         operational: { name: '业务操作', body: '数量、批次、日期、状态——工作所需' },

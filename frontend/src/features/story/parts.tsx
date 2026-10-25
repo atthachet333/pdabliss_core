@@ -108,7 +108,8 @@ export function StoryHead({
       {notation && (
         <p
           data-notation
-          className="mt-2 font-mono text-[0.6875rem] tracking-wide text-text-muted/80"
+          // EP19: full muted tone (5.5:1) — at 80 % the 11 px notation fell to 3.9:1.
+          className="mt-2 font-mono text-[0.6875rem] tracking-wide text-text-muted"
         >
           {notation}
         </p>

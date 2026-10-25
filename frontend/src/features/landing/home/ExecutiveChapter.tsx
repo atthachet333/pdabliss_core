@@ -142,10 +142,11 @@ export function ExecutiveChapter() {
                   <li
                     key={w.id}
                     style={{ '--a': w.accent } as CSSProperties}
-                    className="flex items-center justify-center gap-1.5 truncate rounded-full border border-[color-mix(in_oklab,var(--a)_40%,transparent)] bg-surface-dark px-2 py-1 text-[0.6875rem] text-text-secondary"
+                    // EP19: names wrap instead of truncating ("Accounting & Finance" in five columns).
+                    className="flex min-w-0 items-center justify-center gap-1.5 rounded-full border border-[color-mix(in_oklab,var(--a)_40%,transparent)] bg-surface-dark px-2 py-1 text-[0.6875rem] text-text-secondary"
                   >
                     <span className="size-1.5 shrink-0 rounded-full bg-[var(--a)]" />
-                    <span className="truncate">{w.name}</span>
+                    <span className="min-w-0 text-center leading-tight">{w.name}</span>
                   </li>
                 ))}
               </ul>

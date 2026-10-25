@@ -281,6 +281,11 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
 The page is fully readable and complete in this mode — motion never carries information that
 is not also present statically.
 
+EP19 browser-emulated `prefers-reduced-motion: reduce` across Homepage, Pricing, How CORE Works,
+Solutions, Contact, Demo, Security, Resources and Login. No long-running or infinite animation
+remained. EP18.1's two legacy property mismatches are also closed: Why CORE transitions the
+individual `translate` property, and CORE World labels transition the individual `scale` property.
+
 ## Adding motion
 
 Use the tokens. Prefer `Reveal`/`RevealItem` for entrances. Ask: what does this movement

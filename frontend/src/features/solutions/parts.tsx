@@ -106,10 +106,13 @@ export function Facts({
     );
   }
   return (
-    <dl className={cn('max-w-xl', className)} data-facts>
-      <dt className="sr-only">{c.common.problem}</dt>
-      <dd className="text-body-lg text-text-primary">{st.problem}</dd>
-      <div className="mt-5 grid grid-cols-1 gap-4 border-t border-border-soft pt-5 sm:grid-cols-2">
+    // EP19: two valid lists — a <dl> may hold only dt/dd groups, not a layout grid.
+    <div className={cn('max-w-xl', className)} data-facts>
+      <dl>
+        <dt className="sr-only">{c.common.problem}</dt>
+        <dd className="text-body-lg text-text-primary">{st.problem}</dd>
+      </dl>
+      <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-border-soft pt-5 sm:grid-cols-2">
         <div>
           <dt className="text-caption text-text-muted">{c.common.where}</dt>
           <dd className="mt-1 text-label text-text-secondary">{st.where}</dd>
@@ -118,8 +121,8 @@ export function Facts({
           <dt className="text-caption text-text-muted">{c.common.impact}</dt>
           <dd className="mt-1 text-label text-text-secondary">{st.impact}</dd>
         </div>
-      </div>
-    </dl>
+      </dl>
+    </div>
   );
 }
 

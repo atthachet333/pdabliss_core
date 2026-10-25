@@ -70,6 +70,14 @@ describe('homepage chapters (EP04)', () => {
     }
   });
 
+  it('animates the Why CORE panels through the individual translate property', async () => {
+    await renderHome();
+    const panels = [...document.querySelectorAll<HTMLElement>('#why-core div')].filter((el) =>
+      el.classList.contains('transition-[opacity,translate]'),
+    );
+    expect(panels).toHaveLength(2);
+  });
+
   it('has no pricing section on the homepage (pricing stays on /pricing)', async () => {
     await renderHome();
     expect(screen.queryByRole('heading', { name: /แพ็กเกจ|ราคา|Pricing/i })).toBeNull();

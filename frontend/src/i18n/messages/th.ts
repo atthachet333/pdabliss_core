@@ -4,7 +4,7 @@ import type { ShellMessages } from '../types';
 export const th: ShellMessages = {
   shell: {
     skipToContent: 'ข้ามไปยังเนื้อหาหลัก',
-    home: 'PDA BLISS CORE หน้าแรก',
+    home: 'PDA BLISS CORE Department Operations — หน้าแรก',
   },
   header: {
     primaryNav: 'เมนูหลัก',

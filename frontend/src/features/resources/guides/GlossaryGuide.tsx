@@ -75,7 +75,7 @@ export default function GlossaryGuide() {
             onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
             placeholder={c.placeholder}
             autoComplete="off"
-            className="h-12 w-full rounded-full border border-border-strong bg-surface-raised/70 pr-4 pl-11 text-body text-text-primary placeholder:text-text-muted focus:border-brand-glow focus:outline-none"
+            className="h-12 w-full rounded-full border border-border-strong bg-surface-raised/70 pr-4 pl-11 text-body text-text-primary placeholder:text-text-muted focus:border-brand-glow"
           />
         </div>
         <ChipGroup

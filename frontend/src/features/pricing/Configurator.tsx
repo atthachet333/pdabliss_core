@@ -191,7 +191,11 @@ export function Configurator() {
               <label htmlFor="config-users" className="sr-only">
                 {k.users.label}
               </label>
-              <div className="inline-flex items-center rounded-2xl border border-border-soft bg-surface-base/80 p-1">
+              {/* EP19: the input draws no ring of its own, so the stepper shows it while the input has focus. */}
+              <div
+                data-user-stepper
+                className="inline-flex items-center rounded-2xl border border-border-soft bg-surface-base/80 p-1 has-[input:focus-visible]:border-border-brand has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-brand-glow"
+              >
                 <button
                   type="button"
                   aria-label={k.users.decrease}
@@ -295,7 +299,7 @@ export function Configurator() {
         </div>
 
         {/* Summary */}
-        <aside aria-labelledby="config-summary" className="lg:sticky lg:top-24 lg:self-start">
+        <section aria-labelledby="config-summary" className="lg:sticky lg:top-24 lg:self-start">
           <div
             data-config-summary
             data-mode={quote ? 'quote' : 'checkout'}
@@ -408,7 +412,7 @@ export function Configurator() {
             </div>
             <p className="mt-4 text-caption text-text-muted">{k.presentation}</p>
           </div>
-        </aside>
+        </section>
       </div>
 
       {/* The future self-service purchase flow */}

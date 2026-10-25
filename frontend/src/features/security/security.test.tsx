@@ -248,6 +248,9 @@ describe('/security page', () => {
       labels.ready.label,
     );
     expect(document.querySelectorAll('[data-faq]')).toHaveLength(FAQ.length);
+    expect(screen.getByRole('region', { name: 'ก่อนใช้งานจริง ต้องมีอะไรบ้าง' })).toHaveAttribute(
+      'data-go-live',
+    );
     expect(document.querySelector('[data-go-live]')).toHaveTextContent(
       'ยังไม่ใช่บริการที่เปิดใช้งาน',
     );

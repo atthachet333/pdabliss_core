@@ -189,6 +189,15 @@ from DOM, SVG and CSS. Rules:
 - **Amber = unstructured reality, teal = structure** (unchanged from EP12).
 - **Calm ending.** Company information has no animation.
 
+## Interactive demo (EP14)
+
+See [INTERACTIVE_DEMO.md](INTERACTIVE_DEMO.md). A calm working surface, not a game: one work
+item, real-looking but clearly simulated (a *DEMO* tag and *ข้อมูลจำลอง — ไม่มีการบันทึก* stay
+visible), department colours only as small dots, status always as icon + words. Amber marks the
+open exception and the PREVENT notice; teal marks resolved and complete. Completion is quiet —
+numbers from the trace, then the conversation CTA. Voice: *งานเดียวกัน แต่มุมมองต่างกัน*; no
+claims of automation, accounting or real-time integration.
+
 ## Contact (EP13)
 
 See [CONTACT_EXPERIENCE.md](CONTACT_EXPERIENCE.md). A working-session look: one question at a

@@ -675,6 +675,9 @@ export function SeeChapter() {
           <QuietLink to={WHY_LINKS.demo} data="demo">
             {c.demo}
           </QuietLink>
+          <QuietLink to={WHY_LINKS.tryDemo} data="try-demo">
+            {c.tryDemo}
+          </QuietLink>
           <QuietLink to={WHY_LINKS.about} data="about">
             {c.about}
           </QuietLink>

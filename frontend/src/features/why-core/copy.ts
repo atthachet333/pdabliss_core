@@ -206,6 +206,7 @@ const th = {
     secondary: 'สำรวจแต่ละแผนก',
     demo: 'ขอ Demo',
     about: 'รู้จัก PDA BLISS',
+    tryDemo: 'ลองดูแนวคิดนี้ใน Demo',
   },
 };
 
@@ -427,6 +428,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
       secondary: 'Explore each department',
       demo: 'Request a demo',
       about: 'About PDA BLISS',
+      tryDemo: 'Try this idea in the demo',
     },
   },
   'zh-CN': {
@@ -593,6 +595,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
       secondary: '了解各个部门',
       demo: '申请演示',
       about: '了解 PDA BLISS',
+      tryDemo: '在演示中体验这一理念',
     },
   },
 };

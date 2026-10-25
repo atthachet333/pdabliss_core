@@ -48,6 +48,8 @@ const INDUSTRY_PAGES = {
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'));
 const WhyCorePage = lazy(() => import('@/pages/public/WhyCorePage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
+// EP14: the public interactive demo (its own chunk).
+const DemoPage = lazy(() => import('@/pages/public/DemoPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const LegalPage = lazy(() => import('@/pages/public/LegalPage'));
 
@@ -161,6 +163,7 @@ function publicPages(): RouteObject[] {
     { path: 'about', element: lazyPage(AboutPage) },
     { path: 'why-core', element: lazyPage(WhyCorePage) },
     { path: 'contact', element: lazyPage(ContactPage) },
+    { path: 'demo', element: lazyPage(DemoPage) },
     {
       path: 'privacy',
       element: (

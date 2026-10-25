@@ -79,6 +79,7 @@ export const zhCN: ShellMessages = {
           workflow: { label: '工作流与审批', description: '清晰定义步骤与负责人' },
           tracking: { label: '状态跟踪', description: '知道工作进行到哪里、正在等待谁' },
           errorPrevention: { label: '人为错误预防', description: '系统设计帮助预防并提示错误' },
+          demo: { label: '体验 CORE 演示', description: '带一项工作走过每个部门——无需注册' },
         },
         highlight: {
           eyebrow: 'Connected Workflow',

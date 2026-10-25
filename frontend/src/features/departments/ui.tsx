@@ -568,6 +568,15 @@ export function ConnectedDepartments({
   );
 }
 
+/** Department pages whose role exists in the public demo (EP14). */
+const DEMO_ROLES: readonly DeptKey[] = [
+  'sales',
+  'warehouse',
+  'purchasing',
+  'accounting',
+  'executive',
+];
+
 /** Quiet closing call to action — no hard sell, no pricing. */
 export function DeptCta({ id = 'dept-cta', dept }: { id?: string; dept?: DeptKey }) {
   const c = useCopy(COMMON);
@@ -595,6 +604,16 @@ export function DeptCta({ id = 'dept-cta', dept }: { id?: string; dept?: DeptKey
             {c.cta.how}
           </Link>
         </div>
+        {dept && DEMO_ROLES.includes(dept) && (
+          <Link
+            to={href(`/demo?role=${dept}`)}
+            data-cta="try-role"
+            className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-label text-brand-soft underline-offset-4 hover:underline"
+          >
+            {c.cta.tryRole}
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        )}
         <Link
           to={href('/departments')}
           className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-label text-text-secondary underline-offset-4 hover:text-text-primary hover:underline"

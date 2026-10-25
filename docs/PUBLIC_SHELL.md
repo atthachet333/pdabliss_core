@@ -86,7 +86,7 @@ list of links:
 | --- | --- | --- |
 | แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
-| วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) | ดูวิธีการทำงาน → `/how-core-works` |
+| วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) · ทดลองใช้งาน CORE `/demo` (EP14) | ดูวิธีการทำงาน → `/how-core-works` |
 | โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตามประเภทธุรกิจ → `/industries` (EP11 — the highlight already says *ปัญหาของแต่ละองค์กรไม่เหมือนกัน*) |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Access `/enterprise#access` · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/why-core` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/about#consulting` (EP12) | ติดต่อทีมงาน → `/contact` |
@@ -170,7 +170,18 @@ the same language. Existing URLs are unchanged.
 footer, cookie UI, floating contact, the homepage (hero, all eleven chapters, CTAs, labels),
 the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, `/how-core-works`,
 `/enterprise`, `/industries` and its six pages, `/pricing`,
-`/about`, `/why-core`, `/contact` (the EP13 consultation flow, including validation), `/privacy`, `/terms` and the 404 page.
+`/about`, `/why-core`, `/contact` (the EP13 consultation flow, including validation), `/demo` (the EP14
+interactive demo — every label, guidance line, handoff and history row), `/privacy`, `/terms` and the 404 page.
+
+**Interactive demo (EP14).** `/demo` (`/en/demo`, `/zh/demo`) is a public route in
+`test/publicRoutes.ts` and `sitemap.xml` (priority 0.7, hreflang). It renders its own `DemoShell`
+inside the public layout — never the internal AppShell — and is linked from the วิธีการทำงาน menu,
+the `/how-core-works` CTA, five department pages (`?role=`), `/solutions` and `/why-core`. See
+[INTERACTIVE_DEMO.md](INTERACTIVE_DEMO.md).
+
+**Wrapping buttons (EP14).** `buttonClasses()` drops its fixed height and `nowrap` when the
+caller passes `whitespace-normal`, so long localized labels wrap on narrow screens instead of
+clipping (`cn` does not merge conflicting utilities).
 
 **Contact links (EP13).** Shell links (header, footer, floating panel) go to `/contact`; page
 CTAs carry context through the stable query contract (`?interest=`, `?plan=`, `?industry=`,

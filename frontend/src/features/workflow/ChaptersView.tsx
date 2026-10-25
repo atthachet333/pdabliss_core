@@ -451,9 +451,12 @@ export function HowCta() {
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-body text-text-secondary">{c.cta.lead}</p>
         <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <Link to={href('/contact')} className={buttonClasses('primary', 'lg')}>
-            {c.cta.demo}
+          <Link to={href('/demo')} data-cta="try-demo" className={buttonClasses('primary', 'lg')}>
+            {c.cta.tryIt}
             <ArrowRight className="size-4" aria-hidden />
+          </Link>
+          <Link to={href('/contact?interest=demo')} className={buttonClasses('secondary', 'lg')}>
+            {c.cta.demo}
           </Link>
           <Link to={href('/pricing')} className={buttonClasses('secondary', 'lg')}>
             {c.cta.pricing}

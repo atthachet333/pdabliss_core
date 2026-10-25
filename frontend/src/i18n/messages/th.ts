@@ -104,6 +104,10 @@ export const th: ShellMessages = {
             label: 'Human Error Prevention',
             description: 'ออกแบบระบบให้ช่วยป้องกันและแจ้งเตือนความผิดพลาด',
           },
+          demo: {
+            label: 'ทดลองใช้งาน CORE',
+            description: 'ลองเดินงานหนึ่งชิ้นผ่านทุกแผนก — ไม่ต้องสมัคร',
+          },
         },
         highlight: {
           eyebrow: 'Connected Workflow',

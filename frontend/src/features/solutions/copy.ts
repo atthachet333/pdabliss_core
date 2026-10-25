@@ -252,6 +252,7 @@ const th = {
     },
   } as Record<SolutionId, Story>,
   falling: {
+    tryDemo: 'ลองดูว่า CORE ป้องกันงานตกหล่นอย่างไร',
     gap: 'ไม่มีเจ้าของ',
     situationsTitle: 'สถานการณ์ที่เกิดบ่อย',
     situations: [
@@ -750,6 +751,7 @@ const en: SolutionsCopy = {
     },
   },
   falling: {
+    tryDemo: 'See how CORE keeps work from falling through',
     gap: 'No owner',
     situationsTitle: 'Common situations',
     situations: [
@@ -1224,6 +1226,7 @@ const zh: SolutionsCopy = {
     },
   },
   falling: {
+    tryDemo: '看看 CORE 如何防止工作遗漏',
     gap: '无人负责',
     situationsTitle: '常见情况',
     situations: [

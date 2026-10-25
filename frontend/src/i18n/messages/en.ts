@@ -116,6 +116,10 @@ export const en: ShellMessages = {
             label: 'Human Error Prevention',
             description: 'A system designed to help prevent and flag mistakes',
           },
+          demo: {
+            label: 'Try the CORE demo',
+            description: 'Follow one work item through every department — no sign-up',
+          },
         },
         highlight: {
           eyebrow: 'Connected Workflow',

@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { Segmented } from '@/components/ui/Segmented';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { useDepartments } from '@/config/departments';
+import { QuietLink } from '@/features/story/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { SOLUTIONS_COPY } from './copy';
@@ -180,6 +181,9 @@ export function FallingThroughStory() {
             </ChapterTitle>
             <p className="mt-8 text-h3 text-brand-soft">{c.anchors.owner}</p>
             <Facts id="fallingThrough" className="mt-8" />
+            <QuietLink to="/demo" data="try-demo" className="mt-6">
+              {f.tryDemo}
+            </QuietLink>
           </div>
           <FallingTrack />
         </div>

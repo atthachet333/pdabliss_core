@@ -418,6 +418,7 @@ const th = {
   cta: {
     title: 'ดูงานขององค์กรคุณเดินบน CORE',
     lead: 'เล่าให้เราฟังว่างานในองค์กรเดินผ่านแผนกไหนบ้าง แล้วเราจะช่วยดูว่าควรเริ่มตรงไหน',
+    tryIt: 'ลอง Workflow นี้ด้วยตัวเอง',
     demo: 'ขอ Demo',
     pricing: 'ดูแพ็คเกจ',
     departments: 'สำรวจแผนก',
@@ -865,6 +866,7 @@ const en: WorkflowCopy = {
   cta: {
     title: 'See your organization’s work move on CORE',
     lead: 'Tell us which departments your work passes through, and we’ll help you see where to start.',
+    tryIt: 'Try this workflow yourself',
     demo: 'Request a demo',
     pricing: 'See packages',
     departments: 'Explore departments',
@@ -1212,6 +1214,7 @@ const zh: WorkflowCopy = {
   cta: {
     title: '看看您组织的工作在 CORE 上如何流转',
     lead: '告诉我们您的工作会经过哪些部门，我们会帮您判断从哪里开始。',
+    tryIt: '亲自试试这个工作流',
     demo: '申请演示',
     pricing: '查看方案',
     departments: '探索部门',

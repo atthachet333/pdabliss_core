@@ -16,6 +16,7 @@ import {
   KeyRound,
   Layers,
   LifeBuoy,
+  MousePointerClick,
   Lightbulb,
   Network,
   Plug,
@@ -101,6 +102,8 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
       { id: 'workflow', icon: Workflow, to: '/how-core-works#approval' },
       { id: 'tracking', icon: Radar, to: '/how-core-works#trace' },
       { id: 'errorPrevention', icon: ShieldCheck, to: '/how-core-works#human-error' },
+      // EP14: the public interactive demo.
+      { id: 'demo', icon: MousePointerClick, to: '/demo' },
     ],
     cta: '/how-core-works',
   },

@@ -84,5 +84,7 @@ export const WHY_LINKS = {
   executive: '/departments/executive',
   solutions: '/solutions#human-error',
   demo: '/contact?interest=demo',
+  /** EP14: the interactive demo. */
+  tryDemo: '/demo',
   about: '/about',
 } as const;

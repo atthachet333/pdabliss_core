@@ -92,6 +92,17 @@ hijacking — pins are tall sections with a sticky viewport over native scroll.
 | Implementation | the blueprint path draws; points light as reached | scroll |
 | Product stack | layers drop and lock from the foundation up | in view, once |
 
+### Interactive demo (EP14 — see [INTERACTIVE_DEMO.md](INTERACTIVE_DEMO.md))
+
+| Moment | Motion | Trigger |
+| --- | --- | --- |
+| Handoff | the work-item bar's outline glows once and settles (1.2 s) | an action that changes owner |
+| Handoff card | fades up 6 px (0.35 s) | handoff |
+| Workspace | fades in (0.25 s) on role switch | role tab |
+| Receipt progress | width eases (0.5 s) from 0 → 80 → 100 | receipt |
+
+No confetti, no autoplay; nothing moves unless the visitor acted.
+
 ### Contact (EP13 — see [CONTACT_EXPERIENCE.md](CONTACT_EXPERIENCE.md))
 
 Each step fades up 10 px (0.4 s); the prepared panel fades in; nothing else moves.
@@ -194,6 +205,8 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
   (no pin, no drifting fragments, no path tracing), all manifesto lines locked, the systems shift
   complete, implementation fully drawn, the product stack assembled; no glow pulses; selections
   switch instantly. Contact: steps switch without movement.
+- Interactive demo (EP14): no pulse, no fades, the progress bar jumps; history scrolls
+  instantly. Every state change is still announced and shown as text.
 - Company story (EP12): both heroes render their final composition (fragments resting, every
   state shown, islands and the CORE layer in place); waiting markers do not pulse; the view-as
   switch is instant. Nothing depends on movement.

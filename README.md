@@ -65,8 +65,8 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 ## Routes
 
 Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`,
-`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/login`,
-`/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
+`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/demo`,
+`/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
 `frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
 keeps the two in sync).
 
@@ -105,6 +105,12 @@ guided consultation (topic → organization → situation → reply method → d
 stable prefill contract and honest delivery: nothing is sent by the website yet; the prepared
 message is handed to email, LINE OA or phone. See
 [docs/CONTACT_EXPERIENCE.md](docs/CONTACT_EXPERIENCE.md).
+
+Interactive demo (EP14): `/demo` lets a visitor follow one simulated work item (SO-1042) through
+Sales, Warehouse, Purchasing, Accounting and the Executive view — shortage, handoffs, a partial
+receipt with DETECT, a lot / expiry PREVENT, FEFO, a document gate and an exception that clears.
+No login, no sign-up, nothing stored; Warehouse never receives commercial data. `?role=` selects a
+view. See [docs/INTERACTIVE_DEMO.md](docs/INTERACTIVE_DEMO.md).
 
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
@@ -186,6 +192,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP12_REPORT.md](docs/EP12_REPORT.md) — PDA BLISS and CORE story experience
 - [docs/CONTACT_EXPERIENCE.md](docs/CONTACT_EXPERIENCE.md) — `/contact`: inquiry model, prefill contract, delivery limitation, privacy
 - [docs/EP13_REPORT.md](docs/EP13_REPORT.md) — consultation experience and About enhancement
+- [docs/INTERACTIVE_DEMO.md](docs/INTERACTIVE_DEMO.md) — `/demo`: scenario, state machine, role boundaries, handoffs, PREVENT, FEFO
+- [docs/EP14_REPORT.md](docs/EP14_REPORT.md) — interactive CORE public demo
 
 ---
 

@@ -26,6 +26,7 @@ export const PUBLIC_ROUTES = [
   '/about',
   '/why-core',
   '/contact',
+  '/demo',
   '/privacy',
   '/terms',
 ] as const;

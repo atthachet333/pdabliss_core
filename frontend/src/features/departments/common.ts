@@ -37,6 +37,7 @@ const th = {
     lead: 'เล่าให้เราฟังว่าวันนี้ทีมทำงานอย่างไร แล้วเราจะช่วยดูว่าควรเริ่มจากตรงไหน',
     how: 'ดูวิธีการทำงานของ CORE',
     consult: 'ขอคำปรึกษา',
+    tryRole: 'ลองมุมมองแผนกนี้ใน Demo',
     explore: 'สำรวจแผนกอื่น',
   },
 };
@@ -80,6 +81,7 @@ export const COMMON: Localized<typeof th> = {
       lead: 'Tell us how your team works today, and we’ll help you see where to start.',
       how: 'See how CORE works',
       consult: 'Request a consultation',
+      tryRole: 'Try this department’s view in the demo',
       explore: 'Explore other departments',
     },
   },
@@ -119,6 +121,7 @@ export const COMMON: Localized<typeof th> = {
       lead: '告诉我们团队今天的工作方式，我们将帮您判断从哪里开始。',
       how: '了解 CORE 如何运作',
       consult: '申请咨询',
+      tryRole: '在演示中体验这个部门的视图',
       explore: '探索其他部门',
     },
   },

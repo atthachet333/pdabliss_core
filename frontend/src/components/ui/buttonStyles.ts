@@ -19,11 +19,28 @@ const sizes: Record<ButtonSize, string> = {
   lg: 'h-13 px-7 text-body',
 };
 
-/** Class string for button-styled elements, including native anchors (e.g. in-page #hash links). */
+/** Wrapping buttons grow with their label instead of clipping it (EP14). */
+const wrapSizes: Record<ButtonSize, string> = {
+  md: 'min-h-11 py-2 px-5 text-label text-center',
+  lg: 'min-h-13 py-3 px-7 text-body text-center',
+};
+
+/**
+ * Class string for button-styled elements, including native anchors (e.g. in-page #hash links).
+ * `cn` does not resolve conflicting utilities, so a long label that must wrap on
+ * narrow screens passes `whitespace-normal`: the fixed height and `nowrap` are
+ * then left out rather than overridden.
+ */
 export function buttonClasses(
   variant: ButtonVariant = 'primary',
   size: ButtonSize = 'md',
   className?: string,
 ) {
-  return cn(base, variants[variant], sizes[size], className);
+  const wrap = className?.split(/\s+/).includes('whitespace-normal') ?? false;
+  return cn(
+    wrap ? base.replace(' whitespace-nowrap', '') : base,
+    variants[variant],
+    wrap ? wrapSizes[size] : sizes[size],
+    className,
+  );
 }

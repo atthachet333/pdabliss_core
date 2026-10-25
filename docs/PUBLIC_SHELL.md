@@ -96,6 +96,20 @@ it. There are no informational (non-link) items any more.
 - Tabbing out, clicking outside or navigating closes the menu.
 - Panels use fully opaque surfaces.
 
+**Shared overlay language (EP18.1).** Menus, the language list, mobile groups, the utility dock
+panel and every FAQ/disclosure use `components/ui/overlay.ts` (`overlaySurface`,
+`overlayRow`, `overlayLabel`, `overlayChip`, `disclosureItem`, `disclosureTrigger`) and
+`components/ui/DisclosureIcon.tsx`. New overlays and disclosures should use them rather than
+restyling locally. Rows mark the current page with `aria-current="page"`.
+
+**Language selector (EP18.1).**
+
+- The trigger is an outlined pill that turns emerald-edged while open.
+- The list is an `overlaySurface`. Each row shows a decorative code badge (TH / EN / 中文), the
+  language's own name, and a check on the current one (`aria-current`). The badge is
+  `aria-hidden`, so link names stay the native names.
+- Query and hash are kept when switching (EP17).
+
 ## Mobile and tablet navigation (< 1280 px)
 
 `MobileMenu.tsx` — a dedicated full-screen layer, not a compressed mega menu.
@@ -362,7 +376,8 @@ Skip link; one `nav` per menu with a localized name; disclosure buttons with `ar
 `aria-controls`; links stay links; visible `:focus-visible` ring everywhere; focus trap +
 restore for mobile menu and cookie dialog; focus management for the contact stack and
 dismissed banner; Escape closes every overlay; status text accompanies colour (planned tag,
-in-use chips, switch glyphs); touch targets ≥ 44 px (footer text links ≥ 36 px tall in a
+in-use chips, switch glyphs); disclosure state shown by the icon's turn as well as its colour
+(EP18.1); touch targets ≥ 44 px (footer text links ≥ 36 px tall in a
 spaced list); `lang` on locale options, the Thai address and `<main>`.
 
 ## SEO, 404 and language switching (EP17)

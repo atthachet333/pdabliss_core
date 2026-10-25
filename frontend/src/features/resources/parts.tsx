@@ -163,12 +163,16 @@ export function ChipGroup<T extends string>({
             {...{ [dataKey]: o.value }}
             onClick={() => onChange(o.value)}
             className={cn(
-              'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-label whitespace-nowrap transition-colors',
+              'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-label transition-colors',
+              // cn() does not merge, so wrapping is decided here or by chipClassName — never both.
               chipClassName
                 ? chipClassName(on)
-                : on
-                  ? 'bg-brand-primary font-medium text-text-inverse'
-                  : 'text-text-secondary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.12)] hover:text-text-primary',
+                : cn(
+                    'whitespace-nowrap',
+                    on
+                      ? 'bg-brand-primary font-medium text-text-inverse'
+                      : 'text-text-secondary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.12)] hover:text-text-primary',
+                  ),
             )}
           >
             {on && <Check aria-hidden className="size-3.5 shrink-0" />}

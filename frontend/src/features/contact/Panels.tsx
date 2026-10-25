@@ -12,6 +12,7 @@ import { CONTACT_COPY } from './copy';
 import type { Inquiry, Prefill } from './model';
 import { Summary } from './Summary';
 import { useDeptName } from './summaryText';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
 
 /*
  * /contact surroundings (EP13): the hero, the context the visitor arrived
@@ -214,12 +215,7 @@ export function DirectPanel({ inquiry }: { inquiry: Inquiry }) {
       >
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-caption font-semibold text-text-muted lg:cursor-default">
           {c.summaryTitle}
-          <span
-            aria-hidden
-            className="text-text-muted transition-transform group-open:rotate-180 lg:hidden"
-          >
-            ▾
-          </span>
+          <DisclosureIcon size="sm" className="lg:hidden" />
         </summary>
         <Summary inquiry={inquiry} includeContact={false} className="mt-2" />
       </details>

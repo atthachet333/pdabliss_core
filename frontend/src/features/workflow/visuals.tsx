@@ -9,6 +9,7 @@ import { cn } from '@/lib/cn';
 import { WORKFLOW } from './copy';
 import { LANES, RECORDS, type Lane, type RouteStep, type Status, type StepId } from './model';
 import { laneColor, useLaneName } from './state';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
 
 /* ------------------------------------------------------------------ */
 /* Status — icon + words, never colour alone                            */
@@ -497,9 +498,10 @@ export function RouteStack({
           type="button"
           aria-expanded={!collapsed}
           onClick={() => setShowAll((v) => !v)}
-          className="mt-2 inline-flex min-h-11 items-center rounded-full border border-border-soft px-4 text-label text-text-secondary hover:text-text-primary"
+          className="group mt-2 inline-flex min-h-11 items-center gap-2.5 rounded-full border border-border-soft py-1 pr-1.5 pl-4 text-label text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary"
         >
           {collapsed ? c.showAll.replace('{n}', String(steps.length)) : c.showFocus}
+          <DisclosureIcon open={!collapsed} size="sm" />
         </button>
       )}
     </div>

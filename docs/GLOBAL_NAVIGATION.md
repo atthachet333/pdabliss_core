@@ -86,6 +86,23 @@ There is one restrained, `aria-hidden` visual per featured panel:
 
 The department mosaic, tier steps and architecture stack were retired with their menus.
 
+### Panel surface (EP18.1)
+
+The menus use the shared overlay language in `components/ui/overlay.ts` (see
+[EP18_1_REPORT.md](EP18_1_REPORT.md)):
+
+- **Panel:** an opaque obsidian gradient with a hairline edge and an inner top light. The open
+  trigger sits on a soft pill (`bg-white/[0.06]`) so it reads as joined to its panel.
+- **Feature sections** sit in quiet trays, titled with an emerald tick (`overlayLabel`). A menu
+  with a single feature section (About) spreads it across three columns instead of leaving a
+  half-empty column.
+- **Rows** (`overlayRow`) have a hover surface with a faint inner edge. The **page you are on**
+  gets an emerald tint, an inner emerald edge and `aria-current="page"`; anchors never count as
+  current.
+- **Index rows** sit in one framed strip as outlined chips (`overlayChip`). Department chips
+  carry their workspace colour as a 6 px dot.
+- **Featured panel:** an emerald-edged card with a top edge light and a pill call to action.
+
 ### Keyboard and semantics
 
 The keyboard and semantics are unchanged from EP05, and tested:
@@ -107,6 +124,12 @@ A group expands into the same titled sections: feature rows (≥ 56 px), index r
 44 px chips, then the featured link. Groups are collapsed by default, so the seven guides are
 never all expanded at once. The dialog behaviour is unchanged: focus trap, Escape, scroll lock
 and focus return.
+
+EP18.1: the group you are in carries the same emerald dot as on desktop, plus
+`aria-current="true"`. Each group's open/closed state is shown by the shared `DisclosureIcon`
+(a chevron in a ring that turns and goes emerald when open). An open group hangs from an emerald
+rail. Its rows and chips mark the current page, and its featured link is a tinted, bordered
+button.
 
 ## Footer
 

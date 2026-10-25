@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Minus, Plus, Settings2, Star } from 'lucide-react';
+import { Check, Minus, Plus, Settings2, Star } from 'lucide-react';
 import { useState } from 'react';
 import { useMediaQuery } from '@/components/core/hooks';
 import { Section, SectionHead } from '@/features/departments/ui';
@@ -9,6 +9,8 @@ import { PRICING, type PricingCopy } from './copy';
 import { ADDON_AVAILABILITY, PLANS, type Availability, type PlanFacts, type PlanId } from './plans';
 import { SECTION, usePricing } from './state';
 import { departmentAllowance, executiveText, storageText, usersText } from './text';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
+import { disclosureItem, disclosureTrigger } from '@/components/ui/overlay';
 
 type Kind = 'yes' | 'no' | 'addon' | 'scope' | 'text';
 interface Cell {
@@ -200,7 +202,7 @@ export function Comparison() {
             <section
               key={g.key}
               aria-labelledby={`${panelId}-h`}
-              className="overflow-hidden rounded-2xl border border-border-soft"
+              className={disclosureItem(isOpen, 'overflow-hidden')}
             >
               <h3 id={`${panelId}-h`}>
                 <button
@@ -212,16 +214,10 @@ export function Comparison() {
                       o.includes(g.key) ? o.filter((x) => x !== g.key) : [...o, g.key],
                     )
                   }
-                  className="flex min-h-14 w-full items-center justify-between gap-4 bg-surface-base/70 px-5 py-3 text-left text-body font-semibold text-text-primary hover:bg-surface-raised/60"
+                  className={cn(disclosureTrigger, 'text-body font-semibold text-text-primary')}
                 >
                   {k.groups[g.key]}
-                  <ChevronDown
-                    aria-hidden
-                    className={cn(
-                      'size-5 shrink-0 text-text-muted transition-transform duration-300',
-                      isOpen && 'rotate-180',
-                    )}
-                  />
+                  <DisclosureIcon open={isOpen} />
                 </button>
               </h3>
               {isOpen && (

@@ -24,6 +24,8 @@ import {
   type ResourceId,
 } from '../registry';
 import { ARTICLE_COPY } from './copy';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
+import { disclosureItem, disclosureTrigger } from '@/components/ui/overlay';
 
 /*
  * The shared reading system for every guide (EP16): breadcrumb, category,
@@ -467,16 +469,10 @@ export function Compare({
 export function Example({ title, children }: { title?: string; children: ReactNode }) {
   const a = useCopy(ARTICLE_COPY);
   return (
-    <details
-      data-example
-      className="group mt-6 rounded-2xl bg-white/[0.025] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)] open:bg-white/[0.04]"
-    >
-      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 text-label font-medium text-brand-soft [&::-webkit-details-marker]:hidden">
+    <details data-example className={disclosureItem(undefined, 'mt-6')}>
+      <summary className={cn(disclosureTrigger, 'min-h-12 text-label font-medium text-brand-soft')}>
         {title ?? a.example}
-        <ChevronRight
-          aria-hidden
-          className="size-4 transition-transform group-open:rotate-90 motion-reduce:transition-none"
-        />
+        <DisclosureIcon size="sm" />
       </summary>
       <div className="px-5 pb-5 text-label leading-[1.8] text-text-secondary">{children}</div>
     </details>

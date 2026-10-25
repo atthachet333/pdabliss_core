@@ -1,12 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, ChevronDown, LogIn, MessageSquare, X } from 'lucide-react';
+import { ArrowRight, LogIn, MessageSquare, X } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { Logo } from '@/components/brand/Logo';
 import { useBodyScrollLock, useFocusTrap } from '@/components/core/hooks';
-import { MEGA_GROUPS, TOP_NAV, type MegaGroupId } from '@/config/navigation';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
+import { overlayChip, overlayLabel, overlayRow } from '@/components/ui/overlay';
+import { activeGroup, MEGA_GROUPS, TOP_NAV, type MegaGroupId } from '@/config/navigation';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
+import { basePath } from '@/lib/seo';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 import { LanguageSelector } from './LanguageSelector';
 import { MegaItemMark } from './MegaVisuals';
@@ -24,6 +27,10 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [expanded, setExpanded] = useState<MegaGroupId | null>(null);
+  // EP18.1: mark the section and the page you are on.
+  const here = basePath(useLocation().pathname);
+  const current = activeGroup(here);
+  const isHere = (to: string) => !to.includes('#') && to.split('?')[0] === here;
   useBodyScrollLock(open);
   useFocusTrap(open, ref, closeRef);
 
@@ -90,6 +97,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                 const group = MEGA_GROUPS[entry.id];
                 const copy = t.nav.groups[entry.id];
                 const isOpen = expanded === entry.id;
+                const isCurrent = current === entry.id;
                 return (
                   <motion.li
                     key={entry.id}
@@ -102,24 +110,32 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                       type="button"
                       aria-expanded={isOpen}
                       aria-controls={`m-${entry.id}`}
+                      aria-current={isCurrent ? 'true' : undefined}
                       onClick={() => setExpanded(isOpen ? null : entry.id)}
-                      className={rowClass}
+                      className={cn(rowClass, 'group')}
                     >
                       <span className="min-w-0">
-                        <span className="block text-[1.25rem] font-semibold text-text-primary">
+                        <span className="flex items-center gap-2.5 text-[1.25rem] font-semibold text-text-primary">
                           {copy.label}
+                          {/* EP18.1: the section you are in, as on desktop (a dot, not a bar). */}
+                          {isCurrent && (
+                            <span
+                              aria-hidden
+                              data-current-dot
+                              className="size-1.5 rounded-full bg-brand-glow"
+                            />
+                          )}
                         </span>
-                        <span className="mt-0.5 block text-[0.6875rem] tracking-[0.16em] text-text-muted uppercase">
+                        <span
+                          className={cn(
+                            'mt-0.5 block text-[0.6875rem] tracking-[0.16em] uppercase transition-colors duration-200',
+                            isOpen ? 'text-brand-glow/80' : 'text-text-muted',
+                          )}
+                        >
                           {copy.eyebrow}
                         </span>
                       </span>
-                      <ChevronDown
-                        className={cn(
-                          'size-5 shrink-0 text-text-muted transition-transform duration-300',
-                          isOpen && 'rotate-180 text-brand-glow',
-                        )}
-                        aria-hidden
-                      />
+                      <DisclosureIcon open={isOpen} />
                     </button>
                     <AnimatePresence initial={false}>
                       {isOpen && (
@@ -131,65 +147,80 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                           transition={{ duration: DURATION.base, ease: EASE_CORE }}
                           className="overflow-hidden"
                         >
-                          <p className="pb-3 text-caption text-text-secondary">{copy.intro}</p>
-                          {/* EP18: the menu's sections — feature rows, then compact name links. */}
-                          {group.sections.map((section) => (
-                            <div key={section.id} data-mobile-section={section.id} className="pb-3">
-                              <p className="px-2.5 pb-1 text-caption font-medium text-text-muted">
-                                {copy.sections[section.id]}
-                              </p>
-                              {section.kind === 'feature' ? (
-                                <ul className="grid gap-1 sm:grid-cols-2">
-                                  {section.items.map((item) => {
-                                    const text = copy.items[item.id]!;
-                                    return (
+                          {/* EP18.1: the open group hangs from an emerald rail, sections titled with a tick. */}
+                          <div className="mb-4 ml-1 border-l border-border-brand/30 pl-3.5">
+                            <p className="pb-3 text-caption text-text-secondary">{copy.intro}</p>
+                            {/* EP18: the menu's sections — feature rows, then compact name links. */}
+                            {group.sections.map((section) => (
+                              <div
+                                key={section.id}
+                                data-mobile-section={section.id}
+                                className="pb-3"
+                              >
+                                <p className={cn(overlayLabel, 'pb-1.5')}>
+                                  {copy.sections[section.id]}
+                                </p>
+                                {section.kind === 'feature' ? (
+                                  <ul className="grid gap-1 sm:grid-cols-2">
+                                    {section.items.map((item) => {
+                                      const text = copy.items[item.id]!;
+                                      return (
+                                        <li key={item.id}>
+                                          <Link
+                                            to={href(item.to)}
+                                            onClick={onClose}
+                                            aria-current={isHere(item.to) ? 'page' : undefined}
+                                            className={overlayRow(
+                                              isHere(item.to),
+                                              'flex min-h-14 items-center gap-3 px-2.5 py-2.5',
+                                            )}
+                                          >
+                                            <MegaItemMark item={item} />
+                                            <span className="min-w-0">
+                                              <span className="block text-label font-medium text-text-primary">
+                                                {text.label}
+                                              </span>
+                                              {text.description && (
+                                                <span className="block text-caption text-text-muted">
+                                                  {text.description}
+                                                </span>
+                                              )}
+                                            </span>
+                                          </Link>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                ) : (
+                                  <ul className="flex flex-wrap gap-1.5">
+                                    {section.items.map((item) => (
                                       <li key={item.id}>
                                         <Link
                                           to={href(item.to)}
                                           onClick={onClose}
-                                          className="group flex min-h-14 items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]"
+                                          aria-current={isHere(item.to) ? 'page' : undefined}
+                                          className={overlayChip(
+                                            isHere(item.to),
+                                            'min-h-11 px-3.5',
+                                          )}
                                         >
-                                          <MegaItemMark item={item} />
-                                          <span className="min-w-0">
-                                            <span className="block text-label font-medium text-text-primary">
-                                              {text.label}
-                                            </span>
-                                            {text.description && (
-                                              <span className="block text-caption text-text-muted">
-                                                {text.description}
-                                              </span>
-                                            )}
-                                          </span>
+                                          {copy.items[item.id]!.label}
                                         </Link>
                                       </li>
-                                    );
-                                  })}
-                                </ul>
-                              ) : (
-                                <ul className="flex flex-wrap gap-1.5 px-1">
-                                  {section.items.map((item) => (
-                                    <li key={item.id}>
-                                      <Link
-                                        to={href(item.to)}
-                                        onClick={onClose}
-                                        className="inline-flex min-h-11 items-center rounded-full border border-border-soft px-3.5 text-label text-text-secondary transition-colors hover:border-border-brand hover:text-text-primary"
-                                      >
-                                        {copy.items[item.id]!.label}
-                                      </Link>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          ))}
-                          <Link
-                            to={href(group.cta)}
-                            onClick={onClose}
-                            className="mb-4 flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border-soft px-4 text-label font-medium text-brand-glow"
-                          >
-                            {copy.highlight.cta}
-                            <ArrowRight className="size-4 shrink-0" aria-hidden />
-                          </Link>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            ))}
+                            <Link
+                              to={href(group.cta)}
+                              onClick={onClose}
+                              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border-brand/40 bg-brand-primary/[0.08] px-4 text-label font-medium text-brand-glow transition-colors hover:bg-brand-primary/[0.14]"
+                            >
+                              {copy.highlight.cta}
+                              <ArrowRight className="size-4 shrink-0" aria-hidden />
+                            </Link>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>

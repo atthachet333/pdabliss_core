@@ -17,6 +17,7 @@ import { useConsent } from '@/features/consent/consent';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { stripLocale } from '@/i18n/locales';
 import { useLocale } from '@/i18n/useLocale';
+import { overlaySurface } from '@/components/ui/overlay';
 import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 
@@ -235,7 +236,10 @@ export function UtilityDock() {
               exit="exit"
               className="fixed inset-x-3 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+4rem)] sm:absolute sm:inset-x-auto sm:right-0 sm:bottom-full sm:mb-3 sm:w-[21rem]"
             >
-              <div className="relative overflow-hidden rounded-[1.5rem] border border-border-soft bg-[rgb(6_13_20/0.9)] p-2.5 shadow-[0_30px_70px_-28px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+              {/* EP18.1: the shared overlay surface, as in the header menus. */}
+              <div
+                className={cn('relative overflow-hidden rounded-[1.5rem] p-2.5', overlaySurface)}
+              >
                 {/* Quiet CORE geometry behind the stack. */}
                 <svg
                   aria-hidden

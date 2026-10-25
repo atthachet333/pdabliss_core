@@ -387,6 +387,16 @@ describe('library filters', () => {
       'purchasing',
     );
   });
+
+  it('lets long department names wrap on narrow phones', async () => {
+    // EP18.1 QA: "Accounting & Finance" overflowed 320 px when nowrap won over the override.
+    renderRoute('/en/resources');
+    const group = await screen.findByRole('radiogroup', { name: 'Choose a department' });
+    for (const chip of within(group).getAllByRole('radio')) {
+      expect(chip.className).toMatch(/\bwhitespace-normal\b/);
+      expect(chip.className).not.toMatch(/\bwhitespace-nowrap\b/);
+    }
+  });
 });
 
 describe('glossary', () => {

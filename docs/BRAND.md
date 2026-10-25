@@ -215,6 +215,27 @@ See [GLOBAL_NAVIGATION.md](GLOBAL_NAVIGATION.md) and [EP18_REPORT.md](EP18_REPOR
 - **Compact consent.** The cookie card is one sentence plus the honesty note, with two equal
   choices and a quiet settings link.
 
+## Overlays and disclosures (EP18.1)
+
+See [EP18_1_REPORT.md](EP18_1_REPORT.md). Everything that opens shares one vocabulary,
+defined in `components/ui/overlay.ts` and `components/ui/DisclosureIcon.tsx`:
+
+- **Surface:** an opaque obsidian gradient (`rgb(12 23 33)` → `rgb(6 13 20)`), a 7 % white
+  hairline, a 4.5 % inner top light and a deep, soft drop shadow. No glass; the page never
+  shows through.
+- **Row:** a 12 px radius. Hover adds a 4.5 % white surface and a faint inner edge. Current adds
+  an emerald 9 % tint and a 26 % emerald inner edge.
+- **Section label:** muted caption text led by a 12 px emerald tick.
+- **Chip:** an outlined index entry, emerald-edged on hover and tinted when current.
+- **Disclosure item:** a contained, rounded frame that turns emerald-edged and slightly lighter
+  when open.
+- **Disclosure icon:** a chevron in a ring. When open, it turns 180° with an emerald ring and
+  tint. State is carried by shape and colour together. It replaces the `+`, `▾` and bare
+  chevron glyphs.
+
+Every transition is colour, border or a single rotation, and each is disabled under reduced
+motion.
+
 ## Resource Center (EP16)
 
 See [RESOURCES_EXPERIENCE.md](RESOURCES_EXPERIENCE.md).

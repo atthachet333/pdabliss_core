@@ -227,6 +227,7 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP17_REPORT.md](docs/EP17_REPORT.md) — localization, SEO hardening and navigation discoverability audit
 - [docs/GLOBAL_NAVIGATION.md](docs/GLOBAL_NAVIGATION.md) — four-menu header, menus, mobile menu, footer zones, active state
 - [docs/EP18_REPORT.md](docs/EP18_REPORT.md) — global navigation, visual and motion refinement
+- [docs/EP18_1_REPORT.md](docs/EP18_1_REPORT.md) — dropdown, overlay and disclosure visual polish
 
 ---
 

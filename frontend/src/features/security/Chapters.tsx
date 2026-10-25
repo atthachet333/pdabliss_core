@@ -25,6 +25,8 @@ import {
   TRACE_PARTS,
   type TraceEvent,
 } from './model';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
+import { disclosureItem, disclosureTrigger } from '@/components/ui/overlay';
 
 /* ------------------------------------------------------------------ */
 /* Executive ≠ System admin                                             */
@@ -422,19 +424,21 @@ export function FaqChapter() {
         <h2 id="faq-title" className="mt-4 text-h2 text-text-primary">
           {c.title}
         </h2>
-        <div className="mt-10 divide-y divide-border-soft border-y border-border-soft">
+        <div className="mt-10 space-y-2">
           {FAQ.map((id) => (
-            <details key={id} data-faq={id} className="group">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-label font-medium text-text-primary marker:hidden [&::-webkit-details-marker]:hidden">
+            <details key={id} data-faq={id} className={disclosureItem()}>
+              <summary
+                className={cn(
+                  disclosureTrigger,
+                  'text-label font-medium text-text-primary marker:hidden',
+                )}
+              >
                 {c.items[id].q}
-                <span
-                  aria-hidden
-                  className="text-h3 leading-none text-text-muted transition-transform duration-200 group-open:rotate-45 motion-reduce:transition-none"
-                >
-                  +
-                </span>
+                <DisclosureIcon />
               </summary>
-              <p className="pb-5 text-label text-text-secondary">{c.items[id].a}</p>
+              <p className="px-5 pb-5 text-label leading-relaxed text-text-secondary">
+                {c.items[id].a}
+              </p>
             </details>
           ))}
         </div>

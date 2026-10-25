@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  ChevronDown,
   Gift,
   Headset,
   MessagesSquare,
@@ -20,6 +19,8 @@ import { cn } from '@/lib/cn';
 import { PRICING, type FaqFacts } from './copy';
 import { ANNUAL_POLICY, getPlan, STANDARD_DEPARTMENTS } from './plans';
 import { SECTION, useMoney } from './state';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
+import { disclosureItem, disclosureTrigger } from '@/components/ui/overlay';
 
 /** Enterprise does not use checkout: consultation → requirements → process review → quotation. */
 export function EnterpriseFlow() {
@@ -161,18 +162,11 @@ export function PricingFaq() {
       {/* Desktop: two independent columns, so opening an answer never shifts the other column. */}
       <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-12">
         {columns.map((col, ci) => (
-          <ul
-            key={ci}
-            data-faq-column={ci}
-            className={cn(
-              'divide-y divide-border-soft border-b border-border-soft',
-              ci === 0 ? 'border-t' : 'lg:border-t',
-            )}
-          >
+          <ul key={ci} data-faq-column={ci} className={cn('space-y-2', ci === 1 && 'mt-2 lg:mt-0')}>
             {col.map(({ item, i }) => {
               const isOpen = open === i;
               return (
-                <li key={item.q} data-faq={i}>
+                <li key={item.q} data-faq={i} className={disclosureItem(isOpen)}>
                   <h3>
                     <button
                       type="button"
@@ -180,16 +174,10 @@ export function PricingFaq() {
                       aria-expanded={isOpen}
                       aria-controls={`faq-a-${i}`}
                       onClick={() => setOpen(isOpen ? null : i)}
-                      className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left text-body font-medium text-text-primary"
+                      className={cn(disclosureTrigger, 'text-body font-medium text-text-primary')}
                     >
                       {item.q}
-                      <ChevronDown
-                        aria-hidden
-                        className={cn(
-                          'size-5 shrink-0 text-text-muted transition-transform duration-300',
-                          isOpen && 'rotate-180',
-                        )}
-                      />
+                      <DisclosureIcon open={isOpen} />
                     </button>
                   </h3>
                   <div
@@ -197,7 +185,7 @@ export function PricingFaq() {
                     role="region"
                     aria-labelledby={`faq-q-${i}`}
                     hidden={!isOpen}
-                    className="pb-5 text-label text-text-secondary"
+                    className="px-5 pb-5 text-label leading-relaxed text-text-secondary"
                   >
                     {item.a(facts)}
                   </div>

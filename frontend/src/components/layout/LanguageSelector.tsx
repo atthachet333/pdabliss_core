@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router';
 import { useDismiss } from '@/components/core/hooks';
 import { LOCALE_META, LOCALES, switchLocalePath, type Locale } from '@/i18n/locales';
 import { useLocale } from '@/i18n/useLocale';
+import { overlayLabel, overlayRow, overlaySurface } from '@/components/ui/overlay';
 import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
 
@@ -79,17 +80,20 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
         aria-controls={listId}
         aria-label={t.language.current(current.nativeName)}
         onClick={() => setOpen((v) => !v)}
+        // EP18.1: an outlined pill, so it reads as a control; emerald edge while open.
         className={cn(
-          'inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-label whitespace-nowrap transition-colors duration-200',
-          open ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
+          'inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-label whitespace-nowrap transition-[border-color,background-color,color] duration-200 motion-reduce:transition-none',
+          open
+            ? 'border-border-brand/60 bg-white/[0.05] text-text-primary'
+            : 'border-border-soft text-text-secondary hover:border-border-strong hover:text-text-primary',
         )}
       >
         <Globe className="size-4" aria-hidden />
         <span lang={current.htmlLang}>{current.short}</span>
         <ChevronDown
           className={cn(
-            'size-3.5 opacity-60 transition-transform duration-300',
-            open && 'rotate-180',
+            'size-3.5 opacity-60 transition-transform duration-300 motion-reduce:transition-none',
+            open && 'rotate-180 opacity-90',
           )}
           aria-hidden
         />
@@ -102,16 +106,17 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: DURATION.fast, ease: EASE_CORE }}
-            className="absolute top-full right-0 mt-2 w-72 overflow-hidden rounded-[1.25rem] border border-border-soft bg-[rgb(6_13_20)] p-2 shadow-[0_24px_60px_-24px_rgb(0_0_0/0.9)] backdrop-blur-xl"
+            className={cn(
+              'absolute top-full right-0 mt-2.5 w-72 overflow-hidden rounded-[1.25rem] p-2',
+              overlaySurface,
+            )}
           >
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-brand-glow/45 to-transparent"
             />
-            <p className="px-3 pt-2 pb-1.5 text-caption font-semibold text-text-muted">
-              {t.language.label}
-            </p>
-            <ul>
+            <p className={cn(overlayLabel, 'px-3 pt-2 pb-2')}>{t.language.label}</p>
+            <ul className="space-y-1">
               {LOCALES.map((l) => {
                 const meta = LOCALE_META[l];
                 const active = l === locale;
@@ -123,24 +128,35 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
                       hrefLang={meta.htmlLang}
                       aria-current={active ? 'true' : undefined}
                       onClick={() => setOpen(false)}
-                      className={cn(
-                        'flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 text-label transition-colors',
-                        active
-                          ? 'bg-white/[0.04] text-text-primary'
-                          : 'text-text-secondary hover:bg-white/[0.035] hover:text-text-primary',
+                      className={overlayRow(
+                        active,
+                        cn(
+                          'flex min-h-12 items-center gap-3 px-2.5 text-label',
+                          active
+                            ? 'text-text-primary'
+                            : 'text-text-secondary hover:text-text-primary',
+                        ),
                       )}
                     >
-                      <span>{meta.nativeName}</span>
-                      <span className="flex items-center gap-2 text-caption text-text-muted">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'flex h-7 min-w-9 items-center justify-center rounded-lg px-1.5 text-caption font-semibold transition-colors duration-200',
+                          active
+                            ? 'bg-brand-primary/15 text-brand-glow'
+                            : 'bg-white/[0.04] text-text-muted group-hover:text-text-secondary',
+                        )}
+                      >
                         {meta.short}
-                        {active && <Check className="size-4 text-brand-glow" aria-hidden />}
                       </span>
+                      <span className="flex-1">{meta.nativeName}</span>
+                      {active && <Check className="size-4 shrink-0 text-brand-glow" aria-hidden />}
                     </Link>
                   </li>
                 );
               })}
             </ul>
-            <p className="mt-1 border-t border-border-soft px-3 pt-2.5 pb-2 text-caption text-text-muted">
+            <p className="mt-2 border-t border-white/[0.06] px-3 pt-2.5 pb-1.5 text-caption leading-relaxed text-text-muted">
               {t.language.note}
             </p>
           </motion.div>

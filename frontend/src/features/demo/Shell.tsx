@@ -34,6 +34,7 @@ import {
 } from './machine';
 import { DEMO_LINKS, OUTSTANDING, SCENARIO } from './scenario';
 import { Pill, RoleWorkspace } from './Workspaces';
+import { DisclosureIcon } from '@/components/ui/DisclosureIcon';
 
 /*
  * The public DemoShell (EP14) — deliberately not the internal AppShell.
@@ -705,9 +706,7 @@ export function DemoShell({
           <details className="group rounded-2xl bg-white/[0.02] p-2 lg:hidden">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-2 text-caption font-semibold text-text-muted">
               {c.shell.stagesLabel}
-              <span aria-hidden className="transition-transform group-open:rotate-180">
-                ▾
-              </span>
+              <DisclosureIcon size="sm" />
             </summary>
             <StageList s={s} className="mt-1" />
           </details>

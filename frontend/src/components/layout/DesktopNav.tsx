@@ -204,6 +204,8 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
                     isOpen || isCurrent
                       ? 'text-text-primary'
                       : 'text-text-secondary hover:text-text-primary',
+                    // EP18.1: the open trigger sits on a soft pill, joined to its panel.
+                    isOpen ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]',
                   )}
                 >
                   {label}
@@ -237,7 +239,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: DURATION.fast, ease: EASE_CORE }}
-            className="absolute inset-x-0 top-full overflow-hidden border-b border-border-soft bg-surface-dark shadow-[0_40px_80px_-40px_rgb(0_0_0/0.95)]"
+            className="absolute inset-x-0 top-full overflow-hidden border-b border-white/[0.07] bg-[linear-gradient(180deg,rgb(9_18_27),rgb(5_11_18)_75%)] shadow-[0_40px_80px_-40px_rgb(0_0_0/0.95),inset_0_1px_0_rgb(255_255_255/0.04)]"
           >
             <span
               aria-hidden

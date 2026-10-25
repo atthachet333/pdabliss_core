@@ -1,12 +1,15 @@
 import {
   BadgeCheck,
   Blocks,
+  BookOpen,
+  BookText,
   Building,
   Building2,
   Calculator,
   Compass,
   Crown,
   Eye,
+  EyeOff,
   Factory,
   FileCheck2,
   GitBranch,
@@ -52,7 +55,7 @@ import {
 export const NAV_DESKTOP_QUERY = '(min-width: 80rem)';
 
 export type MegaGroupId =
-  'departments' | 'packages' | 'howItWorks' | 'solutions' | 'enterprise' | 'about';
+  'departments' | 'packages' | 'howItWorks' | 'solutions' | 'enterprise' | 'resources' | 'about';
 
 export interface MegaItem {
   id: string;
@@ -69,7 +72,7 @@ export interface MegaGroup {
 }
 
 export type TopNavItem =
-  { kind: 'link'; id: 'overview' | 'contact'; to: string } | { kind: 'mega'; id: MegaGroupId };
+  { kind: 'link'; id: 'overview'; to: string } | { kind: 'mega'; id: MegaGroupId };
 
 export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
   departments: {
@@ -133,6 +136,20 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
     ],
     cta: '/contact',
   },
+  // EP16: the CORE knowledge library — real guides only, never "coming soon".
+  resources: {
+    id: 'resources',
+    items: [
+      { id: 'start', icon: BookOpen, to: '/resources/getting-started' },
+      { id: 'workflow', icon: Workflow, to: '/resources/how-core-works' },
+      { id: 'humanError', icon: ShieldCheck, to: '/resources/human-error' },
+      { id: 'warehousePrivacy', icon: EyeOff, to: '/resources/warehouse-privacy' },
+      { id: 'implementation', icon: Route, to: '/resources/implementation-guide' },
+      { id: 'security', icon: KeyRound, to: '/resources/security-and-data' },
+      { id: 'glossary', icon: BookText, to: '/resources/core-glossary' },
+    ],
+    cta: '/resources',
+  },
   about: {
     id: 'about',
     items: [
@@ -145,7 +162,7 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
   },
 };
 
-/** The approved top-level order. */
+/** The approved top-level order. EP16: ติดต่อเรา moved to the header actions. */
 export const TOP_NAV: readonly TopNavItem[] = [
   { kind: 'link', id: 'overview', to: '/' },
   { kind: 'mega', id: 'departments' },
@@ -153,9 +170,12 @@ export const TOP_NAV: readonly TopNavItem[] = [
   { kind: 'mega', id: 'howItWorks' },
   { kind: 'mega', id: 'solutions' },
   { kind: 'mega', id: 'enterprise' },
+  { kind: 'mega', id: 'resources' },
   { kind: 'mega', id: 'about' },
-  { kind: 'link', id: 'contact', to: '/contact' },
 ];
+
+/** EP16: the header's contact call to action, beside language and sign-in. */
+export const HEADER_CONTACT = '/contact';
 
 export const MEGA_ORDER: readonly MegaGroupId[] = TOP_NAV.flatMap((i) =>
   i.kind === 'mega' ? [i.id] : [],
@@ -170,6 +190,8 @@ export const FOOTER_GROUPS = [
       { id: 'departments', to: '/departments' },
       { id: 'packages', to: '/pricing' },
       { id: 'howItWorks', to: '/how-core-works' },
+      // EP16: the knowledge library.
+      { id: 'resources', to: '/resources' },
     ],
   },
   {
@@ -189,6 +211,7 @@ export const FOOTER_GROUPS = [
 export function shellLinkTargets(): string[] {
   const targets = new Set<string>();
   for (const item of TOP_NAV) if (item.kind === 'link') targets.add(item.to);
+  targets.add(HEADER_CONTACT);
   for (const g of Object.values(MEGA_GROUPS)) {
     for (const i of g.items) if (i.to) targets.add(i.to);
     if (g.cta) targets.add(g.cta);

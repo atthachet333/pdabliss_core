@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Logo } from '@/components/brand/Logo';
 import { useMediaQuery } from '@/components/core/hooks';
-import { NAV_DESKTOP_QUERY } from '@/config/navigation';
+import { HEADER_CONTACT, NAV_DESKTOP_QUERY } from '@/config/navigation';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { DesktopNav } from './DesktopNav';
@@ -56,7 +56,7 @@ export function PublicHeader() {
             : 'border-b border-transparent bg-gradient-to-b from-[rgb(5_11_18/0.35)] to-transparent',
         )}
       >
-        <div className="mx-auto flex h-18 max-w-[1320px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 2xl:max-w-[1440px]">
+        <div className="mx-auto flex h-18 max-w-[1320px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 nav:max-2xl:gap-2 nav:max-2xl:px-6 2xl:max-w-[1440px]">
           <Link to={href('/')} aria-label={t.shell.home} className="shrink-0">
             {/* Subtitle only where the full navigation has generous room. */}
             <span className="min-[1680px]:hidden">
@@ -73,13 +73,22 @@ export function PublicHeader() {
             <span className="hidden sm:inline-flex">
               <LanguageSelector />
             </span>
+            {/* EP16: contact is a clear action beside sign-in, not a text nav item. */}
+            <Link
+              to={href(HEADER_CONTACT)}
+              data-header-contact
+              className="hidden h-10 items-center gap-2 rounded-full bg-brand-primary px-4 text-label font-medium whitespace-nowrap text-text-inverse transition-colors hover:bg-brand-glow md:inline-flex"
+            >
+              {t.nav.contact}
+            </Link>
             <Link
               to="/login"
               state={{ locale }}
-              className="hidden h-10 items-center gap-2 rounded-full border border-border-strong bg-surface-raised/50 px-4 text-label whitespace-nowrap text-text-primary transition-colors hover:border-border-brand sm:inline-flex"
+              className="hidden h-10 items-center gap-2 rounded-full border border-border-strong bg-surface-raised/50 px-4 text-label whitespace-nowrap text-text-primary transition-colors hover:border-border-brand sm:inline-flex nav:max-2xl:w-10 nav:max-2xl:justify-center nav:max-2xl:px-0"
             >
               <LogIn className="size-4" aria-hidden />
-              {t.header.login}
+              {/* Icon-only (still named) where the full bar is tightest, 1280–1535px. */}
+              <span className="nav:max-2xl:sr-only">{t.header.login}</span>
             </Link>
             <button
               type="button"

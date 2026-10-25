@@ -28,6 +28,15 @@ export const PUBLIC_ROUTES = [
   '/contact',
   '/demo',
   '/security',
+  // EP16: the knowledge library and its seven guides.
+  '/resources',
+  '/resources/getting-started',
+  '/resources/how-core-works',
+  '/resources/human-error',
+  '/resources/warehouse-privacy',
+  '/resources/implementation-guide',
+  '/resources/security-and-data',
+  '/resources/core-glossary',
   '/privacy',
   '/terms',
 ] as const;

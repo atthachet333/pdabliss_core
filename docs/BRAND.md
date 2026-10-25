@@ -189,6 +189,21 @@ from DOM, SVG and CSS. Rules:
 - **Amber = unstructured reality, teal = structure** (unchanged from EP12).
 - **Calm ending.** Company information has no animation.
 
+## Resource Center (EP16)
+
+See [RESOURCES_EXPERIENCE.md](RESOURCES_EXPERIENCE.md).
+
+- **A library, not a blog.** Editorial index rows (category mark, title, one line, reading time)
+  instead of thumbnail cards; no dates, authors or "latest".
+- **Category accents** are a 3 px mark beside words (`accent.ts`), never colour alone.
+- **Reading system.** ~46 rem measure, 1.9 line height for Thai body text, numbered chapter
+  markers, callouts (note / boundary amber / key teal), diagrams as real lists and tables on a
+  dark figure plate, native disclosures for examples. No left sidebar.
+- **Voice.** *เข้าใจระบบ ก่อนตัดสินใจใช้ระบบ*. Teach the principle first; CORE is the example.
+  Never "zero errors", never a certification claim.
+- **Header (EP16).** ติดต่อเรา is a primary teal pill beside เข้าสู่ระบบ (outline pill); the text
+  navigation carries ความรู้ instead.
+
 ## Trust Center and sign-in (EP15)
 
 See [SECURITY_TRUST_CENTER.md](SECURITY_TRUST_CENTER.md) and

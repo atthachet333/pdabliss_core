@@ -13,8 +13,8 @@ const THAI_TOP_LEVEL = [
   'วิธีการทำงาน',
   'โซลูชัน',
   'สำหรับองค์กร',
+  'ความรู้',
   'เกี่ยวกับเรา',
-  'ติดต่อเรา',
 ];
 
 async function desktopNav(path = '/') {
@@ -42,18 +42,21 @@ describe('public header (EP05)', () => {
     }
   });
 
-  it('links ภาพรวม and ติดต่อเรา directly; the six others open mega menus', async () => {
+  it('links ภาพรวม directly; the seven others open mega menus; ติดต่อเรา is an action (EP16)', async () => {
     const { nav } = await desktopNav();
     expect(within(nav).getByRole('link', { name: 'ภาพรวม' })).toHaveAttribute('href', '/');
-    expect(within(nav).getByRole('link', { name: 'ติดต่อเรา' })).toHaveAttribute(
-      'href',
-      '/contact',
-    );
+    // ติดต่อเรา left the text navigation and became a header action.
+    expect(within(nav).queryByRole('link', { name: 'ติดต่อเรา' })).toBeNull();
     const triggers = within(nav).getAllByRole('button');
-    expect(triggers.map((b) => b.textContent)).toEqual(THAI_TOP_LEVEL.slice(1, 7));
+    expect(triggers.map((b) => b.textContent)).toEqual(THAI_TOP_LEVEL.slice(1));
     for (const b of triggers) expect(b).toHaveAttribute('aria-expanded', 'false');
 
     const header = nav.closest('header')!;
+    const contact = within(header).getByRole('link', { name: 'ติดต่อเรา' });
+    expect(contact).toHaveAttribute('href', '/contact');
+    // Order of the actions: language, contact, then sign-in.
+    const login = within(header).getByRole('link', { name: 'เข้าสู่ระบบ' });
+    expect(contact.compareDocumentPosition(login) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(header).getByRole('link', { name: 'เข้าสู่ระบบ' })).toHaveAttribute(
       'href',
       '/login',
@@ -175,7 +178,53 @@ describe('public header (EP05)', () => {
     // ← wraps from the first item to the last.
     overview.focus();
     await userEvent.keyboard('{ArrowLeft}');
-    expect(within(nav).getByRole('link', { name: 'ติดต่อเรา' })).toHaveFocus();
+    expect(within(nav).getByRole('button', { name: 'เกี่ยวกับเรา' })).toHaveFocus();
+  });
+
+  it('opens ความรู้ onto the seven guides and the Resource Center (EP16)', async () => {
+    const { nav } = await desktopNav();
+    await userEvent.click(within(nav).getByRole('button', { name: 'ความรู้' }));
+    const panel = screen.getByRole('region', { name: 'เมนูความรู้' });
+    for (const [label, href] of [
+      ['เริ่มต้นกับ CORE', '/resources/getting-started'],
+      ['Workflow & Operations', '/resources/how-core-works'],
+      ['Human Error', '/resources/human-error'],
+      ['Warehouse Privacy', '/resources/warehouse-privacy'],
+      ['Implementation Guide', '/resources/implementation-guide'],
+      ['Security & Data', '/resources/security-and-data'],
+      ['CORE Glossary', '/resources/core-glossary'],
+    ] as const) {
+      expect(within(panel).getByRole('link', { name: new RegExp(label) })).toHaveAttribute(
+        'href',
+        href,
+      );
+    }
+    expect(panel).toHaveTextContent('Resource Center');
+    expect(within(panel).getByRole('link', { name: /เปิดคลังความรู้/ })).toHaveAttribute(
+      'href',
+      '/resources',
+    );
+    expect(within(panel).queryByText('อยู่ในแผนพัฒนา')).toBeNull();
+  });
+
+  it('keeps the locale on the Resources menu and the contact action (EP16)', async () => {
+    renderRoute('/en');
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
+    await userEvent.click(within(nav).getByRole('button', { name: 'Resources' }));
+    const panel = screen.getByRole('region', { name: /Resources/ });
+    expect(within(panel).getByRole('link', { name: /Warehouse privacy/ })).toHaveAttribute(
+      'href',
+      '/en/resources/warehouse-privacy',
+    );
+    expect(within(panel).getByRole('link', { name: /Open the Resource Center/ })).toHaveAttribute(
+      'href',
+      '/en/resources',
+    );
+    const header = nav.closest('header')!;
+    expect(within(header).getByRole('link', { name: 'Contact' })).toHaveAttribute(
+      'href',
+      '/en/contact',
+    );
   });
 
   it('closes on outside click', async () => {

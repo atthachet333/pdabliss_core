@@ -601,6 +601,198 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://core.pdabliss.com/resources</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources" />
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources" />
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources" />
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/getting-started</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/getting-started" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/getting-started</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/getting-started" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/getting-started</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/getting-started" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/getting-started" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/how-core-works</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/how-core-works" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/how-core-works</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/how-core-works" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/how-core-works</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/how-core-works" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/how-core-works" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/human-error</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/human-error" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/human-error</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/human-error" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/human-error</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/human-error" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/human-error" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/warehouse-privacy</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/warehouse-privacy" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/warehouse-privacy</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/warehouse-privacy" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/warehouse-privacy</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/warehouse-privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/warehouse-privacy" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/implementation-guide</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/implementation-guide" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/implementation-guide</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/implementation-guide" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/implementation-guide</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/implementation-guide" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/implementation-guide" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/security-and-data</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/security-and-data" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/security-and-data</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/security-and-data" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/security-and-data</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/security-and-data" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/security-and-data" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/resources/core-glossary</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/core-glossary" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/resources/core-glossary</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/core-glossary" />
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/resources/core-glossary</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/resources/core-glossary" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/resources/core-glossary" />
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://core.pdabliss.com/privacy</loc>
     <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/privacy" />
     <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/privacy" />

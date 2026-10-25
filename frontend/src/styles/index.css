@@ -194,6 +194,12 @@
       stroke-dashoffset: -292;
     }
   }
+  /* EP16: a resource-map connection moving on hover / focus. */
+  @keyframes resource-flow {
+    to {
+      stroke-dashoffset: -12;
+    }
+  }
   @keyframes now-line {
     from {
       transform: translateX(80px);

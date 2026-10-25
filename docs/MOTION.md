@@ -103,6 +103,15 @@ hijacking — pins are tall sections with a sticky viewport over native scroll.
 | Success | rings close; the gate resolves into one workspace frame (0.5 s); navigation after ~0.9 s in total | 7/10, briefly |
 | Failure | one amber line stops before the gate; panel edge turns amber — no shake | 4/10 |
 
+### Resource Center (EP16 — see [RESOURCES_EXPERIENCE.md](RESOURCES_EXPERIENCE.md))
+
+| Moment | Motion | Trigger |
+| --- | --- | --- |
+| Knowledge map | the hovered / focused guide's connections turn dashed teal and flow (`resource-flow`, 1.2 s linear); static under reduced motion | hover / focus |
+| Editorial rows | a hairline draws across under the row (0.5 s); arrow nudges 4 px | hover / focus |
+| Reading progress | a 2 px hairline in the guide's category accent, mapped directly to scroll | scroll |
+| Examples / checklist | chevron rotates, progress bar widens (0.3 s); none under reduced motion | toggle |
+
 ### Trust Center (EP15 — see [SECURITY_TRUST_CENTER.md](SECURITY_TRUST_CENTER.md))
 
 | Moment | Motion | Trigger |

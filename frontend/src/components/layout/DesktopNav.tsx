@@ -13,7 +13,7 @@ const CLOSE_DELAY = 180;
 const HOVER_CLICK_GRACE = 450;
 
 const itemClass =
-  'group relative flex h-10 items-center gap-1 rounded-full px-2.5 text-[0.9375rem] whitespace-nowrap transition-colors duration-300 2xl:px-3.5';
+  'group relative flex h-10 items-center gap-0.5 rounded-full px-1.5 text-[0.9375rem] whitespace-nowrap transition-colors duration-300 2xl:gap-1 2xl:px-2';
 
 function Underline({ on }: { on: boolean }) {
   return (
@@ -31,8 +31,9 @@ function Underline({ on }: { on: boolean }) {
  * Desktop navigation (≥ nav breakpoint) with editorial mega menus.
  *
  * Disclosure pattern: each mega item is a button controlling a panel of
- * ordinary links (no ARIA menu roles — links stay links); ภาพรวม and
- * ติดต่อเรา are direct links. Pointer: hover intent with short delays.
+ * ordinary links (no ARIA menu roles — links stay links); ภาพรวม is a direct
+ * link (ติดต่อเรา is a header action since EP16). Pointer: hover intent with
+ * short delays.
  * Keyboard: ←/→ move along the bar, ↓ opens and enters a panel, Escape closes
  * and returns focus, tabbing out or clicking outside closes.
  */
@@ -186,7 +187,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
                   {label}
                   <ChevronDown
                     className={cn(
-                      'size-3.5 opacity-55 transition-transform duration-300',
+                      'size-3 opacity-55 transition-transform duration-300 2xl:size-3.5',
                       isOpen && 'rotate-180',
                     )}
                     aria-hidden

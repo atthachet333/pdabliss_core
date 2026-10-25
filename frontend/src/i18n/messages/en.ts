@@ -202,6 +202,49 @@ export const en: ShellMessages = {
           cta: 'Talk to the PDA BLISS team',
         },
       },
+      resources: {
+        label: 'Resources',
+        eyebrow: 'Resources',
+        heading: 'Understand the system\nbefore you decide to use it',
+        intro:
+          'Guides to the ideas behind workflow, work control and preparing an organization — useful even if you never use CORE.',
+        items: {
+          start: {
+            label: 'Getting started',
+            description: 'What CORE is, what it is not, and where to begin',
+          },
+          workflow: {
+            label: 'Workflow & Operations',
+            description: 'How one work item moves through owners, states and handoffs',
+          },
+          humanError: {
+            label: 'Human error',
+            description: 'Prevent, detect, alert, control and trace mistakes',
+          },
+          warehousePrivacy: {
+            label: 'Warehouse privacy',
+            description: 'Why the warehouse does not see prices, and where that is enforced',
+          },
+          implementation: {
+            label: 'Implementation guide',
+            description: 'Ten steps, and what to prepare before you start',
+          },
+          security: {
+            label: 'Security & data',
+            description: 'Visibility boundaries and enforcement, in plain language',
+          },
+          glossary: {
+            label: 'CORE glossary',
+            description: 'The words CORE uses, with one meaning each',
+          },
+        },
+        highlight: {
+          eyebrow: 'Resource Center',
+          statement: 'Seven fully written guides,\nsearchable instantly.',
+          body: 'Start from a question, a problem, a department or the stage your organization is at.',
+          cta: 'Open the Resource Center',
+        },
+      },
       about: {
         label: 'About',
         eyebrow: 'About',

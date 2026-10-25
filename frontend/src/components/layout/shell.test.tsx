@@ -78,7 +78,7 @@ describe('public footer', () => {
       within(quick)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['ภาพรวม', 'แผนก', 'แพ็คเกจ', 'วิธีการทำงาน']);
+    ).toEqual(['ภาพรวม', 'แผนก', 'แพ็คเกจ', 'วิธีการทำงาน', 'ความรู้']);
     const org = within(footer).getByRole('navigation', { name: 'องค์กร' });
     expect(
       within(org)

@@ -41,11 +41,13 @@ Thai is the default experience. Top level, in this order:
 | วิธีการทำงาน | mega menu |
 | โซลูชัน | mega menu |
 | สำหรับองค์กร | mega menu |
+| ความรู้ | mega menu (EP16) |
 | เกี่ยวกับเรา | mega menu |
-| ติดต่อเรา | direct link → `/contact` |
 
-Right side: language selector (globe + `TH` / `EN` / `中文`) and **เข้าสู่ระบบ** (→ `/login`,
-never locale-prefixed). English labels (Product, Departments, Industries…) are not used on the
+Right side: language selector (globe + `TH` / `EN` / `中文`), **ติดต่อเรา** as a primary pill
+action (→ `/contact`, locale kept; from 768 px — below that it lives in the mobile menu) and
+**เข้าสู่ระบบ** (→ `/login`, never locale-prefixed). Since EP16 ติดต่อเรา is no longer a text
+navigation item: the bar holds the eight items above. English labels (Product, Departments, Industries…) are not used on the
 Thai experience; small English overlines (*Department Experience*, *Connected Workflow*,
 *Enterprise*) appear only as secondary labels inside panels.
 
@@ -55,8 +57,12 @@ menu is open it becomes smoked dark glass: `rgb(5 11 18 / 0.74)`, `backdrop-blur
 border, controlled shadow. Height stays 72 px.
 
 **Fit.** Labels are 15 px (`text-[0.9375rem]`) at every desktop width — overflow is never solved
-by shrinking type. Measured clearances: 1280 → 34 px on each side of the nav; 1366 → 54 px;
-1440 → 54 px; 1920 → 68 px (with the full logo subtitle from 1680 px).
+by shrinking type. EP16 added ความรู้ and the contact pill, so between 1280 and 1535 px the bar
+tightens instead: item padding 6 px, chevron 12 px, header gutter 24 px, and เข้าสู่ระบบ becomes
+an icon button that keeps its accessible name (`sr-only` label). From 1536 px items take 8 px
+padding and sign-in shows its label again. Measured free space between the nav and the actions
+(TH / EN / ZH): 1280 → 71 / 30 / 114 px; 1440 → 98 / 57 / 141 px; 1536 → 80 / 48 / 139 px;
+1920 → 67 / 35 / 126 px (with the full logo subtitle from 1680 px). English is the longest.
 
 ## Mega menus
 
@@ -80,6 +86,7 @@ list of links:
 | วิธีการทำงาน | Five stations routed through CORE with a slow pulse (stopped under reduced motion) |
 | โซลูชัน | Scattered, dashed problem fragments → an ordered, checked sequence |
 | สำหรับองค์กร | Isometric architecture stack with integration points outside it |
+| ความรู้ | A search line over an index of guides (EP16) — a library, not a blog feed |
 | เกี่ยวกับเรา | Editorial image (the executive skyline scene) behind the company statement |
 
 | Menu | Items → destination | Highlight CTA |
@@ -89,6 +96,7 @@ list of links:
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) · ทดลองใช้งาน CORE `/demo` (EP14) | ดูวิธีการทำงาน → `/how-core-works` |
 | โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตามประเภทธุรกิจ → `/industries` (EP11 — the highlight already says *ปัญหาของแต่ละองค์กรไม่เหมือนกัน*) |
 | สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Trust `/security` (EP15; was Security & Access → `/enterprise#access`) · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
+| ความรู้ | เริ่มต้นกับ CORE `/resources/getting-started` · Workflow & Operations `/resources/how-core-works` · Human Error `/resources/human-error` · Warehouse Privacy `/resources/warehouse-privacy` · Implementation Guide `/resources/implementation-guide` · Security & Data `/resources/security-and-data` · CORE Glossary `/resources/core-glossary` (EP16) | เปิดคลังความรู้ → `/resources` (overline *Resource Center*) |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/why-core` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/about#consulting` (EP12) | ติดต่อทีมงาน → `/contact` |
 
 **No dead links.** Every destination is a live route or an existing anchor (`plan-*` on
@@ -106,7 +114,7 @@ and the industries strip on `/enterprise`, whose six names link to the six indus
 **Behaviour.** Disclosure pattern — each mega item is a `button` with `aria-expanded` /
 `aria-controls` controlling a `region` of ordinary links (no ARIA menu roles). Hover intent:
 90 ms open, 180 ms close; a click within 450 ms of a hover-open keeps the panel open instead of
-toggling it shut. Keyboard: ←/→ move along all eight items (wrapping), ↓ opens a panel and
+toggling it shut. Keyboard: ←/→ move along all eight items (wrapping; ภาพรวม plus seven menus since EP16), ↓ opens a panel and
 focuses its first link, Escape closes and returns focus to the trigger, tabbing out or clicking
 outside closes, navigating closes. Header overlays (mega panel, language popover) use fully
 opaque surfaces: a `/0.99` background let the page ghost through in Chromium compositing.
@@ -124,8 +132,10 @@ opaque surfaces: a `/0.99` background let the page ghost through in Chromium com
   within thumb reach (safe-area aware).
 - Closes on navigation, and automatically when the viewport grows past the nav breakpoint.
 
-Between 640 and 1279 px the header shows logo · language · เข้าสู่ระบบ · menu; below 640 px
-logo · menu (language lives in the menu).
+Between 768 and 1279 px the header shows logo · language · ติดต่อเรา · เข้าสู่ระบบ · menu; between
+640 and 767 px logo · language · เข้าสู่ระบบ · menu; below 640 px logo · menu (language, contact
+and sign-in live in the menu). Since EP16 the menu's rows are ภาพรวม plus seven groups — ติดต่อเรา
+stays pinned at the bottom beside เข้าสู่ระบบ.
 
 ## Localization
 
@@ -180,6 +190,10 @@ interactive demo — every label, guidance line, handoff and history row), `/pri
 page. There is no new top-level header item. See
 [SECURITY_TRUST_CENTER.md](SECURITY_TRUST_CENTER.md).
 
+**Resources (EP16).** `/resources` and seven guides (`/resources/<slug>`, × th / en / zh) are in
+`test/publicRoutes.ts` and `sitemap.xml` (105 URLs). They are reached from the new ความรู้ mega
+menu and the footer's ลิงก์ด่วน group. See [RESOURCES_EXPERIENCE.md](RESOURCES_EXPERIENCE.md).
+
 **Sign-in (EP15).** `/login` now renders outside the public header and footer: the CORE Gateway
 has its own focused chrome (logo plus "กลับหน้าเว็บไซต์" to the locale's homepage). The header's
 **เข้าสู่ระบบ** action still goes to `/login`. It is `noindex` and not in the sitemap. See
@@ -221,7 +235,7 @@ CORE orbit (desktop/tablet only; phones keep just the glow).
 | Column | Content |
 | --- | --- |
 | 1 — Brand | Logo, *by PDA BLISS*, *Department Operations Platform สำหรับองค์กร* + one sentence, quick contact chips (โทร · LINE · Email), *พัฒนาโดย PDA BLISS COMPANY LIMITED* |
-| 2 — ลิงก์ด่วน | ภาพรวม · แผนก · แพ็คเกจ · วิธีการทำงาน → `/how-core-works` (visually lighter) |
+| 2 — ลิงก์ด่วน | ภาพรวม · แผนก · แพ็คเกจ · วิธีการทำงาน → `/how-core-works` · ความรู้ → `/resources` (EP16) (visually lighter) |
 | 3 — องค์กร | โซลูชัน · สำหรับองค์กร · เกี่ยวกับเรา · ติดต่อเรา (visually lighter) |
 | 4 — ติดต่อเรา | `ContactDetails`: address, one phone number with its contact person, email, LINE OA |
 

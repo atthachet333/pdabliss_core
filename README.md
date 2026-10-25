@@ -66,7 +66,7 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 
 Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`,
 `/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/demo`,
-`/security`, `/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
+`/security`, `/resources` (+ seven `/resources/<slug>` guides), `/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
 `frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
 keeps the two in sync).
 
@@ -120,6 +120,11 @@ redesigned as the CORE Gateway: department signals align into one gate that reso
 focused workspace. It is a visual layer only; the prototype sign-in mechanics are unchanged. See
 [docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CENTER.md) and
 [docs/LOGIN_EXPERIENCE.md](docs/LOGIN_EXPERIENCE.md).
+
+Resources (EP16): `/resources` is the CORE knowledge library — in-memory search, guided entries
+by question, problem, department and organization stage, and seven real guides (getting started,
+how CORE works, human error, warehouse privacy, implementation, security & data, glossary). See
+[docs/RESOURCES_EXPERIENCE.md](docs/RESOURCES_EXPERIENCE.md).
 
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
@@ -211,6 +216,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CENTER.md) — `/security`: access philosophy, Warehouse boundary, UI vs server enforcement, statuses, claim safety
 - [docs/LOGIN_EXPERIENCE.md](docs/LOGIN_EXPERIENCE.md) — the CORE Gateway sign-in: composition, states, credential boundary, locale
 - [docs/EP15_REPORT.md](docs/EP15_REPORT.md) — Trust Center and signature CORE login
+- [docs/RESOURCES_EXPERIENCE.md](docs/RESOURCES_EXPERIENCE.md) — `/resources`: knowledge library, registry, search, glossary, seven guides, claim boundaries
+- [docs/EP16_REPORT.md](docs/EP16_REPORT.md) — CORE knowledge resource experience
 
 ---
 

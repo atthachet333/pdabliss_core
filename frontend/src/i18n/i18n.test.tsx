@@ -103,10 +103,11 @@ describe('locale routes', () => {
       'How it works',
       'Solutions',
       'Enterprise',
+      'Resources',
       'About',
-      'Contact',
     ]);
-    expect(within(nav).getByRole('link', { name: 'Contact' })).toHaveAttribute(
+    // EP16: Contact is a header action beside sign-in, not a navigation item.
+    expect(within(nav.closest('header')!).getByRole('link', { name: 'Contact' })).toHaveAttribute(
       'href',
       '/en/contact',
     );

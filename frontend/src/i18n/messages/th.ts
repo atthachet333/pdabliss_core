@@ -183,6 +183,49 @@ export const th: ShellMessages = {
           cta: 'พูดคุยกับทีม PDA BLISS',
         },
       },
+      resources: {
+        label: 'ความรู้',
+        eyebrow: 'Resources',
+        heading: 'เข้าใจระบบ\nก่อนตัดสินใจใช้ระบบ',
+        intro:
+          'คู่มือที่อธิบายแนวคิด Workflow การควบคุมงาน และการเตรียมองค์กร — มีประโยชน์แม้ยังไม่ได้ใช้ CORE',
+        items: {
+          start: {
+            label: 'เริ่มต้นกับ CORE',
+            description: 'CORE คืออะไร ไม่ใช่อะไร และควรเริ่มจากตรงไหน',
+          },
+          workflow: {
+            label: 'Workflow & Operations',
+            description: 'งานหนึ่งชิ้นเดินผ่านเจ้าของงาน สถานะ และการส่งต่ออย่างไร',
+          },
+          humanError: {
+            label: 'Human Error',
+            description: 'ป้องกัน ตรวจพบ แจ้งเตือน ควบคุม และย้อนรอยความผิดพลาด',
+          },
+          warehousePrivacy: {
+            label: 'Warehouse Privacy',
+            description: 'ทำไมคลังสินค้าไม่เห็นราคา และขอบเขตนี้ควรบังคับใช้ที่ไหน',
+          },
+          implementation: {
+            label: 'Implementation Guide',
+            description: 'สิบขั้นของการนำไปใช้ และสิ่งที่ควรเตรียมก่อนเริ่ม',
+          },
+          security: {
+            label: 'Security & Data',
+            description: 'ขอบเขตการมองเห็นและการบังคับใช้ ฉบับเข้าใจง่าย',
+          },
+          glossary: {
+            label: 'CORE Glossary',
+            description: 'คำที่ใช้ทั่วทั้ง CORE ในความหมายเดียวกัน',
+          },
+        },
+        highlight: {
+          eyebrow: 'Resource Center',
+          statement: 'เจ็ดคู่มือที่เขียนจริงทุกเรื่อง\nค้นหาได้ทันที',
+          body: 'เริ่มจากคำถาม ปัญหา แผนก หรือช่วงขององค์กรที่คุณอยู่',
+          cta: 'เปิดคลังความรู้',
+        },
+      },
       about: {
         label: 'เกี่ยวกับเรา',
         eyebrow: 'About',

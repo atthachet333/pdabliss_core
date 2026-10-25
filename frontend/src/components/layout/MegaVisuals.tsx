@@ -311,6 +311,51 @@ function EditorialImage() {
   );
 }
 
+/** EP16: a search line over an index of guides — the library, not a blog feed. */
+function LibraryIndex() {
+  return (
+    <svg viewBox="0 0 260 120" className="w-full">
+      <rect
+        x="8"
+        y="6"
+        width="244"
+        height="22"
+        rx="11"
+        fill="none"
+        stroke={G}
+        strokeOpacity="0.45"
+      />
+      <circle cx="24" cy="17" r="4.5" fill="none" stroke={G} strokeOpacity="0.8" />
+      <line x1="27.5" y1="20.5" x2="31" y2="24" stroke={G} strokeOpacity="0.8" />
+      <rect x="40" y="15" width="70" height="4" rx="2" fill={T} fillOpacity="0.45" />
+      {[42, 66, 90].map((y, i) => (
+        <g key={y}>
+          <rect x="12" y={y} width="3" height="16" rx="1.5" fill={G} fillOpacity={0.9 - i * 0.2} />
+          <rect
+            x="24"
+            y={y + 1}
+            width={120 - i * 18}
+            height="5"
+            rx="2.5"
+            fill={G}
+            fillOpacity="0.5"
+          />
+          <rect
+            x="24"
+            y={y + 10}
+            width={170 - i * 24}
+            height="4"
+            rx="2"
+            fill={T}
+            fillOpacity="0.3"
+          />
+          <path d={`M 240 ${y + 4} l 5 4 l -5 4`} fill="none" stroke={G} strokeOpacity="0.5" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 /** The illustration at the top of a mega menu's highlight panel. */
 export function MegaVisual({ id }: { id: MegaGroupId }) {
   return (
@@ -320,6 +365,7 @@ export function MegaVisual({ id }: { id: MegaGroupId }) {
       {id === 'howItWorks' && <FlowRoute />}
       {id === 'solutions' && <ProblemToControl />}
       {id === 'enterprise' && <ArchitectureStack />}
+      {id === 'resources' && <LibraryIndex />}
       {id === 'about' && <EditorialImage />}
     </div>
   );

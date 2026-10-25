@@ -52,6 +52,17 @@ const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const DemoPage = lazy(() => import('@/pages/public/DemoPage'));
 // EP15: the public Security / Trust Center.
 const SecurityPage = lazy(() => import('@/pages/public/SecurityPage'));
+// EP16: the CORE knowledge library and its guides (each guide its own chunk).
+const ResourcesPage = lazy(() => import('@/pages/public/ResourcesPage'));
+const RESOURCE_PAGES = {
+  'getting-started': lazy(() => import('@/features/resources/guides/GettingStarted')),
+  'how-core-works': lazy(() => import('@/features/resources/guides/HowCoreWorksGuide')),
+  'human-error': lazy(() => import('@/features/resources/guides/HumanErrorGuide')),
+  'warehouse-privacy': lazy(() => import('@/features/resources/guides/WarehousePrivacyGuide')),
+  'implementation-guide': lazy(() => import('@/features/resources/guides/ImplementationGuide')),
+  'security-and-data': lazy(() => import('@/features/resources/guides/SecurityAndDataGuide')),
+  'core-glossary': lazy(() => import('@/features/resources/guides/GlossaryGuide')),
+} as const;
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const LegalPage = lazy(() => import('@/pages/public/LegalPage'));
 
@@ -167,6 +178,11 @@ function publicPages(): RouteObject[] {
     { path: 'contact', element: lazyPage(ContactPage) },
     { path: 'demo', element: lazyPage(DemoPage) },
     { path: 'security', element: lazyPage(SecurityPage) },
+    { path: 'resources', element: lazyPage(ResourcesPage) },
+    ...Object.entries(RESOURCE_PAGES).map(([slug, Page]) => ({
+      path: `resources/${slug}`,
+      element: lazyPage(Page),
+    })),
     {
       path: 'privacy',
       element: (

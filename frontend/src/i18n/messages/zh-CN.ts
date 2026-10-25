@@ -128,6 +128,30 @@ export const zhCN: ShellMessages = {
           cta: '与 PDA BLISS 团队沟通',
         },
       },
+      resources: {
+        label: '资源',
+        eyebrow: 'Resources',
+        heading: '先了解系统，\n再决定是否使用',
+        intro: '讲解工作流、工作管控与组织准备背后思路的指南——即使不使用 CORE 也有参考价值。',
+        items: {
+          start: { label: '开始了解 CORE', description: 'CORE 是什么、不是什么，以及从哪里开始' },
+          workflow: { label: '工作流与运营', description: '一项工作如何经过负责人、状态与交接' },
+          humanError: { label: '人为差错', description: '预防、发现、提醒、管控与追溯差错' },
+          warehousePrivacy: {
+            label: '仓库可见范围',
+            description: '为什么仓库看不到价格，以及这条边界应在哪里执行',
+          },
+          implementation: { label: '实施指南', description: '十个步骤，以及开始前要准备什么' },
+          security: { label: '安全与数据', description: '可见边界与执行方式的通俗说明' },
+          glossary: { label: 'CORE 术语表', description: 'CORE 使用的词语，每个只有一个含义' },
+        },
+        highlight: {
+          eyebrow: 'Resource Center',
+          statement: '七篇完整撰写的指南，\n即时可搜索。',
+          body: '可从一个问题、一个痛点、一个部门或组织所处的阶段开始。',
+          cta: '打开资源中心',
+        },
+      },
       about: {
         label: '关于我们',
         eyebrow: 'About',

@@ -132,59 +132,64 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                           className="overflow-hidden"
                         >
                           <p className="pb-3 text-caption text-text-secondary">{copy.intro}</p>
-                          {copy.note && (
-                            <p className="pb-3 text-caption text-text-muted">{copy.note}</p>
-                          )}
-                          <ul className="grid gap-1 pb-3 sm:grid-cols-2">
-                            {group.items.map((item) => {
-                              const text = copy.items[item.id]!;
-                              const inner = (
-                                <>
-                                  <MegaItemMark group={entry.id} item={item} />
-                                  <span className="min-w-0">
-                                    <span className="flex flex-wrap items-center gap-1.5 text-label font-medium text-text-primary">
-                                      {text.label}
-                                      {!item.to && (
-                                        <span className="rounded-full border border-border-strong px-2 py-px text-[0.6875rem] font-normal text-text-muted">
-                                          {t.nav.plannedTag}
-                                        </span>
-                                      )}
-                                    </span>
-                                    <span className="block text-caption text-text-muted">
-                                      {text.description}
-                                    </span>
-                                  </span>
-                                </>
-                              );
-                              return (
-                                <li key={item.id}>
-                                  {item.to ? (
-                                    <Link
-                                      to={href(item.to)}
-                                      onClick={onClose}
-                                      className="group flex min-h-14 items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]"
-                                    >
-                                      {inner}
-                                    </Link>
-                                  ) : (
-                                    <div className="flex min-h-14 items-center gap-3 rounded-2xl px-2.5 py-2.5">
-                                      {inner}
-                                    </div>
-                                  )}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                          {group.cta && copy.highlight.cta && (
-                            <Link
-                              to={href(group.cta)}
-                              onClick={onClose}
-                              className="mb-4 flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border-soft bg-[radial-gradient(ellipse_at_100%_0%,rgb(25_195_154/0.12),transparent_65%)] px-4 text-label font-medium text-brand-glow"
-                            >
-                              {copy.highlight.cta}
-                              <ArrowRight className="size-4 shrink-0" aria-hidden />
-                            </Link>
-                          )}
+                          {/* EP18: the menu's sections — feature rows, then compact name links. */}
+                          {group.sections.map((section) => (
+                            <div key={section.id} data-mobile-section={section.id} className="pb-3">
+                              <p className="px-2.5 pb-1 text-caption font-medium text-text-muted">
+                                {copy.sections[section.id]}
+                              </p>
+                              {section.kind === 'feature' ? (
+                                <ul className="grid gap-1 sm:grid-cols-2">
+                                  {section.items.map((item) => {
+                                    const text = copy.items[item.id]!;
+                                    return (
+                                      <li key={item.id}>
+                                        <Link
+                                          to={href(item.to)}
+                                          onClick={onClose}
+                                          className="group flex min-h-14 items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]"
+                                        >
+                                          <MegaItemMark item={item} />
+                                          <span className="min-w-0">
+                                            <span className="block text-label font-medium text-text-primary">
+                                              {text.label}
+                                            </span>
+                                            {text.description && (
+                                              <span className="block text-caption text-text-muted">
+                                                {text.description}
+                                              </span>
+                                            )}
+                                          </span>
+                                        </Link>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              ) : (
+                                <ul className="flex flex-wrap gap-1.5 px-1">
+                                  {section.items.map((item) => (
+                                    <li key={item.id}>
+                                      <Link
+                                        to={href(item.to)}
+                                        onClick={onClose}
+                                        className="inline-flex min-h-11 items-center rounded-full border border-border-soft px-3.5 text-label text-text-secondary transition-colors hover:border-border-brand hover:text-text-primary"
+                                      >
+                                        {copy.items[item.id]!.label}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                          <Link
+                            to={href(group.cta)}
+                            onClick={onClose}
+                            className="mb-4 flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border-soft px-4 text-label font-medium text-brand-glow"
+                          >
+                            {copy.highlight.cta}
+                            <ArrowRight className="size-4 shrink-0" aria-hidden />
+                          </Link>
                         </motion.div>
                       )}
                     </AnimatePresence>

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Cookie, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useBodyScrollLock, useFocusTrap } from '@/components/core/hooks';
@@ -32,7 +32,7 @@ const IN_USE: Record<CookieCategoryId, boolean> = {
 const OPTIONAL = ['analytics', 'preferences', 'marketing'] as const;
 
 const btn =
-  'inline-flex min-h-11 items-center justify-center rounded-full px-5 text-label font-medium transition-colors duration-200';
+  'inline-flex min-h-11 items-center justify-center rounded-full px-4 text-center text-label font-medium leading-tight transition-colors duration-200';
 // Accept and reject carry equal weight — no dark patterns.
 const btnAccept = cn(btn, 'bg-brand-primary text-text-inverse hover:bg-brand-glow');
 const btnReject = cn(
@@ -75,48 +75,36 @@ function CookieBanner({
         transition: { delay: 0.5, duration: DURATION.base, ease: EASE_CORE },
       }}
       exit={{ opacity: 0, y: 12, transition: { duration: DURATION.fast, ease: EASE_CORE } }}
-      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-60 sm:inset-x-auto sm:bottom-6 sm:left-6 sm:max-w-[34rem]"
+      // EP18: a compact notice — one sentence, the honesty note, two equal choices
+      // and a quiet settings link; it no longer covers half a phone screen.
+      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-60 sm:inset-x-auto sm:bottom-6 sm:left-6 sm:max-w-[25rem]"
       data-shell="cookie-banner"
     >
-      <div className="relative overflow-hidden rounded-[1.375rem] border border-border-soft bg-[rgb(7_14_21/0.9)] p-4 shadow-[0_24px_60px_-24px_rgb(0_0_0/0.85)] backdrop-blur-xl sm:p-6">
+      <div className="relative overflow-hidden rounded-2xl border border-border-soft bg-[rgb(7_14_21/0.94)] p-4 shadow-[0_20px_50px_-24px_rgb(0_0_0/0.85)] backdrop-blur-md">
         <EdgeLight />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-24 -right-20 size-56 rounded-full bg-[radial-gradient(circle,rgb(25_195_154/0.12),transparent_70%)]"
-        />
-        <div className="relative flex items-start gap-3.5">
-          <span className="mt-0.5 hidden size-9 shrink-0 items-center justify-center rounded-xl border border-border-soft bg-surface-base/80 sm:flex">
-            <Cookie className="size-4 text-brand-soft" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-label font-semibold text-text-primary">
-              {t.cookie.title}
-            </h2>
-            <p className="mt-1.5 text-caption text-text-secondary sm:text-[0.875rem] sm:leading-relaxed">
-              {t.cookie.body}
-            </p>
-            <p className="mt-2 text-caption text-text-muted">
-              {t.cookie.note}{' '}
-              <Link
-                to={href('/privacy')}
-                className="text-brand-soft underline underline-offset-4 hover:text-brand-glow"
-              >
-                {t.cookie.privacyLink}
-              </Link>
-            </p>
-          </div>
-        </div>
-        <div className="relative mt-3.5 flex flex-col gap-2 sm:mt-4 sm:flex-row sm:flex-wrap sm:items-center">
+        <h2 id={titleId} className="text-label font-semibold text-text-primary">
+          {t.cookie.title}
+        </h2>
+        <p className="mt-1 text-caption leading-relaxed text-text-secondary">
+          {t.cookie.body} <span className="text-text-muted">{t.cookie.note}</span>{' '}
+          <Link
+            to={href('/privacy')}
+            className="text-brand-soft underline underline-offset-4 hover:text-brand-glow"
+          >
+            {t.cookie.privacyLink}
+          </Link>
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <button type="button" className={btnAccept} onClick={onAcceptAll}>
             {t.cookie.acceptAll}
           </button>
           <button type="button" className={btnReject} onClick={onReject}>
             {t.cookie.rejectNonEssential}
           </button>
-          <button type="button" className={btnQuiet} onClick={onSettings}>
-            {t.cookie.settings}
-          </button>
         </div>
+        <button type="button" className={cn(btnQuiet, 'mt-1 -ml-3')} onClick={onSettings}>
+          {t.cookie.settings}
+        </button>
       </div>
     </motion.section>
   );

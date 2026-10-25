@@ -29,95 +29,72 @@ PublicLayout (locale)
 | Cookie consent record | `src/features/consent/consent.ts` |
 | Nav breakpoint | `--breakpoint-nav` in `styles/index.css` + `NAV_DESKTOP_QUERY` |
 
-## Header information architecture
+## Header information architecture (EP18)
 
+The full structure, with before/after, is in [GLOBAL_NAVIGATION.md](GLOBAL_NAVIGATION.md).
 Thai is the default experience. Top level, in this order:
 
 | Label | Behaviour |
 | --- | --- |
 | ภาพรวม | direct link → `/` |
-| แผนก | mega menu |
-| แพ็คเกจ | mega menu |
-| วิธีการทำงาน | mega menu |
-| โซลูชัน | mega menu |
-| สำหรับองค์กร | mega menu |
-| ความรู้ | mega menu (EP16) |
-| เกี่ยวกับเรา | mega menu |
+| ผลิตภัณฑ์ | menu — what CORE is and how to use it (how it works, departments, demo, packages; the six departments) |
+| โซลูชัน | menu — where CORE fits (problems, industries, for organizations; the six industries) |
+| ความรู้ | menu — the Resource Center and its seven guides |
+| เกี่ยวกับเรา | menu — PDA BLISS, why CORE, Security & Trust, approach |
 
-Right side: language selector (globe + `TH` / `EN` / `中文`), **ติดต่อเรา** as a primary pill
-action (→ `/contact`, locale kept; from 768 px — below that it lives in the mobile menu) and
-**เข้าสู่ระบบ** (→ `/login`, never locale-prefixed). Since EP16 ติดต่อเรา is no longer a text
-navigation item: the bar holds the eight items above. English labels (Product, Departments, Industries…) are not used on the
-Thai experience; small English overlines (*Department Experience*, *Connected Workflow*,
-*Enterprise*) appear only as secondary labels inside panels.
+**Right side:**
 
-**States.** At the top of a page the header is near-transparent with a faint top-down shade for
-legibility. After scrolling (IntersectionObserver sentinel, no scroll listener) or while a mega
-menu is open it becomes smoked dark glass: `rgb(5 11 18 / 0.74)`, `backdrop-blur-lg`, hairline
-border, controlled shadow. Height stays 72 px.
+- Language selector (globe + `TH` / `EN` / `中文`).
+- **ติดต่อเรา** as the primary pill (→ `/contact`, locale kept; from 768 px).
+- **เข้าสู่ระบบ** (→ `/login`, never locale-prefixed), always with its label. EP18 removed the
+  1280–1535 px icon-only state.
 
-**Fit.** Labels are 15 px (`text-[0.9375rem]`) at every desktop width — overflow is never solved
-by shrinking type. EP16 added ความรู้ and the contact pill, so between 1280 and 1535 px the bar
-tightens instead: item padding 6 px, chevron 12 px, header gutter 24 px, and เข้าสู่ระบบ becomes
-an icon button that keeps its accessible name (`sr-only` label). From 1536 px items take 8 px
-padding and sign-in shows its label again. Measured free space between the nav and the actions
-(TH / EN / ZH): 1280 → 71 / 30 / 114 px; 1440 → 98 / 57 / 141 px; 1536 → 80 / 48 / 139 px;
-1920 → 67 / 35 / 126 px (with the full logo subtitle from 1680 px). English is the longest.
+The menu that holds the current page is marked with `aria-current` and a quiet dot.
 
-## Mega menus
+**States.**
 
-`DesktopNav.tsx` (behaviour) + `MegaPanel.tsx` (content). Each panel is an editorial layer, not a
-list of links:
+- At the top of a page the header is near-transparent with a faint top-down shade.
+- After scrolling, or while a menu is open, it becomes an 86 % obsidian surface with
+  `backdrop-blur-md`, a hairline border and a soft shadow. EP18 reduced the glass and dropped the
+  saturation boost.
+- Height stays 72 px.
 
-1. **Intro** — English overline, Thai heading (intentional line breaks via `\n`), one paragraph,
-   optional note (e.g. *คิดค่าบริการต่อบริษัท · ทุกสาขาอยู่ใน Workspace เดียว*).
-2. **Items** — two-column grid; a leading mark, label, description; arrow reveal on hover/focus.
-   The mark is a department scene thumbnail (แผนก), a 1–4 tier indicator (แพ็คเกจ) or an icon
-   tile (`MegaItemMark` in `MegaVisuals.tsx`).
-3. **Highlight panel** — a small visual (`MegaVisual`), overline, statement, optional body,
-   call to action; faint CORE orbit geometry and a radial emerald light.
+**Fit.**
 
-**Visual support (EP05 revision).** Restrained, decorative (`aria-hidden`) and on-brand:
+- Labels are 15 px at every desktop width, with 14 px item padding (16 px from 1536 px).
+- Measured spare space between the bar and the actions (TH / EN / ZH):
+  - 1280 → 109 / 107 / 146 px
+  - 1440 → 136 / 135 / 173 px
+  - 1536–1920 → 173 / 172 / 210 px
+- The full logo subtitle shows from 1536 px.
 
-| Menu | Visual |
-| --- | --- |
-| แผนก | Item thumbnails of each department's scene + a 3 × 2 mosaic of the six worlds |
-| แพ็คเกจ | Four rising layers (more departments, control, integration) — no price emphasis |
-| วิธีการทำงาน | Five stations routed through CORE with a slow pulse (stopped under reduced motion) |
-| โซลูชัน | Scattered, dashed problem fragments → an ordered, checked sequence |
-| สำหรับองค์กร | Isometric architecture stack with integration points outside it |
-| ความรู้ | A search line over an index of guides (EP16) — a library, not a blog feed |
-| เกี่ยวกับเรา | Editorial image (the executive skyline scene) behind the company statement |
+## Menus
 
-| Menu | Items → destination | Highlight CTA |
-| --- | --- | --- |
-| แผนก | ผู้บริหาร, ฝ่ายขาย, ฝ่ายปฏิบัติการ, คลังสินค้า, จัดซื้อ, บัญชีและการเงิน → `/departments/<id>` (EP06 department pages) | สำรวจทุกแผนก → `/departments` |
-| แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
-| วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) · ทดลองใช้งาน CORE `/demo` (EP14) | ดูวิธีการทำงาน → `/how-core-works` |
-| โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตามประเภทธุรกิจ → `/industries` (EP11 — the highlight already says *ปัญหาของแต่ละองค์กรไม่เหมือนกัน*) |
-| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Trust `/security` (EP15; was Security & Access → `/enterprise#access`) · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
-| ความรู้ | เริ่มต้นกับ CORE `/resources/getting-started` · Workflow & Operations `/resources/how-core-works` · Human Error `/resources/human-error` · Warehouse Privacy `/resources/warehouse-privacy` · Implementation Guide `/resources/implementation-guide` · Security & Data `/resources/security-and-data` · CORE Glossary `/resources/core-glossary` (EP16) | เปิดคลังความรู้ → `/resources` (overline *Resource Center*) |
-| เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/why-core` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/about#consulting` (EP12) | ติดต่อทีมงาน → `/contact` |
+`DesktopNav.tsx` (behaviour), `MegaPanel.tsx` (content) and `MegaVisuals.tsx` (one decorative
+visual per menu).
 
-**No dead links.** Every destination is a live route or an existing anchor (`plan-*` on
-`/pricing` and `approach` on `/about` were added as plain ids). An item without `to` renders as
-information with an *อยู่ในแผนพัฒนา* tag — never a link to an unfinished page. The สำหรับองค์กร
-panel also says *บางความสามารถอยู่ในแผนพัฒนา*. Tests enforce both rules. Since EP10 every
-สำหรับองค์กร item links to a chapter of `/enterprise`, where each capability carries its own
-status (current prototype · configured by scope · architecture-ready · planned); the footer's
-สำหรับองค์กร link goes to `/enterprise` too.
+**Panel.** Each panel has three parts: intro | sections | featured destination.
 
-**Industries (EP11).** No new top-level item: `/industries` is reached from the โซลูชัน highlight
-CTA, a footer link (องค์กร group: โซลูชัน · ประเภทธุรกิจ · สำหรับองค์กร · เกี่ยวกับเรา · ติดต่อเรา),
-and the industries strip on `/enterprise`, whose six names link to the six industry pages.
+- **Feature rows:** icon tile, label and one line.
+- **Index rows:** name-only links on a hairline.
+- **Featured panel:** a visual, statement and one call to action.
 
-**Behaviour.** Disclosure pattern — each mega item is a `button` with `aria-expanded` /
-`aria-controls` controlling a `region` of ordinary links (no ARIA menu roles). Hover intent:
-90 ms open, 180 ms close; a click within 450 ms of a hover-open keeps the panel open instead of
-toggling it shut. Keyboard: ←/→ move along all eight items (wrapping; ภาพรวม plus seven menus since EP16), ↓ opens a panel and
-focuses its first link, Escape closes and returns focus to the trigger, tabbing out or clicking
-outside closes, navigating closes. Header overlays (mega panel, language popover) use fully
-opaque surfaces: a `/0.99` background let the page ghost through in Chromium compositing.
+No panel shows more than 12 links (tested; the most today is 11).
+
+**No dead links.** Every destination is a live route or an existing anchor, and tests enforce
+it. There are no informational (non-link) items any more.
+
+**Behaviour.** Disclosure pattern:
+
+- Each menu trigger is a `button` with `aria-expanded` / `aria-controls` controlling a `region`
+  of ordinary links (no ARIA menu roles).
+- Hover intent: 90 ms open, 180 ms close.
+- Keyboard:
+  - ←/→ move along the five items (wrapping)
+  - ↓ opens a menu and focuses its first link
+  - Escape closes and returns focus
+- Tabbing out, clicking outside or navigating closes the menu.
+- Panels use fully opaque surfaces.
 
 ## Mobile and tablet navigation (< 1280 px)
 
@@ -135,7 +112,8 @@ opaque surfaces: a `/0.99` background let the page ghost through in Chromium com
 Between 768 and 1279 px the header shows logo · language · ติดต่อเรา · เข้าสู่ระบบ · menu; between
 640 and 767 px logo · language · เข้าสู่ระบบ · menu; below 640 px logo · menu (language, contact
 and sign-in live in the menu). Since EP16 the menu's rows are ภาพรวม plus seven groups — ติดต่อเรา
-stays pinned at the bottom beside เข้าสู่ระบบ.
+stays pinned at the bottom beside เข้าสู่ระบบ. EP18: five rows (ภาพรวม + four groups); a group
+expands into titled sections — feature rows, then index chips — and its featured link.
 
 ## Localization
 
@@ -232,12 +210,23 @@ locale. Thai labels never use wide letter-spacing (tracking is for Latin overlin
 emerald hairline on top, a faint radial light, two restrained network curves and a whisper of
 CORE orbit (desktop/tablet only; phones keep just the glow).
 
-| Column | Content |
+EP18 consolidated the footer into four zones (details in
+[GLOBAL_NAVIGATION.md](GLOBAL_NAVIGATION.md)):
+
+| Zone | Content |
 | --- | --- |
-| 1 — Brand | Logo, *by PDA BLISS*, *Department Operations Platform สำหรับองค์กร* + one sentence, quick contact chips (โทร · LINE · Email), *พัฒนาโดย PDA BLISS COMPANY LIMITED* |
-| 2 — ลิงก์ด่วน | ภาพรวม · แผนก · แพ็คเกจ · วิธีการทำงาน → `/how-core-works` · ความรู้ → `/resources` (EP16) (visually lighter) |
-| 3 — องค์กร | โซลูชัน · สำหรับองค์กร · เกี่ยวกับเรา · ติดต่อเรา (visually lighter) |
-| 4 — ติดต่อเรา | `ContactDetails`: address, one phone number with its contact person, email, LINE OA |
+| Brand | Logo (links home), *Department Operations Platform สำหรับองค์กร* + one sentence, *พัฒนาโดย PDA BLISS COMPANY LIMITED* |
+| ผลิตภัณฑ์ | แผนก · วิธีการทำงาน · ทดลองใช้งาน CORE · แพ็คเกจ |
+| สำรวจ | โซลูชัน · ประเภทธุรกิจ · สำหรับองค์กร · คลังความรู้ · เกี่ยวกับเรา |
+| ติดต่อเรา | `ContactDetails compact`: address, one phone with its contact person, email, LINE OA; then "คุยกับทีม PDA BLISS" → `/contact` |
+
+Removed in EP18:
+
+- the call / LINE / email chips (they duplicated the contact zone)
+- the network curves and orbit geometry
+- ภาพรวม, ความปลอดภัย and the ติดต่อเรา text link — each has a better home in the header
+
+On phones, Product and Explore sit side by side.
 
 Legal bar: *© 2026 PDA BLISS COMPANY LIMITED. All rights reserved.* · นโยบายความเป็นส่วนตัว
 (`/privacy`) · ข้อกำหนดการใช้งาน (`/terms`) · **การตั้งค่าคุกกี้** (button, reopens Cookie
@@ -278,10 +267,18 @@ dialog is tagged *ยังไม่ได้ใช้งานบนเว็�
 the same change that introduces a tool, and that tool must check the stored consent first. No
 legal-compliance claims are made.
 
-**Banner.** Non-blocking `region`, smoked glass with an emerald edge light; bottom-left card
-(max 34 rem) from 640 px, full-width bottom card on phones. Buttons: **ยอมรับทั้งหมด** ·
-**ปฏิเสธคุกกี้ที่ไม่จำเป็น** (same size and weight — no dark patterns) · ตั้งค่าคุกกี้. Link to
-`/privacy`. Soft enter after 0.5 s, soft exit.
+**Banner (compact since EP18).**
+
+- **Container:** a non-blocking `region` with an emerald edge light. It is a bottom-left card
+  (max 25 rem) from 640 px and a full-width bottom card on phones.
+- **Text:** one sentence (*เราใช้เฉพาะคุกกี้ที่จำเป็นต่อการทำงานของเว็บไซต์
+  คุกกี้ประเภทอื่นจะใช้เมื่อคุณอนุญาตเท่านั้น*), then the honesty note and the `/privacy` link
+  inline.
+- **Buttons:** **ยอมรับทั้งหมด** and **ปฏิเสธคุกกี้ที่ไม่จำเป็น** side by side, the same size and
+  weight (no dark patterns). ตั้งค่าคุกกี้ is a quiet text button underneath.
+- **What EP18 removed:** the icon tile and the glow. On a 390 px phone the banner now covers about
+  a quarter of the screen instead of half.
+- **Behaviour:** consent behaviour is unchanged. Soft enter after 0.5 s, soft exit.
 
 **Cookie Preferences.** Modal dialog (`aria-modal`, focus trap starting on the close button,
 Escape, scroll lock), centred on desktop, bottom sheet on phones. Categories: คุกกี้ที่จำเป็น

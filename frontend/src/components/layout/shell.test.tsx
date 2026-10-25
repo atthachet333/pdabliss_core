@@ -68,30 +68,37 @@ describe('public footer', () => {
     renderRoute('/about');
     const footer = await screen.findByRole('contentinfo');
     expect(footer).toHaveTextContent('PDA BLISS CORE');
-    expect(footer).toHaveTextContent('by PDA BLISS');
     expect(footer).toHaveTextContent('Department Operations Platform สำหรับองค์กร');
     expect(footer).toHaveTextContent('พัฒนาโดย PDA BLISS COMPANY LIMITED');
     expect(footer).not.toHaveTextContent('S2 Accounting');
 
-    const quick = within(footer).getByRole('navigation', { name: 'ลิงก์ด่วน' });
+    // EP18: four zones — brand, Product, Explore, contact — and a legal row.
+    const product = within(footer).getByRole('navigation', { name: 'ผลิตภัณฑ์' });
     expect(
-      within(quick)
+      within(product)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['ภาพรวม', 'แผนก', 'แพ็คเกจ', 'วิธีการทำงาน', 'ความรู้']);
-    const org = within(footer).getByRole('navigation', { name: 'องค์กร' });
+    ).toEqual(['แผนก', 'วิธีการทำงาน', 'ทดลองใช้งาน CORE', 'แพ็คเกจ']);
+    const explore = within(footer).getByRole('navigation', { name: 'สำรวจ' });
     expect(
-      within(org)
+      within(explore)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual([
-      'โซลูชัน',
-      'ประเภทธุรกิจ',
-      'สำหรับองค์กร',
-      'ความปลอดภัย',
-      'เกี่ยวกับเรา',
-      'ติดต่อเรา',
-    ]);
+    ).toEqual(['โซลูชัน', 'ประเภทธุรกิจ', 'สำหรับองค์กร', 'คลังความรู้', 'เกี่ยวกับเรา']);
+    // Not a sitemap: no anchors, departments, industries or guides in the footer.
+    for (const a of within(footer).getAllByRole('link')) {
+      expect(a.getAttribute('href') ?? '').not.toMatch(
+        /#|\/departments\/|\/industries\/|\/resources\//,
+      );
+    }
+    expect(within(footer).getByRole('link', { name: /คุยกับทีม PDA BLISS/ })).toHaveAttribute(
+      'href',
+      '/contact',
+    );
+    expect(within(footer).getByRole('link', { name: 'PDA BLISS CORE หน้าแรก' })).toHaveAttribute(
+      'href',
+      '/',
+    );
 
     const contact = within(footer).getByRole('heading', { name: 'ติดต่อเรา' }).closest('section')!;
     expect(contact).toHaveTextContent(ADDRESS);
@@ -113,16 +120,13 @@ describe('public footer', () => {
     expect(line).toHaveAttribute('href', LINE_URL);
     expect(line).toHaveAttribute('rel', 'noopener noreferrer');
 
-    const shortcuts = within(footer).getByRole('list', { name: 'ช่องทางติดต่อด่วน' });
-    expect(within(shortcuts).getByRole('link', { name: 'โทร' })).toHaveAttribute(
-      'href',
-      `tel:${PHONE_E164}`,
-    );
-    expect(within(shortcuts).getByRole('link', { name: /LINE/ })).toHaveAttribute('href', LINE_URL);
-    expect(within(shortcuts).getByRole('link', { name: 'Email' })).toHaveAttribute(
-      'href',
-      'mailto:pdablissoffice@gmail.com',
-    );
+    // EP18: the contact zone is the one place for phone, LINE and email — no duplicate chips.
+    const hrefs = within(footer)
+      .getAllByRole('link')
+      .map((a) => a.getAttribute('href'));
+    expect(hrefs.filter((h) => h === `tel:${PHONE_E164}`)).toHaveLength(1);
+    expect(hrefs.filter((h) => h === LINE_URL)).toHaveLength(1);
+    expect(hrefs.filter((h) => h === 'mailto:pdablissoffice@gmail.com')).toHaveLength(1);
 
     expect(footer).toHaveTextContent('© 2026 PDA BLISS COMPANY LIMITED. All rights reserved.');
     const legal = within(footer).getByRole('navigation', { name: 'ข้อมูลทางกฎหมาย' });

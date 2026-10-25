@@ -72,9 +72,10 @@ function LocationGrid() {
         {/* Receiving dock */}
         <div className="relative flex flex-col items-center justify-end rounded-xl border border-dashed border-ws-warehouse/50 bg-ws-warehouse/[0.06] p-2 pb-3">
           <motion.div
-            initial={reduce ? false : { y: 0 }}
-            animate={reduce ? undefined : { y: [0, -6, 0] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            // EP18: the lot arrives at the dock once, then rests (it used to bob forever).
+            initial={reduce ? false : { y: -10, opacity: 0 }}
+            animate={reduce ? undefined : { y: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="w-full rounded-md border border-ws-warehouse/60 bg-surface-raised px-1 py-1 text-center text-[0.5625rem] text-text-primary sm:text-[0.625rem]"
           >
             L-2411-H

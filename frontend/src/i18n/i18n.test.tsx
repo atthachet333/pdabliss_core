@@ -64,10 +64,14 @@ describe('locale foundation', () => {
         expect(g.label, `${locale}/${id}`).toBeTruthy();
         expect(g.heading).toBeTruthy();
         expect(g.highlight.statement).toBeTruthy();
-        if (MEGA_GROUPS[id].cta) expect(g.highlight.cta, `${locale}/${id} cta`).toBeTruthy();
-        for (const item of MEGA_GROUPS[id].items) {
-          expect(g.items[item.id]?.label, `${locale}/${id}/${item.id}`).toBeTruthy();
-          expect(g.items[item.id]?.description).toBeTruthy();
+        expect(g.highlight.cta, `${locale}/${id} cta`).toBeTruthy();
+        // EP18: every section is titled; feature rows also carry a one-line description.
+        for (const section of MEGA_GROUPS[id].sections) {
+          expect(g.sections[section.id], `${locale}/${id}/${section.id}`).toBeTruthy();
+          for (const item of section.items) {
+            expect(g.items[item.id]?.label, `${locale}/${id}/${item.id}`).toBeTruthy();
+            if (section.kind === 'feature') expect(g.items[item.id]?.description).toBeTruthy();
+          }
         }
       }
     }
@@ -96,16 +100,7 @@ describe('locale routes', () => {
       within(nav)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual([
-      'Overview',
-      'Departments',
-      'Packages',
-      'How it works',
-      'Solutions',
-      'Enterprise',
-      'Resources',
-      'About',
-    ]);
+    ).toEqual(['Overview', 'Product', 'Solutions', 'Resources', 'About']);
     // EP16: Contact is a header action beside sign-in, not a navigation item.
     expect(within(nav.closest('header')!).getByRole('link', { name: 'Contact' })).toHaveAttribute(
       'href',

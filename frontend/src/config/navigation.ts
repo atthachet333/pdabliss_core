@@ -1,51 +1,37 @@
 import {
-  BadgeCheck,
-  Blocks,
   BookOpen,
-  BookText,
   Building,
-  Building2,
-  Calculator,
-  Compass,
-  Crown,
-  Eye,
   EyeOff,
-  Factory,
-  FileCheck2,
-  GitBranch,
-  Handshake,
-  Hourglass,
   Info,
   KeyRound,
   Layers,
-  LifeBuoy,
-  MousePointerClick,
   Lightbulb,
+  MousePointerClick,
   Network,
-  Plug,
-  Radar,
   Route,
   ShieldCheck,
-  ShoppingCart,
-  Sprout,
-  Truck,
-  Warehouse,
+  Store,
+  Tags,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
 
 /*
- * Public site information architecture (EP05).
+ * Public site information architecture (EP05; consolidated in EP18).
  *
  * This file holds the STRUCTURE only — ids, destinations and icons. Every
  * visible word lives in the locale dictionaries (src/i18n/messages/*), keyed
  * by the ids below, so the same structure renders in Thai, English and
  * Simplified Chinese.
  *
- * No dead links: every `to` is a public route that exists today, a homepage
- * chapter anchor, or an anchor on an existing page. An item without `to` is
- * informational (rendered as text, never a link) — used for capabilities that
- * are planned but not live.
+ * EP18: four menus answer four questions instead of seven menus listing
+ * every page — Product (what CORE is and how to use it), Solutions (where it
+ * fits a business), Resources (learn it), About (who builds it and why).
+ * Every public route keeps a discovery path: see
+ * docs/PUBLIC_ROUTE_DISCOVERABILITY.md and test/discoverability.ts.
+ *
+ * No dead links: every `to` is a public route that exists today or an anchor
+ * on an existing page.
  */
 
 /**
@@ -54,122 +40,171 @@ import {
  */
 export const NAV_DESKTOP_QUERY = '(min-width: 80rem)';
 
-export type MegaGroupId =
-  'departments' | 'packages' | 'howItWorks' | 'solutions' | 'enterprise' | 'resources' | 'about';
+export type MegaGroupId = 'product' | 'solutions' | 'resources' | 'about';
 
 export interface MegaItem {
   id: string;
-  icon: LucideIcon;
-  /** Omit for an informational (non-link) item. */
-  to?: string;
+  /** Shown on `feature` rows only. */
+  icon?: LucideIcon;
+  to: string;
+}
+
+/**
+ * A titled block inside a menu. `feature` rows carry an icon and a one-line
+ * description; `index` rows are compact name-only links (the six departments,
+ * the six industries, reference guides) so a menu never becomes a card wall.
+ */
+export interface MegaSection {
+  id: string;
+  kind: 'feature' | 'index';
+  items: readonly MegaItem[];
 }
 
 export interface MegaGroup {
   id: MegaGroupId;
+  sections: readonly MegaSection[];
+  /** Every item, in order (derived from `sections`). */
   items: readonly MegaItem[];
-  /** Destination of the highlight panel's call to action (label in messages). */
-  cta?: string;
+  /** The featured destination in the menu's highlight panel (label in messages). */
+  cta: string;
+  /** Route prefixes that make this menu the current section in the header. */
+  family: readonly string[];
 }
+
+const group = (g: Omit<MegaGroup, 'items'>): MegaGroup => ({
+  ...g,
+  items: g.sections.flatMap((s) => s.items),
+});
 
 export type TopNavItem =
   { kind: 'link'; id: 'overview'; to: string } | { kind: 'mega'; id: MegaGroupId };
 
+const DEPARTMENT_IDS = [
+  'executive',
+  'sales',
+  'operations',
+  'warehouse',
+  'purchasing',
+  'accounting',
+] as const;
+const INDUSTRY_IDS = [
+  'distribution',
+  'services',
+  'projects',
+  'retail',
+  'property',
+  'manufacturing',
+] as const;
+
 export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
-  departments: {
-    id: 'departments',
-    items: [
-      { id: 'executive', icon: Crown, to: '/departments/executive' },
-      { id: 'sales', icon: ShoppingCart, to: '/departments/sales' },
-      { id: 'operations', icon: Factory, to: '/departments/operations' },
-      { id: 'warehouse', icon: Warehouse, to: '/departments/warehouse' },
-      { id: 'purchasing', icon: Truck, to: '/departments/purchasing' },
-      { id: 'accounting', icon: Calculator, to: '/departments/accounting' },
+  product: group({
+    id: 'product',
+    sections: [
+      {
+        id: 'understand',
+        kind: 'feature',
+        items: [
+          { id: 'how', icon: Workflow, to: '/how-core-works' },
+          { id: 'departments', icon: Layers, to: '/departments' },
+        ],
+      },
+      {
+        id: 'start',
+        kind: 'feature',
+        items: [
+          { id: 'demo', icon: MousePointerClick, to: '/demo' },
+          { id: 'pricing', icon: Tags, to: '/pricing' },
+        ],
+      },
+      {
+        id: 'byDepartment',
+        kind: 'index',
+        items: DEPARTMENT_IDS.map((id) => ({ id, to: `/departments/${id}` })),
+      },
     ],
-    cta: '/departments',
-  },
-  packages: {
-    id: 'packages',
-    items: [
-      { id: 'starter', icon: Sprout, to: '/pricing?plan=starter#packages' },
-      { id: 'business', icon: Blocks, to: '/pricing?plan=business#packages' },
-      { id: 'professional', icon: Layers, to: '/pricing?plan=professional#packages' },
-      { id: 'enterprise', icon: Building2, to: '/pricing?plan=enterprise#packages' },
-    ],
-    cta: '/contact',
-  },
-  howItWorks: {
-    id: 'howItWorks',
-    items: [
-      { id: 'how', icon: Compass, to: '/how-core-works' },
-      { id: 'crossDept', icon: Route, to: '/how-core-works#handoff' },
-      { id: 'workflow', icon: Workflow, to: '/how-core-works#approval' },
-      { id: 'tracking', icon: Radar, to: '/how-core-works#trace' },
-      { id: 'errorPrevention', icon: ShieldCheck, to: '/how-core-works#human-error' },
-      // EP14: the public interactive demo.
-      { id: 'demo', icon: MousePointerClick, to: '/demo' },
-    ],
-    cta: '/how-core-works',
-  },
-  solutions: {
+    cta: '/demo',
+    family: ['/departments', '/how-core-works', '/demo', '/pricing', '/features'],
+  }),
+  solutions: group({
     id: 'solutions',
-    items: [
-      { id: 'humanError', icon: ShieldCheck, to: '/solutions#human-error' },
-      { id: 'multiDept', icon: Network, to: '/solutions#cross-department' },
-      { id: 'workflow', icon: GitBranch, to: '/solutions#approval' },
-      { id: 'stock', icon: Hourglass, to: '/solutions#stock' },
-      { id: 'visibility', icon: Eye, to: '/solutions#visibility' },
-      { id: 'management', icon: Crown, to: '/solutions#management' },
+    sections: [
+      {
+        id: 'fit',
+        kind: 'feature',
+        items: [
+          { id: 'problems', icon: Network, to: '/solutions' },
+          { id: 'industries', icon: Store, to: '/industries' },
+          { id: 'enterprise', icon: Building, to: '/enterprise' },
+        ],
+      },
+      {
+        id: 'byIndustry',
+        kind: 'index',
+        items: INDUSTRY_IDS.map((id) => ({ id, to: `/industries/${id}` })),
+      },
     ],
-    // EP11: the highlight ("every organization's problems differ") leads to industries.
     cta: '/industries',
-  },
-  enterprise: {
-    id: 'enterprise',
-    items: [
-      { id: 'scale', icon: Building, to: '/enterprise' },
-      // EP15: the public Trust Center.
-      { id: 'security', icon: KeyRound, to: '/security' },
-      { id: 'audit', icon: FileCheck2, to: '/enterprise#audit' },
-      { id: 'customWorkflow', icon: Workflow, to: '/enterprise#workflow' },
-      { id: 'integration', icon: Plug, to: '/enterprise#integration' },
-      { id: 'support', icon: LifeBuoy, to: '/enterprise#implementation' },
-    ],
-    cta: '/contact',
-  },
+    family: ['/solutions', '/industries', '/enterprise'],
+  }),
   // EP16: the CORE knowledge library — real guides only, never "coming soon".
-  resources: {
+  resources: group({
     id: 'resources',
-    items: [
-      { id: 'start', icon: BookOpen, to: '/resources/getting-started' },
-      { id: 'workflow', icon: Workflow, to: '/resources/how-core-works' },
-      { id: 'humanError', icon: ShieldCheck, to: '/resources/human-error' },
-      { id: 'warehousePrivacy', icon: EyeOff, to: '/resources/warehouse-privacy' },
-      { id: 'implementation', icon: Route, to: '/resources/implementation-guide' },
-      { id: 'security', icon: KeyRound, to: '/resources/security-and-data' },
-      { id: 'glossary', icon: BookText, to: '/resources/core-glossary' },
+    sections: [
+      {
+        id: 'start',
+        kind: 'feature',
+        items: [{ id: 'start', icon: BookOpen, to: '/resources/getting-started' }],
+      },
+      {
+        id: 'concepts',
+        kind: 'feature',
+        items: [
+          { id: 'workflow', icon: Route, to: '/resources/how-core-works' },
+          { id: 'humanError', icon: ShieldCheck, to: '/resources/human-error' },
+          { id: 'warehousePrivacy', icon: EyeOff, to: '/resources/warehouse-privacy' },
+        ],
+      },
+      {
+        id: 'reference',
+        kind: 'index',
+        items: [
+          { id: 'implementation', to: '/resources/implementation-guide' },
+          { id: 'security', to: '/resources/security-and-data' },
+          { id: 'glossary', to: '/resources/core-glossary' },
+        ],
+      },
     ],
     cta: '/resources',
-  },
-  about: {
+    family: ['/resources'],
+  }),
+  about: group({
     id: 'about',
-    items: [
-      { id: 'company', icon: Info, to: '/about' },
-      { id: 'why', icon: Lightbulb, to: '/why-core' },
-      { id: 'approach', icon: BadgeCheck, to: '/about#approach' },
-      { id: 'consulting', icon: Handshake, to: '/about#consulting' },
+    sections: [
+      {
+        id: 'company',
+        kind: 'feature',
+        items: [
+          { id: 'company', icon: Info, to: '/about' },
+          { id: 'why', icon: Lightbulb, to: '/why-core' },
+          { id: 'security', icon: KeyRound, to: '/security' },
+        ],
+      },
+      {
+        id: 'more',
+        kind: 'index',
+        items: [{ id: 'approach', to: '/about#approach' }],
+      },
     ],
-    cta: '/contact',
-  },
+    cta: '/about#consulting',
+    family: ['/about', '/why-core', '/security'],
+  }),
 };
 
-/** The approved top-level order. EP16: ติดต่อเรา moved to the header actions. */
+/** The approved top-level order (EP18): overview + four menus. */
 export const TOP_NAV: readonly TopNavItem[] = [
   { kind: 'link', id: 'overview', to: '/' },
-  { kind: 'mega', id: 'departments' },
-  { kind: 'mega', id: 'packages' },
-  { kind: 'mega', id: 'howItWorks' },
+  { kind: 'mega', id: 'product' },
   { kind: 'mega', id: 'solutions' },
-  { kind: 'mega', id: 'enterprise' },
   { kind: 'mega', id: 'resources' },
   { kind: 'mega', id: 'about' },
 ];
@@ -181,31 +216,43 @@ export const MEGA_ORDER: readonly MegaGroupId[] = TOP_NAV.flatMap((i) =>
   i.kind === 'mega' ? [i.id] : [],
 );
 
-/** Footer link groups — a calm subset of the header IA. */
+/** The menu whose family contains a (locale-free) path, if any. */
+export function activeGroup(path: string): MegaGroupId | null {
+  for (const id of MEGA_ORDER) {
+    const hit = MEGA_GROUPS[id].family.some((f) => path === f || path.startsWith(`${f}/`));
+    if (hit) return id;
+  }
+  return null;
+}
+
+/**
+ * Footer link groups (EP18) — Product and Explore only; brand, contact
+ * details and legal links have their own zones. A closing summary, not a
+ * sitemap: anchors, every department and every guide live in the menus.
+ */
 export const FOOTER_GROUPS = [
   {
-    id: 'quick',
+    id: 'product',
     links: [
-      { id: 'overview', to: '/' },
       { id: 'departments', to: '/departments' },
-      { id: 'packages', to: '/pricing' },
       { id: 'howItWorks', to: '/how-core-works' },
-      // EP16: the knowledge library.
-      { id: 'resources', to: '/resources' },
+      { id: 'demo', to: '/demo' },
+      { id: 'pricing', to: '/pricing' },
     ],
   },
   {
-    id: 'company',
+    id: 'explore',
     links: [
       { id: 'solutions', to: '/solutions' },
       { id: 'industries', to: '/industries' },
       { id: 'enterprise', to: '/enterprise' },
-      { id: 'security', to: '/security' },
+      { id: 'resources', to: '/resources' },
       { id: 'about', to: '/about' },
-      { id: 'contact', to: '/contact' },
     ],
   },
 ] as const;
+
+export type FooterLinkId = (typeof FOOTER_GROUPS)[number]['links'][number]['id'];
 
 /** Every internal destination the shell links to (for dead-link tests). */
 export function shellLinkTargets(): string[] {
@@ -213,9 +260,10 @@ export function shellLinkTargets(): string[] {
   for (const item of TOP_NAV) if (item.kind === 'link') targets.add(item.to);
   targets.add(HEADER_CONTACT);
   for (const g of Object.values(MEGA_GROUPS)) {
-    for (const i of g.items) if (i.to) targets.add(i.to);
-    if (g.cta) targets.add(g.cta);
+    for (const i of g.items) targets.add(i.to);
+    targets.add(g.cta);
   }
   for (const g of FOOTER_GROUPS) for (const l of g.links) targets.add(l.to);
+  for (const legal of ['/privacy', '/terms']) targets.add(legal);
   return [...targets];
 }

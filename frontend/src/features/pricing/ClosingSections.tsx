@@ -108,14 +108,12 @@ export function EarlyAccess() {
           className="absolute -top-12 -right-12 size-48 rounded-full border border-brand-glow/20"
         />
         <SectionHead id="early-title" eyebrow={x.eyebrow} title={x.title} lead={x.lead} />
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* EP18: one framed surface; the benefits are divided columns, not cards in a card. */}
+        <ul className="mt-10 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
           {x.benefits.map((b, i) => {
             const Icon = icons[i]!;
             return (
-              <li
-                key={b.title}
-                className="rounded-2xl border border-border-soft bg-surface-base/70 p-5"
-              >
+              <li key={b.title} className="border-t border-border-soft pt-5">
                 <Icon className="size-5 text-brand-glow" aria-hidden />
                 <p className="mt-3 text-body font-semibold text-text-primary">{b.title}</p>
                 <p className="mt-1 text-label text-text-secondary">{b.body}</p>

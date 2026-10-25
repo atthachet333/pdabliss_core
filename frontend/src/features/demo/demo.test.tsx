@@ -545,10 +545,10 @@ describe('localization', () => {
 });
 
 describe('discoverability', () => {
-  it('the How CORE works menu, page CTA and department pages link to the demo', async () => {
+  it('the Product menu, page CTA and department pages link to the demo', async () => {
     const { unmount } = renderRoute('/');
     const nav = await screen.findByRole('navigation', { name: 'เมนูหลัก' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'วิธีการทำงาน' }));
+    await userEvent.click(within(nav).getByRole('button', { name: 'ผลิตภัณฑ์' }));
     expect(document.querySelector('header a[href="/demo"]')).toHaveTextContent('ทดลองใช้งาน CORE');
     unmount();
 

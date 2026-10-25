@@ -405,7 +405,12 @@ export function HumanErrorChapter() {
   return (
     <Section id={CHAPTER.humanError} labelledBy="human-error-title" className="scroll-mt-20">
       <SectionHead id="human-error-title" eyebrow={h.eyebrow} title={h.title} lead={h.lead} />
-      <ol className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* EP18: one connected sequence along the route — not a 3 + 2 card grid. */}
+      <ol data-principles className="relative mt-12">
+        <span
+          aria-hidden
+          className="absolute top-4 bottom-4 left-[1.0625rem] w-px bg-gradient-to-b from-brand-glow/55 via-brand-glow/25 to-brand-glow/5"
+        />
         {PRINCIPLES.map((p) => {
           const Icon = PRINCIPLE_ICON[p];
           const item = h.items[p];
@@ -414,23 +419,25 @@ export function HumanErrorChapter() {
             <li
               key={p}
               data-principle={p}
-              className="flex flex-col rounded-[1.5rem] border border-border-soft bg-surface-base/60 p-5"
+              className="relative grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-5 pb-10 last:pb-0 lg:grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,24rem)] lg:gap-x-12"
             >
-              <span className="flex items-center gap-2">
-                <Icon aria-hidden className="size-5 text-brand-glow" />
-                <span className="text-caption font-semibold text-brand-soft">
-                  {p.toUpperCase()} · {item.name}
-                </span>
+              <span className="relative flex size-9 items-center justify-center rounded-full border border-border-brand/60 bg-surface-dark">
+                <Icon aria-hidden className="size-4 text-brand-glow" />
               </span>
-              <p className="mt-3 text-label font-semibold text-text-primary">{item.title}</p>
-              <p className="mt-1.5 text-caption text-text-secondary">
-                {fill(item.body, {
-                  ordered: RECEIVING_SAMPLE.ordered,
-                  received: RECEIVING_SAMPLE.received,
-                  diff: RECEIVING_SAMPLE.ordered - RECEIVING_SAMPLE.received,
-                })}
-              </p>
-              <div className="mt-auto pt-4">
+              <div className="min-w-0 pt-1">
+                <p className="text-caption font-semibold text-brand-soft">
+                  {p.toUpperCase()} · {item.name}
+                </p>
+                <p className="mt-2 text-body font-semibold text-text-primary">{item.title}</p>
+                <p className="mt-1.5 max-w-xl text-label text-text-secondary">
+                  {fill(item.body, {
+                    ordered: RECEIVING_SAMPLE.ordered,
+                    received: RECEIVING_SAMPLE.received,
+                    diff: RECEIVING_SAMPLE.ordered - RECEIVING_SAMPLE.received,
+                  })}
+                </p>
+              </div>
+              <div className="col-start-2 mt-4 min-w-0 lg:col-start-3 lg:mt-1">
                 <SafeguardVisual p={p} />
                 <p className="mt-3 text-caption text-text-muted">
                   {c.common.step}: {c.common.steps[at.step].title}

@@ -52,24 +52,25 @@ export function PublicHeader() {
         className={cn(
           'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-500',
           glass
-            ? 'border-b border-border-soft bg-[rgb(5_11_18/0.74)] shadow-[0_12px_40px_-26px_rgb(0_0_0/0.8)] backdrop-blur-lg backdrop-saturate-150'
+            ? // EP18: a quieter, more opaque surface — less glass, no colour boost.
+              'border-b border-border-soft bg-[rgb(5_11_18/0.86)] shadow-[0_10px_30px_-24px_rgb(0_0_0/0.75)] backdrop-blur-md'
             : 'border-b border-transparent bg-gradient-to-b from-[rgb(5_11_18/0.35)] to-transparent',
         )}
       >
-        <div className="mx-auto flex h-18 max-w-[1320px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 nav:max-2xl:gap-2 nav:max-2xl:px-6 2xl:max-w-[1440px]">
+        <div className="mx-auto flex h-18 max-w-[1320px] items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 2xl:max-w-[1440px]">
           <Link to={href('/')} aria-label={t.shell.home} className="shrink-0">
-            {/* Subtitle only where the full navigation has generous room. */}
-            <span className="min-[1680px]:hidden">
+            {/* Subtitle where the bar has generous room (EP18: from 1536 px). */}
+            <span className="2xl:hidden">
               <Logo compact />
             </span>
-            <span className="hidden min-[1680px]:block">
+            <span className="hidden 2xl:block">
               <Logo />
             </span>
           </Link>
 
           <DesktopNav onOpenChange={setMegaOpen} />
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <span className="hidden sm:inline-flex">
               <LanguageSelector />
             </span>
@@ -84,11 +85,11 @@ export function PublicHeader() {
             <Link
               to="/login"
               state={{ locale }}
-              className="hidden h-10 items-center gap-2 rounded-full border border-border-strong bg-surface-raised/50 px-4 text-label whitespace-nowrap text-text-primary transition-colors hover:border-border-brand sm:inline-flex nav:max-2xl:w-10 nav:max-2xl:justify-center nav:max-2xl:px-0"
+              className="hidden h-10 items-center gap-2 rounded-full border border-border-strong bg-surface-raised/50 px-4 text-label whitespace-nowrap text-text-primary transition-colors hover:border-border-brand sm:inline-flex"
             >
               <LogIn className="size-4" aria-hidden />
-              {/* Icon-only (still named) where the full bar is tightest, 1280–1535px. */}
-              <span className="nav:max-2xl:sr-only">{t.header.login}</span>
+              {/* EP18: the label is always visible — the four-menu bar no longer needs the room. */}
+              {t.header.login}
             </Link>
             <button
               type="button"

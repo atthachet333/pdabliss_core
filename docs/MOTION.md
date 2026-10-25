@@ -103,6 +103,29 @@ hijacking — pins are tall sections with a sticky viewport over native scroll.
 | Success | rings close; the gate resolves into one workspace frame (0.5 s); navigation after ~0.9 s in total | 7/10, briefly |
 | Failure | one amber line stops before the gate; panel edge turns amber — no shake | 4/10 |
 
+### Global refinement (EP18 — see [EP18_REPORT.md](EP18_REPORT.md))
+
+| Change | Before | After | Why |
+| --- | --- | --- | --- |
+| Section reveal (`reveal` token, used by `Reveal` / `RevealItem` across 18 files) | rise 24 px, 0.75 s, stagger 0.08 s | **settle 12 px, 0.6 s, stagger 0.06 s** | content arrives; it does not float up |
+| `HOVER_LIFT` | −4 px | **−2 px** | precise, not bouncy |
+| Warehouse hero lot (`/departments/warehouse`) | bobbed up and down forever (2.4 s loop) | **arrives once** (0.6 s) and rests | constant floating was decorative |
+| Why CORE hero "gap" dot | `animate-pulse` forever | **static** | a warning must not keep calling attention |
+| Mega-menu visuals | four looping or animated visuals (department mosaic, tier steps, route pulse, architecture stack) | **one per menu**; only Product keeps the moving dash (it shows a handoff) | motion for meaning only |
+| Header current section | — | 4 px dot fades in (0.3 s) | state, not decoration |
+| Footer | network curves and orbit geometry | removed | calm ending |
+
+Unchanged on purpose:
+
+- **CORE World (homepage WebGL).** The only persistent 3D scene.
+- **Homepage department-world art loops** (route, now-line, scan, verify, horizon). They
+  illustrate each department's work.
+- **Slow ambient drifts** (60 s or more).
+- **The Resource-map flow.** It runs on hover or focus only.
+
+The global `prefers-reduced-motion` block still stops every CSS loop, and Framer Motion still
+honours the OS setting. No new animation framework, WebGL or persistent GPU work was added.
+
 ### Resource Center (EP16 — see [RESOURCES_EXPERIENCE.md](RESOURCES_EXPERIENCE.md))
 
 | Moment | Motion | Trigger |

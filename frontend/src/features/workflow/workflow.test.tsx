@@ -450,17 +450,13 @@ describe('localization and links', () => {
     expect(main.querySelector('a[href="/zh/contact"]')).not.toBeNull();
   });
 
-  it('links the How CORE works mega menu to the page sections', async () => {
+  it('links How CORE works and its guide from the menus (EP18)', async () => {
     renderRoute('/en');
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'How it works' }));
-    for (const href of [
-      '/en/how-core-works',
-      '/en/how-core-works#handoff',
-      '/en/how-core-works#approval',
-      '/en/how-core-works#trace',
-      '/en/how-core-works#human-error',
-    ]) {
+    await userEvent.click(within(nav).getByRole('button', { name: 'Product' }));
+    expect(document.querySelector('header a[href="/en/how-core-works"]')).not.toBeNull();
+    await userEvent.click(within(nav).getByRole('button', { name: 'Resources' }));
+    for (const href of ['/en/resources/how-core-works', '/en/resources/human-error']) {
       expect(document.querySelector(`header a[href="${href}"]`), href).not.toBeNull();
     }
   });

@@ -189,6 +189,32 @@ from DOM, SVG and CSS. Rules:
 - **Amber = unstructured reality, teal = structure** (unchanged from EP12).
 - **Calm ending.** Company information has no animation.
 
+## Global refinement (EP18)
+
+See [GLOBAL_NAVIGATION.md](GLOBAL_NAVIGATION.md) and [EP18_REPORT.md](EP18_REPORT.md).
+
+- **Fewer choices, stronger hierarchy.**
+  - The header shows five text items instead of eight, and sign-in keeps its label.
+  - Menus use titled sections: feature rows (icon, label, one line) and name-only index rows.
+    They never become a grid of cards.
+- **Less glass.** The scrolled header is an 86 % obsidian surface with a medium blur and no
+  saturation boost.
+- **Calm footer.**
+  - Four zones and one legal row.
+  - Plain contact icons instead of tiles; no duplicate chips.
+  - One faint glow instead of network curves and orbit rings.
+- **Active state.** The current section is a 4 px emerald dot under the menu label, plus
+  `aria-current`. It is not an underline bar.
+- **Cards only where they hold structure.** Generic card walls became editorial forms:
+  - `/features`: a numbered index on hairlines
+  - How CORE Works, Human Error: one connected sequence on a rail
+  - Pricing, early-adopter benefits: divided columns inside a single framed surface
+
+  Cards remain where they carry structured data: add-on availability per plan, and the
+  department "today" boards that mirror the product UI.
+- **Compact consent.** The cookie card is one sentence plus the honesty note, with two equal
+  choices and a quiet settings link.
+
 ## Resource Center (EP16)
 
 See [RESOURCES_EXPERIENCE.md](RESOURCES_EXPERIENCE.md).

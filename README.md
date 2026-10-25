@@ -225,6 +225,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/SEO_LOCALIZATION.md](docs/SEO_LOCALIZATION.md) — locales, metadata, canonical, hreflang, sitemap, robots, structured data, 404, terminology
 - [docs/PUBLIC_ROUTE_DISCOVERABILITY.md](docs/PUBLIC_ROUTE_DISCOVERABILITY.md) — every public route, how visitors reach it, orphan rules
 - [docs/EP17_REPORT.md](docs/EP17_REPORT.md) — localization, SEO hardening and navigation discoverability audit
+- [docs/GLOBAL_NAVIGATION.md](docs/GLOBAL_NAVIGATION.md) — four-menu header, menus, mobile menu, footer zones, active state
+- [docs/EP18_REPORT.md](docs/EP18_REPORT.md) — global navigation, visual and motion refinement
 
 ---
 

@@ -1,4 +1,4 @@
-import type { MegaGroupId } from '@/config/navigation';
+import type { FooterLinkId, MegaGroupId } from '@/config/navigation';
 
 /*
  * Shape of a public-shell dictionary. Thai (messages/th.ts) is the source
@@ -12,7 +12,8 @@ import type { MegaGroupId } from '@/config/navigation';
 
 export interface MegaItemMessages {
   label: string;
-  description: string;
+  /** Feature rows only; index rows (departments, industries, reference) are name-only. */
+  description?: string;
 }
 
 export interface MegaGroupMessages {
@@ -23,8 +24,8 @@ export interface MegaGroupMessages {
   /** May contain `\n` for an intentional line break. */
   heading: string;
   intro: string;
-  /** Optional honesty note (sample structure, planned capability …). */
-  note?: string;
+  /** Section titles, keyed by the section ids in config/navigation.ts (EP18). */
+  sections: Record<string, string>;
   /** Keyed by the item ids in config/navigation.ts. */
   items: Record<string, MegaItemMessages>;
   highlight: {
@@ -32,8 +33,8 @@ export interface MegaGroupMessages {
     /** May contain `\n`. */
     statement: string;
     body?: string;
-    /** Label of the call to action whose destination is in config/navigation.ts. */
-    cta?: string;
+    /** Label of the featured destination (its URL is in config/navigation.ts). */
+    cta: string;
   };
 }
 
@@ -68,24 +69,18 @@ export interface ShellMessages {
   nav: {
     overview: string;
     contact: string;
-    plannedTag: string;
     groups: Record<MegaGroupId, MegaGroupMessages>;
   };
   footer: {
-    byline: string;
     lead: string;
     description: string;
-    shortcuts: string;
-    call: string;
-    line: string;
-    email: string;
     developedBy: string;
-    groups: { quick: string; company: string };
-    /** Footer link to /industries (not a mega group). */
-    industries: string;
-    /** Footer link to /security (EP15). */
-    security: string;
+    /** EP18: two link zones (brand, contact and legal have their own). */
+    groups: { product: string; explore: string };
+    links: Record<FooterLinkId, string>;
     contactHeading: string;
+    /** The contact zone's link to the guided consultation (/contact). */
+    talk: string;
     address: string;
     phone: string;
     emailLabel: string;

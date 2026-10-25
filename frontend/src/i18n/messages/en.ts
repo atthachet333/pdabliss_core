@@ -23,141 +23,75 @@ export const en: ShellMessages = {
   nav: {
     overview: 'Overview',
     contact: 'Contact',
-    plannedTag: 'On the roadmap',
     groups: {
-      departments: {
-        label: 'Departments',
-        eyebrow: 'Departments',
-        heading: 'Work shaped around each department',
+      product: {
+        label: 'Product',
+        eyebrow: 'Product',
+        heading: 'What CORE is\nand how to use it',
         intro:
-          'CORE designs each workspace around a team’s duties and responsibilities, while every department stays connected on one shared set of data.',
-        items: {
-          executive: {
-            label: 'Executive',
-            description: 'See the overall picture, issues and key status across the organization',
-          },
-          sales: { label: 'Sales', description: 'Take orders, track status and manage delivery' },
-          operations: {
-            label: 'Operations',
-            description: 'Plan, track work and hand work over between teams',
-          },
-          warehouse: {
-            label: 'Warehouse',
-            description: 'Goods receipt, stock lots, shelf life and stock counts',
-          },
-          purchasing: {
-            label: 'Purchasing',
-            description: 'PRs, POs, suppliers and goods-receipt status',
-          },
-          accounting: {
-            label: 'Accounting & Finance',
-            description: 'Track payment requests, deposits, balances and documents',
-          },
+          'A workspace for each department, connected by one set of data — see how it works, try it, then choose a package.',
+        sections: {
+          understand: 'Understand CORE',
+          start: 'Try and choose',
+          byDepartment: 'By department',
         },
-        highlight: {
-          eyebrow: 'Department Experience',
-          statement:
-            'Not every department needs to see the system the same way.\nCORE designs the experience around each user’s role.',
-          cta: 'Explore all departments',
-        },
-      },
-      packages: {
-        label: 'Packages',
-        eyebrow: 'Packages',
-        heading: 'Choose the setup that fits your organization',
-        intro:
-          'From teams just starting to organize their processes to organizations that need more advanced workflow, control and integration.',
-        note: 'Priced per company · every branch in one workspace',
-        items: {
-          starter: { label: 'Starter', description: 'For teams starting to organize their work' },
-          business: {
-            label: 'Business',
-            description: 'For organizations where several departments work together',
-          },
-          professional: {
-            label: 'Professional',
-            description: 'For organizations that need more workflow and control',
-          },
-          enterprise: {
-            label: 'Enterprise',
-            description: 'For large organizations with specific requirements',
-          },
-        },
-        highlight: {
-          eyebrow: 'Consultation',
-          statement: 'Not sure which package fits?',
-          body: 'Tell us how your organization works, and we’ll help you shape the right setup.',
-          cta: 'Request a consultation',
-        },
-      },
-      howItWorks: {
-        label: 'How it works',
-        eyebrow: 'How CORE works',
-        heading: 'From each department’s work\nto one process across the organization',
-        intro: 'See how work, data and approvals move between departments, from start to finish.',
         items: {
           how: {
             label: 'How CORE works',
-            description: 'The concept and structure behind the system',
+            description: 'How one piece of work moves through departments',
           },
-          crossDept: {
-            label: 'Cross-department work',
-            description: 'See how work is handed over between teams',
-          },
-          workflow: {
-            label: 'Workflow & Approval',
-            description: 'Define clear steps and owners',
-          },
-          tracking: {
-            label: 'Status tracking',
-            description: 'Know where work is and who it is waiting on',
-          },
-          errorPrevention: {
-            label: 'Human Error Prevention',
-            description: 'A system designed to help prevent and flag mistakes',
+          departments: {
+            label: 'Departments',
+            description: 'Workspaces shaped around each team’s responsibility',
           },
           demo: {
-            label: 'Try the CORE demo',
-            description: 'Follow one work item through every department — no sign-up',
+            label: 'Try CORE',
+            description: 'Walk one work item through every department — no sign-up',
           },
+          pricing: {
+            label: 'Packages',
+            description: 'Priced per company; every branch in one workspace',
+          },
+          executive: { label: 'Executive' },
+          sales: { label: 'Sales' },
+          operations: { label: 'Operations' },
+          warehouse: { label: 'Warehouse' },
+          purchasing: { label: 'Purchasing' },
+          accounting: { label: 'Accounting & Finance' },
         },
         highlight: {
-          eyebrow: 'Connected Workflow',
-          statement: 'Each department works its own way —\nwithout separating the data.',
-          cta: 'See how it works',
+          eyebrow: 'CORE Demo',
+          statement: 'Walk one work item\nthrough every department yourself',
+          body: 'Switch roles along the way and see what each department sees.',
+          cta: 'Open the CORE demo',
         },
       },
       solutions: {
         label: 'Solutions',
         eyebrow: 'Solutions',
-        heading: 'Start from the problems organizations really face',
+        heading: 'Where CORE fits\nyour business',
         intro:
-          'Mistakes, hand-offs and invisible status are where cross-department work usually stalls — and where CORE is designed to help.',
+          'Start from the problems you face, your type of business and the size of your organization.',
+        sections: { fit: 'Start from your organization', byIndustry: 'By industry' },
         items: {
-          humanError: {
-            label: 'Reduce human error',
-            description: 'Fewer wrong steps and dropped tasks',
+          problems: {
+            label: 'Problems CORE helps with',
+            description: 'Dropped work, human error, approvals and invisible status',
           },
-          multiDept: {
-            label: 'Connect departments',
-            description: 'Less status chasing and duplicate data entry',
+          industries: {
+            label: 'Industries',
+            description: 'Same principles, different ways of working',
           },
-          workflow: {
-            label: 'Workflow & Approval',
-            description: 'Standardize your critical processes',
+          enterprise: {
+            label: 'For organizations',
+            description: 'Control, access and implementation as you grow',
           },
-          stock: {
-            label: 'Stock & Expiry Control',
-            description: 'Control stock lots and expiry dates',
-          },
-          visibility: {
-            label: 'Operational Visibility',
-            description: 'Let team leads see the real status of work',
-          },
-          management: {
-            label: 'Management Control',
-            description: 'Key information for decision-making in one place',
-          },
+          distribution: { label: 'Distribution / Wholesale' },
+          services: { label: 'Services' },
+          projects: { label: 'Project-based business' },
+          retail: { label: 'Retail operations' },
+          property: { label: 'Property / operational management' },
+          manufacturing: { label: 'Manufacturing' },
         },
         highlight: {
           eyebrow: 'Built around your process',
@@ -166,48 +100,13 @@ export const en: ShellMessages = {
           cta: 'Explore by industry',
         },
       },
-      enterprise: {
-        label: 'Enterprise',
-        eyebrow: 'Enterprise',
-        heading: 'For organizations that need more than a place to store data',
-        intro:
-          'Design direction for organizations with many teams, many steps and a need for clear control.',
-        note: 'Some capabilities are on the roadmap. Ask our team for the current status.',
-        items: {
-          scale: {
-            label: 'For large organizations',
-            description: 'A structure for many teams and complex processes',
-          },
-          security: {
-            label: 'Security & Trust',
-            description: 'Access by responsibility, data boundaries and plain statuses',
-          },
-          audit: { label: 'Audit & Control', description: 'Review history and track changes' },
-          customWorkflow: {
-            label: 'Custom Workflow',
-            description: 'Steps designed around your organization’s structure',
-          },
-          integration: {
-            label: 'API & Integration',
-            description: 'Prepared for connecting to external systems',
-          },
-          support: {
-            label: 'Implementation & Support',
-            description: 'Setup, training and ongoing support',
-          },
-        },
-        highlight: {
-          eyebrow: 'Enterprise',
-          statement: 'For organizations that need flexibility,\ncontrol and long-term scalability.',
-          cta: 'Talk to the PDA BLISS team',
-        },
-      },
       resources: {
         label: 'Resources',
         eyebrow: 'Resources',
         heading: 'Understand the system\nbefore you decide to use it',
         intro:
           'Guides to the ideas behind workflow, work control and preparing an organization — useful even if you never use CORE.',
+        sections: { start: 'Start here', concepts: 'Core concepts', reference: 'Reference' },
         items: {
           start: {
             label: 'Getting started',
@@ -225,18 +124,9 @@ export const en: ShellMessages = {
             label: 'Warehouse privacy',
             description: 'Why the warehouse does not see prices, and where that is enforced',
           },
-          implementation: {
-            label: 'Implementation guide',
-            description: 'Ten steps, and what to prepare before you start',
-          },
-          security: {
-            label: 'Security & data',
-            description: 'Visibility boundaries and enforcement, in plain language',
-          },
-          glossary: {
-            label: 'CORE glossary',
-            description: 'The words CORE uses, with one meaning each',
-          },
+          implementation: { label: 'Implementation guide' },
+          security: { label: 'Security & data' },
+          glossary: { label: 'CORE glossary' },
         },
         highlight: {
           eyebrow: 'Resource Center',
@@ -251,44 +141,47 @@ export const en: ShellMessages = {
         heading: 'The team behind CORE',
         intro:
           'Meet the company that builds PDA BLISS CORE, our thinking, and how we design software around real work.',
+        sections: { company: 'PDA BLISS', more: 'How we work' },
         items: {
           company: { label: 'PDA BLISS', description: 'Our company and our approach' },
           why: {
             label: 'Why we built CORE',
             description: 'Where it came from and the problems we want to solve',
           },
-          approach: {
-            label: 'How we build',
-            description: 'How we think about process and user experience',
+          security: {
+            label: 'Security & Trust',
+            description: 'Who sees what, and what we do not claim yet',
           },
-          consulting: {
-            label: 'Consulting',
-            description: 'System planning and advice for organizations',
-          },
+          approach: { label: 'How we build' },
         },
         highlight: {
           eyebrow: 'PDA BLISS COMPANY LIMITED',
           statement:
             'We don’t see software as just screens —\nbut as part of how an organization really works.',
-          cta: 'Contact our team',
+          cta: 'Implementation and consulting',
         },
       },
     },
   },
   footer: {
-    byline: 'by PDA BLISS',
     lead: 'Department Operations Platform for organizations',
     description:
       'Workspaces designed for each department, connecting people, work, data and processes in one CORE.',
-    shortcuts: 'Quick contact',
-    call: 'Call',
-    line: 'LINE',
-    email: 'Email',
     developedBy: 'Developed by PDA BLISS COMPANY LIMITED',
-    groups: { quick: 'Quick links', company: 'Company' },
-    industries: 'Industries',
-    security: 'Security',
+    groups: { product: 'Product', explore: 'Explore' },
+    links: {
+      departments: 'Departments',
+      howItWorks: 'How it works',
+      demo: 'Try CORE',
+      pricing: 'Packages',
+      solutions: 'Solutions',
+      industries: 'Industries',
+      enterprise: 'For organizations',
+      resources: 'Resource Center',
+      about: 'About',
+    },
     contactHeading: 'Contact us',
+    talk: 'Talk to the PDA BLISS team',
     address: 'Address',
     phone: 'Phone',
     emailLabel: 'Email',
@@ -320,7 +213,7 @@ export const en: ShellMessages = {
   cookie: {
     region: 'Cookie consent',
     title: 'Cookies and your privacy',
-    body: 'This website uses essential cookies so PDA BLISS CORE works properly, and only uses cookies for analytics or experience improvements if you allow it.',
+    body: 'We use only the cookies this website needs to work; any others only with your permission.',
     note: 'This website does not currently use analytics or marketing cookies.',
     acceptAll: 'Accept all',
     rejectNonEssential: 'Reject non-essential',

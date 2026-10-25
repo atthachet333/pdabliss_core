@@ -167,11 +167,11 @@ describe('localization', () => {
 });
 
 describe('navigation between departments', () => {
-  it('links the six department items in the mega menu to their pages', async () => {
+  it('links the six departments from the Product menu to their pages (EP18)', async () => {
     renderRoute('/');
     const nav = await screen.findByRole('navigation', { name: 'เมนูหลัก' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'แผนก' }));
-    const panel = screen.getByRole('region', { name: 'เมนูแผนก' });
+    await userEvent.click(within(nav).getByRole('button', { name: 'ผลิตภัณฑ์' }));
+    const panel = screen.getByRole('region', { name: 'เมนูผลิตภัณฑ์' });
     const hrefs = within(panel)
       .getAllByRole('link')
       .map((a) => a.getAttribute('href'));
@@ -181,7 +181,7 @@ describe('navigation between departments', () => {
   it('keeps the locale in mega-menu department links', async () => {
     renderRoute('/en');
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'Departments' }));
+    await userEvent.click(within(nav).getByRole('button', { name: 'Product' }));
     for (const id of DEPT_PAGES) {
       expect(document.querySelector(`a[href="/en/departments/${id}"]`)).not.toBeNull();
     }

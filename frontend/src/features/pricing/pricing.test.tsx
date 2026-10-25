@@ -528,13 +528,15 @@ describe('localization', () => {
     expect(seen.size).toBe(6);
   });
 
-  it('links the packages mega menu to plans, keeping the locale', async () => {
+  it('links Packages from the Product menu, keeping the locale (EP18)', async () => {
     renderRoute('/en');
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'Packages' }));
-    for (const id of PLAN_IDS) {
-      expect(document.querySelector(`a[href="/en/pricing?plan=${id}#packages"]`)).not.toBeNull();
-    }
+    await userEvent.click(within(nav).getByRole('button', { name: 'Product' }));
+    expect(document.querySelector('header a[href="/en/pricing"]')).toHaveTextContent('Packages');
+    // Plan choice (?plan=…) happens on the page itself, still deep-linkable.
+    renderRoute('/en/pricing?plan=business');
+    await screen.findAllByRole('heading', { level: 1 });
+    expect(PLAN_IDS).toContain('business');
   });
 
   it('pre-selects the package topic on the contact flow from a pricing link (EP13)', async () => {

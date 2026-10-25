@@ -23,120 +23,61 @@ export const th: ShellMessages = {
   nav: {
     overview: 'ภาพรวม',
     contact: 'ติดต่อเรา',
-    plannedTag: 'อยู่ในแผนพัฒนา',
     groups: {
-      departments: {
-        label: 'แผนก',
-        eyebrow: 'Departments',
-        heading: 'ทำงานตามหน้าที่ของแต่ละแผนก',
+      product: {
+        label: 'ผลิตภัณฑ์',
+        eyebrow: 'Product',
+        heading: 'CORE คืออะไร\nและใช้งานอย่างไร',
         intro:
-          'CORE ออกแบบพื้นที่ทำงานให้เหมาะกับหน้าที่และความรับผิดชอบของแต่ละทีม โดยทุกแผนกยังเชื่อมต่อกันบนข้อมูลชุดเดียว',
+          'พื้นที่ทำงานของแต่ละแผนก เชื่อมกันด้วยข้อมูลชุดเดียว — ดูวิธีทำงาน ลองใช้จริง แล้วเลือกแพ็คเกจที่เหมาะ',
+        sections: { understand: 'เข้าใจ CORE', start: 'ลองและเลือก', byDepartment: 'ดูตามแผนก' },
         items: {
-          executive: {
-            label: 'ผู้บริหาร',
-            description: 'เห็นภาพรวม ปัญหา และสถานะสำคัญของทั้งองค์กร',
-          },
-          sales: { label: 'ฝ่ายขาย', description: 'รับออเดอร์ ติดตามสถานะ และการส่งมอบ' },
-          operations: {
-            label: 'ฝ่ายปฏิบัติการ',
-            description: 'วางแผน ติดตามงาน และส่งต่องานระหว่างฝ่าย',
-          },
-          warehouse: {
-            label: 'คลังสินค้า',
-            description: 'รับสินค้า Stock Lot อายุสินค้า และการตรวจนับ',
-          },
-          purchasing: { label: 'จัดซื้อ', description: 'PR, PO, Supplier และสถานะการรับสินค้า' },
-          accounting: {
-            label: 'บัญชีและการเงิน',
-            description: 'ติดตามคำขอจ่าย มัดจำ ยอดคงเหลือ และเอกสาร',
-          },
-        },
-        highlight: {
-          eyebrow: 'Department Experience',
-          statement:
-            'แต่ละแผนกไม่จำเป็นต้องเห็นระบบแบบเดียวกัน\nCORE จึงออกแบบประสบการณ์ตามหน้าที่ของผู้ใช้งาน',
-          cta: 'สำรวจทุกแผนก',
-        },
-      },
-      packages: {
-        label: 'แพ็คเกจ',
-        eyebrow: 'Packages',
-        heading: 'เลือกรูปแบบที่เหมาะกับองค์กร',
-        intro:
-          'ตั้งแต่ทีมที่กำลังเริ่มวางระบบ ไปจนถึงองค์กรที่ต้องการ Workflow, Control และ Integration ที่ซับซ้อนขึ้น',
-        note: 'คิดค่าบริการต่อบริษัท · ทุกสาขาอยู่ใน Workspace เดียว',
-        items: {
-          starter: { label: 'Starter', description: 'สำหรับทีมที่ต้องการเริ่มจัดกระบวนการทำงาน' },
-          business: { label: 'Business', description: 'สำหรับองค์กรที่มีหลายแผนกทำงานร่วมกัน' },
-          professional: {
-            label: 'Professional',
-            description: 'สำหรับองค์กรที่ต้องการ Workflow และการควบคุมเพิ่มขึ้น',
-          },
-          enterprise: {
-            label: 'Enterprise',
-            description: 'สำหรับองค์กรขนาดใหญ่และความต้องการเฉพาะ',
-          },
-        },
-        highlight: {
-          eyebrow: 'Consultation',
-          statement: 'ไม่แน่ใจว่าแพ็คเกจไหนเหมาะ?',
-          body: 'บอกลักษณะการทำงานขององค์กร แล้วคุยกับเราเพื่อวางรูปแบบที่เหมาะสม',
-          cta: 'ขอคำปรึกษา',
-        },
-      },
-      howItWorks: {
-        label: 'วิธีการทำงาน',
-        eyebrow: 'How CORE works',
-        heading: 'จากงานของแต่ละแผนก\nสู่กระบวนการเดียวกันทั้งองค์กร',
-        intro: 'ดูว่างาน ข้อมูล และการอนุมัติเดินทางระหว่างแผนกอย่างไร ตั้งแต่เริ่มต้นจนปิดงาน',
-        items: {
-          how: { label: 'CORE ทำงานอย่างไร', description: 'แนวคิดและโครงสร้างการทำงานของระบบ' },
-          crossDept: {
-            label: 'การทำงานข้ามแผนก',
-            description: 'ดูว่างานถูกส่งต่อระหว่างแต่ละฝ่ายอย่างไร',
-          },
-          workflow: {
-            label: 'Workflow และ Approval',
-            description: 'กำหนดขั้นตอนและผู้รับผิดชอบได้อย่างชัดเจน',
-          },
-          tracking: { label: 'การติดตามสถานะ', description: 'รู้ว่างานอยู่ตรงไหนและกำลังรอใคร' },
-          errorPrevention: {
-            label: 'Human Error Prevention',
-            description: 'ออกแบบระบบให้ช่วยป้องกันและแจ้งเตือนความผิดพลาด',
-          },
+          how: { label: 'CORE ทำงานอย่างไร', description: 'งานหนึ่งชิ้นเดินผ่านหลายแผนกอย่างไร' },
+          departments: { label: 'แผนก', description: 'พื้นที่ทำงานตามหน้าที่ของแต่ละทีม' },
           demo: {
             label: 'ทดลองใช้งาน CORE',
-            description: 'ลองเดินงานหนึ่งชิ้นผ่านทุกแผนก — ไม่ต้องสมัคร',
+            description: 'เดินงานหนึ่งชิ้นผ่านทุกแผนก — ไม่ต้องสมัคร',
           },
+          pricing: { label: 'แพ็คเกจ', description: 'คิดต่อบริษัท ทุกสาขาอยู่ใน Workspace เดียว' },
+          executive: { label: 'ผู้บริหาร' },
+          sales: { label: 'ฝ่ายขาย' },
+          operations: { label: 'ปฏิบัติการ' },
+          warehouse: { label: 'คลังสินค้า' },
+          purchasing: { label: 'จัดซื้อ' },
+          accounting: { label: 'บัญชีและการเงิน' },
         },
         highlight: {
-          eyebrow: 'Connected Workflow',
-          statement: 'แยกวิธีการทำงานของแต่ละแผนก\nแต่ไม่แยกข้อมูลออกจากกัน',
-          cta: 'ดูวิธีการทำงาน',
+          eyebrow: 'CORE Demo',
+          statement: 'ลองเดินงานหนึ่งชิ้น\nผ่านทุกแผนกด้วยตัวเอง',
+          body: 'สลับบทบาทได้ระหว่างทาง แล้วดูว่าแต่ละแผนกเห็นอะไร',
+          cta: 'เปิด CORE Demo',
         },
       },
       solutions: {
         label: 'โซลูชัน',
         eyebrow: 'Solutions',
-        heading: 'เริ่มจากปัญหาที่องค์กรเจอจริง',
-        intro:
-          'ความผิดพลาด การส่งต่องาน และการมองไม่เห็นสถานะ คือจุดที่งานระหว่างแผนกมักสะดุด และเป็นจุดที่ CORE ถูกออกแบบมาให้ช่วย',
+        heading: 'CORE เข้ากับ\nธุรกิจของคุณตรงไหน',
+        intro: 'เริ่มจากปัญหาที่เจออยู่จริง ประเภทธุรกิจ และขนาดขององค์กร',
+        sections: { fit: 'เริ่มจากองค์กรของคุณ', byIndustry: 'ตามประเภทธุรกิจ' },
         items: {
-          humanError: { label: 'ลด Human Error', description: 'ลดขั้นตอนผิดพลาดและงานที่ตกหล่น' },
-          multiDept: {
-            label: 'เชื่อมการทำงานหลายแผนก',
-            description: 'ลดการถามสถานะและการส่งข้อมูลซ้ำ',
+          problems: {
+            label: 'ปัญหาที่ CORE ช่วยจัดการ',
+            description: 'งานตกหล่น Human Error การอนุมัติ และสถานะที่มองไม่เห็น',
           },
-          workflow: { label: 'Workflow & Approval', description: 'สร้างมาตรฐานให้กระบวนการสำคัญ' },
-          stock: { label: 'Stock & Expiry Control', description: 'ควบคุมสินค้า Lot และวันหมดอายุ' },
-          visibility: {
-            label: 'Operational Visibility',
-            description: 'ทำให้หัวหน้าเห็นสถานะงานจริง',
+          industries: {
+            label: 'ประเภทธุรกิจ',
+            description: 'หลักการเดียวกัน แต่แต่ละธุรกิจทำงานไม่เหมือนกัน',
           },
-          management: {
-            label: 'Management Control',
-            description: 'รวมข้อมูลสำคัญสำหรับการตัดสินใจ',
+          enterprise: {
+            label: 'สำหรับองค์กร',
+            description: 'การควบคุม สิทธิ์ และการนำไปใช้เมื่อองค์กรเติบโต',
           },
+          distribution: { label: 'กระจายสินค้า / ค้าส่ง' },
+          services: { label: 'ธุรกิจบริการ' },
+          projects: { label: 'ธุรกิจโครงการ' },
+          retail: { label: 'ธุรกิจค้าปลีก' },
+          property: { label: 'อสังหาริมทรัพย์ / งานปฏิบัติการ' },
+          manufacturing: { label: 'การผลิต' },
         },
         highlight: {
           eyebrow: 'Built around your process',
@@ -145,50 +86,13 @@ export const th: ShellMessages = {
           cta: 'ดูตามประเภทธุรกิจ',
         },
       },
-      enterprise: {
-        label: 'สำหรับองค์กร',
-        eyebrow: 'Enterprise',
-        heading: 'รองรับองค์กรที่ต้องการมากกว่าแค่ระบบเก็บข้อมูล',
-        intro: 'แนวทางการออกแบบสำหรับองค์กรที่มีหลายทีม หลายขั้นตอน และต้องการการควบคุมที่ชัดเจน',
-        note: 'บางความสามารถอยู่ในแผนพัฒนา สอบถามสถานะล่าสุดได้จากทีมงาน',
-        items: {
-          scale: {
-            label: 'สำหรับองค์กรขนาดใหญ่',
-            description: 'โครงสร้างที่รองรับหลายทีมและกระบวนการซับซ้อน',
-          },
-          security: {
-            label: 'Security & Trust',
-            description: 'สิทธิ์ตามหน้าที่ ขอบเขตข้อมูล และสถานะที่ระบุตรงไปตรงมา',
-          },
-          audit: {
-            label: 'Audit & Control',
-            description: 'ตรวจสอบย้อนหลังและติดตามการเปลี่ยนแปลง',
-          },
-          customWorkflow: {
-            label: 'Custom Workflow',
-            description: 'ออกแบบขั้นตอนตามโครงสร้างขององค์กร',
-          },
-          integration: {
-            label: 'API & Integration',
-            description: 'เตรียมพร้อมสำหรับการเชื่อมต่อระบบภายนอก',
-          },
-          support: {
-            label: 'Implementation & Support',
-            description: 'วางระบบ อบรม และดูแลการใช้งาน',
-          },
-        },
-        highlight: {
-          eyebrow: 'Enterprise',
-          statement: 'สำหรับองค์กรที่ต้องการความยืดหยุ่น\nการควบคุม และการขยายระบบในระยะยาว',
-          cta: 'พูดคุยกับทีม PDA BLISS',
-        },
-      },
       resources: {
         label: 'ความรู้',
         eyebrow: 'Resources',
         heading: 'เข้าใจระบบ\nก่อนตัดสินใจใช้ระบบ',
         intro:
           'คู่มือที่อธิบายแนวคิด Workflow การควบคุมงาน และการเตรียมองค์กร — มีประโยชน์แม้ยังไม่ได้ใช้ CORE',
+        sections: { start: 'เริ่มที่นี่', concepts: 'แนวคิดหลัก', reference: 'อ้างอิง' },
         items: {
           start: {
             label: 'เริ่มต้นกับ CORE',
@@ -206,18 +110,9 @@ export const th: ShellMessages = {
             label: 'Warehouse Privacy',
             description: 'ทำไมคลังสินค้าไม่เห็นราคา และขอบเขตนี้ควรบังคับใช้ที่ไหน',
           },
-          implementation: {
-            label: 'Implementation Guide',
-            description: 'สิบขั้นของการนำไปใช้ และสิ่งที่ควรเตรียมก่อนเริ่ม',
-          },
-          security: {
-            label: 'Security & Data',
-            description: 'ขอบเขตการมองเห็นและการบังคับใช้ ฉบับเข้าใจง่าย',
-          },
-          glossary: {
-            label: 'CORE Glossary',
-            description: 'คำที่ใช้ทั่วทั้ง CORE ในความหมายเดียวกัน',
-          },
+          implementation: { label: 'Implementation Guide' },
+          security: { label: 'Security & Data' },
+          glossary: { label: 'CORE Glossary' },
         },
         highlight: {
           eyebrow: 'Resource Center',
@@ -232,38 +127,44 @@ export const th: ShellMessages = {
         heading: 'ทีมที่อยู่เบื้องหลัง CORE',
         intro:
           'รู้จักบริษัทผู้พัฒนา PDA BLISS CORE แนวคิด และวิธีที่เราออกแบบระบบให้เข้ากับการทำงานจริง',
+        sections: { company: 'PDA BLISS', more: 'วิธีที่เราทำงาน' },
         items: {
           company: { label: 'PDA BLISS', description: 'รู้จักบริษัทและแนวคิดของเรา' },
           why: { label: 'ทำไมเราถึงสร้าง CORE', description: 'ที่มาและปัญหาที่เราอยากแก้' },
-          approach: {
-            label: 'แนวทางการพัฒนาระบบ',
-            description: 'วิธีที่เราคิดเรื่อง Process และ User Experience',
+          security: {
+            label: 'Security & Trust',
+            description: 'ใครเห็นอะไร และสิ่งที่เรายังไม่อ้าง',
           },
-          consulting: { label: 'ที่ปรึกษา', description: 'การวางระบบและคำปรึกษาสำหรับองค์กร' },
+          approach: { label: 'แนวทางการพัฒนาระบบ' },
         },
         highlight: {
           eyebrow: 'PDA BLISS COMPANY LIMITED',
           statement:
             'เราไม่ได้มอง Software เป็นเพียงหน้าจอ\nแต่เป็นส่วนหนึ่งของวิธีที่องค์กรทำงานจริง',
-          cta: 'ติดต่อทีมงาน',
+          cta: 'การวางระบบและคำปรึกษา',
         },
       },
     },
   },
   footer: {
-    byline: 'by PDA BLISS',
     lead: 'Department Operations Platform สำหรับองค์กร',
     description:
       'ออกแบบพื้นที่ทำงานให้เหมาะกับแต่ละแผนก พร้อมเชื่อมคน งาน ข้อมูล และกระบวนการไว้ใน CORE เดียว',
-    shortcuts: 'ช่องทางติดต่อด่วน',
-    call: 'โทร',
-    line: 'LINE',
-    email: 'Email',
     developedBy: 'พัฒนาโดย PDA BLISS COMPANY LIMITED',
-    groups: { quick: 'ลิงก์ด่วน', company: 'องค์กร' },
-    industries: 'ประเภทธุรกิจ',
-    security: 'ความปลอดภัย',
+    groups: { product: 'ผลิตภัณฑ์', explore: 'สำรวจ' },
+    links: {
+      departments: 'แผนก',
+      howItWorks: 'วิธีการทำงาน',
+      demo: 'ทดลองใช้งาน CORE',
+      pricing: 'แพ็คเกจ',
+      solutions: 'โซลูชัน',
+      industries: 'ประเภทธุรกิจ',
+      enterprise: 'สำหรับองค์กร',
+      resources: 'คลังความรู้',
+      about: 'เกี่ยวกับเรา',
+    },
     contactHeading: 'ติดต่อเรา',
+    talk: 'คุยกับทีม PDA BLISS',
     address: 'ที่อยู่',
     phone: 'โทรศัพท์',
     emailLabel: 'อีเมล',
@@ -295,7 +196,7 @@ export const th: ShellMessages = {
   cookie: {
     region: 'ความยินยอมการใช้คุกกี้',
     title: 'คุกกี้และความเป็นส่วนตัว',
-    body: 'เว็บไซต์นี้ใช้คุกกี้ที่จำเป็นเพื่อให้ PDA BLISS CORE ทำงานได้อย่างถูกต้อง และจะใช้คุกกี้เพื่อวิเคราะห์หรือพัฒนาประสบการณ์การใช้งานเฉพาะเมื่อคุณอนุญาตเท่านั้น',
+    body: 'เราใช้เฉพาะคุกกี้ที่จำเป็นต่อการทำงานของเว็บไซต์ คุกกี้ประเภทอื่นจะใช้เมื่อคุณอนุญาตเท่านั้น',
     note: 'ขณะนี้เว็บไซต์ยังไม่ได้ใช้คุกกี้วิเคราะห์หรือคุกกี้การตลาด',
     acceptAll: 'ยอมรับทั้งหมด',
     rejectNonEssential: 'ปฏิเสธคุกกี้ที่ไม่จำเป็น',

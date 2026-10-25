@@ -2,7 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { NavLink, useLocation } from 'react-router';
-import { TOP_NAV, type MegaGroupId } from '@/config/navigation';
+import { activeGroup, TOP_NAV, type MegaGroupId } from '@/config/navigation';
+import { stripLocale } from '@/i18n/locales';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
@@ -12,8 +13,23 @@ const OPEN_DELAY = 90;
 const CLOSE_DELAY = 180;
 const HOVER_CLICK_GRACE = 450;
 
+// EP18: five items leave room for comfortable padding at every desktop width.
 const itemClass =
-  'group relative flex h-10 items-center gap-0.5 rounded-full px-1.5 text-[0.9375rem] whitespace-nowrap transition-colors duration-300 2xl:gap-1 2xl:px-2';
+  'group relative flex h-10 items-center gap-1 rounded-full px-3.5 text-[0.9375rem] whitespace-nowrap transition-colors duration-300 2xl:px-4';
+
+/** The section you are in: a quiet dot under the label (EP18), not a bar. */
+function CurrentDot({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden
+      data-current-dot
+      className={cn(
+        'absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-brand-glow transition-opacity duration-300',
+        on ? 'opacity-90' : 'opacity-0',
+      )}
+    />
+  );
+}
 
 function Underline({ on }: { on: boolean }) {
   return (
@@ -33,7 +49,8 @@ function Underline({ on }: { on: boolean }) {
  * Disclosure pattern: each mega item is a button controlling a panel of
  * ordinary links (no ARIA menu roles — links stay links); ภาพรวม is a direct
  * link (ติดต่อเรา is a header action since EP16). Pointer: hover intent with
- * short delays.
+ * short delays. EP18: four menus; the menu whose family holds the current
+ * page is marked (aria-current and a dot), e.g. a guide marks ความรู้.
  * Keyboard: ←/→ move along the bar, ↓ opens and enters a panel, Escape closes
  * and returns focus, tabbing out or clicking outside closes.
  */
@@ -47,6 +64,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
   /** When the current panel opened — a click right after hover-open must not close it. */
   const openedAt = useRef(0);
   const location = useLocation();
+  const current = activeGroup(stripLocale(location.pathname));
 
   const set = useCallback(
     (id: MegaGroupId | null) => {
@@ -158,7 +176,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
                     {({ isActive }) => (
                       <>
                         {t.nav[entry.id]}
-                        <Underline on={isActive && !open} />
+                        <CurrentDot on={isActive && !open} />
                       </>
                     )}
                   </NavLink>
@@ -166,6 +184,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
               );
             }
             const isOpen = open === entry.id;
+            const isCurrent = current === entry.id;
             const label = t.nav.groups[entry.id].label;
             return (
               <li key={entry.id}>
@@ -174,6 +193,7 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={`mega-${entry.id}`}
+                  aria-current={isCurrent ? 'true' : undefined}
                   onClick={() => toggle(entry.id)}
                   onKeyDown={(e) => onItemKey(e, i)}
                   onPointerEnter={(e) =>
@@ -181,18 +201,21 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
                   }
                   className={cn(
                     itemClass,
-                    isOpen ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
+                    isOpen || isCurrent
+                      ? 'text-text-primary'
+                      : 'text-text-secondary hover:text-text-primary',
                   )}
                 >
                   {label}
                   <ChevronDown
                     className={cn(
-                      'size-3 opacity-55 transition-transform duration-300 2xl:size-3.5',
+                      'size-3.5 opacity-55 transition-transform duration-300 motion-reduce:transition-none',
                       isOpen && 'rotate-180',
                     )}
                     aria-hidden
                   />
                   <Underline on={isOpen} />
+                  <CurrentDot on={isCurrent && !isOpen} />
                 </button>
               </li>
             );

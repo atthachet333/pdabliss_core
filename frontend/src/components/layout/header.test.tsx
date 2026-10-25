@@ -6,16 +6,12 @@ import { th } from '@/i18n/messages/th';
 import { PUBLIC_ROUTES } from '@/test/publicRoutes';
 import { renderRoute } from '@/test/render';
 
-const THAI_TOP_LEVEL = [
-  'ภาพรวม',
-  'แผนก',
-  'แพ็คเกจ',
-  'วิธีการทำงาน',
-  'โซลูชัน',
-  'สำหรับองค์กร',
-  'ความรู้',
-  'เกี่ยวกับเรา',
-];
+/*
+ * EP05 header, consolidated in EP18: ภาพรวม + four menus (Product, Solutions,
+ * Resources, About), with ติดต่อเรา and เข้าสู่ระบบ as actions.
+ */
+
+const THAI_TOP_LEVEL = ['ภาพรวม', 'ผลิตภัณฑ์', 'โซลูชัน', 'ความรู้', 'เกี่ยวกับเรา'];
 
 async function desktopNav(path = '/') {
   const utils = renderRoute(path);
@@ -23,168 +19,119 @@ async function desktopNav(path = '/') {
   return { nav, ...utils };
 }
 
-describe('public header (EP05)', () => {
-  it('shows the approved Thai top-level navigation, in order', async () => {
+async function openMenu(nav: HTMLElement, label: string) {
+  await userEvent.click(within(nav).getByRole('button', { name: label }));
+  return screen.getByRole('region', { name: `เมนู${label}` });
+}
+
+const hrefs = (panel: HTMLElement) =>
+  within(panel)
+    .getAllByRole('link')
+    .map((a) => a.getAttribute('href'));
+
+describe('public header (EP18)', () => {
+  it('shows the consolidated Thai top-level navigation, in order', async () => {
     const { nav } = await desktopNav();
     const items = within(nav).getAllByRole('listitem');
     expect(items.map((li) => li.textContent)).toEqual(THAI_TOP_LEVEL);
     // No English labels on the Thai experience.
-    for (const english of [
-      'Product',
-      'Departments',
-      'Solutions',
-      'Industries',
-      'Enterprise',
-      'Resources',
-      'Company',
-    ]) {
+    for (const english of ['Product', 'Solutions', 'Resources', 'About', 'Company']) {
       expect(within(nav).queryByText(english)).toBeNull();
     }
   });
 
-  it('links ภาพรวม directly; the seven others open mega menus; ติดต่อเรา is an action (EP16)', async () => {
+  it('links ภาพรวม directly; four menus; contact and a labelled sign-in as actions', async () => {
     const { nav } = await desktopNav();
     expect(within(nav).getByRole('link', { name: 'ภาพรวม' })).toHaveAttribute('href', '/');
-    // ติดต่อเรา left the text navigation and became a header action.
-    expect(within(nav).queryByRole('link', { name: 'ติดต่อเรา' })).toBeNull();
     const triggers = within(nav).getAllByRole('button');
     expect(triggers.map((b) => b.textContent)).toEqual(THAI_TOP_LEVEL.slice(1));
     for (const b of triggers) expect(b).toHaveAttribute('aria-expanded', 'false');
+    expect(within(nav).queryByRole('link', { name: 'ติดต่อเรา' })).toBeNull();
 
     const header = nav.closest('header')!;
     const contact = within(header).getByRole('link', { name: 'ติดต่อเรา' });
     expect(contact).toHaveAttribute('href', '/contact');
-    // Order of the actions: language, contact, then sign-in.
     const login = within(header).getByRole('link', { name: 'เข้าสู่ระบบ' });
+    expect(login).toHaveAttribute('href', '/login');
+    // EP18: the sign-in label is real text, never visually hidden.
+    expect(login.querySelector('.sr-only')).toBeNull();
+    expect(login).toHaveTextContent('เข้าสู่ระบบ');
     expect(contact.compareDocumentPosition(login) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(header).getByRole('link', { name: 'เข้าสู่ระบบ' })).toHaveAttribute(
-      'href',
-      '/login',
-    );
     expect(within(header).getByRole('button', { name: 'ภาษา: ภาษาไทย' })).toBeInTheDocument();
   });
 
-  it('every mega menu has editorial content and only live destinations', async () => {
+  it('every menu has an intro, titled sections, live links and one featured destination', async () => {
     const { nav } = await desktopNav();
     for (const id of MEGA_ORDER) {
       const copy = th.nav.groups[id];
-      await userEvent.click(within(nav).getByRole('button', { name: copy.label }));
-      const panel = screen.getByRole('region', { name: `เมนู${copy.label}` });
-      // Heading, intro and the highlight statement are present.
+      const group = MEGA_GROUPS[id];
+      const panel = await openMenu(nav, copy.label);
       expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent(
         copy.heading.replace('\n', ' '),
       );
       expect(panel).toHaveTextContent(copy.intro);
       expect(panel).toHaveTextContent(copy.highlight.statement.replace('\n', ' '));
-      for (const item of MEGA_GROUPS[id].items) {
+      for (const section of group.sections)
+        expect(panel).toHaveTextContent(copy.sections[section.id]!);
+      for (const item of group.items) {
         const text = copy.items[item.id]!;
-        expect(panel).toHaveTextContent(text.description);
-        const link = within(panel).queryByRole('link', { name: new RegExp(text.label) });
-        if (item.to) expect(link, `${id}/${item.id}`).not.toBeNull();
-        else expect(link, `${id}/${item.id} is informational`).toBeNull();
+        // Anchored: a feature link's name is its label followed by its description.
+        const link = within(panel).getAllByRole('link', { name: new RegExp(`^${text.label}`) })[0]!;
+        expect(link, `${id}/${item.id}`).toHaveAttribute('href', item.to);
+        if (text.description) expect(panel).toHaveTextContent(text.description);
       }
-      for (const a of within(panel).getAllByRole('link')) {
-        const href = a.getAttribute('href')!;
-        expect(PUBLIC_ROUTES, `${copy.label}: ${a.textContent}`).toContain(
-          href.split('#')[0]!.split('?')[0],
+      expect(panel.querySelector('[data-mega-cta]')).toHaveAttribute('href', group.cta);
+      for (const href of hrefs(panel)) {
+        expect(PUBLIC_ROUTES as readonly string[], `${copy.label}: ${href}`).toContain(
+          href!.split('#')[0]!.split('?')[0],
         );
       }
+      // Hierarchy, not a wall: no menu shows more than a dozen links.
+      expect(hrefs(panel).length).toBeLessThanOrEqual(12);
     }
   });
 
-  it('shows the department items and highlight from the approved copy', async () => {
+  it('Product answers “what is CORE and how do I use it” — every department one step away', async () => {
     const { nav } = await desktopNav();
-    await userEvent.click(within(nav).getByRole('button', { name: 'แผนก' }));
-    const panel = screen.getByRole('region', { name: 'เมนูแผนก' });
-    expect(
-      within(panel).getByRole('heading', { name: 'ทำงานตามหน้าที่ของแต่ละแผนก' }),
-    ).toBeInTheDocument();
-    for (const label of [
-      'ผู้บริหาร',
-      'ฝ่ายขาย',
-      'ฝ่ายปฏิบัติการ',
-      'คลังสินค้า',
-      'จัดซื้อ',
-      'บัญชีและการเงิน',
-    ]) {
-      expect(within(panel).getByRole('link', { name: new RegExp(label) })).toBeInTheDocument();
-    }
-    expect(panel).toHaveTextContent('Department Experience');
-    expect(within(panel).getByRole('link', { name: /สำรวจทุกแผนก/ })).toHaveAttribute(
-      'href',
-      '/departments',
-    );
-  });
-
-  it('links every enterprise capability to its chapter (security → /security, EP15)', async () => {
-    const { nav } = await desktopNav();
-    await userEvent.click(within(nav).getByRole('button', { name: 'สำหรับองค์กร' }));
-    const panel = screen.getByRole('region', { name: 'เมนูสำหรับองค์กร' });
+    const panel = await openMenu(nav, 'ผลิตภัณฑ์');
     for (const [label, href] of [
-      ['สำหรับองค์กรขนาดใหญ่', '/enterprise'],
-      ['Security & Trust', '/security'],
-      ['Audit & Control', '/enterprise#audit'],
-      ['Custom Workflow', '/enterprise#workflow'],
-      ['API & Integration', '/enterprise#integration'],
-      ['Implementation & Support', '/enterprise#implementation'],
+      ['CORE ทำงานอย่างไร', '/how-core-works'],
+      ['แผนก', '/departments'],
+      ['ทดลองใช้งาน CORE', '/demo'],
+      ['แพ็คเกจ', '/pricing'],
+      ['ผู้บริหาร', '/departments/executive'],
+      ['คลังสินค้า', '/departments/warehouse'],
+      ['บัญชีและการเงิน', '/departments/accounting'],
     ] as const) {
-      expect(within(panel).getByRole('link', { name: new RegExp(label) })).toHaveAttribute(
+      expect(within(panel).getByRole('link', { name: new RegExp(`^${label}`) })).toHaveAttribute(
         'href',
         href,
       );
     }
-    // Nothing is presented as planned-only in the menu any more; the page carries statuses.
-    expect(within(panel).queryByText('อยู่ในแผนพัฒนา')).toBeNull();
-    expect(within(panel).getByRole('link', { name: /พูดคุยกับทีม PDA BLISS/ })).toHaveAttribute(
-      'href',
-      '/contact',
-    );
-  });
-
-  it('packages menu invents no prices', async () => {
-    const { nav } = await desktopNav();
-    await userEvent.click(within(nav).getByRole('button', { name: 'แพ็คเกจ' }));
-    const panel = screen.getByRole('region', { name: 'เมนูแพ็คเกจ' });
-    for (const plan of ['Starter', 'Business', 'Professional', 'Enterprise']) {
-      expect(within(panel).getByRole('link', { name: new RegExp(plan) })).toBeInTheDocument();
-    }
+    // The menu names packages but never prices.
     expect(panel.textContent).not.toMatch(/฿|\d+\s?บาท/);
-    expect(within(panel).getByRole('link', { name: /ขอคำปรึกษา/ })).toHaveAttribute(
-      'href',
-      '/contact',
-    );
   });
 
-  it('supports the disclosure keyboard pattern', async () => {
+  it('Solutions answers “where does CORE fit my business” — industries one step away', async () => {
     const { nav } = await desktopNav();
-    const overview = within(nav).getByRole('link', { name: 'ภาพรวม' });
-    const departments = within(nav).getByRole('button', { name: 'แผนก' });
-
-    overview.focus();
-    await userEvent.keyboard('{ArrowRight}');
-    expect(departments).toHaveFocus();
-
-    await userEvent.keyboard('{ArrowDown}');
-    expect(departments).toHaveAttribute('aria-expanded', 'true');
-    const panel = screen.getByRole('region', { name: 'เมนูแผนก' });
-    expect(departments).toHaveAttribute('aria-controls', panel.id);
-    await waitFor(() => expect(within(panel).getAllByRole('link')[0]).toHaveFocus());
-
-    await userEvent.keyboard('{Escape}');
-    expect(departments).toHaveAttribute('aria-expanded', 'false');
-    expect(departments).toHaveFocus();
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'เมนูแผนก' })).toBeNull());
-
-    // ← wraps from the first item to the last.
-    overview.focus();
-    await userEvent.keyboard('{ArrowLeft}');
-    expect(within(nav).getByRole('button', { name: 'เกี่ยวกับเรา' })).toHaveFocus();
+    const panel = await openMenu(nav, 'โซลูชัน');
+    for (const [label, href] of [
+      ['ปัญหาที่ CORE ช่วยจัดการ', '/solutions'],
+      ['ประเภทธุรกิจ', '/industries'],
+      ['สำหรับองค์กร', '/enterprise'],
+      ['ธุรกิจค้าปลีก', '/industries/retail'],
+      ['การผลิต', '/industries/manufacturing'],
+    ] as const) {
+      expect(within(panel).getByRole('link', { name: new RegExp(`^${label}`) })).toHaveAttribute(
+        'href',
+        href,
+      );
+    }
   });
 
   it('opens ความรู้ onto the seven guides and the Resource Center (EP16)', async () => {
     const { nav } = await desktopNav();
-    await userEvent.click(within(nav).getByRole('button', { name: 'ความรู้' }));
-    const panel = screen.getByRole('region', { name: 'เมนูความรู้' });
+    const panel = await openMenu(nav, 'ความรู้');
     for (const [label, href] of [
       ['เริ่มต้นกับ CORE', '/resources/getting-started'],
       ['Workflow & Operations', '/resources/how-core-works'],
@@ -199,15 +146,96 @@ describe('public header (EP05)', () => {
         href,
       );
     }
-    expect(panel).toHaveTextContent('Resource Center');
+    for (const title of ['เริ่มที่นี่', 'แนวคิดหลัก', 'อ้างอิง'])
+      expect(panel).toHaveTextContent(title);
     expect(within(panel).getByRole('link', { name: /เปิดคลังความรู้/ })).toHaveAttribute(
       'href',
       '/resources',
     );
-    expect(within(panel).queryByText('อยู่ในแผนพัฒนา')).toBeNull();
   });
 
-  it('keeps the locale on the Resources menu and the contact action (EP16)', async () => {
+  it('About holds the company, its reasons and trust (Security moved here in EP18)', async () => {
+    const { nav } = await desktopNav();
+    const panel = await openMenu(nav, 'เกี่ยวกับเรา');
+    for (const [label, href] of [
+      ['PDA BLISS', '/about'],
+      ['ทำไมเราถึงสร้าง CORE', '/why-core'],
+      ['Security & Trust', '/security'],
+      ['แนวทางการพัฒนาระบบ', '/about#approach'],
+    ] as const) {
+      expect(
+        within(panel).getAllByRole('link', { name: new RegExp(`^${label}`) })[0],
+      ).toHaveAttribute('href', href);
+    }
+  });
+
+  it.each([
+    ['/pricing', 'ผลิตภัณฑ์'],
+    ['/departments/warehouse', 'ผลิตภัณฑ์'],
+    ['/industries/retail', 'โซลูชัน'],
+    ['/enterprise', 'โซลูชัน'],
+    ['/resources/human-error', 'ความรู้'],
+    ['/why-core', 'เกี่ยวกับเรา'],
+    ['/security', 'เกี่ยวกับเรา'],
+  ])('marks the menu that holds %s as current', async (path, label) => {
+    const { nav } = await desktopNav(path);
+    for (const b of within(nav).getAllByRole('button')) {
+      if (b.textContent === label) expect(b).toHaveAttribute('aria-current', 'true');
+      else expect(b).not.toHaveAttribute('aria-current');
+    }
+  });
+
+  it('marks no menu on the homepage', async () => {
+    const { nav } = await desktopNav('/');
+    for (const b of within(nav).getAllByRole('button'))
+      expect(b).not.toHaveAttribute('aria-current');
+  });
+
+  it('supports the disclosure keyboard pattern', async () => {
+    const { nav } = await desktopNav();
+    const overview = within(nav).getByRole('link', { name: 'ภาพรวม' });
+    const product = within(nav).getByRole('button', { name: 'ผลิตภัณฑ์' });
+
+    overview.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(product).toHaveFocus();
+
+    await userEvent.keyboard('{ArrowDown}');
+    expect(product).toHaveAttribute('aria-expanded', 'true');
+    const panel = screen.getByRole('region', { name: 'เมนูผลิตภัณฑ์' });
+    expect(product).toHaveAttribute('aria-controls', panel.id);
+    await waitFor(() => expect(within(panel).getAllByRole('link')[0]).toHaveFocus());
+
+    await userEvent.keyboard('{Escape}');
+    expect(product).toHaveAttribute('aria-expanded', 'false');
+    expect(product).toHaveFocus();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'เมนูผลิตภัณฑ์' })).toBeNull());
+
+    // ← wraps from the first item to the last.
+    overview.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(within(nav).getByRole('button', { name: 'เกี่ยวกับเรา' })).toHaveFocus();
+  });
+
+  it('closes on outside click', async () => {
+    const { nav } = await desktopNav();
+    await openMenu(nav, 'โซลูชัน');
+    await userEvent.click(document.getElementById('main')!);
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'เมนูโซลูชัน' })).toBeNull());
+  });
+
+  it('a menu link to a chapter opens it on another page and closes the menu', async () => {
+    const { nav, router } = await desktopNav('/pricing');
+    const panel = await openMenu(nav, 'เกี่ยวกับเรา');
+    await userEvent.click(within(panel).getByRole('link', { name: /แนวทางการพัฒนาระบบ/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/about'));
+    expect(router.state.location.hash).toBe('#approach');
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'เมนูเกี่ยวกับเรา' })).toBeNull(),
+    );
+  }, 15000);
+
+  it('keeps the locale on menus and the contact action (EP16)', async () => {
     renderRoute('/en');
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: 'Resources' }));
@@ -225,32 +253,12 @@ describe('public header (EP05)', () => {
       'href',
       '/en/contact',
     );
-  });
-
-  it('closes on outside click', async () => {
-    const { nav } = await desktopNav();
-    await userEvent.click(within(nav).getByRole('button', { name: 'โซลูชัน' }));
-    expect(screen.getByRole('region', { name: 'เมนูโซลูชัน' })).toBeInTheDocument();
-    await userEvent.click(document.getElementById('main')!);
-    await waitFor(() =>
-      expect(screen.queryByRole('region', { name: 'เมนูสำหรับองค์กร' })).toBeNull(),
+    await userEvent.click(within(nav).getByRole('button', { name: 'Product' }));
+    expect(screen.getByRole('link', { name: /^Warehouse$/ })).toHaveAttribute(
+      'href',
+      '/en/departments/warehouse',
     );
   });
-
-  it('a mega-menu section link opens the chapter on another page', async () => {
-    const { nav, router } = await desktopNav('/about');
-    await userEvent.click(within(nav).getByRole('button', { name: 'สำหรับองค์กร' }));
-    const panel = screen.getByRole('region', { name: 'เมนูสำหรับองค์กร' });
-    await userEvent.click(within(panel).getByRole('link', { name: /Audit & Control/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/enterprise'));
-    expect(router.state.location.hash).toBe('#audit');
-    expect(
-      await screen.findByRole('heading', { level: 2, name: /ทุกการเปลี่ยนแปลง/ }),
-    ).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.queryByRole('region', { name: 'เมนูสำหรับองค์กร' })).toBeNull(),
-    );
-  }, 15000);
 });
 
 describe('mobile navigation', () => {
@@ -268,8 +276,10 @@ describe('mobile navigation', () => {
 
     const groups = within(dialog).getAllByRole('button', { expanded: false });
     expect(groups).toHaveLength(MEGA_ORDER.length);
-    await userEvent.click(within(dialog).getByRole('button', { name: /แผนก/ }));
-    expect(within(dialog).getByRole('link', { name: /คลังสินค้า/ })).toHaveAttribute(
+    // Collapsed by default: no guide link is shown until ความรู้ is opened.
+    expect(within(dialog).queryByRole('link', { name: /CORE Glossary/ })).toBeNull();
+    await userEvent.click(within(dialog).getByRole('button', { name: /ผลิตภัณฑ์/ }));
+    expect(within(dialog).getByRole('link', { name: /^คลังสินค้า$/ })).toHaveAttribute(
       'href',
       '/departments/warehouse',
     );
@@ -306,10 +316,9 @@ describe('mobile navigation', () => {
     const { router } = renderRoute('/');
     await userEvent.click(await screen.findByRole('button', { name: 'เปิดเมนู' }));
     const dialog = screen.getByRole('dialog', { name: 'เมนู' });
-    await userEvent.click(within(dialog).getByRole('button', { name: /วิธีการทำงาน/ }));
-    await userEvent.click(within(dialog).getByRole('link', { name: /Workflow และ Approval/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/how-core-works'));
-    expect(router.state.location.hash).toBe('#approval');
+    await userEvent.click(within(dialog).getByRole('button', { name: /ความรู้/ }));
+    await userEvent.click(within(dialog).getByRole('link', { name: /CORE Glossary/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/resources/core-glossary'));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'เมนู' })).toBeNull());
   });
 });

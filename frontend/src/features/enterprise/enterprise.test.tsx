@@ -545,20 +545,13 @@ describe('localization and links', () => {
     expect(main.querySelector('#consult a[href="/zh/departments/warehouse"]')).not.toBeNull();
   });
 
-  it('links the Enterprise mega menu to the chapters, in the current locale', async () => {
+  it('reaches For organizations from Solutions and Security from About, in the current locale (EP18)', async () => {
     renderRoute('/en');
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
-    await userEvent.click(within(nav).getByRole('button', { name: 'Enterprise' }));
-    for (const href of [
-      '/en/enterprise',
-      '/en/security',
-      '/en/enterprise#audit',
-      '/en/enterprise#workflow',
-      '/en/enterprise#integration',
-      '/en/enterprise#implementation',
-    ]) {
-      expect(document.querySelector(`header a[href="${href}"]`), href).not.toBeNull();
-    }
+    await userEvent.click(within(nav).getByRole('button', { name: 'Solutions' }));
+    expect(document.querySelector('header a[href="/en/enterprise"]')).not.toBeNull();
+    await userEvent.click(within(nav).getByRole('button', { name: 'About' }));
+    expect(document.querySelector('header a[href="/en/security"]')).not.toBeNull();
   });
 
   it('links the homepage enterprise chapter and the footer to the page', async () => {

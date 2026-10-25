@@ -72,7 +72,7 @@ function Islands() {
                 aria-hidden
                 className="absolute top-1/2 -right-5 hidden translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 lg:flex"
               >
-                <span className="size-2 rounded-full bg-warning/80 shadow-[0_0_12px_rgb(245_184_75/0.7)] motion-safe:animate-pulse" />
+                <span className="size-2 rounded-full bg-warning/80 shadow-[0_0_10px_rgb(245_184_75/0.5)]" />
                 <span className="text-[0.6875rem] text-warning/70">{c.gap}</span>
               </span>
             )}

@@ -407,7 +407,8 @@ describe('localization and links', () => {
     const nav = await screen.findByRole('navigation', { name: 'เมนูหลัก' });
     await userEvent.click(within(nav).getByRole('button', { name: 'เกี่ยวกับเรา' }));
     const panel = screen.getByRole('region', { name: 'เมนูเกี่ยวกับเรา' });
-    await userEvent.click(within(panel).getByRole('link', { name: /ที่ปรึกษา/ }));
+    // EP18: consulting is the About menu's featured link.
+    await userEvent.click(within(panel).getByRole('link', { name: /การวางระบบและคำปรึกษา/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/about'));
     expect(router.state.location.hash).toBe('#consulting');
     expect(

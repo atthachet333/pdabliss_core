@@ -15,7 +15,7 @@ export const DURATION = {
   instant: 0.12,
   fast: 0.2,
   base: 0.4,
-  reveal: 0.75,
+  reveal: 0.6,
   draw: 1.6,
   ambient: 7,
 } as const;
@@ -23,13 +23,16 @@ export const DURATION = {
 /** Maximum pointer parallax travel in px — motion must stay restrained. */
 export const PARALLAX_MAX_PX = 12;
 
-export const STAGGER = 0.08;
+export const STAGGER = 0.06;
 
 export const revealTransition: Transition = { duration: DURATION.reveal, ease: EASE_CORE };
 
-/** Section / block reveal on entering the viewport (runs once). */
+/**
+ * Section / block reveal on entering the viewport (runs once). EP18: a 12 px
+ * settle instead of a 24 px rise — content arrives, it does not float up.
+ */
 export const reveal: Variants = {
-  hidden: { opacity: 0, y: 24 },
+  hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: revealTransition },
 };
 
@@ -59,5 +62,5 @@ export const swap: Variants = {
 };
 
 /** Hover/press feedback for interactive surfaces. */
-export const HOVER_LIFT = { y: -4, transition: { duration: DURATION.fast, ease: EASE_CORE } };
+export const HOVER_LIFT = { y: -2, transition: { duration: DURATION.fast, ease: EASE_CORE } };
 export const PRESS = { scale: 0.97 };

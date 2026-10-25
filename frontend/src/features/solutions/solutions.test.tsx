@@ -349,17 +349,16 @@ describe('localization and links', () => {
     expect(main.querySelector('#approval a[href="/zh/how-core-works#approval"]')).not.toBeNull();
   });
 
-  it('links the Solutions mega menu to the stories', async () => {
+  it('links the Solutions menu to the problem page, industries and organizations (EP18)', async () => {
     renderRoute('/en');
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: 'Solutions' }));
     for (const href of [
-      '/en/solutions#human-error',
-      '/en/solutions#cross-department',
-      '/en/solutions#approval',
-      '/en/solutions#stock',
-      '/en/solutions#visibility',
-      '/en/solutions#management',
+      '/en/solutions',
+      '/en/industries',
+      '/en/enterprise',
+      '/en/industries/retail',
+      '/en/industries/manufacturing',
     ]) {
       expect(document.querySelector(`header a[href="${href}"]`), href).not.toBeNull();
     }

@@ -1,0 +1,113 @@
+import type { Localized } from '@/i18n/useCopy';
+
+/*
+ * Sign-in words (EP15). /login stays one unprefixed route; the visitor's
+ * site language travels in router state from the header link (see
+ * pages/public/LoginPage.tsx). No credentials ever appear in this copy.
+ */
+
+const th = {
+  meta: {
+    title: 'เข้าสู่ระบบ',
+    description: 'เข้าสู่พื้นที่ทำงานของคุณใน PDA BLISS CORE',
+  },
+  home: 'PDA BLISS CORE หน้าแรก',
+  back: 'กลับหน้าเว็บไซต์',
+  kicker: 'CORE Gateway',
+  title: 'เข้าสู่พื้นที่ทำงานของคุณ',
+  lead: 'แต่ละคนไม่จำเป็นต้องเห็นทั้งระบบ — CORE เริ่มจากสิ่งที่คุณรับผิดชอบ',
+  username: 'ชื่อผู้ใช้',
+  password: 'รหัสผ่าน',
+  show: 'แสดงรหัสผ่าน',
+  hide: 'ซ่อนรหัสผ่าน',
+  capsLock: 'Caps Lock เปิดอยู่',
+  required: { username: 'กรุณากรอกชื่อผู้ใช้', password: 'กรุณากรอกรหัสผ่าน' },
+  submit: 'เข้าสู่ระบบ',
+  submitting: 'กำลังเข้าสู่ระบบ…',
+  failed: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+  failedHint: 'ตรวจสอบแล้วลองอีกครั้ง',
+  workspace: 'Workspace',
+  status: {
+    idle: 'รอเข้าสู่ระบบ',
+    focus: 'กำลังระบุตัวตน',
+    submit: 'กำลังตรวจสอบ',
+    success: 'กำลังเปิดพื้นที่ทำงาน',
+    fail: 'ยังเข้าไม่ได้',
+  },
+  after: 'หลังเข้าสู่ระบบ CORE จะเปิดพื้นที่ทำงานตามหน้าที่ของคุณ',
+  demo: 'ยังไม่พร้อมเข้าสู่ระบบ? ทดลอง CORE',
+  security: 'แนวทางด้าน Security และการควบคุมสิทธิ์',
+  prototype: 'ต้นแบบ',
+  prototypeNote: 'สภาพแวดล้อมต้นแบบสำหรับตรวจหน้าจอ — ยังไม่ใช่ระบบยืนยันตัวตนจริง',
+  unavailable: 'ระบบเข้าสู่ระบบจะเปิดให้บริการเมื่อพร้อมใช้งานจริง',
+};
+
+export type LoginCopy = typeof th;
+
+export const LOGIN_COPY: Localized<LoginCopy> = {
+  th,
+  en: {
+    meta: { title: 'Sign in', description: 'Enter your workspace in PDA BLISS CORE' },
+    home: 'PDA BLISS CORE home',
+    back: 'Back to the website',
+    kicker: 'CORE Gateway',
+    title: 'Enter your workspace',
+    lead: 'No one needs to see the whole system — CORE starts from what you are responsible for.',
+    username: 'Username',
+    password: 'Password',
+    show: 'Show password',
+    hide: 'Hide password',
+    capsLock: 'Caps Lock is on',
+    required: { username: 'Please enter your username', password: 'Please enter your password' },
+    submit: 'Sign in',
+    submitting: 'Signing in…',
+    failed: 'The username or password is incorrect',
+    failedHint: 'Check them and try again.',
+    workspace: 'Workspace',
+    status: {
+      idle: 'Waiting to sign in',
+      focus: 'Identifying',
+      submit: 'Checking',
+      success: 'Opening your workspace',
+      fail: 'Not signed in',
+    },
+    after: 'After you sign in, CORE opens the workspace for your responsibility.',
+    demo: 'Not ready to sign in? Try CORE',
+    security: 'Our approach to security and access control',
+    prototype: 'Prototype',
+    prototypeNote: 'A prototype environment for reviewing screens — not real authentication yet.',
+    unavailable: 'Sign-in will open once the system is ready for real use.',
+  },
+  'zh-CN': {
+    meta: { title: '登录', description: '进入您在 PDA BLISS CORE 中的工作空间' },
+    home: 'PDA BLISS CORE 首页',
+    back: '返回网站',
+    kicker: 'CORE Gateway',
+    title: '进入您的工作空间',
+    lead: '没有人需要看到整个系统——CORE 从您负责的工作开始。',
+    username: '用户名',
+    password: '密码',
+    show: '显示密码',
+    hide: '隐藏密码',
+    capsLock: '大写锁定已开启',
+    required: { username: '请输入用户名', password: '请输入密码' },
+    submit: '登录',
+    submitting: '正在登录…',
+    failed: '用户名或密码不正确',
+    failedHint: '请检查后重试。',
+    workspace: 'Workspace',
+    status: {
+      idle: '等待登录',
+      focus: '正在识别',
+      submit: '正在检查',
+      success: '正在打开工作空间',
+      fail: '未能登录',
+    },
+    after: '登录后，CORE 会打开与您职责相对应的工作空间。',
+    demo: '还没准备好登录？先体验 CORE',
+    security: '我们的安全与权限控制思路',
+    prototype: '原型',
+    prototypeNote: '用于查看界面的原型环境——尚不是真实的身份验证。',
+    unavailable: '系统准备好正式使用后将开放登录。',
+  },
+};

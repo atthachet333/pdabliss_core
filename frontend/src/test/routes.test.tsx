@@ -72,7 +72,7 @@ describe('workspace route groups (EP01-PROTOTYPE)', () => {
 
   it.each(WORKSPACE_ORDER)('keeps /app/%s behind the demo sign-in', async (id) => {
     const { router } = renderRoute(`/app/${id}`);
-    await screen.findByRole('heading', { level: 1, name: 'เข้าสู่ระบบ' });
+    await screen.findByRole('heading', { level: 1, name: 'เข้าสู่พื้นที่ทำงานของคุณ' });
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.search).toBe(`?next=${encodeURIComponent(`/app/${id}`)}`);
   });
@@ -124,7 +124,8 @@ describe('prototype login', () => {
     await userEvent.type(screen.getByLabelText('รหัสผ่าน'), 'pass1');
     await userEvent.click(screen.getByRole('button', { name: 'เข้าสู่ระบบ' }));
     expect(await screen.findByRole('button', { name: /กำลังเข้าสู่ระบบ/ })).toBeDisabled();
-    await screen.findByRole('heading', { level: 1, name: 'งานคลังวันนี้' });
+    // EP15: the gateway transition (~0.9 s) runs before navigation.
+    await screen.findByRole('heading', { level: 1, name: 'งานคลังวันนี้' }, { timeout: 4000 });
     expect(router.state.location.pathname).toBe('/app/warehouse');
   });
 
@@ -141,7 +142,7 @@ describe('prototype login', () => {
     await userEvent.type(await screen.findByLabelText('ชื่อผู้ใช้'), 'user1');
     await userEvent.type(screen.getByLabelText('รหัสผ่าน'), 'pass1');
     await userEvent.click(screen.getByRole('button', { name: 'เข้าสู่ระบบ' }));
-    await screen.findByRole('heading', { level: 1, name: 'ภาพรวมองค์กร' });
+    await screen.findByRole('heading', { level: 1, name: 'ภาพรวมองค์กร' }, { timeout: 4000 });
     expect(router.state.location.pathname).toBe('/app/executive');
   });
 });
@@ -166,7 +167,7 @@ describe('prototype workspace switcher and sign-out', () => {
     const { router } = renderRoute('/app/sales');
     await userEvent.click(await screen.findByRole('button', { name: 'เมนูผู้ใช้' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'ออกจากระบบ' }));
-    await screen.findByRole('heading', { level: 1, name: 'เข้าสู่ระบบ' });
+    await screen.findByRole('heading', { level: 1, name: 'เข้าสู่พื้นที่ทำงานของคุณ' });
     expect(router.state.location.pathname).toBe('/login');
     expect(getPrototypeSession()).toBeNull();
   });

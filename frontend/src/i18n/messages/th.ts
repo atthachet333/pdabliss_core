@@ -157,8 +157,8 @@ export const th: ShellMessages = {
             description: 'โครงสร้างที่รองรับหลายทีมและกระบวนการซับซ้อน',
           },
           security: {
-            label: 'Security & Access',
-            description: 'ควบคุมสิทธิ์ตามบทบาทและความรับผิดชอบ',
+            label: 'Security & Trust',
+            description: 'สิทธิ์ตามหน้าที่ ขอบเขตข้อมูล และสถานะที่ระบุตรงไปตรงมา',
           },
           audit: {
             label: 'Audit & Control',
@@ -219,6 +219,7 @@ export const th: ShellMessages = {
     developedBy: 'พัฒนาโดย PDA BLISS COMPANY LIMITED',
     groups: { quick: 'ลิงก์ด่วน', company: 'องค์กร' },
     industries: 'ประเภทธุรกิจ',
+    security: 'ความปลอดภัย',
     contactHeading: 'ติดต่อเรา',
     address: 'ที่อยู่',
     phone: 'โทรศัพท์',

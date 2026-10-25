@@ -20,7 +20,7 @@ const rowClass = 'flex min-h-16 w-full items-center justify-between gap-4 py-3 t
  * rows; language, contact and sign-in stay within thumb reach at the bottom.
  */
 export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t, href } = useLocale();
+  const { t, href, locale } = useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [expanded, setExpanded] = useState<MegaGroupId | null>(null);
@@ -211,6 +211,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
               </Link>
               <Link
                 to="/login"
+                state={{ locale }}
                 onClick={onClose}
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-brand-primary text-label font-medium text-text-inverse"
               >

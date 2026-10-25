@@ -124,7 +124,8 @@ export const MEGA_GROUPS: Record<MegaGroupId, MegaGroup> = {
     id: 'enterprise',
     items: [
       { id: 'scale', icon: Building, to: '/enterprise' },
-      { id: 'security', icon: KeyRound, to: '/enterprise#access' },
+      // EP15: the public Trust Center.
+      { id: 'security', icon: KeyRound, to: '/security' },
       { id: 'audit', icon: FileCheck2, to: '/enterprise#audit' },
       { id: 'customWorkflow', icon: Workflow, to: '/enterprise#workflow' },
       { id: 'integration', icon: Plug, to: '/enterprise#integration' },
@@ -177,6 +178,7 @@ export const FOOTER_GROUPS = [
       { id: 'solutions', to: '/solutions' },
       { id: 'industries', to: '/industries' },
       { id: 'enterprise', to: '/enterprise' },
+      { id: 'security', to: '/security' },
       { id: 'about', to: '/about' },
       { id: 'contact', to: '/contact' },
     ],

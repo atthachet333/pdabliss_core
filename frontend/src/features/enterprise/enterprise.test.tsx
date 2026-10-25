@@ -551,7 +551,7 @@ describe('localization and links', () => {
     await userEvent.click(within(nav).getByRole('button', { name: 'Enterprise' }));
     for (const href of [
       '/en/enterprise',
-      '/en/enterprise#access',
+      '/en/security',
       '/en/enterprise#audit',
       '/en/enterprise#workflow',
       '/en/enterprise#integration',

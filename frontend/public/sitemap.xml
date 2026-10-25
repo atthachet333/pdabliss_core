@@ -577,6 +577,30 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://core.pdabliss.com/security</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/security" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/security" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/security" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/security" />
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/security</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/security" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/security" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/security" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/security" />
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/security</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/security" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/security" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/security" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/security" />
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://core.pdabliss.com/privacy</loc>
     <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/privacy" />
     <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/privacy" />

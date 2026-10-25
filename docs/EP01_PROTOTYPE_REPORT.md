@@ -110,6 +110,13 @@ Scanned 129 text files (47 containing Thai): 0 BOMs, 0 invalid UTF-8 sequences,
 - Primary actions (create PO, record payment, invite user, scan barcode) are visibly disabled.
 - Workspaces use the dark theme only.
 
+## Later: EP15 sign-in redesign
+
+EP15 replaced the sign-in page's look with the CORE Gateway ([LOGIN_EXPERIENCE.md](LOGIN_EXPERIENCE.md)).
+The prototype mechanics described above are unchanged: `prototypeSignIn()`, the sessionStorage
+flag, `?next=` handling, `PrototypeGate` and the production disable. The page no longer prints any
+credential, and the demo account is documented only here, in the README and in tests.
+
 ## Next steps (when the owner is ready)
 
 1. Owner provisions PostgreSQL credentials (`pdabliss_core_dev` / `pdabliss_core_test`).

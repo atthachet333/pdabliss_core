@@ -66,7 +66,7 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 
 Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`,
 `/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/demo`,
-`/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
+`/security`, `/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
 `frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
 keeps the two in sync).
 
@@ -112,6 +112,15 @@ receipt with DETECT, a lot / expiry PREVENT, FEFO, a document gate and an except
 No login, no sign-up, nothing stored; Warehouse never receives commercial data. `?role=` selects a
 view. See [docs/INTERACTIVE_DEMO.md](docs/INTERACTIVE_DEMO.md).
 
+Security & Trust and sign-in (EP15): `/security` is the public Trust Center. It covers visibility by
+responsibility (one work item, six role windows), the Warehouse boundary, Executive ≠ Admin,
+"UI visibility ≠ security boundary", the intended trace, controls, data principles, an EP10-status
+readiness matrix and an FAQ. It makes no certification, uptime or recovery claims. `/login` is
+redesigned as the CORE Gateway: department signals align into one gate that resolves into a
+focused workspace. It is a visual layer only; the prototype sign-in mechanics are unchanged. See
+[docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CENTER.md) and
+[docs/LOGIN_EXPERIENCE.md](docs/LOGIN_EXPERIENCE.md).
+
 How CORE works (EP08): `/how-core-works` follows one illustrative piece of work through the
 company — handoffs, decisions, approval, exceptions, role views, trace and replay. See
 [docs/HOW_CORE_WORKS.md](docs/HOW_CORE_WORKS.md).
@@ -122,7 +131,8 @@ Department pages (EP06): `/departments/executive`, `/departments/sales`,
 
 Locales (EP05): Thai is the default and unprefixed; the whole public site is also served in
 English under `/en/...` and Simplified Chinese under `/zh/...` — shell and page content alike.
-`/login` and `/app/*` are never prefixed. See [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md).
+`/login` and `/app/*` are never prefixed (since EP15 the sign-in gateway follows the visitor's
+language via router state). See [docs/PUBLIC_SHELL.md](docs/PUBLIC_SHELL.md).
 
 Public contact details (address, the single public phone, email, LINE) live only in
 `frontend/src/config/contact.ts`.
@@ -149,14 +159,18 @@ To review the department workspaces locally:
 > prototype-only — in production a user signs in and lands directly in their assigned
 > department workspace. The prototype is always on in `npm run dev`; production builds
 > exclude it (and the demo password) unless `VITE_ENABLE_PROTOTYPE=true` is set.
-> See [docs/EP01_PROTOTYPE_REPORT.md](docs/EP01_PROTOTYPE_REPORT.md).
+> See [docs/EP01_PROTOTYPE_REPORT.md](docs/EP01_PROTOTYPE_REPORT.md). EP15 redesigned the sign-in
+> page visually (the CORE Gateway). The check, session flag and `?next=` handling are unchanged,
+> and the credentials are never shown on the page. See
+> [docs/LOGIN_EXPERIENCE.md](docs/LOGIN_EXPERIENCE.md).
 
 ## Security model in one paragraph
 
 Frontend navigation is **not** access control. The backend is authoritative: every response
 contract is an allow-list built per audience, so data a workspace is not cleared for (e.g.
 cost and price for Warehouse) is never serialized — it is not merely hidden in the UI.
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security). The public explanation, with honest
+statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CENTER.md)).
 
 ## Documentation
 
@@ -194,6 +208,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 - [docs/EP13_REPORT.md](docs/EP13_REPORT.md) — consultation experience and About enhancement
 - [docs/INTERACTIVE_DEMO.md](docs/INTERACTIVE_DEMO.md) — `/demo`: scenario, state machine, role boundaries, handoffs, PREVENT, FEFO
 - [docs/EP14_REPORT.md](docs/EP14_REPORT.md) — interactive CORE public demo
+- [docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CENTER.md) — `/security`: access philosophy, Warehouse boundary, UI vs server enforcement, statuses, claim safety
+- [docs/LOGIN_EXPERIENCE.md](docs/LOGIN_EXPERIENCE.md) — the CORE Gateway sign-in: composition, states, credential boundary, locale
+- [docs/EP15_REPORT.md](docs/EP15_REPORT.md) — Trust Center and signature CORE login
 
 ---
 

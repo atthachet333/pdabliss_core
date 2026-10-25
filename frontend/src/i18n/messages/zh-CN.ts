@@ -116,7 +116,7 @@ export const zhCN: ShellMessages = {
         note: '部分功能仍在规划中，请向我们的团队了解最新进展。',
         items: {
           scale: { label: '面向大型企业', description: '支持多团队与复杂流程的结构' },
-          security: { label: '安全与访问权限', description: '按角色与职责管理权限' },
+          security: { label: '安全与信任', description: '按职责授权、数据边界与如实的状态说明' },
           audit: { label: '审计与管控', description: '追溯历史并跟踪变更' },
           customWorkflow: { label: '自定义工作流', description: '根据企业结构设计流程步骤' },
           integration: { label: 'API 与系统集成', description: '为连接外部系统做好准备' },
@@ -158,6 +158,7 @@ export const zhCN: ShellMessages = {
     developedBy: '由 PDA BLISS COMPANY LIMITED 开发',
     groups: { quick: '快速链接', company: '公司' },
     industries: '行业',
+    security: '安全',
     contactHeading: '联系我们',
     address: '地址',
     phone: '电话',

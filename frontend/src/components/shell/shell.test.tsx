@@ -165,7 +165,7 @@ describe('Design Lab route', () => {
 
   it('stays behind the prototype sign-in', async () => {
     const { router } = renderRoute('/app/prototype/ui');
-    await screen.findByRole('heading', { level: 1, name: 'เข้าสู่ระบบ' });
+    await screen.findByRole('heading', { level: 1, name: 'เข้าสู่พื้นที่ทำงานของคุณ' });
     expect(router.state.location.pathname).toBe('/login');
   });
 

@@ -17,7 +17,7 @@ import { MobileMenu } from './MobileMenu';
  * dedicated full-screen navigation layer.
  */
 export function PublicHeader() {
-  const { t, href } = useLocale();
+  const { t, href, locale } = useLocale();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState(false);
@@ -75,6 +75,7 @@ export function PublicHeader() {
             </span>
             <Link
               to="/login"
+              state={{ locale }}
               className="hidden h-10 items-center gap-2 rounded-full border border-border-strong bg-surface-raised/50 px-4 text-label whitespace-nowrap text-text-primary transition-colors hover:border-border-brand sm:inline-flex"
             >
               <LogIn className="size-4" aria-hidden />

@@ -88,7 +88,7 @@ list of links:
 | แพ็คเกจ | Starter, Business, Professional, Enterprise → `/pricing?plan=<id>#packages` (EP07: opens the package explorer with that plan selected; the menu itself stays price-free) | ขอคำปรึกษา → `/contact` |
 | วิธีการทำงาน | CORE ทำงานอย่างไร `/how-core-works` · การทำงานข้ามแผนก `/how-core-works#handoff` · Workflow และ Approval `/how-core-works#approval` · การติดตามสถานะ `/how-core-works#trace` · Human Error Prevention `/how-core-works#human-error` (EP08) · ทดลองใช้งาน CORE `/demo` (EP14) | ดูวิธีการทำงาน → `/how-core-works` |
 | โซลูชัน | ลด Human Error `/solutions#human-error` · เชื่อมการทำงานหลายแผนก `/solutions#cross-department` · Workflow & Approval `/solutions#approval` · Stock & Expiry Control `/solutions#stock` · Operational Visibility `/solutions#visibility` · Management Control `/solutions#management` (EP09) | ดูตามประเภทธุรกิจ → `/industries` (EP11 — the highlight already says *ปัญหาของแต่ละองค์กรไม่เหมือนกัน*) |
-| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Access `/enterprise#access` · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
+| สำหรับองค์กร | สำหรับองค์กรขนาดใหญ่ `/enterprise` · Security & Trust `/security` (EP15; was Security & Access → `/enterprise#access`) · Audit & Control `/enterprise#audit` · Custom Workflow `/enterprise#workflow` · API & Integration `/enterprise#integration` · Implementation & Support `/enterprise#implementation` (EP10) | พูดคุยกับทีม PDA BLISS → `/contact` |
 | เกี่ยวกับเรา | PDA BLISS `/about` · ทำไมเราถึงสร้าง CORE `/why-core` · แนวทางการพัฒนาระบบ `/about#approach` · ที่ปรึกษา `/about#consulting` (EP12) | ติดต่อทีมงาน → `/contact` |
 
 **No dead links.** Every destination is a live route or an existing anchor (`plan-*` on
@@ -141,7 +141,8 @@ Simplified Chinese only; Traditional variants resolve to Thai.
 | zh-CN | `/zh` | `/zh`, `/zh/departments` |
 
 Aliases redirect to the canonical URL: `/th/*` → unprefixed, `/zh-CN/*` and `/zh-hans/*` →
-`/zh/*`. `/en/login` and `/zh/login` redirect to `/login`. Unknown prefixes (`/fr/...`) fall
+`/zh/*`. `/en/login` and `/zh/login` redirect to `/login`, carrying the locale in router state
+(EP15). Unknown prefixes (`/fr/...`) fall
 through to the Thai 404. No browser-language sniffing or auto-redirects: a URL always renders
 the same language. Existing URLs are unchanged.
 
@@ -173,6 +174,17 @@ the CORE World cards and detail, and `/departments`, `/features`, `/solutions`, 
 `/about`, `/why-core`, `/contact` (the EP13 consultation flow, including validation), `/demo` (the EP14
 interactive demo — every label, guidance line, handoff and history row), `/privacy`, `/terms` and the 404 page.
 
+**Security & Trust (EP15).** `/security` (`/en/security`, `/zh/security`) is in
+`test/publicRoutes.ts` and `sitemap.xml` (81 URLs). It is linked from the สำหรับองค์กร mega menu
+("Security & Trust"), the footer's องค์กร group ("ความปลอดภัย" / Security / 安全) and the sign-in
+page. There is no new top-level header item. See
+[SECURITY_TRUST_CENTER.md](SECURITY_TRUST_CENTER.md).
+
+**Sign-in (EP15).** `/login` now renders outside the public header and footer: the CORE Gateway
+has its own focused chrome (logo plus "กลับหน้าเว็บไซต์" to the locale's homepage). The header's
+**เข้าสู่ระบบ** action still goes to `/login`. It is `noindex` and not in the sitemap. See
+[LOGIN_EXPERIENCE.md](LOGIN_EXPERIENCE.md).
+
 **Interactive demo (EP14).** `/demo` (`/en/demo`, `/zh/demo`) is a public route in
 `test/publicRoutes.ts` and `sitemap.xml` (priority 0.7, hreflang). It renders its own `DemoShell`
 inside the public layout — never the internal AppShell — and is linked from the วิธีการทำงาน menu,
@@ -188,7 +200,9 @@ CTAs carry context through the stable query contract (`?interest=`, `?plan=`, `?
 `?department=`) — see [CONTACT_EXPERIENCE.md](CONTACT_EXPERIENCE.md). `href()` keeps the locale.
 Deliberate exceptions: the company address is printed in Thai in every locale (`lang="th"`),
 and the homepage product previews render the real EP02 product UI, which is Thai — their
-captions say so. `/login` and `/app/*` are not part of the public site and stay Thai.
+captions say so. `/app/*` is not part of the public site and stays Thai. `/login` (EP15) stays one
+unprefixed URL, but its gateway speaks the language the visitor came from (router state from the
+header link or the `/en/login` and `/zh/login` redirects); a direct visit is Thai.
 A test scans every page under `/en` and `/zh` and fails on visible Thai text (the page list is the
 shared `test/publicRoutes.ts`, also used by the header and sitemap tests).
 

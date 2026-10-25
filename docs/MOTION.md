@@ -92,6 +92,25 @@ hijacking — pins are tall sections with a sticky viewport over native scroll.
 | Implementation | the blueprint path draws; points light as reached | scroll |
 | Product stack | layers drop and lock from the foundation up | in view, once |
 
+### Sign-in gateway (EP15 — see [LOGIN_EXPERIENCE.md](LOGIN_EXPERIENCE.md))
+
+| Phase | Motion | Intensity |
+| --- | --- | --- |
+| Idle | one slow pulse travels three work lanes (8 s loop) | 3/10 |
+| Username focus | signals and labels brighten (0.4 s) | 4/10 |
+| Password focus | signals draw 30 px toward the gate; the outer ring tightens (0.6 s) | 4/10 |
+| Submit | every lane lights toward the gate in its department colour (0.45 s, 30 ms stagger) | 6/10 |
+| Success | rings close; the gate resolves into one workspace frame (0.5 s); navigation after ~0.9 s in total | 7/10, briefly |
+| Failure | one amber line stops before the gate; panel edge turns amber — no shake | 4/10 |
+
+### Trust Center (EP15 — see [SECURITY_TRUST_CENTER.md](SECURITY_TRUST_CENTER.md))
+
+| Moment | Motion | Trigger |
+| --- | --- | --- |
+| Visibility windows | field lines draw into the chosen window (0.7 s, 25 ms stagger); stopped lines get a tick | role choice |
+| Warehouse boundary | lanes grow to the boundary, once | in view |
+| Trace | provenance nodes fade up in order (0.35 s, 50 ms stagger) | event choice |
+
 ### Interactive demo (EP14 — see [INTERACTIVE_DEMO.md](INTERACTIVE_DEMO.md))
 
 | Moment | Motion | Trigger |
@@ -205,6 +224,9 @@ When the OS requests reduced motion (`prefers-reduced-motion: reduce`):
   (no pin, no drifting fragments, no path tracing), all manifesto lines locked, the systems shift
   complete, implementation fully drawn, the product stack assembled; no glow pulses; selections
   switch instantly. Contact: steps switch without movement.
+- Sign-in (EP15): no idle pulse, no transforms or fades; submit and success waits are zero, so
+  navigation is immediate. Trust Center: lines and lanes appear complete; trace nodes switch
+  instantly.
 - Interactive demo (EP14): no pulse, no fades, the progress bar jumps; history scrolls
   instantly. Every state change is still announced and shown as text.
 - Company story (EP12): both heroes render their final composition (fragments resting, every

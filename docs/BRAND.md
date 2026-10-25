@@ -189,6 +189,24 @@ from DOM, SVG and CSS. Rules:
 - **Amber = unstructured reality, teal = structure** (unchanged from EP12).
 - **Calm ending.** Company information has no animation.
 
+## Trust Center and sign-in (EP15)
+
+See [SECURITY_TRUST_CENTER.md](SECURITY_TRUST_CENTER.md) and
+[LOGIN_EXPERIENCE.md](LOGIN_EXPERIENCE.md).
+
+- **Trust, not cyber.** Control, clarity, boundaries, responsibility and architecture. No giant
+  padlocks, matrix rain, hacker imagery, neon or fake terminals.
+- **The signature image.** One work item with role windows around it. Permitted fields flow in
+  (teal); others stop at the boundary (controlled amber, dashed, with a tick).
+- **Statuses** use the EP10 taxonomy, always as icon plus words.
+- **The gateway.** Outside: department signals in their workspace colours. On the seam: the CORE
+  gate. Inside: the form panel as the focused workspace, with a system-state pill instead of a
+  spinner. Failure is controlled amber, never red alarm.
+- **Voice.**
+  - *ทุกคนไม่ควรเห็นทุกอย่าง* and *เข้าสู่พื้นที่ทำงานของคุณ*.
+  - Never "Welcome back".
+  - Never a certification, uptime or "guaranteed" claim.
+
 ## Interactive demo (EP14)
 
 See [INTERACTIVE_DEMO.md](INTERACTIVE_DEMO.md). A calm working surface, not a game: one work

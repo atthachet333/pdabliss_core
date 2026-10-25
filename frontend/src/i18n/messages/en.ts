@@ -179,8 +179,8 @@ export const en: ShellMessages = {
             description: 'A structure for many teams and complex processes',
           },
           security: {
-            label: 'Security & Access',
-            description: 'Permissions based on roles and responsibilities',
+            label: 'Security & Trust',
+            description: 'Access by responsibility, data boundaries and plain statuses',
           },
           audit: { label: 'Audit & Control', description: 'Review history and track changes' },
           customWorkflow: {
@@ -244,6 +244,7 @@ export const en: ShellMessages = {
     developedBy: 'Developed by PDA BLISS COMPANY LIMITED',
     groups: { quick: 'Quick links', company: 'Company' },
     industries: 'Industries',
+    security: 'Security',
     contactHeading: 'Contact us',
     address: 'Address',
     phone: 'Phone',

@@ -50,6 +50,8 @@ const WhyCorePage = lazy(() => import('@/pages/public/WhyCorePage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 // EP14: the public interactive demo (its own chunk).
 const DemoPage = lazy(() => import('@/pages/public/DemoPage'));
+// EP15: the public Security / Trust Center.
+const SecurityPage = lazy(() => import('@/pages/public/SecurityPage'));
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const LegalPage = lazy(() => import('@/pages/public/LegalPage'));
 
@@ -164,6 +166,7 @@ function publicPages(): RouteObject[] {
     { path: 'why-core', element: lazyPage(WhyCorePage) },
     { path: 'contact', element: lazyPage(ContactPage) },
     { path: 'demo', element: lazyPage(DemoPage) },
+    { path: 'security', element: lazyPage(SecurityPage) },
     {
       path: 'privacy',
       element: (
@@ -196,7 +199,8 @@ function LocaleAlias({ alias }: { alias: string }) {
 /**
  * A prefixed locale (/en, /zh). Its shell dictionary is a separate chunk,
  * loaded before the route renders — Thai visitors never download it.
- * /en/login and /zh/login redirect: sign-in is never locale-prefixed.
+ * /en/login and /zh/login redirect: sign-in is never locale-prefixed, but the
+ * visitor's language travels in router state so the gateway speaks it (EP15).
  */
 function localeRoutes(path: string, locale: Locale): RouteObject {
   return {
@@ -209,7 +213,7 @@ function localeRoutes(path: string, locale: Locale): RouteObject {
     },
     children: [
       ...publicPages(),
-      { path: 'login', element: <Navigate to="/login" replace /> },
+      { path: 'login', element: <Navigate to="/login" replace state={{ locale }} /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   };
@@ -222,12 +226,11 @@ export const routes: RouteObject[] = [
       // Thai — default locale, unprefixed.
       {
         element: <PublicLayout />,
-        children: [
-          ...publicPages(),
-          { path: 'login', element: lazyPage(LoginPage) },
-          { path: '*', element: <NotFoundPage /> },
-        ],
+        children: [...publicPages(), { path: '*', element: <NotFoundPage /> }],
       },
+      // EP15: the CORE Gateway sign-in has its own focused chrome (logo + back
+      // to the website), outside the public header and footer.
+      { path: 'login', element: lazyPage(LoginPage) },
       // English and Simplified Chinese — the public shell is localized; page
       // bodies follow in the localization episode (docs/PUBLIC_SHELL.md).
       localeRoutes('en', 'en'),

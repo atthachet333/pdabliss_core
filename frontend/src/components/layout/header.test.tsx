@@ -113,13 +113,13 @@ describe('public header (EP05)', () => {
     );
   });
 
-  it('links every enterprise capability to its /enterprise chapter', async () => {
+  it('links every enterprise capability to its chapter (security → /security, EP15)', async () => {
     const { nav } = await desktopNav();
     await userEvent.click(within(nav).getByRole('button', { name: 'สำหรับองค์กร' }));
     const panel = screen.getByRole('region', { name: 'เมนูสำหรับองค์กร' });
     for (const [label, href] of [
       ['สำหรับองค์กรขนาดใหญ่', '/enterprise'],
-      ['Security & Access', '/enterprise#access'],
+      ['Security & Trust', '/security'],
       ['Audit & Control', '/enterprise#audit'],
       ['Custom Workflow', '/enterprise#workflow'],
       ['API & Integration', '/enterprise#integration'],

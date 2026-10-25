@@ -12,7 +12,7 @@ import {
   ScanLine,
   ShieldCheck,
 } from 'lucide-react';
-import { useEffect, useState, type FocusEvent, type KeyboardEvent } from 'react';
+import { useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -52,17 +52,6 @@ const ALIGN_MS = 380;
 const RESOLVE_MS = 520;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Sign-in is not a landing page: keep it out of search results. */
-function useNoIndex() {
-  useEffect(() => {
-    const meta = document.createElement('meta');
-    meta.name = 'robots';
-    meta.content = 'noindex';
-    document.head.append(meta);
-    return () => meta.remove();
-  }, []);
-}
-
 const STATUS_ICON = {
   idle: CircleDashed,
   focus: ScanLine,
@@ -79,8 +68,8 @@ function statusOf(phase: GatePhase): keyof typeof STATUS_ICON {
 export function LoginGateway() {
   const c = useCopy(LOGIN_COPY);
   const { href } = useLocale();
-  usePageMeta(c.meta.title, c.meta.description);
-  useNoIndex();
+  // Sign-in is not a landing page: keep it out of search results (EP15, EP17).
+  usePageMeta(c.meta.title, c.meta.description, { index: false });
   const reduce = usePrefersReducedMotion();
   const session = usePrototypeSession();
   const navigate = useNavigate();

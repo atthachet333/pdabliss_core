@@ -210,7 +210,7 @@ export const OVERVIEW: Localized<typeof th> = {
       reasons: [
         {
           title: '职责不同，需要的信息也不同',
-          body: '仓库需要看到批次与保质期，财务需要知道单据是否齐全，管理层需要看到异常情况。',
+          body: '仓库需要看到批次与有效期，财务需要知道单据是否齐全，管理层需要看到异常情况。',
         },
         {
           title: '减少无关内容带来的困扰',
@@ -253,7 +253,7 @@ export const OVERVIEW: Localized<typeof th> = {
         { from: 'purchasing', to: 'warehouse', what: '待收货的采购单' },
         { from: 'warehouse', to: 'accounting', what: '付款前核对用的收货单' },
         { from: 'purchasing', to: 'accounting', what: '定金或尾款的付款申请' },
-        { from: 'all', to: 'executive', what: '来自各部门的状态与例外' },
+        { from: 'all', to: 'executive', what: '来自各部门的状态与异常' },
       ],
       map: '部门之间的工作交接图',
     },
@@ -267,7 +267,7 @@ export const OVERVIEW: Localized<typeof th> = {
           sees: '我需要完成的工作',
           items: ['分配给我的工作', '下一步', '需要交接的内容'],
         },
-        { name: '部门主管', sees: '团队的工作', items: ['积压与延迟', '部门例外', '待审批事项'] },
+        { name: '部门主管', sees: '团队的工作', items: ['积压与延迟', '部门异常', '待审批事项'] },
         {
           name: '管理层',
           sees: '整个组织',

@@ -203,8 +203,8 @@ export const WORLD_TEXT: Localized<Record<WorldId, WorldText>> = {
     warehouse: {
       name: '仓库',
       mood: '精准 · 库位 · 批次结构',
-      message: '仓库管控库存与保质期，无需接触与岗位无关的数据。',
-      responsibilities: ['收货', '库存', '批次 / Batch', '保质期', '库存移动', '盘点'],
+      message: '仓库管控库存与有效期，无需接触与岗位无关的数据。',
+      responsibilities: ['收货', '库存', '批次 / Batch', '有效期', '库存移动', '盘点'],
     },
     purchasing: {
       name: '采购部',
@@ -229,7 +229,7 @@ export const WORLD_TEXT: Localized<Record<WorldId, WorldText>> = {
       name: '管理层',
       mood: '制高点 · 控制中心 · 清晰全局',
       message: '管理层在一个画面中看清整个组织，需要时再深入细节。',
-      responsibilities: ['业务脉搏', '部门概览', '例外事项', '风险', '审批', '部门深入查看'],
+      responsibilities: ['业务脉搏', '部门概览', '异常事项', '风险', '审批', '部门深入查看'],
     },
   },
 };

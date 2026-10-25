@@ -276,7 +276,7 @@ export const IMPLEMENTATION_GUIDE: Localized<typeof th> = {
         discover: {
           purpose: '了解组织、目标以及推动变革的原因',
           output: '组织概况以及需要优先解决的问题',
-          who: '企业主、高管与 PDA BLISS 团队',
+          who: '企业主、管理层与 PDA BLISS 团队',
         },
         mapping: {
           purpose: '画出工作实际如何运转——而不是应该如何运转',
@@ -286,7 +286,7 @@ export const IMPLEMENTATION_GUIDE: Localized<typeof th> = {
         responsibility: {
           purpose: '确定每一步由谁负责，以及每个部门需要看到什么',
           output: '职责表以及各部门的信息边界',
-          who: '部门负责人与高管',
+          who: '部门负责人与管理层',
         },
         workflow: {
           purpose: '设计步骤顺序、必需信息、审批与异常',
@@ -321,7 +321,7 @@ export const IMPLEMENTATION_GUIDE: Localized<typeof th> = {
         improve: {
           purpose: '把真实的追溯记录与异常作为改进流程的依据',
           output: '在实际使用中变得更好的流程',
-          who: '高管与部门负责人',
+          who: '管理层与部门负责人',
         },
       },
     },

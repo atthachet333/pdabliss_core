@@ -488,10 +488,10 @@ export const GLOSSARY: Localized<GlossaryCopy> = {
         example: '数量与批次属于运营数据；销售价格属于商业数据；付款属于财务数据。',
       },
       executiveVisibility: {
-        name: '高管可见性',
+        name: '管理层可见性',
         definition:
           '无需打开每条记录即可看到整个组织的概况、异常、瓶颈与风险——与负责设置的系统管理员不同。',
-        example: '高管看到 SO-1042 因待收 20 件可能延迟，无需逐张打开采购单。',
+        example: '管理层看到 SO-1042 因待收 20 件可能延迟，无需逐张打开采购单。',
       },
       operationalFinance: {
         name: '运营财务',

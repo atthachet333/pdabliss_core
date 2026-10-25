@@ -3,7 +3,7 @@ import { Check, ChevronDown, Globe } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useDismiss } from '@/components/core/hooks';
-import { LOCALE_META, LOCALES, switchLocalePath } from '@/i18n/locales';
+import { LOCALE_META, LOCALES, switchLocalePath, type Locale } from '@/i18n/locales';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { DURATION, EASE_CORE } from '@/motion/tokens';
@@ -17,7 +17,9 @@ import { DURATION, EASE_CORE } from '@/motion/tokens';
  */
 export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inline' }) {
   const { locale, t } = useLocale();
-  const { pathname, hash } = useLocation();
+  const { pathname, search, hash } = useLocation();
+  // The same page in another locale, keeping its query (plan, interest, role) and hash.
+  const target = (l: Locale) => `${switchLocalePath(pathname, '', l)}${search}${hash}`;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +42,7 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
             return (
               <li key={l}>
                 <Link
-                  to={switchLocalePath(pathname, hash, l)}
+                  to={target(l)}
                   lang={meta.htmlLang}
                   hrefLang={meta.htmlLang}
                   aria-current={active ? 'true' : undefined}
@@ -116,7 +118,7 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
                 return (
                   <li key={l}>
                     <Link
-                      to={switchLocalePath(pathname, hash, l)}
+                      to={target(l)}
                       lang={meta.htmlLang}
                       hrefLang={meta.htmlLang}
                       aria-current={active ? 'true' : undefined}

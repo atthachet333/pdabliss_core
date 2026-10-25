@@ -71,7 +71,7 @@ const COPY: Localized<typeof th> = {
       { title: '工作等待却无人负责', note: '已搁置 4 天' },
       { title: '审批迟缓', note: '等待签字' },
       { title: '部门之间总要互相询问', note: '层层转交' },
-      { title: '库存与保质期发现得太晚', note: '出货时才发现' },
+      { title: '库存与有效期发现得太晚', note: '出货时才发现' },
       { title: '无法追溯谁改了什么', note: '无从查起' },
     ],
     titleA: '当企业成长',

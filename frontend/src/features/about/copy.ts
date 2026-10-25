@@ -755,11 +755,11 @@ export const ABOUT: Localized<AboutCopy> = {
           body: '在发生时就看到的异常，比到月底才发现的异常更容易处理。',
         },
         humanError: {
-          title: '系统应帮助减少人为错误',
+          title: '系统应帮助减少人为差错',
           body: '人难免出错。好的系统让正确的做法成为最容易的做法。',
         },
         exceptions: {
-          title: '管理层应看到例外，而不是噪音',
+          title: '管理层应看到异常，而不是噪音',
           body: '好的全局视图展示需要决策的事项——受阻的工作、等待的工作和风险，而不是每一笔交易。',
         },
         simplify: {
@@ -799,7 +799,7 @@ export const ABOUT: Localized<AboutCopy> = {
       },
       note: '这是我们的设计理念，并不是说集中式系统不好——很多组织用得很好。我们只是选择从不同的起点出发。',
       humanError: {
-        title: '人为错误不会因为\n提醒大家更小心而消失',
+        title: '人为差错不会因为\n提醒大家更小心而消失',
         body: '人会疲惫、会赶时间、会换岗。因此我们通过 CORE 的五项原则，让系统来分担这份负担。',
         guards: {
           guide: '引导',

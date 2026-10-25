@@ -459,6 +459,8 @@ export function ProductPreview({
           <div
             aria-hidden
             inert
+            // The real Thai product UI, in every locale (EP17).
+            lang="th"
             className="pointer-events-none h-[22rem] select-none sm:h-[27rem] lg:h-[29rem]"
           >
             <Suspense fallback={<PreviewSkeleton />}>

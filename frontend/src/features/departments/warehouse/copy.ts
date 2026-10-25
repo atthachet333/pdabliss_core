@@ -426,7 +426,7 @@ export const WAREHOUSE: Localized<typeof th> = {
   },
   'zh-CN': {
     meta: {
-      title: '仓库——精准的批次、保质期与库位',
+      title: '仓库——精准的批次、有效期与库位',
       description:
         'PDA BLISS CORE 仓库工作空间负责收货、按库位存放、管控批次与生产/到期日、按 FEFO 出库及盘点——只看工作所需的数据。',
     },

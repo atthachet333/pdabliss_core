@@ -278,7 +278,7 @@ const zh: IndustryPageCopy<Signature> = {
   meta: {
     title: '零售运营——所有分店的运营一目了然',
     description:
-      '面向多分店零售运营的 CORE：按位置的库存、补货、调拨、盘点、效期以及各分店的例外情况。CORE 不是 POS 系统。',
+      '面向多分店零售运营的 CORE：按位置的库存、补货、调拨、盘点、效期以及各分店的异常情况。CORE 不是 POS 系统。',
   },
   hero: {
     eyebrow: 'Retail operations',
@@ -309,7 +309,7 @@ const zh: IndustryPageCopy<Signature> = {
   departments: {
     title: '让每家分店有货的部门',
     roles: {
-      operations: '分店团队申请补货、收货、盘点并上报例外。',
+      operations: '分店团队申请补货、收货、盘点并上报异常。',
       warehouse: '配送中心拣货、调拨并关注效期。',
       purchasing: '根据各分店的汇总需求为配送中心补货。',
       executive: '看到所有分店的健康状况以及需要支援的地方。',

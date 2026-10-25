@@ -92,7 +92,7 @@ export const DEPT_SUMMARIES: Localized<Record<DeptKey, DeptSummary>> = {
     executive: {
       idea: '无需打开每个部门，也能知道组织正在发生什么。',
       today: ['需要关注的事项', '受阻的工作', '待决策事项'],
-      takesIn: '来自各部门的信号与例外',
+      takesIn: '来自各部门的信号与异常',
       handsOn: '决策、审批与优先级',
     },
     sales: {

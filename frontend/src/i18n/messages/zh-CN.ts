@@ -38,7 +38,7 @@ export const zhCN: ShellMessages = {
           executive: { label: '管理层', description: '掌握全公司的整体情况、问题与关键状态' },
           sales: { label: '销售部', description: '接收订单、跟踪状态并管理交付' },
           operations: { label: '运营部', description: '计划与跟踪工作，在部门之间交接任务' },
-          warehouse: { label: '仓库', description: '收货、库存批次、保质期与盘点' },
+          warehouse: { label: '仓库', description: '收货、库存批次、有效期与盘点' },
           purchasing: { label: '采购部', description: '请购单、采购订单、供应商与收货状态' },
           accounting: { label: '财务会计', description: '跟踪付款申请、定金、余额与单据' },
         },
@@ -78,7 +78,7 @@ export const zhCN: ShellMessages = {
           crossDept: { label: '跨部门协作', description: '了解工作如何在各部门之间交接' },
           workflow: { label: '工作流与审批', description: '清晰定义步骤与负责人' },
           tracking: { label: '状态跟踪', description: '知道工作进行到哪里、正在等待谁' },
-          errorPrevention: { label: '人为错误预防', description: '系统设计帮助预防并提示错误' },
+          errorPrevention: { label: '人为差错预防', description: '系统设计帮助预防并提示错误' },
           demo: { label: '体验 CORE 演示', description: '带一项工作走过每个部门——无需注册' },
         },
         highlight: {
@@ -94,7 +94,7 @@ export const zhCN: ShellMessages = {
         intro:
           '错误、工作交接和状态不透明，是跨部门工作最常受阻的地方，也正是 CORE 着力解决的地方。',
         items: {
-          humanError: { label: '减少人为错误', description: '减少错误步骤与遗漏的工作' },
+          humanError: { label: '减少人为差错', description: '减少错误步骤与遗漏的工作' },
           multiDept: { label: '连接多个部门', description: '减少反复询问状态与重复录入' },
           workflow: { label: '工作流与审批', description: '让关键流程标准化' },
           stock: { label: '库存与效期管控', description: '管控库存批次与到期日' },

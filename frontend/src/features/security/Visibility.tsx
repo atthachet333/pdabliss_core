@@ -6,6 +6,7 @@ import { Chapter, Frame, Kicker, Stage } from '@/components/editorial/Layout';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Head, Note } from '@/features/enterprise/parts';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
+import { GuideLink } from '@/features/resources/GuideLink';
 import { DeptDot, QuietLink } from '@/features/story/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
@@ -546,6 +547,8 @@ export function WarehouseChapter() {
             <QuietLink to={SECURITY_LINKS.warehouseDemo} data="warehouse-demo" className="mt-5">
               {w.demo}
             </QuietLink>
+            {/* EP17: the written explanation of the same boundary. */}
+            <GuideLink id="warehousePrivacy" className="mt-1" />
           </div>
         </div>
       </Frame>

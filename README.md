@@ -53,7 +53,8 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 | Command                | frontend                       | backend                         |
 | ---------------------- | ------------------------------ | ------------------------------- |
 | `npm run dev`          | Vite dev server on 1111        | `tsx watch` on 1112             |
-| `npm run build`        | typecheck + production bundle  | compile to `dist/`              |
+| `npm run build`        | typecheck + production bundle + prerendered head for all 105 public URLs (verified) | compile to `dist/` |
+| `npm run test:prerender` | re-check the built HTML of every public URL (no JavaScript) | — |
 | `npm start`            | —                              | run compiled server             |
 | `npm run typecheck`    | `tsc -b`                       | `tsc --noEmit`                  |
 | `npm run lint`         | ESLint                         | ESLint (type-aware)             |
@@ -68,7 +69,10 @@ Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/ent
 `/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/demo`,
 `/security`, `/resources` (+ seven `/resources/<slug>` guides), `/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
 `frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
-keeps the two in sync).
+keeps the two in sync). Since EP17 every page also sets a self-referencing canonical, hreflang
+alternates and Open Graph URL / locale from one route-aware source (`lib/seo.ts` +
+`lib/usePageMeta.ts`); `/login` and the 404 are `noindex`. See
+[docs/SEO_LOCALIZATION.md](docs/SEO_LOCALIZATION.md).
 
 Pricing (EP07): `/pricing` is the package & subscription experience — four packages, annual
 relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a plan. See
@@ -218,6 +222,9 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP15_REPORT.md](docs/EP15_REPORT.md) — Trust Center and signature CORE login
 - [docs/RESOURCES_EXPERIENCE.md](docs/RESOURCES_EXPERIENCE.md) — `/resources`: knowledge library, registry, search, glossary, seven guides, claim boundaries
 - [docs/EP16_REPORT.md](docs/EP16_REPORT.md) — CORE knowledge resource experience
+- [docs/SEO_LOCALIZATION.md](docs/SEO_LOCALIZATION.md) — locales, metadata, canonical, hreflang, sitemap, robots, structured data, 404, terminology
+- [docs/PUBLIC_ROUTE_DISCOVERABILITY.md](docs/PUBLIC_ROUTE_DISCOVERABILITY.md) — every public route, how visitors reach it, orphan rules
+- [docs/EP17_REPORT.md](docs/EP17_REPORT.md) — localization, SEO hardening and navigation discoverability audit
 
 ---
 

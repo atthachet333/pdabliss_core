@@ -168,10 +168,10 @@ export const FLOW_TEXT: Localized<Record<FlowId, FlowText>> = {
     },
     receive: {
       label: '收货',
-      summary: '货物入库时即带有批次与保质期信息。',
+      summary: '货物入库时即带有批次与有效期信息。',
       steps: [
         '待收货的采购单，附供应商交期',
-        '收货、核对数量，记录批次与保质期',
+        '收货、核对数量，记录批次与有效期',
         '查看实际到货量，跟进短缺部分',
         '收货单据已备好，供付款前核对',
       ],

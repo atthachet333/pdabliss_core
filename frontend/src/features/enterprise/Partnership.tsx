@@ -7,6 +7,7 @@ import { PLANS } from '@/features/pricing/plans';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
+import { GuideLink } from '@/features/resources/GuideLink';
 import { ENTERPRISE } from './copy';
 import {
   CHAPTER,
@@ -74,6 +75,8 @@ export function ImplementationChapter() {
           <div data-migration>
             <Kicker tone="clear">{c.migration.title}</Kicker>
             <p className="mt-4 text-body text-text-secondary">{c.migration.scope}</p>
+            {/* EP17: the ten steps and the preparation checklist, in full. */}
+            <GuideLink id="implementationGuide" className="mt-4" />
           </div>
           <div data-training>
             <Kicker tone="clear">{c.training.title}</Kicker>

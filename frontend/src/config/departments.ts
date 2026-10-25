@@ -187,11 +187,11 @@ const zhCN: Record<DepartmentId, DepartmentText> = {
   },
   warehouse: {
     name: '仓库',
-    purpose: '收货、质检、管控批次与保质期，界面专为现场作业设计。',
+    purpose: '收货、质检、管控批次与有效期，界面专为现场作业设计。',
     focus: ['待收货 / 待质检', '临期批次（FEFO）', '库存盘点'],
     documents: ['Goods Receipt', 'Stock Movement', 'Stock Count'],
     visibility: '仅查看数量、批次与日期——服务器不发送任何价格数据。',
-    highlights: ['收货', '库存', '批次 / Batch', '保质期'],
+    highlights: ['收货', '库存', '批次 / Batch', '有效期'],
   },
   purchasing: {
     name: '采购部',
@@ -227,11 +227,11 @@ const zhCN: Record<DepartmentId, DepartmentText> = {
   },
   executive: {
     name: '管理层',
-    purpose: '一个画面看清所有部门的控制中心，并列出需要决策的例外事项。',
-    focus: ['全公司 KPI', '例外中心', '部门深入查看'],
+    purpose: '一个画面看清所有部门的控制中心，并列出需要决策的异常事项。',
+    focus: ['全公司 KPI', '异常中心', '部门深入查看'],
     documents: ['Company KPI', 'Exceptions', 'Approvals'],
     visibility: '以只读方式查看所有部门，获得授权时可进行审批。',
-    highlights: ['全公司 KPI', '例外事项', '审批'],
+    highlights: ['全公司 KPI', '异常事项', '审批'],
   },
 };
 

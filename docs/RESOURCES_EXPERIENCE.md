@@ -156,7 +156,14 @@ prevents all, 零差错 …). Any mention of ledger, journal or tax must be a ne
 ## SEO
 
 - **Metadata:** each of the 8 routes × 3 locales has a unique `<title>`, description and
-  `og:title` / `og:description` (via `usePageMeta`), and exactly one H1.
+  `og:title` / `og:description` (via `usePageMeta`), and exactly one H1. Since EP17 each also has a
+  self-referencing canonical, reciprocal hreflang alternates and `og:url` / `og:locale`. See
+  [SEO_LOCALIZATION.md](SEO_LOCALIZATION.md).
+- **Contextual entries (EP17):** `GuideLink` adds a quiet "อ่านคู่มือ: …" link into a guide from
+  the product page that raises the question:
+  - `/how-core-works` closing CTA → How CORE Works guide
+  - `/security` Warehouse chapter → Warehouse Privacy
+  - `/enterprise#implementation` → Implementation Guide
 - **Sitemap:** all 24 URLs are in `public/sitemap.xml` with hreflang alternates (105 URLs in
   total). `/resources` has priority 0.7; guides have 0.6.
 - **Route set:** the routes are in the shared `test/publicRoutes.ts`.

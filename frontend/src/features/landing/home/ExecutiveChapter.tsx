@@ -58,7 +58,7 @@ const COPY: Localized<typeof th> = {
         t: '无需逐个询问即可掌握全局',
         b: '各部门的状态来自已记录的真实工作，而不是每月底汇总的报告。',
       },
-      { t: '依据例外事项做决策', b: '正常的事无需打扰——管理层只看延迟、有风险或待决策的事项。' },
+      { t: '依据异常事项做决策', b: '正常的事无需打扰——管理层只看延迟、有风险或待决策的事项。' },
       { t: '可深入追溯到源头', b: '每一个信号都能追溯到相关的单据和部门。' },
     ],
     titleA: '来自各部门的数据',
@@ -154,6 +154,8 @@ export function ExecutiveChapter() {
               <div
                 aria-hidden
                 inert
+                // The real Thai product UI, in every locale (EP17).
+                lang="th"
                 className="pointer-events-none h-[24rem] select-none sm:h-[27rem]"
               >
                 <Suspense

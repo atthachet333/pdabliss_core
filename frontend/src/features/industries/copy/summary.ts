@@ -849,7 +849,7 @@ const zh: IndustriesSummary = {
     solutionLabels: {
       'falling-through': '工作在部门之间遗漏',
       visibility: '到处追问状态',
-      'human-error': '人为错误',
+      'human-error': '人为差错',
       approval: '审批卡住',
       stock: '库存 / 批次 / 效期',
       supplier: '供应商延迟',
@@ -860,7 +860,7 @@ const zh: IndustriesSummary = {
     chapterLabels: {
       handoff: '工作交接',
       approval: '审批',
-      exceptions: '例外情况',
+      exceptions: '异常情况',
       roles: '角色视图',
       trace: '工作历史',
       'human-error': '预防错误',
@@ -872,7 +872,7 @@ const zh: IndustriesSummary = {
       },
       pos: {
         title: '不是 POS 系统',
-        body: 'CORE 不是收银系统、支付终端或网店——CORE 负责门店周边的运营工作：库存、补货、调拨与各分店的例外情况。',
+        body: 'CORE 不是收银系统、支付终端或网店——CORE 负责门店周边的运营工作：库存、补货、调拨与各分店的异常情况。',
       },
       propertyProduct: {
         title: '不替代 PDA BLISS Property & Rental Management',
@@ -903,7 +903,7 @@ const zh: IndustriesSummary = {
       handoff: '可核对的交接',
       status: '各方一致的状态',
       approval: '审批',
-      exceptions: '例外情况可见',
+      exceptions: '异常情况可见',
       traceability: '可追溯',
     },
     changes: {
@@ -938,7 +938,7 @@ const zh: IndustriesSummary = {
       workflow: '相互连接的工作流',
       boundary: '按角色的信息边界',
       approval: '审批',
-      exceptions: '例外情况',
+      exceptions: '异常情况',
       trace: '工作历史',
       executive: '管理层可见性',
     },
@@ -1090,11 +1090,11 @@ const zh: IndustriesSummary = {
         replenish: '采购补货',
         transfer: '分店间调拨',
         receipt: '分店收货',
-        exception: '处理例外情况',
+        exception: '处理异常情况',
         visibility: '管理层看到所有分店',
       },
       signals: {
-        branchException: '分店例外情况',
+        branchException: '分店异常情况',
         stockIssue: '库存问题',
         transferPending: '调拨未完成',
         expiryRisk: '临近效期',

@@ -336,6 +336,8 @@ export function RoutingChapter() {
         <figure className="min-w-0">
           <div
             inert
+            // The real Thai product UI, in every locale (EP17).
+            lang="th"
             aria-hidden
             className="pointer-events-none overflow-hidden rounded-2xl border border-border-soft bg-surface-base"
           >

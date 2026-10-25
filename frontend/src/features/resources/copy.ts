@@ -500,7 +500,7 @@ export const RESOURCES_COPY: Localized<ResourcesCopy> = {
       items: {
         starting: { name: '开始梳理系统', focus: '基础工作流与负责人' },
         multiDepartment: { name: '已有多个部门', focus: '交接、状态与审批' },
-        growing: { name: '组织正在成长', focus: '权限、控制与高管可见性' },
+        growing: { name: '组织正在成长', focus: '权限、控制与管理层可见性' },
         standardizing: { name: '需要更高标准', focus: '实施、安全与集成准备' },
       },
     },

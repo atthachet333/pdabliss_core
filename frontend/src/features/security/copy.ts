@@ -781,7 +781,7 @@ export const SECURITY_COPY: Localized<SecurityCopy> = {
     meta: {
       title: '安全与信任——不是每个人都该看到一切',
       description:
-        'PDA BLISS CORE 的安全思路：按职责划分可见范围、仓库的数据边界、高管与系统管理员的区别、可追溯性，以及如实标注哪些已具备、哪些在规划中。',
+        'PDA BLISS CORE 的安全思路：按职责划分可见范围、仓库的数据边界、管理层与系统管理员的区别、可追溯性，以及如实标注哪些已具备、哪些在规划中。',
     },
     hero: {
       eyebrow: '安全与信任',
@@ -813,7 +813,7 @@ export const SECURITY_COPY: Localized<SecurityCopy> = {
         warehouse: { name: '仓库', focus: '物品、库位、批次、有效期、收货与拣货' },
         purchasing: { name: '采购', focus: '采购单、供应商与待收货' },
         accounting: { name: '财务会计', focus: '单据、付款与付款准备' },
-        executive: { name: '高管', focus: '全局、异常与风险' },
+        executive: { name: '管理层', focus: '全局、异常与风险' },
         admin: { name: '系统管理员', focus: '用户、权限与设置' },
       },
       fields: {
@@ -852,11 +852,11 @@ export const SECURITY_COPY: Localized<SecurityCopy> = {
     },
     roles: {
       eyebrow: '常被混为一谈的两个角色',
-      title: '高管 ≠ 系统管理员',
-      lead: '高管需要全局视图来做决策；管理员需要设置让系统运转。职责不同，可见范围也不同。',
+      title: '管理层 ≠ 系统管理员',
+      lead: '管理层需要全局视图来做决策；管理员需要设置让系统运转。职责不同，可见范围也不同。',
       neq: '并不相同',
       executive: {
-        title: '高管',
+        title: '管理层',
         body: '覆盖整个组织的运营可见性',
         items: [
           '整个组织的运营概况',
@@ -1060,8 +1060,8 @@ export const SECURITY_COPY: Localized<SecurityCopy> = {
           a: '不一样。是同一项工作，但每个角色按职责看到不同的视图。实际范围按各组织的实施确定。',
         },
         execAdmin: {
-          q: '高管与管理员有什么区别？',
-          a: '高管查看运营、异常、瓶颈与风险；管理员负责用户、权限与设置，无需查看业务数字。',
+          q: '管理层与管理员有什么区别？',
+          a: '管理层查看运营、异常、瓶颈与风险；管理员负责用户、权限与设置，无需查看业务数字。',
         },
         audit: {
           q: 'CORE 会保留审计记录吗？',

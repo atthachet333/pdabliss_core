@@ -1,3 +1,4 @@
+import { WebSiteSchema } from '@/components/seo/WebSiteSchema';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { ChapterProgress } from '@/features/landing/home/ChapterProgress';
 import { ComplexityChapter } from '@/features/landing/home/ComplexityChapter';
@@ -21,6 +22,7 @@ export default function HomePage() {
 
   return (
     <>
+      <WebSiteSchema />
       <ChapterProgress />
       <HeroExperience />
       <WhoForChapter />

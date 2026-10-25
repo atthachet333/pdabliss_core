@@ -435,7 +435,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
     meta: {
       title: '我们为何打造 CORE——真实工作常卡在部门之间',
       description:
-        'PDA BLISS CORE 的由来：组织成长后，工作开始卡在部门之间。CORE 让每个部门拥有自己的工作空间，并共享同一个工作状态，同时体现了关于人为错误和管理层视图的理念。',
+        'PDA BLISS CORE 的由来：组织成长后，工作开始卡在部门之间。CORE 让每个部门拥有自己的工作空间，并共享同一个工作状态，同时体现了关于人为差错和管理层视图的理念。',
     },
     hero: {
       eyebrow: 'Why CORE',
@@ -502,7 +502,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
         operations: ['工作计划', '工单', '受阻工作'],
         purchasing: ['待审批请购单', '待收货采购单', '延迟的供应商'],
         accounting: ['待核对单据', '待开票', '对账'],
-        executive: ['受阻工作', '例外', '部门健康度'],
+        executive: ['受阻工作', '异常', '部门健康度'],
       },
       shared: '共享工作状态',
       sharedValue: 'SO-1042 · 待发货',
@@ -542,7 +542,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
     },
     humanError: {
       kicker: 'Human Error',
-      title: '人为错误\n不是靠提醒大家更小心就能解决的',
+      title: '人为差错\n不是靠提醒大家更小心就能解决的',
       lead: '人会疲惫、会赶时间、会换岗。如果正确与否取决于每个人时刻的记忆和细心，错误就会反复发生。',
       record: { title: '只做记录的系统', body: '知道发生了什么——在事情发生之后。' },
       prevent: { title: '帮助预防的系统', body: '让错误状态难以出现——在事情发生之前。' },
@@ -562,7 +562,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
         preserve: { verb: '保留上下文', example: '记录谁在何时修改了什么，以及原因。' },
       },
       note: '这些示例是 CORE 设计上要支持的内容——并不保证错误永远不会发生。',
-      solutions: '查看真实工作中的人为错误问题',
+      solutions: '查看真实工作中的人为差错问题',
       how: '在 How CORE Works 中查看机制',
     },
     executive: {
@@ -574,7 +574,7 @@ export const WHY_CORE: Localized<WhyCoreCopy> = {
       signalsLabel: '管理层看到的内容',
       signals: {
         bottlenecks: { title: '瓶颈', body: '工作堆积的环节' },
-        exceptions: { title: '例外', body: '不符合条件的工作' },
+        exceptions: { title: '异常', body: '不符合条件的工作' },
         waiting: { title: '等待', body: '等待决策或等待其他部门的工作' },
         risk: { title: '风险', body: '可能影响客户或交期的事项' },
         health: { title: '部门健康度', body: '各团队的工作量与积压' },

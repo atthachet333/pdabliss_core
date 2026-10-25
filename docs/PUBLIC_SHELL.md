@@ -368,10 +368,29 @@ dismissed banner; Escape closes every overlay; status text accompanies colour (p
 in-use chips, switch glyphs); touch targets ≥ 44 px (footer text links ≥ 36 px tall in a
 spaced list); `lang` on locale options, the Thai address and `<main>`.
 
+## SEO, 404 and language switching (EP17)
+
+- **Metadata:** every page calls `usePageMeta(title, description)`. It sets the title,
+  description, one self-referencing canonical, hreflang alternates (th / en / zh-CN / x-default)
+  and Open Graph URL and locale. Sign-in and the 404 pass `{ index: false }` (`noindex`, no
+  canonical).
+- **Language selector:** keeps the query and hash (`/pricing?plan=business#packages` →
+  `/en/pricing?plan=business#packages`).
+- **404:** stays inside the shell, in the visitor's locale. It offers home, the Resource Center
+  and contact.
+- **Static head:** `npm run build` writes each public URL's head into its own HTML file
+  (`en/pricing.html`…), so crawlers and link previews get the right page without JavaScript.
+  The host must serve `404.html` (not `index.html`) for unknown paths.
+- **More:** [SEO_LOCALIZATION.md](SEO_LOCALIZATION.md) and
+  [PUBLIC_ROUTE_DISCOVERABILITY.md](PUBLIC_ROUTE_DISCOVERABILITY.md).
+
 ## Adding a public page
 
 1. Create the page under `src/pages/public/` and add it to `publicPages()` in `app/router.tsx`
    — it is served at `/<path>`, `/en/<path>` and `/zh/<path>` automatically, inside the shell.
+   Call `usePageMeta` with a unique localized title and description. Add the route to
+   `test/publicRoutes.ts` and `sitemap.xml`, and give it a row with a real entry path in
+   `test/discoverability.ts` (EP17).
 2. Link to it from `config/navigation.ts` (structure) and add its labels to all three
    dictionaries; replace any informational item with a real `to` only once the page exists.
 3. Never add a header, footer, contact widget or LINE URL inside the page.

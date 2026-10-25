@@ -69,7 +69,7 @@ const COPY: Localized<typeof th> = {
     quoteB: '数据却始终相连',
     tabs: '选择部门的工作世界',
     duties: (name) => `${name}的职责`,
-    warehouseNote: '仓库工作空间只显示批次数量与保质期——不显示价格或成本，因为这与岗位无关。',
+    warehouseNote: '仓库工作空间只显示批次数量与有效期——不显示价格或成本，因为这与岗位无关。',
     details: (name) => `查看${name}详情`,
     preview: (name) => `${name}界面预览（示例数据）`,
     previewCaption: '来自原型系统的真实界面，使用示例数据展示。产品界面为泰语。',
@@ -262,6 +262,8 @@ export function DepartmentWorldsChapter() {
               <div
                 aria-hidden
                 inert
+                // The real Thai product UI, in every locale (EP17).
+                lang="th"
                 className="pointer-events-none h-[23rem] select-none sm:h-[27rem] lg:h-[29rem]"
               >
                 <Suspense fallback={<PreviewSkeleton />}>

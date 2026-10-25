@@ -1087,7 +1087,7 @@ const zh: WorkflowCopy = {
       countVariance: { title: '数量不符', body: '实收少于订购数量', action: '暂扣待核查' },
       nearExpiry: {
         title: '临近到期',
-        body: '收到的批次剩余保质期较短',
+        body: '收到的批次剩余有效期较短',
         action: '按 FEFO 建议优先出库',
       },
     },

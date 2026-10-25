@@ -25,6 +25,7 @@ import { PLANS } from '@/features/pricing/plans';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
+import { GuideLink } from '@/features/resources/GuideLink';
 import { WORKFLOW } from './copy';
 import {
   ADAPTATIONS,
@@ -469,6 +470,10 @@ export function HowCta() {
           {c.cta.departments}
           <ArrowRight className="size-4" aria-hidden />
         </Link>
+        {/* EP17: the same journey as a guide to read at your own pace. */}
+        <div>
+          <GuideLink id="howCoreWorks" />
+        </div>
       </div>
     </Section>
   );

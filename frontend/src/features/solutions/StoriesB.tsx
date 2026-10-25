@@ -62,6 +62,8 @@ function Preview({
     <figure className={className}>
       <div
         inert
+        // The real Thai product UI, in every locale (EP17).
+        lang="th"
         aria-hidden
         className="pointer-events-none overflow-hidden rounded-2xl bg-surface-base shadow-[0_30px_80px_-40px_rgb(0_0_0/0.9)]"
       >

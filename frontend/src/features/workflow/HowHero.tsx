@@ -1,10 +1,12 @@
 import { ArrowDown, ArrowRight, Eye } from 'lucide-react';
+import { useRef } from 'react';
 import { Link } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Container } from '@/components/ui/Section';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { WORKFLOW } from './copy';
 import { CHAPTER, RECORDS, type Actor } from './model';
 import { laneColor, useLaneName } from './state';
@@ -22,8 +24,11 @@ function HeroVisual() {
   const c = useCopy(WORKFLOW);
   const laneName = useLaneName();
   const reduce = usePrefersReducedMotion();
+  const root = useRef<HTMLElement>(null);
+  // The routing pulses (SMIL) hold still once the hero is scrolled away.
+  useLoopRegion(root);
   return (
-    <figure aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[40rem]">
+    <figure ref={root} aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[40rem]">
       <svg aria-hidden viewBox="0 0 640 440" className="hidden w-full overflow-visible sm:block">
         <defs>
           <radialGradient id="how-core" cx="50%" cy="50%" r="50%">

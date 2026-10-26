@@ -1,8 +1,10 @@
 import { ArrowRight } from 'lucide-react';
+import { useRef } from 'react';
 import { Link } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Container } from '@/components/ui/Section';
 import { Reveal } from '@/motion/Reveal';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { ChapterMark } from './ChapterMark';
 import { useLocale } from '@/i18n/useLocale';
 import { useCopy, type Localized } from '@/i18n/useCopy';
@@ -44,8 +46,11 @@ const COPY: Localized<typeof th> = {
 export function FinalChapter() {
   const c = useCopy(COPY);
   const { href } = useLocale();
+  const root = useRef<HTMLElement>(null);
+  useLoopRegion(root);
   return (
     <section
+      ref={root}
       id="begin"
       aria-labelledby="begin-title"
       className="relative isolate overflow-hidden py-28 sm:py-40"

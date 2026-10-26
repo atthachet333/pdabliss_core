@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Providers } from '@/app/Providers';
-import { routes } from '@/app/router';
+import { patchRoutesOnNavigation, routes } from '@/app/router';
 import { getPrototypeSession, prototypeSignOut } from '@/prototype/session';
 import { renderRoute } from '@/test/render';
 import { LOGIN_COPY } from './copy';
@@ -200,7 +200,7 @@ describe('ways out and around', () => {
   });
 
   it('carries the language from the header link', async () => {
-    const router = createMemoryRouter(routes, { initialEntries: ['/zh'] });
+    const router = createMemoryRouter(routes, { initialEntries: ['/zh'], patchRoutesOnNavigation });
     render(
       <Providers>
         <RouterProvider router={router} />

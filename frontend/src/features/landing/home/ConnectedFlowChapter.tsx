@@ -7,6 +7,7 @@ import { useCopy, type Localized } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { ChapterMark } from './ChapterMark';
 import { CORE_POINT, routeFor, STATIONS, useFlows } from './flows';
 import { useWorlds, WORLDS, type WorldId } from './worlds';
@@ -68,6 +69,8 @@ export function ConnectedFlowChapter() {
   const reduce = usePrefersReducedMotion();
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { amount: 0.35 });
+  // The station ping (a CSS loop) holds still while the chapter is offscreen.
+  useLoopRegion(ref);
   const FLOWS = useFlows();
   const worlds = useWorlds();
   const NAME = Object.fromEntries(worlds.map((w) => [w.id, w.name])) as Record<WorldId, string>;

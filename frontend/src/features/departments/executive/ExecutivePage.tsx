@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight, CircleDot, PauseCircle } fro
 import { useRef, useState, type CSSProperties } from 'react';
 import { useDepartments } from '@/config/departments';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
@@ -35,10 +36,13 @@ function SignalsConverge() {
   const c = useCopy(EXECUTIVE);
   const all = useDepartments();
   const reduce = usePrefersReducedMotion();
+  const root = useRef<HTMLElement>(null);
+  // The hero's loops (SMIL / CSS) hold still once it is scrolled away.
+  useLoopRegion(root);
   const nodes = SOURCES.map((id, i) => ({ id, x: 60 + i * 110, y: 360 }));
   const target = { x: 280, y: 150 };
   return (
-    <figure aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[38rem]">
+    <figure ref={root} aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[38rem]">
       <svg aria-hidden viewBox="0 0 560 420" className="w-full">
         <defs>
           <linearGradient id="exec-sky" x1="0" y1="0" x2="0" y2="1">

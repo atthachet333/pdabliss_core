@@ -1,18 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'framer-motion';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
+/**
+ * App-wide providers. The query client is not here: only the /app/*
+ * workspaces fetch, so it lives with their routes (src/app/appRoutes.tsx, EP20).
+ */
 export function Providers({ children }: { children: ReactNode }) {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 30_000 } },
-      }),
-  );
   return (
-    <QueryClientProvider client={client}>
-      {/* Honour the OS "reduce motion" preference for every Framer Motion animation. */}
-      <MotionConfig reducedMotion="user">{children}</MotionConfig>
-    </QueryClientProvider>
+    // Honour the OS "reduce motion" preference for every Framer Motion animation.
+    <MotionConfig reducedMotion="user">{children}</MotionConfig>
   );
 }

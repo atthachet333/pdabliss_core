@@ -30,8 +30,7 @@ export function probeWebGL(): string | null {
 
 const SOFTWARE_GPU = /swiftshader|llvmpipe|software|basic render/i;
 
-export function detectQuality(): Quality {
-  const renderer = probeWebGL();
+export function detectQuality(renderer: string | null = probeWebGL()): Quality {
   if (renderer === null) return 'static';
   if (SOFTWARE_GPU.test(renderer)) return 'static';
   if (prefersReducedMotion()) return 'reduced';
@@ -46,6 +45,18 @@ export function detectQuality(): Quality {
   if (coarse || narrow || cores <= 4 || memory <= 4) return 'low';
   if (cores >= 8 && memory >= 8 && !/intel/i.test(renderer)) return 'high';
   return 'medium';
+}
+
+let probed: string | null | undefined;
+
+/**
+ * detectQuality for the CORE stage. The GPU probe (a throwaway WebGL context)
+ * runs once per page session, not on every return to the homepage (EP20);
+ * the motion preference and viewport are still read each time.
+ */
+export function stageQuality(): Quality {
+  if (probed === undefined) probed = probeWebGL();
+  return detectQuality(probed);
 }
 
 /** One step down: used when the runtime frame guard sees sustained slow frames. */

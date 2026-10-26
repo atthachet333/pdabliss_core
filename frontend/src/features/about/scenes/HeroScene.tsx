@@ -30,6 +30,7 @@ import {
   type HeroLane,
 } from '../model';
 import { easeInOut, lerp, segment, useElementSize, useFinePointer } from '../motion';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { ABOUT_SCENES } from './copy';
 
 /*
@@ -406,6 +407,8 @@ export function HeroScene({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const size = useElementSize(ref);
+  // The loose fragments' drift (a CSS loop) holds still once the scene is scrolled past.
+  useLoopRegion(ref);
   const fine = useFinePointer() && layout === 'wide';
   const w = useMotionValue(size.w);
   const h = useMotionValue(size.h);

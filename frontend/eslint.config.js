@@ -22,8 +22,8 @@ export default tseslint.config(
     },
   },
   {
-    // Route configuration module: exports the route table, not an HMR component boundary.
-    files: ['src/app/router.tsx'],
+    // Route configuration modules: export route tables, not HMR component boundaries.
+    files: ['src/app/router.tsx', 'src/app/appRoutes.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
   {

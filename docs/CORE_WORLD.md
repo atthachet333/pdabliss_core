@@ -168,8 +168,10 @@ tier (never up).
 
 ## 9. Performance decisions
 
-- **Code split:** three + R3F + scene ≈ 244 KB gzip in a lazy `CoreWorld` chunk, requested
-  after first paint (idle callback). The public entry grows only ≈ 8 KB gzip.
+- **Code split:** three + R3F + scene ≈ 236 KB gzip in a lazy `CoreWorld` chunk, requested
+  after first paint (idle callback). It is never part of the public entry (EP20 budget guard,
+  `scripts/perf-budget.mjs`); the GPU probe that picks the tier runs once per page session
+  (`stageQuality`), not on every return to the homepage.
 - **DPR capped** (never raw `devicePixelRatio`).
 - **≈ 30 draw calls:** one shader for the whole CORE body; shared halo texture; all pulses in
   one `Points`; particles animate in the vertex shader; 11 tiny curves updated on the CPU.
@@ -177,6 +179,11 @@ tier (never up).
   textures beyond a 64 px sprite, no environment maps.
 - **Paused when unseen:** `frameloop="never"` when the stage is offscreen
   (IntersectionObserver) or the tab is hidden; reduced motion renders on demand only.
+- **EP20 verification:** idle with the stage visible ≈ one frame per display refresh; scrolled
+  away or tab hidden: 0 animation frames; reduced motion: 0 frames when idle. Leaving the
+  homepage disposes the renderer (R3F `forceContextLoss`); returning creates exactly one new
+  canvas. On a 390 × 844 phone the stage starts in the first viewport (y ≈ 693 px), so the
+  scene still loads after first paint rather than on scroll. See [PERFORMANCE.md](PERFORMANCE.md).
 
 ## 10. Mobile
 

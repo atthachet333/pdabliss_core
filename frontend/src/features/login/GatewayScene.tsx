@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { departmentsFor } from '@/config/departments';
 import type { DeptKey } from '@/features/departments/catalog';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { useLocale } from '@/i18n/useLocale';
 import { EASE_CORE } from '@/motion/tokens';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 
 /*
  * The CORE Gateway (EP15). Outside: six department signals and their work
@@ -130,6 +131,9 @@ export function GatewayScene({
   const { locale } = useLocale();
   const reduce = usePrefersReducedMotion();
   const id = useId();
+  const root = useRef<SVGSVGElement>(null);
+  // The lane pulses (SMIL) hold still while the scene is scrolled away.
+  useLoopRegion(root);
   const g = variant === 'wide' ? WIDE : COMPACT;
   const look = LOOK[phase];
   const names = departmentsFor(locale);
@@ -144,6 +148,7 @@ export function GatewayScene({
 
   return (
     <svg
+      ref={root}
       aria-hidden
       data-gateway={variant}
       data-phase={phase}

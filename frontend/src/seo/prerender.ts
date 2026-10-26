@@ -15,6 +15,7 @@ import { INDEXABLE } from './routeMeta';
  */
 
 export { headHtml, CLAIMS, TRADITIONAL };
+export { APP_MODULE, LOCALE_MODULES, ROUTE_MODULES } from './routeModules';
 
 /** `/` → `index.html`, `/en` → `en.html`, `/en/pricing` → `en/pricing.html`. */
 export function outFile(route: string, locale: Locale): string {

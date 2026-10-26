@@ -72,6 +72,12 @@ Rules:
 **IBM Plex Sans Thai** (self-hosted via `@fontsource`, weights 400/500/600/700) — designed for
 Thai and Latin together, with Thai-first readability.
 
+Loading (EP20, see [PERFORMANCE.md](PERFORMANCE.md)): `font-display: swap`, split by Unicode range
+(Thai / Latin / Latin-ext woff2), so a page downloads only the scripts and weights it renders.
+Thai pages preload the three Thai faces (400/500/600); English and Chinese pages preload none.
+Simplified Chinese text uses the system CJK font stack (`--font-zh`) — no CJK web font is shipped,
+and no font is subset beyond what the package provides.
+
 | Token          | Size                                   | Line height | Use                     |
 | -------------- | -------------------------------------- | ----------- | ----------------------- |
 | `text-display` | clamp(34px → 56px)                     | 1.36        | Hero headline           |

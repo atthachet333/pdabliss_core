@@ -159,7 +159,11 @@ the same language. Existing URLs are unchanged.
 - The language selector links to the same page in the other locale (`switchLocalePath`), with
   `lang` and `hreflang` on each option.
 - Shell dictionaries: Thai ships in the main bundle; English and Chinese are separate chunks
-  loaded by the route's `lazy()` before it renders (no Thai flash).
+  loaded by the route's `lazy()` before it renders (no Thai flash). EP20: the router loads the
+  dictionary and the page chunk in parallel, and `/en/*` / `/zh/*` HTML preloads both.
+- Page loading (EP20): a client navigation keeps the current page until the next page's chunk
+  is ready (no blank placeholder); a direct visit shows header, a full-height placeholder and
+  the footer below the fold, so the footer never jumps (lazy-route CLS was ≈ 0.30).
 - **Page content (EP05 revision)** lives next to the component that renders it, as a
   `Localized<T>` object (`{ th, en, 'zh-CN' }`) typed from the Thai source, read with
   `useCopy()` (`src/i18n/useCopy.ts`). A missing English or Chinese string is a compile error.

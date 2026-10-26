@@ -286,6 +286,31 @@ Solutions, Contact, Demo, Security, Resources and Login. No long-running or infi
 remained. EP18.1's two legacy property mismatches are also closed: Why CORE transitions the
 individual `translate` property, and CORE World labels transition the individual `scale` property.
 
+## Runtime cost (EP20 — see [PERFORMANCE.md](PERFORMANCE.md))
+
+Measured in EP20: endless CSS keyframes and SVG SMIL loops kept style + layout running every
+frame even after their section had scrolled away (homepage at the footer: ≈ 146 style
+recalculations and ≈ 110 layouts per second, ≈ 160 ms of main-thread work per second on an
+unthrottled desktop). Rules since EP20:
+
+- **Every endless decorative loop lives in a loop region.** `useLoopRegion(ref)`
+  (`src/motion/useLoopRegion.ts`) marks the region `data-offscreen` when it is more than 200 px
+  outside the viewport — `index.css` then pauses every CSS animation inside it — and pauses its
+  SVG timelines (`pauseAnimations()`); both resume exactly where they stopped. It also returns
+  `false` while offscreen or while the tab is hidden, so interval-driven sequences (Sales order
+  route, Accounting verification) stop too.
+- Applied to: homepage Department Worlds, Connected Flow (station ping), Final chapter; About
+  hero fragments; How CORE Works hero; the sign-in gateway scene; the department heroes
+  (Executive, Sales, Operations, Purchasing, Accounting) and the overview connected map.
+- CORE World keeps its own pause (`frameloop="never"` offscreen / hidden, on demand under reduced
+  motion).
+- Reduced motion is unchanged: the global block still stops every CSS loop and SMIL is swapped
+  for static art, so nothing runs hidden behind an opacity change.
+- A new endless loop needs a loop region; a one-shot motion does not.
+
+After EP20 the homepage scrolled to the footer measured ≈ 3 ms of main-thread work per second
+(was ≈ 160), and 0 style/layout passes per second.
+
 ## Adding motion
 
 Use the tokens. Prefer `Reveal`/`RevealItem` for entrances. Ask: what does this movement

@@ -397,7 +397,10 @@ describe('/contact page', () => {
 
   it('adds factual Organization structured data', async () => {
     await open();
-    expect(document.head.querySelector('script[data-schema="organization"]')).not.toBeNull();
+    // Added by an effect after the page commits.
+    await waitFor(() =>
+      expect(document.head.querySelector('script[data-schema="organization"]')).not.toBeNull(),
+    );
   });
 });
 

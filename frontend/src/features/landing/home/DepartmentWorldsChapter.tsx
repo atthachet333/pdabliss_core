@@ -7,6 +7,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useCopy, type Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { departmentLink } from '@/features/departments/catalog';
 import { ChapterMark } from './ChapterMark';
 import { WorldArt } from './WorldArt';
@@ -87,6 +88,9 @@ export function DepartmentWorldsChapter() {
   const reduce = usePrefersReducedMotion();
   const [active, setActive] = useState<WorldId>('sales');
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const root = useRef<HTMLElement>(null);
+  // The world art loops (CSS + SMIL) hold still while the chapter is offscreen.
+  useLoopRegion(root);
   const WORLDS = useWorlds();
   const { locale, href } = useLocale();
   const c = useCopy(COPY);
@@ -113,6 +117,7 @@ export function DepartmentWorldsChapter() {
 
   return (
     <section
+      ref={root}
       id="department-worlds"
       aria-labelledby="worlds-title"
       className="relative overflow-x-clip py-24 sm:py-32"

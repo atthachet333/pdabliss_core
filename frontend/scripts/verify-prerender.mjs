@@ -18,7 +18,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const ssr = join(root, 'dist-prerender', 'prerender.js');
 if (!existsSync(ssr)) throw new Error('verify-prerender: run `npm run build` first');
-const { PAGES, SHELLS, CLAIMS, TRADITIONAL } = await import(pathToFileURL(ssr).href);
+const { PAGES, SHELLS, CLAIMS, TRADITIONAL, ROUTE_MODULES, LOCALE_MODULES, APP_MODULE } =
+  await import(pathToFileURL(ssr).href);
 
 const ORIGIN = 'https://core.pdabliss.com';
 const PREFIX = { th: '', en: '/en', 'zh-CN': '/zh' };
@@ -140,6 +141,53 @@ for (const { route, locale, file, head } of PAGES) {
     map.set(value, file);
   }
 }
+
+// EP20: every page preloads its own route chunk (and the locale dictionary on
+// /en and /zh) — once each, never another page's chunk, never a missing file.
+const manifest = JSON.parse(
+  readFileSync(join(root, 'dist-prerender', 'client-manifest.json'), 'utf8'),
+);
+const entry = Object.values(manifest).find((c) => c.isEntry);
+const routeChunks = new Set(Object.values(ROUTE_MODULES).map((src) => manifest[src]?.file));
+function checkPreloads(file, doc, sources) {
+  const hrefs = all(doc, 'link[rel="modulepreload"]').map((l) => l.getAttribute('href').slice(1));
+  if (new Set(hrefs).size !== hrefs.length) fail(file, 'duplicate modulepreload');
+  for (const h of hrefs) if (!existsSync(join(dist, h))) fail(file, `preloads missing ${h}`);
+  const own = sources.map((src) => manifest[src]?.file);
+  for (const f of own) if (!hrefs.includes(f)) fail(file, `does not preload its chunk ${f}`);
+  for (const h of hrefs)
+    if (routeChunks.has(h) && !own.includes(h)) fail(file, `preloads another route ${h}`);
+  // Thai pages (and the Thai sign-in shell) preload the three Thai faces; no other page a font.
+  const fonts = all(doc, 'link[rel="preload"][as="font"]').map((l) => l.getAttribute('href'));
+  const thai = file === 'login.html' || PAGES.some((p) => p.file === file && p.locale === 'th');
+  if (fonts.length !== (thai ? 3 : 0)) fail(file, `${fonts.length} font preloads`);
+  for (const h of fonts)
+    if (
+      !/^\/assets\/ibm-plex-sans-thai-thai-(400|500|600)-normal-/.test(h) ||
+      !existsSync(join(dist, h))
+    )
+      fail(file, `unexpected font preload ${h}`);
+  if (
+    all(doc, 'script[type="module"]')
+      .map((s) => s.getAttribute('src'))
+      .join() !== `/${entry.file}`
+  )
+    fail(file, 'entry script changed');
+}
+for (const { route, locale, file } of PAGES) {
+  const page = read(file);
+  if (page)
+    checkPreloads(file, page.doc, [LOCALE_MODULES[locale], ROUTE_MODULES[route]].filter(Boolean));
+}
+for (const [file, src] of [
+  ['login.html', ROUTE_MODULES['/login']],
+  ['app.html', APP_MODULE],
+  ['404.html', null],
+]) {
+  const page = read(file);
+  if (page) checkPreloads(file, page.doc, src ? [src] : []);
+}
+if (existsSync(join(dist, '.vite'))) fail('dist', '.vite/ (build manifest) must not ship');
 
 for (const { file } of SHELLS) {
   const page = read(file);

@@ -368,6 +368,14 @@
   }
 }
 
+/* ---------- Offscreen loops (EP20) ----------
+   useLoopRegion marks a decorative region that has left the viewport; its CSS
+   loops hold their current frame instead of recalculating style every frame. */
+[data-offscreen],
+[data-offscreen] * {
+  animation-play-state: paused !important;
+}
+
 /* ---------- Reduced motion ----------
    Framer Motion honours the OS setting via <MotionConfig reducedMotion="user">.
    This block stops every CSS-driven loop as well. See docs/MOTION.md. */

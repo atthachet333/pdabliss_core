@@ -12,8 +12,9 @@ import {
   PauseCircle,
   Receipt,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
@@ -37,17 +38,20 @@ import { ACCOUNTING } from './copy';
 function VerificationSequence() {
   const c = useCopy(ACCOUNTING);
   const reduce = usePrefersReducedMotion();
+  const root = useRef<HTMLElement>(null);
+  // The sequence pauses while the hero is offscreen or the tab is hidden.
+  const live = useLoopRegion(root);
   const total = c.hero.docs.length;
   const [checked, setChecked] = useState(reduce ? total : 0);
   useEffect(() => {
-    if (reduce) return;
+    if (reduce || !live) return;
     const t = window.setInterval(() => setChecked((n) => (n >= total + 1 ? 0 : n + 1)), 1200);
     return () => window.clearInterval(t);
-  }, [reduce, total]);
+  }, [reduce, total, live]);
   const done = Math.min(checked, total);
   const ready = done === total;
   return (
-    <figure aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[34rem]">
+    <figure ref={root} aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[34rem]">
       <div aria-hidden className="grid items-center gap-5 sm:grid-cols-[1fr_auto]">
         <ol className="relative space-y-2">
           {c.hero.docs.map((d, i) => {

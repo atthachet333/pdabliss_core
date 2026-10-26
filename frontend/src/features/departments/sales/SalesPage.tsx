@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useDepartments } from '@/config/departments';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
@@ -52,15 +53,18 @@ const ROUTE = STATIONS.map((p, i) => {
 function OrderRoute() {
   const c = useCopy(SALES);
   const reduce = usePrefersReducedMotion();
+  const root = useRef<HTMLElement>(null);
+  // The sequence pauses while the hero is offscreen or the tab is hidden.
+  const live = useLoopRegion(root);
   const [at, setAt] = useState(reduce ? 3 : 0);
   useEffect(() => {
-    if (reduce) return;
+    if (reduce || !live) return;
     const t = window.setInterval(() => setAt((s) => (s + 1) % STATIONS.length), 1700);
     return () => window.clearInterval(t);
-  }, [reduce]);
+  }, [reduce, live]);
   const pos = STATIONS[at]!;
   return (
-    <figure aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[38rem]">
+    <figure ref={root} aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[38rem]">
       <svg aria-hidden viewBox="0 0 560 300" className="w-full overflow-visible">
         <path
           d={ROUTE}

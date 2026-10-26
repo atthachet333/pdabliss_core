@@ -10,6 +10,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
 import { Reveal, RevealItem } from '@/motion/Reveal';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { DEPT_ACCENT, DEPT_PAGES, deptPath, type DeptKey } from '../catalog';
 import { DEPT_SUMMARIES } from '../summaries';
 import { tabKeys } from '../tabs';
@@ -483,6 +484,9 @@ export function ConnectedMap() {
   const pages = usePages();
   const name = (id: string) => pages.find((p) => p.id === id)?.name ?? id;
   const reduce = usePrefersReducedMotion();
+  const map = useRef<HTMLElement>(null);
+  // The handoff pulses (SMIL) hold still while the map is offscreen.
+  useLoopRegion(map);
   return (
     <Section labelledBy="map-title">
       <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
@@ -512,7 +516,7 @@ export function ConnectedMap() {
             ))}
           </ol>
         </div>
-        <figure aria-label={c.connected.map} className="hidden sm:block">
+        <figure ref={map} aria-label={c.connected.map} className="hidden sm:block">
           <svg aria-hidden viewBox="0 0 600 420" className="w-full">
             {c.connected.handoffs.map((h, i) => {
               const b = MAP_POS[h.to as DeptKey];

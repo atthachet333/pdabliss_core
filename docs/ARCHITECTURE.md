@@ -38,7 +38,7 @@ Two independent npm projects — no monorepo tooling, no microservices, no conta
 
 ```
 frontend/src/
-├── app/            router (route table, lazy chunks), providers (Query, MotionConfig)
+├── app/            router (public route table, lazy chunks), appRoutes (/app/*, Query), providers (MotionConfig)
 ├── components/
 │   ├── ui/         Button, Section, Badge, Field (+ *Styles.ts class helpers)
 │   ├── brand/      Logo / LogoMark
@@ -64,8 +64,12 @@ frontend/src/
 └── styles/         index.css — the design-token source of truth
 ```
 
-- **Routing.** React Router 8 data router. The landing page is in the main bundle for a fast
-  first paint; every other public page and every workspace dashboard is a lazy chunk.
+- **Routing.** React Router 8 data router. Since EP20 every public page — the homepage
+  included — is a router-managed lazy route (`lazy` + a full-height `hydrateFallbackElement`),
+  and each prerendered HTML file preloads its own page chunk (`src/seo/routeModules.ts`). The
+  `/app/*` prototype routes and the React Query client live in `app/appRoutes.tsx`, patched in
+  by `patchRoutesOnNavigation` on the first navigation into `/app` — public visitors never
+  download them. Every workspace dashboard is its own lazy chunk. See [PERFORMANCE.md](PERFORMANCE.md).
 - **Public shell (EP05).** Every public page renders inside `PublicLayout`: header + mega menus,
   mobile navigation, footer, cookie consent and the floating utility dock — pages never build
   their own. Structure lives in `config/navigation.ts`, words in `i18n/messages/*`, contact

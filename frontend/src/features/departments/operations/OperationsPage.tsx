@@ -7,7 +7,9 @@ import {
   PackageOpen,
   PauseCircle,
 } from 'lucide-react';
+import { useRef } from 'react';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
@@ -47,11 +49,14 @@ const BARS: {
 function WorkStreams() {
   const c = useCopy(OPERATIONS);
   const reduce = usePrefersReducedMotion();
+  const root = useRef<HTMLElement>(null);
+  // The hero's loops (SMIL / CSS) hold still once it is scrolled away.
+  useLoopRegion(root);
   const x0 = 120;
   const day = 92;
   const laneY = (i: number) => 56 + i * 54;
   return (
-    <figure aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[40rem]">
+    <figure ref={root} aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[40rem]">
       <svg aria-hidden viewBox="0 0 600 300" className="w-full">
         {c.hero.days.map((d, i) => (
           <g key={d}>

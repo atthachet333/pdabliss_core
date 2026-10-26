@@ -6,7 +6,7 @@ import { createControls } from './controls';
 import { CoreWorldFallback } from './CoreWorldFallback';
 import { NodeLabel } from './NodeLabel';
 import { ORBIT_LIST } from './orbitList';
-import { detectQuality, lowerQuality } from './quality';
+import { lowerQuality, stageQuality } from './quality';
 import type { OrbitDepartmentId, Quality, StoryStage } from './types';
 
 const STAGE_COPY: Localized<{ back: string }> = {
@@ -65,7 +65,7 @@ export function CoreStage({
 
   // Decide quality after first paint so the hero text is never blocked.
   useEffect(() => {
-    const decide = () => setQuality(detectQuality());
+    const decide = () => setQuality(stageQuality());
     const w = window as Window & {
       requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
     };

@@ -10,7 +10,9 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useDepartments } from '@/config/departments';
+import { useRef } from 'react';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
+import { useLoopRegion } from '@/motion/useLoopRegion';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
@@ -37,12 +39,15 @@ const W = 'var(--color-ws-warehouse)';
 function SupplyNetwork() {
   const c = useCopy(PURCHASING);
   const reduce = usePrefersReducedMotion();
+  const root = useRef<HTMLElement>(null);
+  // The hero's loops (SMIL / CSS) hold still once it is scrolled away.
+  useLoopRegion(root);
   const reqs = [70, 150, 230].map((y) => ({ x: 70, y }));
   const hub = { x: 270, y: 150 };
   const sups = [60, 150, 240].map((y) => ({ x: 470, y }));
   const wh = { x: 270, y: 288 };
   return (
-    <figure aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[38rem]">
+    <figure ref={root} aria-label={c.hero.visual} className="relative mx-auto w-full max-w-[38rem]">
       <svg aria-hidden viewBox="0 0 560 330" className="w-full overflow-visible">
         {reqs.map((r, i) => {
           const d = `M ${r.x + 50} ${r.y} C ${r.x + 120} ${r.y}, ${hub.x - 90} ${hub.y}, ${hub.x - 28} ${hub.y}`;

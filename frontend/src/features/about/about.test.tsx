@@ -531,6 +531,10 @@ describe('signature scenes (EP13)', () => {
 
   it('publishes factual Organization structured data only', async () => {
     const { unmount } = await open();
+    // Added by an effect after the page commits.
+    await waitFor(() =>
+      expect(document.head.querySelector('script[data-schema="organization"]')).not.toBeNull(),
+    );
     const script = document.head.querySelector('script[data-schema="organization"]')!;
     const data = JSON.parse(script.textContent!);
     expect(data['@type']).toBe('Organization');

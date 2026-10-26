@@ -53,8 +53,9 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 | Command                | frontend                       | backend                         |
 | ---------------------- | ------------------------------ | ------------------------------- |
 | `npm run dev`          | Vite dev server on 1111        | `tsx watch` on 1112             |
-| `npm run build`        | typecheck + production bundle + prerendered head for all 105 public URLs (verified) | compile to `dist/` |
+| `npm run build`        | typecheck + production bundle + prerendered head for all 105 public URLs (verified) + performance budget | compile to `dist/` |
 | `npm run test:prerender` | re-check the built HTML of every public URL (no JavaScript) | — |
+| `npm run perf:budget`  | re-check bundle / chunk / asset / HTML budgets of the last build (docs/PERFORMANCE.md) | — |
 | `npm start`            | —                              | run compiled server             |
 | `npm run typecheck`    | `tsc -b`                       | `tsc --noEmit`                  |
 | `npm run lint`         | ESLint                         | ESLint (type-aware)             |
@@ -230,6 +231,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP18_1_REPORT.md](docs/EP18_1_REPORT.md) — dropdown, overlay and disclosure visual polish
 - [docs/ACCESSIBILITY_RESPONSIVE.md](docs/ACCESSIBILITY_RESPONSIVE.md) — public accessibility, keyboard, responsive and browser baseline
 - [docs/EP19_REPORT.md](docs/EP19_REPORT.md) — responsive and accessibility hardening report
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — public performance method, baseline, budgets, loading and runtime rules
+- [docs/EP20_REPORT.md](docs/EP20_REPORT.md) — public performance hardening report
 
 ---
 

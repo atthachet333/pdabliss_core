@@ -24,8 +24,8 @@ function PrototypeBanner() {
       <FlaskConical className="size-3.5 shrink-0" aria-hidden />
       <span>
         <strong className="font-semibold">ต้นแบบ</strong> ·{' '}
-        <span className="max-sm:hidden">โหมดตรวจ UX ด้วยข้อมูลตัวอย่าง — </span>
-        ไม่ใช่ระบบเข้าสู่ระบบจริง
+        <span className="max-sm:hidden">หน้าจอสำหรับตรวจ UX — </span>
+        ข้อมูลตัวอย่าง ไม่ใช่ข้อมูลจริงของบริษัท
       </span>
     </div>
   );

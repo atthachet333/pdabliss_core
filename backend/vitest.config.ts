@@ -4,5 +4,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts'],
+    // EP23: the account suites share one isolated test database (see test/global-setup.ts).
+    globalSetup: ['test/global-setup.ts'],
+    fileParallelism: false,
+    testTimeout: 20_000,
+    hookTimeout: 60_000,
   },
 });

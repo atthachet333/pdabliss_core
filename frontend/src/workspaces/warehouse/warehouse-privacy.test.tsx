@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { prototypeSignIn, prototypeSignOut } from '@/prototype/session';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { fakeApi, identity, signedIn } from '@/test/fakeApi';
 import { renderRoute } from '@/test/render';
 import { WORKSPACES } from '../registry';
 import { FEFO_SAMPLE, LOT_STEPS, TODAY } from './data';
@@ -11,9 +11,8 @@ const MONEY_TEXT = /฿|THB|บาท|ราคาขาย|ต้นทุน�
 
 describe('warehouse workspace pricing privacy', () => {
   beforeEach(() => {
-    prototypeSignIn('user1', 'pass1');
+    fakeApi(signedIn(identity()));
   });
-  afterEach(() => prototypeSignOut());
 
   it('warehouse data structures carry no pricing fields', () => {
     for (const row of [...TODAY, ...FEFO_SAMPLE, ...LOT_STEPS]) {

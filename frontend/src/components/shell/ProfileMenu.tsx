@@ -1,14 +1,15 @@
 import { FlaskConical, LogOut, SlidersHorizontal, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { MenuItem, MenuSeparator, MenuSurface, useMenu } from '@/components/core';
-import { prototypeSignOut, usePrototypeSession } from '@/prototype/session';
+import { authApi } from '@/features/auth/api';
+import { clearIdentity, useIdentity } from '@/features/auth/session';
 import type { WorkspaceDefinition } from '@/workspaces/registry';
 
 export const DESIGN_LAB_PATH = '/app/prototype/ui';
 
 /** Profile menu: who you are, which workspace, placeholders, sign-out. */
 export function ProfileMenu({ ws }: { ws: WorkspaceDefinition }) {
-  const session = usePrototypeSession();
+  const identity = useIdentity();
   const navigate = useNavigate();
   const {
     open,
@@ -22,10 +23,13 @@ export function ProfileMenu({ ws }: { ws: WorkspaceDefinition }) {
     onMenuKeyDown,
   } = useMenu();
   const WsIcon = ws.icon;
-  const name = session?.username ?? '';
+  const email = identity.status === 'ready' ? identity.identity.user.email : '';
+  const name = identity.status === 'ready' ? (identity.identity.user.displayName ?? email) : '';
 
-  const signOut = () => {
-    prototypeSignOut();
+  // Real sign-out (EP23): the server revokes the session, then back to /login.
+  const signOut = async () => {
+    await authApi.logout().catch(() => undefined);
+    clearIdentity();
     navigate('/login', { replace: true });
   };
 
@@ -47,7 +51,7 @@ export function ProfileMenu({ ws }: { ws: WorkspaceDefinition }) {
         </span>
         <span className="hidden text-left leading-tight xl:block">
           <span className="block text-caption font-medium text-fg-primary">{name}</span>
-          <span className="block text-[0.75rem] text-fg-muted">ผู้ตรวจต้นแบบ</span>
+          <span className="block text-[0.75rem] text-fg-muted">ผู้ตรวจหน้าจอต้นแบบ</span>
         </span>
       </button>
       <MenuSurface
@@ -61,7 +65,7 @@ export function ProfileMenu({ ws }: { ws: WorkspaceDefinition }) {
       >
         <div className="px-3 pt-2 pb-3">
           <p className="text-label font-medium text-fg-primary">{name}</p>
-          <p className="text-caption text-fg-muted">บัญชีทดลองสำหรับตรวจ UX เท่านั้น</p>
+          <p className="truncate text-caption text-fg-muted">{email}</p>
           <p className="mt-3 flex items-center gap-2 rounded-control bg-fill-hover px-2.5 py-2 text-caption text-fg-secondary">
             <WsIcon className="size-4 text-[var(--ws-accent)]" aria-hidden />
             <span className="min-w-0 truncate">
@@ -95,7 +99,7 @@ export function ProfileMenu({ ws }: { ws: WorkspaceDefinition }) {
         />
         <MenuSeparator />
         <MenuItem
-          item={{ label: 'ออกจากระบบ', icon: LogOut, onSelect: signOut }}
+          item={{ label: 'ออกจากระบบ', icon: LogOut, onSelect: () => void signOut() }}
           onDone={() => close(false)}
         />
       </MenuSurface>

@@ -17,6 +17,9 @@ frontend/node_modules/.tmp/
 # Prisma generated client
 backend/src/generated/
 
+# Local development mail sink (EP23) — holds verification links and codes
+.mail/
+
 # Logs
 *.log
 npm-debug.log*

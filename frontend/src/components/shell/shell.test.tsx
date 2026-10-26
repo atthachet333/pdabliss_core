@@ -1,18 +1,17 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { prototypeSignIn, prototypeSignOut } from '@/prototype/session';
+import { fakeApi, identity, signedIn, signedOut } from '@/test/fakeApi';
 import { renderRoute } from '@/test/render';
 import { WORKSPACE_ORDER, WORKSPACES } from '@/workspaces/registry';
 import { setNavPreference } from './navPreference';
 
 describe('AppShell (EP02)', () => {
   beforeEach(() => {
-    prototypeSignIn('user1', 'pass1');
+    fakeApi(signedIn(identity()));
   });
   afterEach(() => {
     setNavPreference('auto');
-    prototypeSignOut();
     window.sessionStorage.clear();
   });
 
@@ -116,7 +115,7 @@ describe('AppShell (EP02)', () => {
     const { router } = renderRoute('/app/operations');
     await userEvent.click(await screen.findByRole('button', { name: 'เมนูผู้ใช้' }));
     const menu = screen.getByRole('menu', { name: 'เมนูผู้ใช้' });
-    expect(menu).toHaveTextContent('user1');
+    expect(menu).toHaveTextContent('Person Example');
     expect(menu).toHaveTextContent(WORKSPACES.operations.shortTh);
     expect(within(menu).getByRole('menuitem', { name: /โปรไฟล์/ })).toHaveAttribute(
       'aria-disabled',
@@ -159,11 +158,11 @@ describe('AppShell (EP02)', () => {
 
 describe('Design Lab route', () => {
   afterEach(() => {
-    prototypeSignOut();
     window.sessionStorage.clear();
   });
 
-  it('stays behind the prototype sign-in', async () => {
+  it('stays behind a real sign-in', async () => {
+    fakeApi(signedOut);
     const { router } = renderRoute('/app/prototype/ui');
     await screen.findByRole('heading', { level: 1, name: 'เข้าสู่พื้นที่ทำงานของคุณ' });
     expect(router.state.location.pathname).toBe('/login');
@@ -176,7 +175,7 @@ describe('Design Lab route', () => {
   });
 
   it('renders the component gallery', async () => {
-    prototypeSignIn('user1', 'pass1');
+    fakeApi(signedIn(identity()));
     renderRoute('/app/prototype/ui');
     await screen.findByRole('heading', { level: 1, name: 'Design Lab' });
     for (const section of ['Buttons', 'Status', 'Forms', 'Table', 'Workflow timeline']) {

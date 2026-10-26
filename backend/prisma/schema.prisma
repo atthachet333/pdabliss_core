@@ -1,12 +1,18 @@
-// PDA BLISS CORE — data model foundation (EP00)
+// PDA BLISS CORE — data model
 //
-// Only the identity & access core is modelled here. Business documents
-// (SalesOrder, PurchaseRequest, PurchaseOrder, GoodsReceipt, StockMovement,
-// Lot, WorkOrder, PaymentRequest, …) are planned in docs/ARCHITECTURE.md and
-// will be added in later episodes together with their workflows.
+// EP00 modelled the identity & access core. EP23 makes identity real: one
+// human = one User (a platform-wide account), credentials, sessions, one-time
+// codes, email tokens, platform roles and the auth audit trail.
 //
-// A CORE deployment serves exactly ONE company. The Company row exists so the
-// workspace has an identity and settings — not to support company switching.
+// Business documents (SalesOrder, PurchaseRequest, PurchaseOrder, GoodsReceipt,
+// StockMovement, Lot, WorkOrder, PaymentRequest, …) are planned in
+// docs/ARCHITECTURE.md and arrive in later episodes with their workflows.
+//
+// One CORE workspace = one Company. A user belongs to at most one company in
+// v1 (no company switching); branches arrive in EP24/EP26.
+//
+// Secrets are never stored raw: tokens and one-time codes are stored as hashes
+// (see src/auth/crypto.ts), passwords as Argon2id hashes.
 
 generator client {
   provider = "prisma-client"
@@ -17,17 +23,24 @@ datasource db {
   provider = "postgresql"
 }
 
+// ---------------------------------------------------------------------------
+// Companies (customer workspaces)
+// ---------------------------------------------------------------------------
+
 model Company {
-  id          String       @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
   legalName   String?
   taxId       String?
-  timezone    String       @default("Asia/Bangkok")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  timezone    String          @default("Asia/Bangkok")
+  /// Seeded demonstration data, never a real customer (EP23 demo seed).
+  isDemo      Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   departments Department[]
-  users       User[]
+  members     CompanyMember[]
   roles       Role[]
+  invitations Invitation[]
 }
 
 model Department {
@@ -45,27 +58,345 @@ model Department {
   @@unique([companyId, code])
 }
 
-model User {
-  id          String       @id @default(cuid())
-  companyId   String
-  company     Company      @relation(fields: [companyId], references: [id])
-  email       String       @unique
-  displayName String
-  /// Argon2id hash. Never selected by default in API projections.
-  passwordHash String?
-  status      UserStatus   @default(ACTIVE)
-  lastLoginAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  memberships Membership[]
-  auditLogs   AuditLog[]
+/// Customer-level role inside one company (EP23 foundation; enforced from EP25/EP26).
+/// Never confused with platform roles: SYSTEM_ADMIN administers one company,
+/// PLATFORM_ADMIN operates PDA BLISS CORE itself.
+enum CompanyRole {
+  COMPANY_OWNER
+  SYSTEM_ADMIN
+  EXECUTIVE
+  DEPARTMENT_MANAGER
+  DEPARTMENT_STAFF
+  VIEWER
 }
 
-enum UserStatus {
-  INVITED
-  ACTIVE
-  SUSPENDED
+/// A user's place in a company. Department access (Membership) comes on top in EP26.
+model CompanyMember {
+  id        String      @id @default(cuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id])
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  role      CompanyRole
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  /// v1 policy: one company per user (no company switching).
+  @@unique([userId])
+  @@index([companyId])
 }
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  /// Self-registered; the email address is not verified yet. No authenticated access.
+  PENDING_VERIFICATION
+  ACTIVE
+  /// Temporarily blocked by the platform or the company. Sessions are revoked.
+  SUSPENDED
+  /// Permanently closed.
+  DISABLED
+}
+
+enum AppLocale {
+  th
+  en
+  zh_CN
+}
+
+/// One human = one account, across the whole platform.
+model User {
+  id              String                   @id @default(cuid())
+  /// As entered (trimmed), for display and for sending mail.
+  email           String
+  /// Lower-cased, trimmed, NFC — the identity key. Unique.
+  emailNormalized String                   @unique
+  displayName     String?
+  locale          AppLocale                @default(th)
+  status          UserStatus               @default(PENDING_VERIFICATION)
+  emailVerifiedAt DateTime?
+  /// Plan chosen on the public site before registering (onboarding intent only — no subscription).
+  planIntent      String?
+  lastLoginAt     DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  credential      UserCredential?
+  platformRole    PlatformRoleAssignment?  @relation("PlatformRoleHolder")
+  grantedRoles    PlatformRoleAssignment[] @relation("PlatformRoleGrantor")
+  companyMember   CompanyMember?
+  memberships     Membership[]
+  sessions        Session[]
+  trustedDevices  TrustedDevice[]
+  otpChallenges   OtpChallenge[]
+  emailTokens     EmailVerificationToken[]
+  resetTokens     PasswordResetToken[]
+  invitationsSent Invitation[]             @relation("InvitationInviter")
+  invitationsUsed Invitation[]             @relation("InvitationAcceptor")
+  authEvents      AuthAuditEvent[]         @relation("AuthEventUser")
+  actedEvents     AuthAuditEvent[]         @relation("AuthEventActor")
+  auditLogs       AuditLog[]
+
+  @@index([status])
+}
+
+/// Password credential, separate from the profile so it is never selected by accident.
+model UserCredential {
+  userId            String   @id
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// PHC string (algorithm and cost parameters included) — upgraded on login when parameters change.
+  passwordHash      String
+  passwordChangedAt DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum PlatformRole {
+  /// The highest PDA BLISS CORE authority. Exactly one, bootstrapped from PLATFORM_OWNER_EMAIL.
+  PLATFORM_OWNER
+  /// Operational PDA BLISS administrator, below the owner.
+  PLATFORM_ADMIN
+}
+
+/// Platform-level authority (not a department, not a company role).
+model PlatformRoleAssignment {
+  id          String       @id @default(cuid())
+  userId      String       @unique
+  user        User         @relation("PlatformRoleHolder", fields: [userId], references: [id])
+  role        PlatformRole
+  /// TRUE only for PLATFORM_OWNER (NULL otherwise). Unique, so the database
+  /// itself refuses a second owner.
+  ownerSlot   Boolean?     @unique
+  grantedById String?
+  grantedBy   User?        @relation("PlatformRoleGrantor", fields: [grantedById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Sessions and devices
+// ---------------------------------------------------------------------------
+
+enum SessionRevokeReason {
+  LOGOUT
+  LOGOUT_ALL
+  REVOKED_BY_USER
+  PASSWORD_RESET
+  ACCOUNT_SUSPENDED
+  ROLE_CHANGED
+  ROTATED
+}
+
+/// Server-side session. The browser holds a random token in an HttpOnly cookie;
+/// only its SHA-256 hash is stored here.
+model Session {
+  id                 String               @id @default(cuid())
+  userId             String
+  user               User                 @relation(fields: [userId], references: [id])
+  tokenHash          String               @unique
+  /// The token before the last rotation, accepted briefly so in-flight requests survive it.
+  previousTokenHash  String?              @unique
+  previousValidUntil DateTime?
+  /// Privileged (platform) sessions get shorter lifetimes and stricter step-up.
+  privileged         Boolean              @default(false)
+  createdAt          DateTime             @default(now())
+  lastSeenAt         DateTime             @default(now())
+  rotatedAt          DateTime             @default(now())
+  idleExpiresAt      DateTime
+  absoluteExpiresAt  DateTime
+  /// Last successful one-time-code check in this session (login or step-up).
+  stepUpAt           DateTime?
+  revokedAt          DateTime?
+  revokeReason       SessionRevokeReason?
+  ipAddress          String?
+  userAgent          String?
+
+  @@index([userId, revokedAt])
+  @@index([absoluteExpiresAt])
+}
+
+/// A browser that completed an email one-time code ("new device" check). Customer
+/// accounts only — platform accounts are challenged on every sign-in.
+model TrustedDevice {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  tokenHash  String    @unique
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// One-time codes and email tokens
+// ---------------------------------------------------------------------------
+
+enum OtpPurpose {
+  LOGIN
+  STEP_UP
+}
+
+enum OtpStatus {
+  PENDING
+  VERIFIED
+  /// Replaced by a newer challenge for the same user and purpose.
+  SUPERSEDED
+  /// Too many wrong codes.
+  LOCKED
+  /// Invalidated by a security change (e.g. password reset).
+  CANCELLED
+}
+
+/// Email one-time code. The code is stored as an HMAC (keyed by AUTH_SECRET).
+model OtpChallenge {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  purpose     OtpPurpose
+  status      OtpStatus  @default(PENDING)
+  codeHash    String
+  /// LOGIN: hash of the browser-bound pending-login cookie. STEP_UP: unused.
+  bindingHash String?
+  /// STEP_UP: the session being elevated.
+  sessionId   String?
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  sendCount   Int        @default(1)
+  lastSentAt  DateTime   @default(now())
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId, purpose, status])
+  @@index([createdAt])
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  /// Set when a newer token replaced this one.
+  replacedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  replacedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Invitations (foundation for the Company Control Center)
+// ---------------------------------------------------------------------------
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model Invitation {
+  id              String           @id @default(cuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id])
+  /// The invitee address, bound: only an account with this normalized email can accept.
+  email           String
+  emailNormalized String
+  role            CompanyRole
+  tokenHash       String           @unique
+  status          InvitationStatus @default(PENDING)
+  invitedById     String
+  invitedBy       User             @relation("InvitationInviter", fields: [invitedById], references: [id])
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  acceptedById    String?
+  acceptedBy      User?            @relation("InvitationAcceptor", fields: [acceptedById], references: [id])
+  revokedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([companyId, status])
+  @@index([emailNormalized])
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+enum AuthEventType {
+  REGISTER
+  REGISTER_EXISTING_EMAIL
+  EMAIL_VERIFICATION_SENT
+  EMAIL_VERIFIED
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  OTP_SENT
+  OTP_SUCCESS
+  OTP_FAILURE
+  STEP_UP_SUCCESS
+  PASSWORD_RESET_REQUEST
+  PASSWORD_RESET_SUCCESS
+  LOGOUT
+  LOGOUT_ALL
+  SESSION_REVOKED
+  INVITATION_CREATED
+  INVITATION_ACCEPTED
+  INVITATION_REVOKED
+  PLATFORM_ROLE_GRANTED
+  PLATFORM_ROLE_REVOKED
+  ACCOUNT_SUSPENDED
+  ACCOUNT_REACTIVATED
+  PLATFORM_BOOTSTRAP
+}
+
+/// Security-relevant authentication events. Append-only; never holds secrets.
+model AuthAuditEvent {
+  id          String        @id @default(cuid())
+  type        AuthEventType
+  /// The account the event is about (when known).
+  userId      String?
+  user        User?         @relation("AuthEventUser", fields: [userId], references: [id])
+  /// Who performed it, when different from the subject (platform actions).
+  actorId     String?
+  actor       User?         @relation("AuthEventActor", fields: [actorId], references: [id])
+  sessionId   String?
+  /// HMAC of the normalized email for attempts on unknown or unauthenticated
+  /// accounts — lets throttling count attempts without storing the address.
+  subjectHash String?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  /// Small, non-secret context (e.g. a coarse failure reason).
+  metadata    Json?
+  occurredAt  DateTime      @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([subjectHash, type, occurredAt])
+  @@index([type, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Department access (EP00 foundation; used from EP26)
+// ---------------------------------------------------------------------------
 
 /// A user's access inside a department, through a role.
 model Membership {
@@ -114,7 +445,7 @@ model RolePermission {
   @@id([roleId, permissionId])
 }
 
-/// Append-only audit trail with before/after field changes.
+/// Append-only audit trail with before/after field changes (business entities).
 model AuditLog {
   id         String   @id @default(cuid())
   actorId    String?

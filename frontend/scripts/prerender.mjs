@@ -123,6 +123,10 @@ for (const s of SHELLS)
 //   does the same client-side, but crawlers should get a real 301)
 // - /en/login and /zh/login load the noindex sign-in shell; the app then
 //   moves to /login carrying the visitor's language (EP15)
+// - EP23 account screens (register, verify email, forgot/reset password) load
+//   the same noindex sign-in shell; the Account Portal and the Platform
+//   Control Center load the noindex app shell — no new HTML files, nothing
+//   added to the sitemap
 // - the prototype workspaces are client routes on the noindex app shell
 write(
   '_redirects',
@@ -135,6 +139,18 @@ write(
     '/zh-hans/*     /zh/:splat    301',
     '/en/login      /login        200',
     '/zh/login      /login        200',
+    '/en/register   /login        200',
+    '/zh/register   /login        200',
+    '/en/forgot-password /login   200',
+    '/zh/forgot-password /login   200',
+    '/register      /login        200',
+    '/verify-email  /login        200',
+    '/forgot-password /login      200',
+    '/reset-password /login       200',
+    '/account       /app          200',
+    '/account/*     /app          200',
+    '/platform      /app          200',
+    '/platform/*    /app          200',
     '/app/*         /app          200',
     '',
   ].join('\n'),

@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { parseEnv } from '../src/config/env.js';
 import { buildAuditEntry } from '../src/domain/audit/audit-entry.js';
 
+const PRODUCTION = {
+  NODE_ENV: 'production',
+  DATABASE_URL: 'postgresql://core@db.internal:5432/core',
+  PUBLIC_APP_URL: 'https://core.example.com',
+  AUTH_SECRET: 'a-production-secret-that-is-long-enough-123',
+  SMTP_HOST: 'smtp.example.com',
+};
+
 describe('environment validation', () => {
   it('applies defaults for local development', () => {
     const env = parseEnv({});
@@ -11,7 +19,7 @@ describe('environment validation', () => {
   });
 
   it('disables demo routes by default in production', () => {
-    expect(parseEnv({ NODE_ENV: 'production' }).ENABLE_DEMO_ROUTES).toBe(false);
+    expect(parseEnv(PRODUCTION).ENABLE_DEMO_ROUTES).toBe(false);
   });
 
   it('rejects invalid configuration with readable issues', () => {

@@ -7,7 +7,6 @@ import {
   CircleDot,
   Eye,
   EyeOff,
-  FlaskConical,
   LogIn,
   ScanLine,
   ShieldCheck,
@@ -19,33 +18,34 @@ import { z } from 'zod';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { controlClass } from '@/components/ui/fieldStyles';
+import { authApi, type Challenge, type Identity } from '@/features/auth/api';
+import { AUTH_COPY } from '@/features/auth/copy';
+import { commonError, errorCode } from '@/features/auth/errors';
+import { OtpStep } from '@/features/auth/OtpStep';
+import { destinationFor, setIdentity, useIdentity } from '@/features/auth/session';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
-import { PROTOTYPE_ENABLED } from '@/prototype/config';
-import { lastWorkspace, prototypeSignIn, usePrototypeSession } from '@/prototype/session';
 import { LOGIN_COPY } from './copy';
 import { GatewayScene, type GatePhase } from './GatewayScene';
 
 /*
- * The CORE Gateway sign-in (EP15). A visual layer over the unchanged
- * EP01-PROTOTYPE sign-in: same check (prototypeSignIn), same session flag,
- * same safe `?next=` handling. Nothing here logs or stores the password.
+ * The CORE Gateway sign-in (EP15 design; real authentication since EP23).
+ * Email + password → an emailed one-time code when the server asks for one
+ * (new browser, or always for platform accounts) → the account's home:
+ * /platform for Platform Owner/Admin, /account for everyone else. The
+ * session is an HttpOnly cookie set by the API; this page never stores or
+ * logs the password or the code. `?next=` accepts same-app paths only.
  */
 
 // Keys, not words: messages are looked up in the visitor's language.
 const LoginSchema = z.object({
-  username: z.string().trim().min(1, 'username'),
-  password: z.string().min(1, 'password'),
+  email: z.string().trim().min(1, 'required').email('invalid'),
+  password: z.string().min(1, 'required'),
 });
 type LoginValues = z.infer<typeof LoginSchema>;
-
-/** Only same-app workspace paths are accepted as a post-login destination. */
-function safeNext(next: string | null): string | null {
-  return next && /^\/app\/[a-z-]+(\/[a-z-]+)?$/.test(next) ? next : null;
-}
 
 /** Timings of the transition (instant under reduced motion). */
 const ALIGN_MS = 380;
@@ -67,18 +67,23 @@ function statusOf(phase: GatePhase): keyof typeof STATUS_ICON {
 
 export function LoginGateway() {
   const c = useCopy(LOGIN_COPY);
-  const { t, href } = useLocale();
+  const a = useCopy(AUTH_COPY);
+  const { t, href, locale } = useLocale();
   // Sign-in is not a landing page: keep it out of search results (EP15, EP17).
   usePageMeta(c.meta.title, c.meta.description, { index: false });
   const reduce = usePrefersReducedMotion();
-  const session = usePrototypeSession();
+  const identity = useIdentity();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const next = params.get('next');
   const [phase, setPhase] = useState<GatePhase>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resent, setResent] = useState(false);
   const [pending, setPending] = useState(false);
+  const [otp, setOtp] = useState<{ challenge: Challenge; trust: boolean } | null>(null);
   const {
     register,
     handleSubmit,
@@ -87,12 +92,14 @@ export function LoginGateway() {
     formState: { errors },
   } = useForm<LoginValues>({ resolver: zodResolver(LoginSchema) });
 
-  const destination = safeNext(params.get('next')) ?? `/app/${lastWorkspace()}`;
+  // Already signed in: go straight to the account's home (or a safe `next`).
+  if (identity.status === 'ready' && !pending) {
+    return <Navigate to={destinationFor(identity.identity, next)} replace />;
+  }
 
-  if (session && !pending) return <Navigate to={destination} replace />;
-
-  const focusPhase = (next: 'user' | 'pass') => () => {
-    if (!pending) setPhase(failed ? 'fail' : next);
+  const failed = failure !== null;
+  const focusPhase = (field: 'user' | 'pass') => () => {
+    if (!pending) setPhase(failed ? 'fail' : field);
   };
   const onFormBlur = (e: FocusEvent<HTMLFormElement>) => {
     if (pending || e.currentTarget.contains(e.relatedTarget as Node | null)) return;
@@ -101,23 +108,65 @@ export function LoginGateway() {
   const onCaps = (e: KeyboardEvent<HTMLInputElement>) =>
     setCapsLock(e.getModifierState?.('CapsLock') ?? false);
 
+  const finish = async (signedIn: Identity) => {
+    setPhase('success');
+    await wait(reduce ? 0 : RESOLVE_MS);
+    setIdentity(signedIn);
+    navigate(destinationFor(signedIn, next), { replace: true });
+  };
+
+  const fail = (message: string) => {
+    setPending(false);
+    setFailure(message);
+    setPhase('fail');
+  };
+
   const onSubmit = async (values: LoginValues) => {
-    setFailed(false);
+    setFailure(null);
+    setUnverifiedEmail(null);
+    setResent(false);
     setPending(true);
     setPhase('submit');
-    // Signals align toward the gate; there is no network call.
     await wait(reduce ? 0 : ALIGN_MS);
-    if (prototypeSignIn(values.username, values.password)) {
-      setPhase('success');
-      await wait(reduce ? 0 : RESOLVE_MS);
-      navigate(destination, { replace: true });
-    } else {
-      setPending(false);
-      setFailed(true);
-      setPhase('fail');
+    try {
+      const res = await authApi.login(values.email, values.password);
+      if (res.status === 'authenticated') {
+        await finish(res.identity);
+        return;
+      }
       setValue('password', '');
-      setFocus('password');
+      setPending(false);
+      setPhase('pass');
+      setOtp({ challenge: res.challenge, trust: res.trustDeviceAllowed });
+    } catch (e) {
+      const code = errorCode(e);
+      if (code === 'INVALID_CREDENTIALS') {
+        fail(c.failed);
+        setValue('password', '');
+        setFocus('password');
+      } else if (code === 'EMAIL_NOT_VERIFIED') {
+        fail(c.notVerified);
+        setUnverifiedEmail(values.email);
+      } else if (code === 'ACCOUNT_UNAVAILABLE') {
+        fail(c.accountUnavailable);
+      } else if (code === 'LOGIN_THROTTLED') {
+        fail(c.throttled);
+      } else {
+        fail(commonError(e, a));
+      }
     }
+  };
+
+  const resendVerification = async () => {
+    if (!unverifiedEmail) return;
+    await authApi.resendVerification(unverifiedEmail).catch(() => undefined);
+    setResent(true);
+  };
+
+  const restart = () => {
+    setOtp(null);
+    setPhase('idle');
+    setFailure(null);
   };
 
   const status = statusOf(phase);
@@ -125,10 +174,16 @@ export function LoginGateway() {
   const password = register('password', {
     onChange: () => {
       if (!failed) return;
-      setFailed(false);
+      setFailure(null);
       setPhase('pass');
     },
   });
+  const emailError = errors.email
+    ? errors.email.message === 'invalid'
+      ? c.invalidEmail
+      : c.required.email
+    : null;
+  const authLinkState = { state: { locale } };
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-surface-dark">
@@ -231,7 +286,21 @@ export function LoginGateway() {
           </h1>
           <p className="mt-2 text-label text-text-secondary">{c.lead}</p>
 
-          {PROTOTYPE_ENABLED ? (
+          {otp ? (
+            <div className="mt-5 sm:mt-7">
+              <OtpStep
+                challenge={otp.challenge}
+                showTrustDevice={otp.trust}
+                onVerify={async (code, trustDevice) => {
+                  const res = await authApi.loginOtp(otp.challenge.id, code, trustDevice);
+                  setPending(true);
+                  await finish(res.identity);
+                }}
+                onResend={async () => (await authApi.resendLoginOtp(otp.challenge.id)).challenge}
+                onRestart={restart}
+              />
+            </div>
+          ) : (
             <form
               noValidate
               onSubmit={handleSubmit(onSubmit)}
@@ -240,40 +309,51 @@ export function LoginGateway() {
             >
               <div>
                 <label
-                  htmlFor="login-username"
+                  htmlFor="login-email"
                   className="mb-2 block text-label font-medium text-text-primary"
                 >
-                  {c.username}
+                  {c.email}
                 </label>
                 <input
-                  id="login-username"
+                  id="login-email"
+                  type="email"
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
-                  className={controlClass(!!errors.username)}
-                  aria-invalid={!!errors.username}
-                  aria-describedby={errors.username ? 'login-username-error' : undefined}
+                  className={controlClass(!!emailError)}
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'login-email-error' : undefined}
                   onFocus={focusPhase('user')}
-                  {...register('username')}
+                  {...register('email')}
                 />
-                {errors.username && (
+                {emailError && (
                   <p
-                    id="login-username-error"
+                    id="login-email-error"
                     role="alert"
                     className="mt-1.5 flex items-center gap-1.5 text-caption text-danger"
                   >
                     <CircleAlert className="size-3.5" aria-hidden />
-                    {c.required.username}
+                    {emailError}
                   </p>
                 )}
               </div>
               <div>
-                <label
-                  htmlFor="login-password"
-                  className="mb-2 block text-label font-medium text-text-primary"
-                >
-                  {c.password}
-                </label>
+                <div className="mb-2 flex items-baseline justify-between gap-3">
+                  <label
+                    htmlFor="login-password"
+                    className="block text-label font-medium text-text-primary"
+                  >
+                    {c.password}
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    {...authLinkState}
+                    data-link="forgot"
+                    className="text-caption text-brand-soft underline-offset-4 hover:underline"
+                  >
+                    {c.forgot}
+                  </Link>
+                </div>
                 <div className="relative">
                   <input
                     id="login-password"
@@ -329,17 +409,31 @@ export function LoginGateway() {
               </div>
 
               {failed && (
-                <p
+                <div
                   id="login-failed"
                   role="alert"
                   className="flex items-start gap-2 rounded-xl bg-warning/[0.08] p-3 text-caption text-warning shadow-[inset_0_0_0_1px_rgb(245_184_75/0.3)]"
                 >
                   <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
                   <span>
-                    {c.failed}
-                    <span className="block text-text-secondary">{c.failedHint}</span>
+                    {failure}
+                    {failure === c.failed && (
+                      <span className="block text-text-secondary">{c.failedHint}</span>
+                    )}
+                    {unverifiedEmail &&
+                      (resent ? (
+                        <span className="block text-text-secondary">{c.verificationSent}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void resendVerification()}
+                          className="mt-1 block min-h-11 text-left text-brand-soft underline underline-offset-4"
+                        >
+                          {c.resendVerification}
+                        </button>
+                      ))}
                   </span>
-                </p>
+                </div>
               )}
 
               <button
@@ -351,14 +445,15 @@ export function LoginGateway() {
                 {pending ? c.submitting : c.submit}
               </button>
               <p className="text-caption text-text-muted">{c.after}</p>
+              <Link
+                to="/register"
+                {...authLinkState}
+                data-link="register"
+                className="inline-flex min-h-11 items-center text-label text-brand-soft underline-offset-4 hover:underline"
+              >
+                {c.register}
+              </Link>
             </form>
-          ) : (
-            <p
-              data-unavailable
-              className="mt-7 rounded-xl bg-white/[0.03] p-4 text-label text-text-secondary"
-            >
-              {c.unavailable}
-            </p>
           )}
 
           <div className="mt-6 flex flex-col items-start gap-0.5 border-t border-white/[0.06] pt-4">
@@ -381,19 +476,6 @@ export function LoginGateway() {
               {c.security}
             </Link>
           </div>
-
-          {PROTOTYPE_ENABLED && (
-            <p
-              data-prototype
-              className="mt-3 flex items-start gap-1.5 text-caption text-text-muted"
-            >
-              <FlaskConical aria-hidden className="mt-0.5 size-3.5 shrink-0 text-warning/80" />
-              <span>
-                <span className="font-medium text-warning/90">{c.prototype}</span> ·{' '}
-                {c.prototypeNote}
-              </span>
-            </p>
-          )}
         </section>
       </main>
     </div>

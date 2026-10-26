@@ -1,7 +1,11 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from 'prisma/config';
 
-// DATABASE_URL is optional in EP00: the schema can be validated and formatted
-// without a database. Migrations will require it from EP01 onward.
+// The CLI reads the same local .env as the server (never committed).
+if (existsSync('.env')) process.loadEnvFile('.env');
+
+// `prisma validate` / `format` / `generate` work without a database; migrate
+// commands need DATABASE_URL.
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: { path: 'prisma/migrations' },

@@ -132,6 +132,7 @@ function LocaleAlias({ alias }: { alias: string }) {
  * router loads it in parallel with the page chunk.
  * /en/login and /zh/login redirect: sign-in is never locale-prefixed, but the
  * visitor's language travels in router state so the gateway speaks it (EP15).
+ * The same holds for the EP23 account screens (register, forgot password).
  */
 function localeRoutes(path: string, locale: Locale): RouteObject {
   return {
@@ -144,7 +145,10 @@ function localeRoutes(path: string, locale: Locale): RouteObject {
     },
     children: [
       ...publicPages(),
-      { path: 'login', element: <Navigate to="/login" replace state={{ locale }} /> },
+      ...['login', 'register', 'forgot-password'].map((page) => ({
+        path: page,
+        element: <Navigate to={`/${page}`} replace state={{ locale }} />,
+      })),
       { path: '*', element: <NotFoundPage /> },
     ],
   };
@@ -166,6 +170,18 @@ export const routes: RouteObject[] = [
       // EP15: the CORE Gateway sign-in has its own focused chrome (logo + back
       // to the website), outside the public header and footer.
       { path: 'login', ...pageRoute(() => import('@/pages/public/LoginPage')) },
+      // EP23: account screens (noindex, never locale-prefixed, own chunks —
+      // the public pages never load their code).
+      { path: 'register', ...pageRoute(() => import('@/pages/auth/RegisterPage')) },
+      { path: 'verify-email', ...pageRoute(() => import('@/pages/auth/VerifyEmailPage')) },
+      { path: 'forgot-password', ...pageRoute(() => import('@/pages/auth/ForgotPasswordPage')) },
+      { path: 'reset-password', ...pageRoute(() => import('@/pages/auth/ResetPasswordPage')) },
+      { path: 'account', ...pageRoute(() => import('@/pages/account/AccountPage')) },
+      {
+        path: 'account/invitation',
+        ...pageRoute(() => import('@/pages/account/InvitationPage')),
+      },
+      { path: 'platform', ...pageRoute(() => import('@/pages/account/PlatformPage')) },
       // English and Simplified Chinese.
       localeRoutes('en', 'en'),
       localeRoutes('zh', 'zh-CN'),

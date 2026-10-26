@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+import { resetIdentityForTests } from '@/features/auth/session';
 
 afterEach(() => cleanup());
 
@@ -45,7 +46,11 @@ HTMLCanvasElement.prototype.getContext = (() =>
   null) as typeof HTMLCanvasElement.prototype.getContext;
 
 // No API in unit tests — fetch rejects so data hooks use their offline fallback.
-vi.stubGlobal(
-  'fetch',
-  vi.fn(() => Promise.reject(new Error('network disabled in tests'))),
-);
+// Tests that need the account API install a fake one (src/test/fakeApi.ts);
+// it is put back to "offline", and the signed-in identity forgotten, after each test.
+const offline = () => vi.fn(() => Promise.reject(new Error('network disabled in tests')));
+vi.stubGlobal('fetch', offline());
+afterEach(() => {
+  vi.stubGlobal('fetch', offline());
+  resetIdentityForTests();
+});

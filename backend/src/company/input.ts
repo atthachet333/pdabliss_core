@@ -1,0 +1,84 @@
+import { z } from 'zod';
+import { DEPARTMENT_CODES, PLAN_CODES } from '../billing/catalog.js';
+
+/*
+ * Request schemas for onboarding (EP24). Every object is strict: fields the
+ * server decides (plan on the company form, price, status, paid, owner,
+ * platform role, …) are refused rather than ignored.
+ */
+
+const text = (max: number) => z.string().trim().min(1).max(max);
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v ? v : undefined));
+
+/** Digits only: "0-1055-12345-67-8" and "0105512345678" are the same tax ID. */
+const compactDigits = (v: string) => v.replace(/[\s-]/g, '');
+
+/**
+ * Thai 13-digit identification / tax number checksum (the same rule covers
+ * personal IDs and juristic-person tax IDs). Format check only — it does not
+ * mean the Revenue Department has verified the number.
+ */
+export function isThaiTaxId(value: string): boolean {
+  if (!/^\d{13}$/.test(value)) return false;
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(value[i]) * (13 - i);
+  return (11 - (sum % 11)) % 10 === Number(value[12]);
+}
+
+export const PackageBody = z.object({ plan: z.enum(PLAN_CODES) }).strict();
+
+const HeadOfficeBody = z
+  .object({
+    name: optionalText(120),
+    addressLine1: text(200),
+    addressLine2: optionalText(200),
+    subdistrict: optionalText(100),
+    district: optionalText(100),
+    province: text(100),
+    postalCode: z.string().trim().max(12),
+    countryCode: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z]{2}$/)
+      .transform((v) => v.toUpperCase())
+      .default('TH'),
+    phone: optionalText(30),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    const ok =
+      v.countryCode === 'TH'
+        ? /^\d{5}$/.test(v.postalCode)
+        : /^[A-Za-z0-9][A-Za-z0-9 -]{1,10}$/.test(v.postalCode);
+    if (!ok) ctx.addIssue({ code: 'custom', path: ['postalCode'], message: 'invalid postal code' });
+  });
+
+export const CreateCompanyBody = z
+  .object({
+    legalName: text(200),
+    displayName: text(120),
+    taxId: optionalText(30).transform((v) => (v ? compactDigits(v) : undefined)),
+    registrationNumber: optionalText(40),
+    headOffice: HeadOfficeBody,
+    departments: z.array(z.enum(DEPARTMENT_CODES)).max(DEPARTMENT_CODES.length),
+    billingCycle: z.enum(['MONTHLY', 'ANNUAL']).default('MONTHLY'),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (!v.taxId) return;
+    const valid =
+      v.headOffice.countryCode === 'TH'
+        ? isThaiTaxId(v.taxId)
+        : /^[A-Za-z0-9]{3,30}$/.test(v.taxId);
+    if (!valid) ctx.addIssue({ code: 'custom', path: ['taxId'], message: 'invalid tax ID' });
+  });
+
+export type CreateCompanyInput = z.output<typeof CreateCompanyBody>;
+
+export const IdParams = z.object({ id: z.string().min(1).max(64) });

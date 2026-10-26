@@ -6,7 +6,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { authApi, planIntent } from './api';
-import { AuthFrame, Notice } from './AuthFrame';
+import { AuthFrame, Guidance, Notice } from './AuthFrame';
 import { AUTH_COPY } from './copy';
 import { commonError, EMAIL_PATTERN, passwordProblem } from './errors';
 import { FieldError, PasswordField, TextField } from './fields';
@@ -221,31 +221,40 @@ function VerificationSent({ email }: { email: string }) {
   };
 
   return (
-    <AuthFrame kicker={c.register.kicker} title={c.register.sentTitle}>
-      <div className="space-y-4" data-state="verification-sent">
-        <div className="flex items-start gap-3 rounded-xl bg-white/[0.03] p-3">
-          <MailCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-soft" />
-          <p role="status" className="text-label text-text-secondary">
+    <AuthFrame
+      kicker={c.register.kicker}
+      title={c.register.sentTitle}
+      state={{ icon: <MailCheck /> }}
+    >
+      <div className="space-y-5" data-state="verification-sent">
+        <div>
+          <p role="status" className="text-body leading-relaxed break-words text-text-primary">
             {c.register.sentLead(email)}
           </p>
+          <p className="mt-1.5 text-caption text-text-muted">{c.register.sentNote}</p>
         </div>
-        <p className="text-caption text-text-muted">{c.register.sentNote}</p>
+        <Guidance
+          title={c.common.notArrivedTitle}
+          items={[...c.common.notArrived, c.register.sentNext]}
+        />
         {message && <Notice tone="info">{message}</Notice>}
-        <button
-          type="button"
-          onClick={() => void resend()}
-          disabled={cooldown > 0}
-          className={buttonClasses('secondary', 'md', 'w-full')}
-        >
-          {cooldown > 0 ? c.register.resendIn(cooldown) : c.register.resend}
-        </button>
-        <Link
-          to="/login"
-          {...withLocale(locale)}
-          className="inline-flex min-h-11 items-center text-label text-brand-soft underline-offset-4 hover:underline"
-        >
-          {c.common.backToLogin}
-        </Link>
+        <div className="space-y-2">
+          <Link
+            to="/login"
+            {...withLocale(locale)}
+            className={buttonClasses('primary', 'lg', 'w-full')}
+          >
+            {c.common.backToLogin}
+          </Link>
+          <button
+            type="button"
+            onClick={() => void resend()}
+            disabled={cooldown > 0}
+            className={buttonClasses('secondary', 'md', 'w-full')}
+          >
+            {cooldown > 0 ? c.register.resendIn(cooldown) : c.register.resend}
+          </button>
+        </div>
       </div>
     </AuthFrame>
   );

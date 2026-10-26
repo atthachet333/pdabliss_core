@@ -29,7 +29,9 @@ async function main() {
     if (process.argv.includes('--demo')) {
       const demo = await seedDemo(db, env);
       out(
-        `Demo company: ready (${Object.entries(demo.identities)
+        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, subscription ${demo.subscription} (${Object.entries(
+          demo.identities,
+        )
           .map(([r, o]) => `${r} ${o}`)
           .join(', ')})`,
       );

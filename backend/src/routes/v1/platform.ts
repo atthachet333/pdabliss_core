@@ -8,21 +8,27 @@ import {
   requireRecentStepUp,
 } from '../../auth/http.js';
 import type { PlatformService } from '../../auth/platform.js';
+import { IdParams } from '../../company/input.js';
+import type { CompanyService } from '../../company/service.js';
 import { parseInput } from '../../lib/validation.js';
 
 /*
  * /api/v1/platform — Platform Control Center (EP23). Every route requires a
  * platform role from the server-side session; mutations also require a
  * recent one-time-code step-up; managing platform operators is owner-only.
+ *
+ * EP24: the canonical company list and detail (owner and admin), and a
+ * DEVELOPMENT-ONLY manual activation that is not registered at all in
+ * production. No customer impersonation.
  */
 
 const UserParams = z.object({ userId: z.string().min(1).max(64) });
 const GrantBody = z.object({ email: z.string().trim().max(254).pipe(z.email()) }).strict();
 
-export const platformRoutes: FastifyPluginAsync<{ platform: PlatformService }> = async (
-  app,
-  { platform },
-) => {
+export const platformRoutes: FastifyPluginAsync<{
+  platform: PlatformService;
+  companies: CompanyService;
+}> = async (app, { platform, companies }) => {
   app.addHook('preHandler', requirePlatform);
 
   app.get('/overview', async (request) => {
@@ -34,7 +40,27 @@ export const platformRoutes: FastifyPluginAsync<{ platform: PlatformService }> =
   });
 
   app.get('/users', async () => ({ users: await platform.listUsers() }));
-  app.get('/companies', async () => ({ companies: await platform.listCompanies() }));
+  app.get('/companies', async () => ({
+    companies: await companies.listForPlatform(),
+    // Lets the UI offer the development activation only where the route exists.
+    developmentActivation: companies.developmentActivation,
+  }));
+  app.get('/companies/:id', async (request) => {
+    const { id } = parseInput(IdParams, request.params);
+    return companies.detailForPlatform(id);
+  });
+
+  // ---- development / test only: manual activation without payment ---------
+  if (companies.developmentActivation) {
+    app.post(
+      '/companies/:id/development-activation',
+      { preHandler: requireRecentStepUp },
+      async (request) => {
+        const { id } = parseInput(IdParams, request.params);
+        return companies.activateForDevelopment(requireAuth(request), id, requestMeta(request));
+      },
+    );
+  }
   app.get('/audit', async () => ({ events: await platform.recentAuthEvents() }));
 
   // ---- owner-only -----------------------------------------------------------

@@ -170,7 +170,15 @@ export async function createUser(
   if (opts.companyRole) {
     const companyId =
       opts.companyId ?? (await db.company.create({ data: { name: 'Test Co', isDemo: true } })).id;
-    await db.companyMember.create({ data: { companyId, userId: user.id, role: opts.companyRole } });
+    await db.companyMember.create({
+      data: {
+        companyId,
+        userId: user.id,
+        role: opts.companyRole,
+        // EP24: the owner slot pairs with COMPANY_OWNER (database CHECK).
+        ownerSlot: opts.companyRole === 'COMPANY_OWNER' ? true : null,
+      },
+    });
   }
   return user;
 }

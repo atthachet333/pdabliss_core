@@ -2,6 +2,9 @@ import { z } from 'zod';
 import type { Db } from '../db/client.js';
 import type { CompanyRole } from '../generated/prisma/enums.js';
 import { recordAuthEvent, type RequestMeta } from './audit.js';
+import { recordCompanyEvent, type CompanyAuditAction } from '../company/audit.js';
+import { snapshotFor } from '../company/entitlements.js';
+import { HEAD_OFFICE_CODE } from '../company/service.js';
 import { normalizeEmail } from './crypto.js';
 import { checkPassword, hashPassword } from './password.js';
 
@@ -257,13 +260,30 @@ export async function bootstrapPlatform(db: Db, env: SeedEnv): Promise<SeedRepor
 export const DEMO_COMPANY_NAME = 'PDA BLISS CORE DEMO COMPANY';
 
 const DEMO_DEPARTMENTS = [
-  ['sales', 'Sales'],
-  ['operations', 'Operations'],
-  ['warehouse', 'Warehouse'],
-  ['purchasing', 'Purchasing'],
-  ['accounting', 'Accounting'],
-  ['executive', 'Executive'],
+  ['SALES', 'Sales'],
+  ['OPERATIONS', 'Operations'],
+  ['WAREHOUSE', 'Warehouse'],
+  ['PURCHASING', 'Purchasing'],
+  ['ACCOUNTING', 'Accounting & Finance'],
+  ['EXECUTIVE', 'Executive'],
 ] as const;
+
+/** The demo package (EP24): Professional, so all six departments can be exercised. */
+export const DEMO_PLAN = 'PROFESSIONAL' as const;
+
+/** Deterministic demo Head Office — an illustrative address, not a real business. */
+const DEMO_HEAD_OFFICE = {
+  code: HEAD_OFFICE_CODE,
+  name: 'สำนักงานใหญ่ (ข้อมูลตัวอย่าง)',
+  type: 'HEAD_OFFICE' as const,
+  headOfficeSlot: true,
+  addressLine1: '99 ถนนตัวอย่าง (ข้อมูลสาธิต)',
+  subdistrict: 'บางกระสอ',
+  district: 'เมืองนนทบุรี',
+  province: 'นนทบุรี',
+  postalCode: '11000',
+  countryCode: 'TH',
+};
 
 /**
  * Demo company + customer identities. Refuses production. Every password must
@@ -306,14 +326,90 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     };
   });
 
-  const company =
-    (await db.company.findFirst({ where: { name: DEMO_COMPANY_NAME, isDemo: true } })) ??
-    (await db.company.create({ data: { name: DEMO_COMPANY_NAME, isDemo: true } }));
+  // EP24: the demo company is a complete, ACTIVE Professional workspace — a
+  // controlled development/demo state (isDemo), not a paid subscription.
+  const seedEvent = (
+    companyId: string,
+    action: CompanyAuditAction,
+    entityType: 'Company' | 'Branch' | 'Subscription',
+    entityId: string,
+    details?: Record<string, string | boolean | readonly string[]>,
+  ) =>
+    recordCompanyEvent(db, SEED_META, {
+      action,
+      actorId: null,
+      actorScope: 'seed',
+      companyId,
+      entityType,
+      entityId,
+      details,
+    });
+
+  let company = await db.company.findFirst({ where: { name: DEMO_COMPANY_NAME, isDemo: true } });
+  const companyOutcome = company ? 'unchanged' : 'created';
+  if (!company) {
+    company = await db.company.create({
+      data: {
+        name: DEMO_COMPANY_NAME,
+        legalName: 'PDA BLISS CORE DEMO COMPANY (ข้อมูลสาธิต — ไม่ใช่บริษัทจริง)',
+        isDemo: true,
+      },
+    });
+    await seedEvent(company.id, 'COMPANY_CREATED', 'Company', company.id, { plan: DEMO_PLAN });
+  }
   for (const [code, name] of DEMO_DEPARTMENTS) {
     await db.department.upsert({
       where: { companyId_code: { companyId: company.id, code } },
       create: { companyId: company.id, code, name },
       update: {},
+    });
+  }
+  const headOffice = await db.branch.findUnique({
+    where: { companyId_code: { companyId: company.id, code: HEAD_OFFICE_CODE } },
+  });
+  if (!headOffice) {
+    const created = await db.branch.create({
+      data: { companyId: company.id, ...DEMO_HEAD_OFFICE },
+    });
+    await seedEvent(company.id, 'HEAD_OFFICE_CREATED', 'Branch', created.id, {
+      code: HEAD_OFFICE_CODE,
+    });
+  }
+  const subscription = await db.subscription.findFirst({
+    where: { companyId: company.id, currentSlot: true },
+  });
+  if (!subscription) {
+    const now = new Date();
+    const snapshot = snapshotFor(DEMO_PLAN);
+    const created = await db.subscription.create({
+      data: {
+        companyId: company.id,
+        plan: DEMO_PLAN,
+        status: 'ACTIVE',
+        billingCycle: 'MONTHLY',
+        catalogVersion: snapshot.catalogVersion,
+        monthlyPriceThb: snapshot.monthlyPriceThb,
+        entitlements: { ...snapshot },
+        currentSlot: true,
+        startsAt: now,
+        activatedAt: now,
+      },
+    });
+    await seedEvent(company.id, 'SUBSCRIPTION_CREATED', 'Subscription', created.id, {
+      plan: DEMO_PLAN,
+      status: 'ACTIVE',
+      mode: 'demo_seed',
+      paid: false,
+    });
+  }
+  if (company.status !== 'ACTIVE' || company.onboardingStatus !== 'COMPLETED') {
+    company = await db.company.update({
+      where: { id: company.id },
+      data: {
+        status: 'ACTIVE',
+        onboardingStatus: 'COMPLETED',
+        activatedAt: company.activatedAt ?? new Date(),
+      },
     });
   }
 
@@ -335,14 +431,25 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     if (member && member.companyId !== company.id) {
       throw new SeedError(`${maskForLog(identity.email)} already belongs to another company.`);
     }
+    // The owner slot pairs with COMPANY_OWNER (database CHECK): set it with the role.
+    const ownerSlot = identity.role === 'COMPANY_OWNER' ? true : null;
     if (!member) {
       await db.companyMember.create({
-        data: { companyId: company.id, userId: user.id, role: identity.role },
+        data: { companyId: company.id, userId: user.id, role: identity.role, ownerSlot },
       });
     } else if (member.role !== identity.role) {
-      await db.companyMember.update({ where: { id: member.id }, data: { role: identity.role } });
+      await db.companyMember.update({
+        where: { id: member.id },
+        data: { role: identity.role, ownerSlot },
+      });
     }
     results[identity.role] = user.outcome;
   }
-  return { companyId: company.id, identities: results };
+  return {
+    companyId: company.id,
+    company: companyOutcome,
+    headOffice: headOffice ? 'unchanged' : 'created',
+    subscription: subscription ? 'unchanged' : 'created',
+    identities: results,
+  };
 }

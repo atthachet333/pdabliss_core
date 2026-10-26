@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type { Identity, SessionRow } from '@/features/auth/api';
+import type { CompanyInfo, Onboarding } from '@/features/company/api';
 
 /*
  * A fake account API for component tests (EP23): routes `METHOD /path` to a
@@ -109,4 +110,76 @@ export function signedIn(who: Identity): Record<string, Handler> {
 
 export const signedOut: Record<string, Handler> = {
   'GET /api/v1/auth/me': fail(401, 'UNAUTHENTICATED'),
+};
+
+/* EP24 company fixtures — shaped like the real API (backend/src/company/service.ts). */
+
+export const DEMO_ONBOARDING: Onboarding = {
+  stage: 'ACTIVE',
+  selectedPlan: null,
+  company: {
+    id: 'c1',
+    displayName: 'PDA BLISS CORE DEMO COMPANY',
+    isDemo: true,
+    role: 'COMPANY_OWNER',
+  },
+  canEnterCore: true,
+};
+
+export const DEMO_COMPANY: CompanyInfo = {
+  company: {
+    id: 'c1',
+    displayName: 'PDA BLISS CORE DEMO COMPANY',
+    legalName: 'PDA BLISS CORE DEMO COMPANY (ข้อมูลสาธิต — ไม่ใช่บริษัทจริง)',
+    taxId: null,
+    registrationNumber: null,
+    status: 'ACTIVE',
+    onboardingStatus: 'COMPLETED',
+    isDemo: true,
+    createdAt: '2026-10-26T03:00:00.000Z',
+    activatedAt: '2026-10-26T03:00:00.000Z',
+  },
+  role: 'COMPANY_OWNER',
+  headOffice: {
+    id: 'b1',
+    code: '00000',
+    name: 'สำนักงานใหญ่ (ข้อมูลตัวอย่าง)',
+    type: 'HEAD_OFFICE',
+    status: 'ACTIVE',
+    address: {
+      line1: '99 ถนนตัวอย่าง (ข้อมูลสาธิต)',
+      line2: null,
+      subdistrict: 'บางกระสอ',
+      district: 'เมืองนนทบุรี',
+      province: 'นนทบุรี',
+      postalCode: '11000',
+      countryCode: 'TH',
+    },
+    phone: null,
+  },
+  departments: ['SALES', 'OPERATIONS', 'WAREHOUSE', 'PURCHASING', 'ACCOUNTING', 'EXECUTIVE'],
+  subscription: {
+    id: 's1',
+    plan: 'PROFESSIONAL',
+    status: 'ACTIVE',
+    billingCycle: 'MONTHLY',
+    monthlyPriceThb: 999,
+    catalogVersion: 1,
+    createdAt: '2026-10-26T03:00:00.000Z',
+    activatedAt: '2026-10-26T03:00:00.000Z',
+    currentPeriodStart: null,
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: false,
+  },
+  entitlements: {
+    plan: 'PROFESSIONAL',
+    catalogVersion: 1,
+    maxDepartments: 6,
+    executiveAllowed: true,
+    storage: { gb: 30 },
+    api: 'INCLUDED',
+    allBranchesIncluded: true,
+    warehouseLotExpiryFefo: 'INCLUDED_WITH_WAREHOUSE',
+  },
+  access: { canEnterCore: true },
 };

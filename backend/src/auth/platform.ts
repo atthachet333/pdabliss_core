@@ -94,21 +94,6 @@ export class PlatformService {
     }));
   }
 
-  async listCompanies() {
-    const rows = await this.db.company.findMany({
-      orderBy: { createdAt: 'asc' },
-      include: { _count: { select: { members: true, departments: true } } },
-    });
-    return rows.map((c) => ({
-      id: c.id,
-      name: c.name,
-      isDemo: c.isDemo,
-      members: c._count.members,
-      departments: c._count.departments,
-      createdAt: c.createdAt.toISOString(),
-    }));
-  }
-
   async recentAuthEvents(limit = 50) {
     const rows = await this.db.authAuditEvent.findMany({
       take: limit,

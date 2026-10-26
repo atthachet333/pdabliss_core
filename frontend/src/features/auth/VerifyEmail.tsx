@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
+import { CircleCheck, CircleX, LoaderCircle, MailCheck } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
@@ -6,7 +6,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { authApi } from './api';
-import { AuthFrame, Notice } from './AuthFrame';
+import { AuthFrame, Guidance, Notice } from './AuthFrame';
 import { AUTH_COPY } from './copy';
 import { commonError, EMAIL_PATTERN, errorCode } from './errors';
 import { TextField } from './fields';
@@ -72,9 +72,19 @@ export function VerifyEmail() {
   }[state];
   const ok = state === 'verified' || state === 'already';
 
+  // EP24 polish: a state emblem leads each result; the title carries the meaning.
+  const emblem =
+    state === 'verifying'
+      ? undefined
+      : ok
+        ? { icon: <CircleCheck />, tone: 'success' as const }
+        : state === 'missing'
+          ? { icon: <MailCheck />, tone: 'brand' as const }
+          : { icon: <CircleX />, tone: 'warning' as const };
+
   return (
-    <AuthFrame kicker={c.verify.kicker} title={title} lead={lead}>
-      <div className="space-y-4" data-state={state} aria-live="polite">
+    <AuthFrame kicker={c.verify.kicker} title={title} lead={lead} state={emblem}>
+      <div className="space-y-5" data-state={state} aria-live="polite">
         {state === 'verifying' && (
           <LoaderCircle
             aria-hidden
@@ -84,7 +94,9 @@ export function VerifyEmail() {
         {error && <Notice tone="error">{error}</Notice>}
         {ok ? (
           <>
-            <CircleCheck aria-hidden className="size-8 text-brand-soft" />
+            <p className="rounded-2xl bg-white/[0.025] p-4 text-caption leading-relaxed text-text-secondary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)]">
+              {c.verify.nextStep}
+            </p>
             <Link
               to="/login"
               {...withLocale(locale)}
@@ -96,7 +108,9 @@ export function VerifyEmail() {
         ) : (
           state !== 'verifying' && (
             <>
-              {state !== 'missing' && <CircleX aria-hidden className="size-8 text-warning" />}
+              {state === 'missing' && (
+                <Guidance title={c.common.notArrivedTitle} items={c.common.notArrived} />
+              )}
               <ResendVerification />
             </>
           )

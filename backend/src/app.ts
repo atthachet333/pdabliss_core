@@ -8,6 +8,7 @@ import { cookieNames, originCheck } from './auth/http.js';
 import { InvitationService } from './auth/invitations.js';
 import { PlatformService } from './auth/platform.js';
 import { AuthService } from './auth/service.js';
+import { CompanyService } from './company/service.js';
 import { resolveSession } from './auth/sessions.js';
 import type { Env } from './config/env.js';
 import { createDb, type Db } from './db/client.js';
@@ -99,6 +100,8 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
       auth: new AuthService({ db, env, mailer, log: app.log }),
       platform: new PlatformService(db),
       invitations: new InvitationService(db, env, mailer),
+      // The manual activation exists only outside production (EP24).
+      companies: new CompanyService(db, env.NODE_ENV !== 'production'),
     };
     if (mailer.kind === 'dev') {
       app.log.warn(

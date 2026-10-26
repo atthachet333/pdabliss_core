@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { ApiError } from '@/lib/api';
-import { authApi, type Identity } from './api';
+import { authApi, planIntent, type Identity } from './api';
 
 /*
  * Client view of "who is signed in" (EP23). Only the safe identity the API
@@ -95,6 +95,16 @@ export function safeNext(next: string | null): string | null {
 }
 
 /** The post-sign-in destination: a safe `next` the identity may use, else its home. */
+/**
+ * EP24: a package picked on the public site (`/login?plan=business`) is carried
+ * to the customer's Account Portal, where the package step preselects it. Only
+ * a known plan id, and only onto /account — never into another path or query.
+ */
+export function withPlan(destination: string, plan: string | null): string {
+  const id = planIntent(plan);
+  return id && destination === '/account' ? `/account?plan=${id}` : destination;
+}
+
 export function destinationFor(identity: Identity, next: string | null): string {
   const safe = safeNext(next);
   if (!safe) return homeFor(identity);

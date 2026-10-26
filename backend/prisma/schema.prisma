@@ -9,7 +9,9 @@
 // docs/ARCHITECTURE.md and arrive in later episodes with their workflows.
 //
 // One CORE workspace = one Company. A user belongs to at most one company in
-// v1 (no company switching); branches arrive in EP24/EP26.
+// v1 (no company switching). EP24 adds the company lifecycle, branches (with
+// exactly one Head Office), the package catalog snapshot on subscriptions and
+// department entitlements. Payment processing is a later episode.
 //
 // Secrets are never stored raw: tokens and one-time codes are stored as hashes
 // (see src/auth/crypto.ts), passwords as Argon2id hashes.
@@ -27,32 +29,83 @@ datasource db {
 // Companies (customer workspaces)
 // ---------------------------------------------------------------------------
 
-model Company {
-  id          String          @id @default(cuid())
-  name        String
-  legalName   String?
-  taxId       String?
-  timezone    String          @default("Asia/Bangkok")
-  /// Seeded demonstration data, never a real customer (EP23 demo seed).
-  isDemo      Boolean         @default(false)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  departments Department[]
-  members     CompanyMember[]
-  roles       Role[]
-  invitations Invitation[]
+/// Operational lifecycle of a customer company (EP24). Payment-gated activation
+/// arrives with billing; until then activation is a manual platform action.
+enum CompanyStatus {
+  /// Created through onboarding; its subscription is not active yet. Account Portal only.
+  PENDING_SUBSCRIPTION
+  /// May enter CORE (together with an ACTIVE subscription).
+  ACTIVE
+  /// Operational access blocked (by the platform).
+  SUSPENDED
+  /// Permanently closed. Records are kept.
+  CLOSED
 }
 
+/// Setup progress, separate from the operational status.
+enum CompanyOnboardingStatus {
+  /// Created; something still has to be agreed (e.g. Enterprise departments).
+  IN_PROGRESS
+  /// Company, Head Office, owner, departments and subscription are in place.
+  COMPLETED
+}
+
+model Company {
+  id                 String                  @id @default(cuid())
+  /// Display name (how the company is shown in CORE).
+  name               String
+  /// Registered legal name (Thai or any script, UTF-8).
+  legalName          String?
+  /// Thai 13-digit tax ID when given (format-checked only, not verified with the Revenue Department).
+  taxId              String?
+  /// Company registration number, when it differs from the tax ID.
+  registrationNumber String?
+  timezone           String                  @default("Asia/Bangkok")
+  status             CompanyStatus           @default(PENDING_SUBSCRIPTION)
+  onboardingStatus   CompanyOnboardingStatus @default(IN_PROGRESS)
+  /// The account that created the company through onboarding (null for seeded data).
+  createdById        String?
+  createdBy          User?                   @relation("CompanyCreator", fields: [createdById], references: [id])
+  /// Seeded demonstration data, never a real customer (EP23 demo seed).
+  isDemo             Boolean                 @default(false)
+  activatedAt        DateTime?
+  suspendedAt        DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  departments        Department[]
+  members            CompanyMember[]
+  roles              Role[]
+  invitations        Invitation[]
+  branches           Branch[]
+  subscriptions      Subscription[]
+  auditLogs          AuditLog[]
+
+  @@index([status])
+  @@index([onboardingStatus])
+}
+
+/// The six standard CORE departments (EP24 canonical codes).
+enum DepartmentCode {
+  SALES
+  OPERATIONS
+  WAREHOUSE
+  PURCHASING
+  ACCOUNTING
+  EXECUTIVE
+}
+
+/// A department the company has enabled (entitlement / configuration only — no
+/// operational tables yet). The plan limits how many may be enabled.
 model Department {
-  id          String       @id @default(cuid())
+  id          String         @id @default(cuid())
   companyId   String
-  company     Company      @relation(fields: [companyId], references: [id])
-  /// Workspace code: sales | warehouse | purchasing | operations | accounting | executive
-  code        String
+  company     Company        @relation(fields: [companyId], references: [id])
+  code        DepartmentCode
   name        String
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   memberships Membership[]
 
   @@unique([companyId, code])
@@ -78,12 +131,122 @@ model CompanyMember {
   userId    String
   user      User        @relation(fields: [userId], references: [id])
   role      CompanyRole
+  /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
+  /// enforced by the database (unique + CHECK, EP24).
+  ownerSlot Boolean?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
+  @@unique([companyId, ownerSlot])
   @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Branches (EP24). Every company has exactly one Head Office (code 00000).
+// v1: members see every branch of their company; branch scoping comes later.
+// ---------------------------------------------------------------------------
+
+enum BranchType {
+  HEAD_OFFICE
+  BRANCH
+}
+
+enum BranchStatus {
+  ACTIVE
+  CLOSED
+}
+
+model Branch {
+  id             String       @id @default(cuid())
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id])
+  /// Stable 5-digit code, unique per company; the Head Office is 00000.
+  code           String
+  name           String
+  type           BranchType
+  status         BranchStatus @default(ACTIVE)
+  /// TRUE only for the Head Office (NULL otherwise): at most one per company in
+  /// the database; onboarding creates it in the same transaction as the company.
+  headOfficeSlot Boolean?
+  addressLine1   String
+  addressLine2   String?
+  /// Sub-district / tambon (Thailand) or locality.
+  subdistrict    String?
+  /// District / amphoe / khet, or city.
+  district       String?
+  /// Province / state / region.
+  province       String
+  postalCode     String
+  /// ISO 3166-1 alpha-2.
+  countryCode    String       @default("TH")
+  phone          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([companyId, code])
+  @@unique([companyId, headOfficeSlot])
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Subscriptions (EP24 foundation — no payment processing)
+// ---------------------------------------------------------------------------
+
+enum PlanCode {
+  STARTER
+  BUSINESS
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  /// Created by onboarding; not paid and not active. Payment / manual activation pending.
+  PENDING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+  EXPIRED
+}
+
+/// One subscription = one company, every branch included. The plan definition is
+/// snapshotted at creation so later catalog changes never rewrite its meaning.
+model Subscription {
+  id                     String             @id @default(cuid())
+  companyId              String
+  company                Company            @relation(fields: [companyId], references: [id])
+  plan                   PlanCode
+  status                 SubscriptionStatus @default(PENDING)
+  billingCycle           BillingCycle       @default(MONTHLY)
+  /// PLAN_CATALOG_VERSION the snapshot below was taken from.
+  catalogVersion         Int
+  /// THB per month at creation; NULL for a quotation plan (Enterprise).
+  monthlyPriceThb        Int?
+  /// The plan's entitlements at creation (limits, storage, API, …), from the catalog.
+  entitlements           Json
+  /// TRUE for the company's current subscription (NULL once canceled / expired).
+  currentSlot            Boolean?
+  startsAt               DateTime?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  activatedAt            DateTime?
+  endedAt                DateTime?
+  /// Future payment provider references (none in EP24).
+  paymentProvider        String?
+  providerSubscriptionId String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@unique([companyId, currentSlot])
+  @@index([companyId, status])
 }
 
 // ---------------------------------------------------------------------------
@@ -108,35 +271,38 @@ enum AppLocale {
 
 /// One human = one account, across the whole platform.
 model User {
-  id              String                   @id @default(cuid())
+  id               String                   @id @default(cuid())
   /// As entered (trimmed), for display and for sending mail.
-  email           String
+  email            String
   /// Lower-cased, trimmed, NFC — the identity key. Unique.
-  emailNormalized String                   @unique
-  displayName     String?
-  locale          AppLocale                @default(th)
-  status          UserStatus               @default(PENDING_VERIFICATION)
-  emailVerifiedAt DateTime?
-  /// Plan chosen on the public site before registering (onboarding intent only — no subscription).
-  planIntent      String?
-  lastLoginAt     DateTime?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  credential      UserCredential?
-  platformRole    PlatformRoleAssignment?  @relation("PlatformRoleHolder")
-  grantedRoles    PlatformRoleAssignment[] @relation("PlatformRoleGrantor")
-  companyMember   CompanyMember?
-  memberships     Membership[]
-  sessions        Session[]
-  trustedDevices  TrustedDevice[]
-  otpChallenges   OtpChallenge[]
-  emailTokens     EmailVerificationToken[]
-  resetTokens     PasswordResetToken[]
-  invitationsSent Invitation[]             @relation("InvitationInviter")
-  invitationsUsed Invitation[]             @relation("InvitationAcceptor")
-  authEvents      AuthAuditEvent[]         @relation("AuthEventUser")
-  actedEvents     AuthAuditEvent[]         @relation("AuthEventActor")
-  auditLogs       AuditLog[]
+  emailNormalized  String                   @unique
+  displayName      String?
+  locale           AppLocale                @default(th)
+  status           UserStatus               @default(PENDING_VERIFICATION)
+  emailVerifiedAt  DateTime?
+  /// Package chosen before company creation (lower-case plan id; onboarding intent — no subscription).
+  planIntent       String?
+  /// When the package was last chosen in the Account Portal (EP24).
+  planSelectedAt   DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  credential       UserCredential?
+  platformRole     PlatformRoleAssignment?  @relation("PlatformRoleHolder")
+  grantedRoles     PlatformRoleAssignment[] @relation("PlatformRoleGrantor")
+  companyMember    CompanyMember?
+  memberships      Membership[]
+  sessions         Session[]
+  trustedDevices   TrustedDevice[]
+  otpChallenges    OtpChallenge[]
+  emailTokens      EmailVerificationToken[]
+  resetTokens      PasswordResetToken[]
+  invitationsSent  Invitation[]             @relation("InvitationInviter")
+  invitationsUsed  Invitation[]             @relation("InvitationAcceptor")
+  authEvents       AuthAuditEvent[]         @relation("AuthEventUser")
+  actedEvents      AuthAuditEvent[]         @relation("AuthEventActor")
+  auditLogs        AuditLog[]
+  companiesCreated Company[]                @relation("CompanyCreator")
 
   @@index([status])
 }
@@ -446,10 +612,14 @@ model RolePermission {
 }
 
 /// Append-only audit trail with before/after field changes (business entities).
+/// EP24: company onboarding and subscription events (see src/company/audit.ts).
 model AuditLog {
   id         String   @id @default(cuid())
   actorId    String?
   actor      User?    @relation(fields: [actorId], references: [id])
+  /// The company the action concerns, when there is one.
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id])
   action     String
   entityType String
   entityId   String
@@ -460,4 +630,5 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([actorId, occurredAt])
+  @@index([companyId, occurredAt])
 }

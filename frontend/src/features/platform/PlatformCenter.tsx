@@ -1,10 +1,9 @@
-import { Building2, Crown, Eye, ReceiptText, ScrollText, ShieldCheck, Users } from 'lucide-react';
+import { Crown, ReceiptText, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   platformApi,
   type AuthEventRow,
   type Identity,
-  type PlatformCompany,
   type PlatformOperator,
   type PlatformOverview,
   type PlatformUser,
@@ -13,6 +12,8 @@ import { Notice } from '@/features/auth/AuthFrame';
 import { AUTH_COPY, type AuthCopy } from '@/features/auth/copy';
 import { commonError } from '@/features/auth/errors';
 import { formatDateTime } from '@/features/account/format';
+import { platformCompanyApi, type PlatformCompanyRow } from '@/features/company/api';
+import { PlatformCompanies } from '@/features/company/PlatformCompanies';
 import { Panel, PortalShell } from '@/features/account/PortalShell';
 import { SessionsPanel } from '@/features/account/SessionsPanel';
 import { LOCALE_META } from '@/i18n/locales';
@@ -31,7 +32,8 @@ import { usePageMeta } from '@/lib/usePageMeta';
 
 interface Data {
   overview: PlatformOverview;
-  companies: PlatformCompany[];
+  companies: PlatformCompanyRow[];
+  developmentActivation: boolean;
   users: PlatformUser[];
   events: AuthEventRow[];
   operators: PlatformOperator[] | null;
@@ -66,7 +68,7 @@ export function PlatformCenter({ identity }: { identity: Identity }) {
   const data = useData<Data>(async () => {
     const [overview, companies, users, audit, operators] = await Promise.all([
       platformApi.overview(),
-      platformApi.companies(),
+      platformCompanyApi.list(),
       platformApi.users(),
       platformApi.audit(),
       owner ? platformApi.operators() : Promise.resolve(null),
@@ -74,6 +76,7 @@ export function PlatformCenter({ identity }: { identity: Identity }) {
     return {
       overview,
       companies: companies.companies,
+      developmentActivation: companies.developmentActivation,
       users: users.users,
       events: audit.events,
       operators: operators?.operators ?? null,
@@ -153,41 +156,18 @@ export function PlatformCenter({ identity }: { identity: Identity }) {
           )}
         </Panel>
 
-        <Panel id="companies-title" title={p.companies}>
-          {d ? (
-            d.companies.length ? (
-              <ul className="divide-y divide-white/[0.06]">
-                {d.companies.map((co) => (
-                  <li
-                    key={co.id}
-                    className="flex flex-wrap items-center justify-between gap-2 py-2.5"
-                  >
-                    <span className="flex items-center gap-2 text-label text-text-primary">
-                      <Building2 aria-hidden className="size-4 text-text-muted" />
-                      {co.name}
-                      {co.isDemo && (
-                        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[0.75rem] text-warning">
-                          {p.demo}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-caption text-text-muted">
-                      {co.members} {p.members} · {co.departments} {p.departments}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-caption text-text-muted">{p.companiesEmpty}</p>
-            )
-          ) : (
+        {/* EP24: the canonical company list (owner, package, subscription, onboarding). */}
+        {d ? (
+          <PlatformCompanies
+            companies={d.companies}
+            developmentActivation={d.developmentActivation}
+            p={p}
+          />
+        ) : (
+          <Panel id="companies-title" title={p.companies} className="lg:col-span-2">
             <Loading />
-          )}
-          <p className="mt-4 flex items-start gap-2 text-caption text-text-muted">
-            <Eye aria-hidden className="mt-0.5 size-4 shrink-0" />
-            {p.inspection}
-          </p>
-        </Panel>
+          </Panel>
+        )}
 
         {owner && (
           <Panel
@@ -249,7 +229,7 @@ export function PlatformCenter({ identity }: { identity: Identity }) {
         <Placeholder
           icon={<ReceiptText aria-hidden className="size-5" />}
           title={p.subscriptions}
-          text={p.notYet}
+          text={p.subscriptionsNote}
         />
         <Placeholder
           icon={<ReceiptText aria-hidden className="size-5" />}

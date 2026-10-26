@@ -125,15 +125,6 @@ export interface PlatformOverview {
   activeSessions: number;
 }
 
-export interface PlatformCompany {
-  id: string;
-  name: string;
-  isDemo: boolean;
-  members: number;
-  departments: number;
-  createdAt: string;
-}
-
 export interface PlatformUser {
   id: string;
   email: string;
@@ -164,7 +155,6 @@ export interface AuthEventRow {
 
 export const platformApi = {
   overview: () => apiRequest<PlatformOverview>('GET', `${P}/overview`),
-  companies: () => apiRequest<{ companies: PlatformCompany[] }>('GET', `${P}/companies`),
   users: () => apiRequest<{ users: PlatformUser[] }>('GET', `${P}/users`),
   audit: () => apiRequest<{ events: AuthEventRow[] }>('GET', `${P}/audit`),
   operators: () => apiRequest<{ operators: PlatformOperator[] }>('GET', `${P}/operators`),

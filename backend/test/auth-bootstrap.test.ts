@@ -135,15 +135,33 @@ describeDb('demo seed (EP23)', () => {
     const company = await h.db.company.findFirstOrThrow({
       include: { departments: true, members: { include: { user: true } } },
     });
-    expect(company).toMatchObject({ name: DEMO_COMPANY_NAME, isDemo: true });
+    expect(company).toMatchObject({
+      name: DEMO_COMPANY_NAME,
+      isDemo: true,
+      status: 'ACTIVE',
+      onboardingStatus: 'COMPLETED',
+    });
+    // EP24 canonical department codes.
     expect(company.departments.map((d) => d.code).sort()).toEqual([
-      'accounting',
-      'executive',
-      'operations',
-      'purchasing',
-      'sales',
-      'warehouse',
+      'ACCOUNTING',
+      'EXECUTIVE',
+      'OPERATIONS',
+      'PURCHASING',
+      'SALES',
+      'WAREHOUSE',
     ]);
+    // EP24: one Head Office, one Professional subscription — even after a second run.
+    const branches = await h.db.branch.findMany({ where: { companyId: company.id } });
+    expect(branches).toHaveLength(1);
+    expect(branches[0]).toMatchObject({ code: '00000', type: 'HEAD_OFFICE' });
+    const subscriptions = await h.db.subscription.findMany({ where: { companyId: company.id } });
+    expect(subscriptions).toHaveLength(1);
+    expect(subscriptions[0]).toMatchObject({
+      plan: 'PROFESSIONAL',
+      status: 'ACTIVE',
+      monthlyPriceThb: 999,
+      paymentProvider: null,
+    });
     expect(
       Object.fromEntries(company.members.map((m) => [m.user.emailNormalized, m.role])),
     ).toEqual({

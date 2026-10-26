@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX, LoaderCircle, MailCheck } from 'lucide-react';
+import { CircleCheck, CircleX, KeyRound, LoaderCircle, MailCheck } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
@@ -6,7 +6,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { authApi } from './api';
-import { AuthFrame, Notice } from './AuthFrame';
+import { AuthFrame, Guidance, Notice } from './AuthFrame';
 import { AUTH_COPY } from './copy';
 import { commonError, EMAIL_PATTERN, errorCode, passwordProblem } from './errors';
 import { PasswordField, TextField } from './fields';
@@ -53,23 +53,13 @@ export function ForgotPassword() {
 
   if (sent) {
     return (
-      <AuthFrame kicker={c.forgot.kicker} title={c.forgot.sentTitle}>
-        <div className="space-y-4" data-state="reset-sent">
-          <div className="flex items-start gap-3 rounded-xl bg-white/[0.03] p-3">
-            <MailCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-soft" />
-            <p role="status" className="text-label text-text-secondary">
-              {c.forgot.sentLead}
-            </p>
-          </div>
-          <Link
-            to="/login"
-            {...withLocale(locale)}
-            className="inline-flex min-h-11 items-center text-label text-brand-soft underline-offset-4 hover:underline"
-          >
-            {c.common.backToLogin}
-          </Link>
-        </div>
-      </AuthFrame>
+      <ResetLinkSent
+        email={email.trim()}
+        onUseAnother={() => {
+          setSent(false);
+          setEmail('');
+        }}
+      />
     );
   }
 
@@ -102,6 +92,78 @@ export function ForgotPassword() {
           {c.common.backToLogin}
         </Link>
       </form>
+    </AuthFrame>
+  );
+}
+
+/**
+ * "Check your email" after a reset request (EP24 polish). The wording stays
+ * conditional — the same answer whether or not the account exists — and the
+ * address shown is only what the visitor typed. Sending again uses the same
+ * request (and its server-side limits) after a short cooldown.
+ */
+function ResetLinkSent({ email, onUseAnother }: { email: string; onUseAnother: () => void }) {
+  const c = useCopy(AUTH_COPY);
+  const { locale } = useLocale();
+  const [cooldown, setCooldown] = useState(60);
+  const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
+
+  const resend = async () => {
+    try {
+      await authApi.forgotPassword(email);
+      setMessage({ tone: 'info', text: c.forgot.resent });
+      setCooldown(60);
+    } catch (e) {
+      setMessage({ tone: 'error', text: commonError(e, c) });
+    }
+  };
+
+  return (
+    <AuthFrame kicker={c.forgot.kicker} title={c.forgot.sentTitle} state={{ icon: <MailCheck /> }}>
+      <div className="space-y-5" data-state="reset-sent">
+        <div>
+          <p role="status" className="text-body leading-relaxed text-text-primary">
+            {c.forgot.sentLead}
+          </p>
+          <p className="mt-1.5 text-caption break-all text-text-muted" data-sent-to>
+            {c.forgot.sentTo(email)}
+          </p>
+        </div>
+        <Guidance title={c.common.aboutLink} items={c.forgot.sentFacts} />
+        <Guidance title={c.common.notArrivedTitle} items={c.common.notArrived} />
+        {message && <Notice tone={message.tone}>{message.text}</Notice>}
+        <div className="space-y-3">
+          <Link
+            to="/login"
+            {...withLocale(locale)}
+            className={buttonClasses('primary', 'lg', 'w-full')}
+          >
+            {c.common.backToLogin}
+          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <button
+              type="button"
+              onClick={() => void resend()}
+              disabled={cooldown > 0}
+              className="inline-flex min-h-11 items-center text-label text-brand-soft underline-offset-4 hover:underline disabled:text-text-muted disabled:no-underline"
+            >
+              {cooldown > 0 ? c.forgot.resendIn(cooldown) : c.forgot.resend}
+            </button>
+            <button
+              type="button"
+              onClick={onUseAnother}
+              className="inline-flex min-h-11 items-center text-label text-text-secondary underline-offset-4 hover:text-text-primary hover:underline"
+            >
+              {c.forgot.useAnother}
+            </button>
+          </div>
+        </div>
+      </div>
     </AuthFrame>
   );
 }
@@ -192,9 +254,17 @@ export function ResetPassword() {
 
   if (state === 'done') {
     return (
-      <AuthFrame kicker={c.reset.kicker} title={c.reset.done} lead={c.reset.doneLead}>
-        <div className="space-y-4" data-state="done">
-          <CircleCheck aria-hidden className="size-8 text-brand-soft" />
+      <AuthFrame
+        kicker={c.reset.kicker}
+        title={c.reset.done}
+        lead={c.reset.doneLead}
+        state={{ icon: <CircleCheck />, tone: 'success' }}
+      >
+        <div className="space-y-5" data-state="done">
+          <p role="status" className="sr-only">
+            {c.reset.done}
+          </p>
+          <Guidance title={c.reset.doneFactsTitle} items={c.reset.doneFacts} />
           <Link
             to="/login"
             {...withLocale(locale)}
@@ -211,24 +281,43 @@ export function ResetPassword() {
     const title =
       state === 'expired' ? c.reset.expired : state === 'used' ? c.reset.used : c.reset.invalid;
     return (
-      <AuthFrame kicker={c.reset.kicker} title={title} lead={c.reset.badLead}>
-        <div className="space-y-4" data-state={state}>
-          <CircleX aria-hidden className="size-8 text-warning" />
+      <AuthFrame
+        kicker={c.reset.kicker}
+        title={title}
+        lead={c.reset.badLead}
+        state={{ icon: <CircleX />, tone: 'warning' }}
+      >
+        <div className="space-y-5" data-state={state}>
           {failure && <Notice tone="error">{failure}</Notice>}
-          <Link
-            to="/forgot-password"
-            {...withLocale(locale)}
-            className={buttonClasses('primary', 'lg', 'w-full')}
-          >
-            {c.reset.requestNew}
-          </Link>
+          <Guidance title={c.common.aboutLink} items={c.reset.badFacts} />
+          <div className="space-y-2">
+            <Link
+              to="/forgot-password"
+              {...withLocale(locale)}
+              className={buttonClasses('primary', 'lg', 'w-full')}
+            >
+              {c.reset.requestNew}
+            </Link>
+            <Link
+              to="/login"
+              {...withLocale(locale)}
+              className="flex min-h-11 items-center justify-center text-label text-text-secondary underline-offset-4 hover:text-text-primary hover:underline"
+            >
+              {c.common.backToLogin}
+            </Link>
+          </div>
         </div>
       </AuthFrame>
     );
   }
 
   return (
-    <AuthFrame kicker={c.reset.kicker} title={c.reset.title} lead={c.reset.lead}>
+    <AuthFrame
+      kicker={c.reset.kicker}
+      title={c.reset.title}
+      lead={c.reset.lead}
+      state={{ icon: <KeyRound /> }}
+    >
       <form noValidate onSubmit={(e) => void onSubmit(e)} className="space-y-4" data-state="form">
         <PasswordField
           id="reset-password"
@@ -261,6 +350,7 @@ export function ResetPassword() {
         >
           {pending ? c.reset.submitting : c.reset.submit}
         </button>
+        <p className="text-caption text-text-muted">{c.reset.formFacts}</p>
       </form>
     </AuthFrame>
   );

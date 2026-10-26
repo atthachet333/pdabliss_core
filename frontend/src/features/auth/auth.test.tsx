@@ -1,9 +1,18 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { fail, fakeApi, identity, ok, signedIn, signedOut } from '@/test/fakeApi';
+import {
+  DEMO_COMPANY,
+  DEMO_ONBOARDING,
+  fail,
+  fakeApi,
+  identity,
+  ok,
+  signedIn,
+  signedOut,
+} from '@/test/fakeApi';
 import { renderRoute } from '@/test/render';
-import { destinationFor, safeNext } from './session';
+import { destinationFor, safeNext, withPlan } from './session';
 
 /*
  * EP23 account screens against a fake API: register, verify email,
@@ -30,7 +39,10 @@ describe('register', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'สร้างบัญชี' }));
     expect(screen.getByLabelText('อีเมล')).toHaveFocus();
-    expect(screen.getByLabelText('อีเมล')).toHaveAttribute('aria-invalid', 'true');
+    // The error state can commit a render after focus moves (seen under load): wait for it.
+    await waitFor(() =>
+      expect(screen.getByLabelText('อีเมล')).toHaveAttribute('aria-invalid', 'true'),
+    );
     expect(screen.getByText('กรุณายอมรับข้อกำหนดเพื่อสมัครใช้งาน')).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText('อีเมล'), 'new.person@example.com');
@@ -188,16 +200,26 @@ describe('Account Portal', () => {
   });
 
   it('shows the honest onboarding state for a new customer — no fake subscription', async () => {
-    fakeApi(signedIn(identity({ planIntent: 'business' })));
+    fakeApi({
+      ...signedIn(identity()),
+      'GET /api/v1/account/onboarding': ok({
+        stage: 'NEEDS_PACKAGE',
+        selectedPlan: null,
+        company: null,
+        canEnterCore: false,
+      }),
+    });
     renderRoute('/account');
     await screen.findByRole('heading', { level: 1, name: 'บัญชีของคุณ' });
     noindex();
-    const onboarding = document.querySelector('[data-onboarding="onboarding_required"]')!;
-    expect(onboarding).toHaveTextContent('ยืนยันบัญชีแล้ว');
-    expect(onboarding).toHaveTextContent('ยังไม่ได้ตั้งค่าบริษัท');
-    expect(onboarding).toHaveTextContent('เลือกแพ็กเกจเพื่อไปต่อ');
-    expect(screen.getByText(/คุณเลือกแพ็กเกจ Business/)).toBeInTheDocument();
-    expect(screen.getByText(/ยังไม่มีการเรียกเก็บเงินหรือสมาชิกภาพ/)).toBeInTheDocument();
+    // EP24: the onboarding progress, the package step, and no charge.
+    const progress = await screen.findByRole('navigation', { name: 'ขั้นตอนการเริ่มใช้งาน' });
+    expect(within(progress).getByText('ยืนยันบัญชีแล้ว')).toBeInTheDocument();
+    expect(within(progress).getByText('เลือกแพ็กเกจ').closest('li')).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    expect(screen.getByText('การเลือกแพ็กเกจยังไม่มีการเรียกเก็บเงิน')).toBeInTheDocument();
     expect(screen.queryByText('Platform Control Center')).toBeNull();
     // Devices, with this one marked.
     const list = await waitFor(() => {
@@ -218,8 +240,8 @@ describe('Account Portal', () => {
   });
 
   it('shows a demo company owner their company, labelled as demo', async () => {
-    fakeApi(
-      signedIn(
+    fakeApi({
+      ...signedIn(
         identity({
           company: {
             id: 'c1',
@@ -229,12 +251,24 @@ describe('Account Portal', () => {
           },
         }),
       ),
-    );
+      'GET /api/v1/account/onboarding': ok(DEMO_ONBOARDING),
+      'GET /api/v1/company/current': ok(DEMO_COMPANY),
+    });
     renderRoute('/account');
     const company = await screen.findByText('PDA BLISS CORE DEMO COMPANY');
-    const panel = company.closest('[data-onboarding="company_ready"]')!;
-    expect(panel).toHaveTextContent('บริษัทสาธิต — ไม่ใช่ลูกค้าจริง');
+    const panel = company.closest('section')!;
+    expect(panel).toHaveTextContent('บริษัทสาธิต — ข้อมูลตัวอย่าง ไม่ใช่ลูกค้าจริง');
     expect(panel).toHaveTextContent('เจ้าของบริษัท');
+    // Professional demo entitlement, all six departments, no payment history.
+    expect(document.querySelector('[data-subscription-plan]')).toHaveAttribute(
+      'data-subscription-plan',
+      'PROFESSIONAL',
+    );
+    expect(document.querySelectorAll('[data-company-departments] > span')).toHaveLength(6);
+    expect(document.querySelector('[data-company-message]')).toHaveTextContent(
+      'ไม่มีประวัติการชำระเงิน',
+    );
+    expect(document.body).not.toHaveTextContent(/ชำระเงินแล้ว|payment complete/i);
   });
 
   it('a platform operator is sent from /account to /platform', async () => {
@@ -278,12 +312,20 @@ describe('Platform Control Center', () => {
         {
           id: 'c1',
           name: 'PDA BLISS CORE DEMO COMPANY',
+          legalName: null,
           isDemo: true,
+          status: 'ACTIVE',
+          onboardingStatus: 'COMPLETED',
+          owner: 'owner.demo@pdabliss.com',
+          plan: 'PROFESSIONAL',
+          subscriptionStatus: 'ACTIVE',
           members: 4,
           departments: 6,
+          branches: 1,
           createdAt: '2026-10-26T03:00:00.000Z',
         },
       ],
+      developmentActivation: true,
     }),
     'GET /api/v1/platform/users': ok({ users: [] }),
     'GET /api/v1/platform/audit': ok({
@@ -432,6 +474,31 @@ describe('post-sign-in destinations', () => {
     ['/account?x=1', null],
   ])('safeNext(%s) → %s', (next, expected) => {
     expect(safeNext(next)).toBe(expected);
+  });
+
+  it('carries a known plan onto /account only (EP24)', () => {
+    expect(withPlan('/account', 'business')).toBe('/account?plan=business');
+    expect(withPlan('/account', 'free')).toBe('/account');
+    expect(withPlan('/account', null)).toBe('/account');
+    expect(withPlan('/platform', 'business')).toBe('/platform');
+    expect(withPlan('/app/warehouse', 'business')).toBe('/app/warehouse');
+  });
+
+  it('a signed-in customer arriving at /login?plan=business lands on the package step with it chosen', async () => {
+    fakeApi({
+      ...signedIn(identity()),
+      'GET /api/v1/account/onboarding': ok({
+        stage: 'NEEDS_PACKAGE',
+        selectedPlan: null,
+        company: null,
+        canEnterCore: false,
+      }),
+    });
+    const { router } = renderRoute('/login?plan=business');
+    await screen.findByRole('heading', { name: 'เลือกแพ็กเกจ' });
+    expect(router.state.location.pathname).toBe('/account');
+    expect(router.state.location.search).toBe('?plan=business');
+    expect(screen.getByRole('radio', { name: /Business/ })).toBeChecked();
   });
 
   it('never sends a customer into /platform, nor an operator into /account', () => {

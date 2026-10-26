@@ -22,7 +22,7 @@ import { authApi, type Challenge, type Identity } from '@/features/auth/api';
 import { AUTH_COPY } from '@/features/auth/copy';
 import { commonError, errorCode } from '@/features/auth/errors';
 import { OtpStep } from '@/features/auth/OtpStep';
-import { destinationFor, setIdentity, useIdentity } from '@/features/auth/session';
+import { destinationFor, setIdentity, useIdentity, withPlan } from '@/features/auth/session';
 import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReducedMotion';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
@@ -76,6 +76,8 @@ export function LoginGateway() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next');
+  // EP24: a package chosen on the public site travels to the Account Portal.
+  const plan = params.get('plan');
   const [phase, setPhase] = useState<GatePhase>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
@@ -94,7 +96,7 @@ export function LoginGateway() {
 
   // Already signed in: go straight to the account's home (or a safe `next`).
   if (identity.status === 'ready' && !pending) {
-    return <Navigate to={destinationFor(identity.identity, next)} replace />;
+    return <Navigate to={withPlan(destinationFor(identity.identity, next), plan)} replace />;
   }
 
   const failed = failure !== null;
@@ -112,7 +114,7 @@ export function LoginGateway() {
     setPhase('success');
     await wait(reduce ? 0 : RESOLVE_MS);
     setIdentity(signedIn);
-    navigate(destinationFor(signedIn, next), { replace: true });
+    navigate(withPlan(destinationFor(signedIn, next), plan), { replace: true });
   };
 
   const fail = (message: string) => {

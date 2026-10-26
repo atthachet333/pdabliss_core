@@ -88,9 +88,29 @@ canvas LCP; hero imagery is not on the critical path.
 **TBT caveat.** Mobile TBT is not a clean before/after signal here. FCP now happens earlier
 (the header paints before the page chunk has rendered), so the same page-render task that
 used to sit *before* FCP now sits *after* it and is counted. Use "max task" and
-"long-task total" for main-thread cost. On `/en/pricing` and `/zh/resources/human-error`
-long-task total rose (Latin font-swap relayouts now land in the same window as the render);
-the max task did not grow materially.
+"long-task total" for main-thread cost. Note that Chrome's Long Tasks API counts script
+tasks only — style/layout render tasks are not in "long-task total" (CDP total task time is
+reported separately in the follow-up below).
+
+**Owner-review follow-up (initial render).** The first EP20 build raised long-task total on
+`/en/pricing` (153 → 399 ms) and `/zh/resources/human-error` (647 → 855 ms) — repeatable over
+12 interleaved samples, while total main-thread work *fell*. Cause (traced): with the page
+chunk preloaded, the router has the page before React's first render, so the whole page was
+rendered in the initial `root.render`, a blocking (unsliced) lane — one ≈ 190–250 ms script
+task. Before EP20 the page arrived later and rendered in a time-sliced Suspense retry, invisible
+to the Long Tasks API. Fix: `src/main.tsx` renders inside `startTransition`. Medians of 10
+interleaved mobile samples, EP19 → EP20 → EP20 + fix:
+
+| Route | Long-task total (ms) | Max task (ms) | CDP total task time (ms) | FCP / LCP (ms) |
+| --- | --- | --- | --- | --- |
+| `/en/pricing` | 253 → 502 → **185** | 168 → 213 → **131** | 1571 → 1463 → 1479 | 2364/3054 → 2090/2718 → 2122/2724 |
+| `/zh/resources/human-error` | 657 → 926 → **574** | 430 → 412 → **403** | 1234 → 1168 → 1165 | 2390/2964 → 2048/2562 → 2058/2568 |
+| `/` | 2100 → 1272 → **1004** | 745 → 318 → **315** | 7987 → 5012 → 5024 | 2880/3756 → 2224/3180 → 2226/3116 |
+| `/pricing` | 531 → 390 → **115** | 270 → 169 → **115** | 1597 → 1299 → 1261 | 2222/2920 → 2204/2806 → 2198/2784 |
+
+Interaction latency on these routes is unchanged (Event Timing, 4× CPU: pricing tab 32 ms, FAQ
+80–88 ms, language selector 56 ms in all three builds) and scrolling either route after load
+produced no long animation frames in any build.
 
 ### Lighthouse 12 (diagnostic; mobile unless noted)
 
@@ -199,6 +219,10 @@ right fonts), never another route's.
   files per page instead of up to 40 sub-kilobyte requests, for +0.6 % bytes.
 - **Resources (EP16) is protected:** each guide is its own chunk; the Resources home and the
   search/glossary metadata never import a guide body (budget + test).
+- **Initial render as a transition** (`src/main.tsx`): because the page chunk is usually
+  ready before React's first render, the first render contains the whole page; rendering it
+  inside `startTransition` lets React slice it instead of blocking for ≈ 0.2 s (see §2,
+  follow-up).
 - **Homepage chapters.** On a fresh load that opens at the top of `/`, the hero paints first and
   chapters 02–11 mount right after in a transition (one ~0.9 s task at 4× CPU became ≈ 0.26 s +
   ≈ 0.3 s). Reloads, back/forward, `#chapter` links and in-app navigation render everything at

@@ -98,11 +98,12 @@ tested — EP22.1 verifies it.**
 25. **FCP:** mobile −50…−1070 ms everywhere (homepage 2996 → 2224, `/zh` 3188 → 2120); desktop
     380–440 ms everywhere.
 26. **Long tasks:** max task lower on 16 of 18 mobile entries (homepage 789 → 301, `/zh` 854 →
-    570). `/en/pricing` 147 → 190, `/zh/resources/human-error` unchanged at 391.
+    570). `/en/pricing` 147 → 190, `/zh/resources/human-error` unchanged at 391 — both resolved
+    in the owner-review follow-up below.
 27. **Main-thread work:** long-task total lower on 15 of 18 mobile entries (homepage 2272 → 1265
     ms). Higher on `/solutions` (659 → 667, flat), `/en/pricing` (198 → 433) and
-    `/zh/resources/human-error` (599 → 905) — Latin font-swap relayouts now land in the render
-    window on pages without a font preload.
+    `/zh/resources/human-error` (599 → 905). (The original explanation here — font-swap
+    relayouts — was wrong; see the follow-up below for the measured cause and fix.)
     TBT is not a clean signal (it is FCP-relative and FCP moved earlier; see PERFORMANCE.md §2).
 28. **Cold load:** transferred bytes on non-home routes −34…−62 KiB (e.g. `/pricing` 390 → 330
     KiB); homepage +10 KiB (chapters + Thai font preload, offset by the smaller entry). Requests
@@ -339,6 +340,33 @@ tested — EP22.1 verifies it.**
      touches every animated file); ≈ 0.8 MB heap per 12-route navigation round (pre-existing);
      mobile TBT reads higher on some routes because FCP moved earlier; unused
      `public/hero/atmosphere.*` (never downloaded).
+
+## OWNER-REVIEW FOLLOW-UP — `/en/pricing` and `/zh/resources/human-error`
+
+- **Method:** EP19 build vs EP20 build (and EP20 + fix), same Chrome 155, mobile profile (390×844,
+  4× CPU, 1.6 Mbit/s / 150 ms), cold context per run, fixed 10 s window, builds interleaved;
+  12 samples per build (first pass), 10 per build (three-way pass); medians with p25–p75;
+  traces of tasks > 8 ms to attribute work; CDP total task time beside the Long Tasks total.
+- **Finding:** repeatable (not variance). Total main-thread work was *lower* after EP20, but the
+  page's render became one blocking script task: with the chunk preloaded, the whole page was
+  rendered in React's initial (unsliced) render instead of a time-sliced Suspense retry. The
+  Long Tasks API counts script tasks only, so the old sliced render was invisible to it.
+  Classification: C (scheduling shift caused by earlier readiness), plus a real but small
+  increase in the largest script task (≈ +45 ms on `/en/pricing`).
+- **Fix:** initial `root.render` inside `startTransition` (`src/main.tsx`, one change).
+- **Result (medians, EP19 → EP20 → fixed):** `/en/pricing` long-task total 253 → 502 → 185 ms,
+  max task 168 → 213 → 131 ms; `/zh/resources/human-error` 657 → 926 → 574 ms, max 430 → 412 →
+  403 ms; homepage 2100 → 1272 → 1004 ms; `/pricing` 531 → 390 → 115 ms. FCP/LCP unchanged vs
+  EP20 (within ≈ 30 ms); CDP total task time unchanged vs EP20. Full table: PERFORMANCE.md §2.
+- **User-visible impact:** none negative before or after the fix — content appeared earlier in
+  EP20 (FCP −0.3 s, LCP −0.4 s on both routes), interactions measured the same, no scroll jank;
+  the fix shortens the longest blocking task during load.
+- **Re-verified after the fix:** initial JS 179.4 KiB gzip, budget within limits, `/app` not in
+  the entry, route preloads and 108 prerendered files verified, CLS ≤ 0.004, homepage mobile
+  FCP 2152 / LCP 2844 ms, CORE World 0 frames offscreen / hidden / reduced motion, 2 WebGL
+  contexts per homepage round trip, Chrome + Firefox smoke, routing (hash, back/forward, reload
+  scroll restoration, `/app` redirect, 404, skip link) and the development console.
+- `npm run perf` added as an alias of `npm run perf:budget`.
 
 ## GIT
 

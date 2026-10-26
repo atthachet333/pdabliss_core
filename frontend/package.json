@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --ssr src/seo/prerender.ts --outDir dist-prerender && node scripts/prerender.mjs && node scripts/verify-prerender.mjs && node scripts/perf-budget.mjs",
     "test:prerender": "node scripts/verify-prerender.mjs",
+    "perf": "node scripts/perf-budget.mjs",
     "perf:budget": "node scripts/perf-budget.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",

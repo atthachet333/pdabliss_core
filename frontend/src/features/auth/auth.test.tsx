@@ -209,6 +209,14 @@ describe('Account Portal', () => {
     expect(list).toHaveTextContent('อุปกรณ์นี้');
   });
 
+  it('starts keyboard focus at the page content once signed in (EP23 QA)', async () => {
+    fakeApi(signedIn(identity()));
+    renderRoute('/account');
+    await screen.findByRole('heading', { level: 1, name: 'บัญชีของคุณ' });
+    // Focus was on <body> after the sign-in page went away; now it is on <main>.
+    await waitFor(() => expect(document.getElementById('main')).toHaveFocus());
+  });
+
   it('shows a demo company owner their company, labelled as demo', async () => {
     fakeApi(
       signedIn(
@@ -349,6 +357,31 @@ describe('Platform Control Center', () => {
     expect(document.querySelector('[data-owner-only]')).toBeNull();
     expect(screen.queryByText('Platform Owner และ Platform Admin')).toBeNull();
     expect(api.called('GET /api/v1/platform/operators')).toHaveLength(0);
+  });
+
+  it('keeps long emails and cards inside the viewport on phones (EP23 overflow fix)', async () => {
+    // Below 768 px a long address and the grid cards pushed /platform sideways; the fix is
+    // min-w-0 on grid children and break-all on addresses. Layout itself is checked in the
+    // browser sweep (320–1440 px); this guards the classes that carry the fix.
+    const long = 'a.very.long.platform.operator.address.for.testing@subdomain.pdabliss.test';
+    fakeApi({
+      ...signedIn(identity({ platformRole: 'PLATFORM_OWNER', email: long })),
+      ...platformData,
+    });
+    renderRoute('/platform');
+    await screen.findByRole('heading', { level: 1, name: 'Platform Control Center' });
+    // Every place the address appears either wraps (break-all) or truncates inside a
+    // shrinkable (min-w-0) box.
+    for (const address of screen.getAllByText(long)) {
+      const wraps = address.classList.contains('break-all');
+      const truncates =
+        address.classList.contains('truncate') && address.classList.contains('min-w-0');
+      expect(wraps || truncates, address.className).toBe(true);
+      if (wraps) expect(address.parentElement).toHaveClass('min-w-0');
+    }
+    for (const card of document.querySelectorAll('[data-placeholder]')) {
+      expect(card).toHaveClass('min-w-0');
+    }
   });
 
   it('a customer account is sent from /platform to /account', async () => {

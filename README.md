@@ -22,10 +22,16 @@ and the CORE engines are built from EP23 on
 ([docs/FRONTEND_BACKEND_HANDOFF.md](docs/FRONTEND_BACKEND_HANDOFF.md)), and production deployment
 (with real Cloudflare and SEO verification) comes only after full-system QA.
 
+**EP23** (completed locally, awaiting owner review) establishes the account and real-authentication
+foundation on PostgreSQL + Prisma: registration, email verification, sign-in with emailed one-time
+codes, sessions, password recovery, Platform Owner / Platform Admin, the Account Portal and the
+Platform Control Center ([docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)). Payment, company setup and
+the Company Control Center come later.
+
 Roadmap:
 
 1. EP20 Performance → EP21 Release-candidate audit → **EP22 Public Frontend Freeze**
-2. EP23 Real Authentication → EP24 Database / Prisma → EP25 RBAC / Information boundaries →
+2. **EP23 Account & Real Authentication** → EP24 Database / Prisma → EP25 RBAC / Information boundaries →
    EP26 Organization / Users / Departments → EP27 Audit / Notifications / Activity → EP28 Master Data
 3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
    EP34 Executive
@@ -262,6 +268,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/PUBLIC_FRONTEND_RELEASE_CHECKLIST.md](docs/PUBLIC_FRONTEND_RELEASE_CHECKLIST.md) — reusable checklist for every future public release review
 - [docs/PUBLIC_FRONTEND_V1_FREEZE.md](docs/PUBLIC_FRONTEND_V1_FREEZE.md) — canonical public frontend v1 freeze manifest: baselines, route inventory, change policy
 - [docs/FRONTEND_BACKEND_HANDOFF.md](docs/FRONTEND_BACKEND_HANDOFF.md) — what the backend episodes (EP23+) inherit from the frozen frontend
+- [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) — accounts, roles, sign-in, one-time codes, sessions, recovery, rate limits, audit, bootstrap, testing
+- [docs/EP23_REPORT.md](docs/EP23_REPORT.md) — account and real authentication foundation report
 
 ---
 

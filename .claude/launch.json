@@ -4,42 +4,15 @@
     {
       "name": "backend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "--prefix",
-        "backend",
-        "run",
-        "dev"
-      ],
+      "runtimeArgs": ["--prefix", "backend", "run", "dev"],
       "port": 1112,
       "url": "http://localhost:1112"
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "--prefix",
-        "frontend",
-        "run",
-        "dev"
-      ],
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
       "port": 1111
-    },
-    {
-      "name": "ep23-api",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "C:/Users/User/AppData/Local/Temp/claude/D--One-Drive-OneDrive-Desktop-project-pdabliss-core/7fecfe88-9ce7-4099-805e-2e236fb9d92c/scratchpad/ep23/api.mjs"
-      ],
-      "port": 1212,
-      "url": "http://localhost:1212"
-    },
-    {
-      "name": "ep23-web",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "C:/Users/User/AppData/Local/Temp/claude/D--One-Drive-OneDrive-Desktop-project-pdabliss-core/7fecfe88-9ce7-4099-805e-2e236fb9d92c/scratchpad/ep23/web.mjs"
-      ],
-      "port": 1211
     }
   ]
 }

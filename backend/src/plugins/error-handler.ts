@@ -29,7 +29,8 @@ export function registerErrorHandling(app: FastifyInstance): void {
     if (status >= 400 && status < 500) {
       return reply.status(status).send({
         error: {
-          code: error.code ?? 'BAD_REQUEST',
+          // EP23: the per-route limiter sets no code — name a 429 for what it is.
+          code: error.code ?? (status === 429 ? 'RATE_LIMITED' : 'BAD_REQUEST'),
           message: error.message,
           requestId: request.id,
         },

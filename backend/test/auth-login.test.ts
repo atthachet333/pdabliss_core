@@ -131,6 +131,28 @@ describeDb('login (EP23)', () => {
     ).toBe(200);
   });
 
+  it('the generous per-IP limit does not widen guessing: one IP is stopped per account at 10', async () => {
+    // EP23: per-IP sign-in limits are 60 / 5 min for offices behind one NAT address;
+    // brute force against a single account is still cut off by the per-account throttle.
+    await createUser(h.db, 'member@example.com');
+    const office = new Browser(h.app);
+    const codes: string[] = [];
+    for (let i = 0; i < 11; i++) {
+      const res = await office.post(LOGIN, {
+        email: 'member@example.com',
+        password: 'wrong password!!',
+      });
+      codes.push(res.json().error.code);
+    }
+    expect(codes.slice(0, 10).every((c) => c === 'INVALID_CREDENTIALS')).toBe(true);
+    expect(codes[10]).toBe('LOGIN_THROTTLED');
+    // Colleagues on the same address are not affected.
+    await createUser(h.db, 'colleague@example.com');
+    expect(
+      (await office.post(LOGIN, { email: 'colleague@example.com', password: PASSWORD })).statusCode,
+    ).toBe(200);
+  });
+
   it('limits sign-in requests per IP', async () => {
     const b = new Browser(h.app);
     const statuses: number[] = [];
@@ -142,6 +164,8 @@ describeDb('login (EP23)', () => {
     }
     expect(statuses.slice(0, 60).every((s) => s === 401)).toBe(true);
     expect(statuses[60]).toBe(429);
+    const limited = await b.post(LOGIN, { email: 'n99@example.com', password: 'wrong password!!' });
+    expect(limited.json().error.code).toBe('RATE_LIMITED');
   });
 
   it('rehashes a password stored with older Argon2 parameters', async () => {

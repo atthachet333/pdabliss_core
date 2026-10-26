@@ -349,7 +349,8 @@ export function LoginGateway() {
                     to="/forgot-password"
                     {...authLinkState}
                     data-link="forgot"
-                    className="text-caption text-brand-soft underline-offset-4 hover:underline"
+                    // EP23: a 44 px hit area (was 20 px); the negative margin keeps the layout.
+                    className="-my-3 inline-flex min-h-11 items-center text-caption text-brand-soft underline-offset-4 hover:underline"
                   >
                     {c.forgot}
                   </Link>

@@ -54,6 +54,13 @@ production documentation, public UI or a production bundle.
 - CORS: the backend `CORS_ORIGINS` allow-list must include the real frontend origin, with
   credentials; rate limiting already exists (`@fastify/rate-limit`).
 
+**EP23 outcome (2026-10-26):** done as the account / real-authentication foundation — see
+[AUTHENTICATION.md](AUTHENTICATION.md) and [EP23_REPORT.md](EP23_REPORT.md). The prototype gate now
+requires a real server session (the EP01 browser-only credential is gone); sign-in lands customers in
+the Account Portal (`/account`) and platform operators in the Platform Control Center (`/platform`),
+not yet in a department workspace — that needs company setup and RBAC (later episodes). The login
+gateway gained the real form (Category B, presented for owner review).
+
 ## 5. Database handoff (EP24)
 
 - `backend/prisma/schema.prisma` (PostgreSQL, `prisma-client` generator) defines Company,
@@ -63,6 +70,11 @@ production documentation, public UI or a production bundle.
 - Branches are part of the product model (one company, many branches, all included in the price)
   but are **not yet in the schema** — add them in EP24/EP26.
 - Company stays a single row per deployment; do not introduce multi-company tenancy.
+
+**EP23 update:** PostgreSQL + Prisma are now in use for accounts and authentication (migration
+`20261026083839_ep23_account_auth_foundation`, local `pdabliss_core_dev` / `pdabliss_core_test`).
+The account tables (users, credentials, platform roles, sessions, tokens, invitations, auth audit)
+exist; company, branch and master-data modelling beyond the demo company remains EP24+ work.
 
 ## 6. RBAC handoff (EP25)
 
@@ -175,3 +187,8 @@ and pushed only after approval.
   tests. Database persistence arrives in EP24 and RBAC enforcement in EP25; EP23 must not claim
   either.
 - Out of scope for EP23: deployment, production credentials, DNS / Cloudflare, Search Console.
+
+**EP23 result:** completed locally (not pushed) on top of WIP `b2cbc49`. The scope grew with the
+owner-approved SaaS direction (registration, email verification, one-time codes, Platform Owner /
+Admin, Account Portal, Platform Control Center, invitation foundation) and uses PostgreSQL + Prisma.
+Payment, subscriptions, company creation and the Company Control Center are not part of it.

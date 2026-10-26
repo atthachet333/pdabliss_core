@@ -346,6 +346,8 @@ describe('real sign-in (EP23)', () => {
   it('links to registration and password recovery in the visitor’s language', async () => {
     const { router } = await open('/en/login');
     expect(document.querySelector('[data-link="register"]')).toHaveAttribute('href', '/register');
+    // EP23 QA: a 44 px target (it measured 20 px).
+    expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveClass('min-h-11');
     await userEvent.click(screen.getByRole('link', { name: 'Forgot password?' }));
     await screen.findByRole('heading', { level: 1, name: 'Reset your password' });
     expect(router.state.location.pathname).toBe('/forgot-password');

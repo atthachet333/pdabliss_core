@@ -1,5 +1,5 @@
 import { LoaderCircle, LogOut, ShieldAlert } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
@@ -115,6 +115,16 @@ export function PortalShell({
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const platform = area === 'platform';
+
+  // EP23 QA: after sign-in the previous page (and its focused field) is gone, so focus
+  // fell back to <body>. Start keyboard and screen-reader users at the new page's content —
+  // only when nothing else holds focus.
+  useEffect(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) {
+      document.getElementById('main')?.focus({ preventScroll: true });
+    }
+  }, [area]);
 
   const signOut = async () => {
     setError(null);

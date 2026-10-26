@@ -12,6 +12,17 @@ written justification.
 > Passing this checklist means the **public frontend** is releasable. It says nothing about the
 > backend, real authentication, data security or production hosting, which have their own reviews.
 
+## Status
+
+| Review | Result |
+| --- | --- |
+| EP21 release candidate (`c0656de`) | **PASS WITH ACCEPTED LIMITATIONS**, approved and pushed — [EP21_RELEASE_AUDIT.md](EP21_RELEASE_AUDIT.md) |
+| EP22 freeze | **CORE Public Frontend v1 — EP22 Freeze** (2026-10-26) — [PUBLIC_FRONTEND_V1_FREEZE.md](PUBLIC_FRONTEND_V1_FREEZE.md) |
+
+From the freeze on, every public release review also classifies each public change as Category A /
+B / C ([freeze manifest §19–§20](PUBLIC_FRONTEND_V1_FREEZE.md#19-allowed-post-freeze-changes-category-a--no-unfreeze-needed))
+and confirms `src/test/freeze.test.ts` passes unchanged — or was changed with owner approval.
+
 ## 1. Routes
 
 - [ ] The route set is derived from `src/config/publicRoutes.ts` (not from memory); count recorded.

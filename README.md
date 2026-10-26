@@ -15,12 +15,27 @@ CORE is department-, role-, task- and workflow-centric. See
 ## Project status
 
 The **public frontend v1** passed its release-candidate audit in EP21
-([docs/EP21_RELEASE_AUDIT.md](docs/EP21_RELEASE_AUDIT.md)) and is next frozen in EP22. That does
-**not** mean the product is production-ready: real authentication, the database, RBAC and the
-CORE engines are built from EP23 on, and production deployment (with real Cloudflare and SEO
-verification) comes only after full-system QA. The order is: finish public frontend → freeze it →
-build the backend and product → full-system QA, security and release readiness → deploy →
-verify production delivery → production SEO launch.
+([docs/EP21_RELEASE_AUDIT.md](docs/EP21_RELEASE_AUDIT.md)) and is frozen by EP22 as
+**CORE Public Frontend v1 — EP22 Freeze** ([docs/PUBLIC_FRONTEND_V1_FREEZE.md](docs/PUBLIC_FRONTEND_V1_FREEZE.md)).
+That does **not** mean the product is production-ready: real authentication, the database, RBAC
+and the CORE engines are built from EP23 on
+([docs/FRONTEND_BACKEND_HANDOFF.md](docs/FRONTEND_BACKEND_HANDOFF.md)), and production deployment
+(with real Cloudflare and SEO verification) comes only after full-system QA.
+
+Roadmap:
+
+1. EP20 Performance → EP21 Release-candidate audit → **EP22 Public Frontend Freeze**
+2. EP23 Real Authentication → EP24 Database / Prisma → EP25 RBAC / Information boundaries →
+   EP26 Organization / Users / Departments → EP27 Audit / Notifications / Activity → EP28 Master Data
+3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
+   EP34 Executive
+4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification
+   Engine → EP40 Reports / Custom Reports → EP41 API / Integration
+5. Full-system final QA / security / stress / release readiness → production deployment →
+   production SEO launch / Search Console / indexing
+
+After the freeze, public-frontend changes follow the categories in the freeze manifest (allowed /
+owner approval / never silently).
 
 ## Repository layout
 
@@ -245,6 +260,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP20_REPORT.md](docs/EP20_REPORT.md) — public performance hardening report
 - [docs/EP21_RELEASE_AUDIT.md](docs/EP21_RELEASE_AUDIT.md) — public frontend release-candidate audit (findings, fixes, verdict)
 - [docs/PUBLIC_FRONTEND_RELEASE_CHECKLIST.md](docs/PUBLIC_FRONTEND_RELEASE_CHECKLIST.md) — reusable checklist for every future public release review
+- [docs/PUBLIC_FRONTEND_V1_FREEZE.md](docs/PUBLIC_FRONTEND_V1_FREEZE.md) — canonical public frontend v1 freeze manifest: baselines, route inventory, change policy
+- [docs/FRONTEND_BACKEND_HANDOFF.md](docs/FRONTEND_BACKEND_HANDOFF.md) — what the backend episodes (EP23+) inherit from the frozen frontend
 
 ---
 

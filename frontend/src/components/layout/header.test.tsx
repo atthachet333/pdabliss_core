@@ -57,7 +57,7 @@ describe('public header (EP18)', () => {
     expect(login.querySelector('.sr-only')).toBeNull();
     expect(login).toHaveTextContent('เข้าสู่ระบบ');
     expect(contact.compareDocumentPosition(login) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(header).getByRole('button', { name: 'ภาษา: ภาษาไทย (TH)' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'TH, ภาษา: ภาษาไทย' })).toBeInTheDocument();
   });
 
   it('every menu has an intro, titled sections, live links and one featured destination', async () => {
@@ -215,6 +215,25 @@ describe('public header (EP18)', () => {
     overview.focus();
     await userEvent.keyboard('{ArrowLeft}');
     expect(within(nav).getByRole('button', { name: 'เกี่ยวกับเรา' })).toHaveFocus();
+  });
+
+  it('keeps an open panel next in the Tab order (EP21)', async () => {
+    const { nav } = await desktopNav();
+    const product = within(nav).getByRole('button', { name: 'ผลิตภัณฑ์' });
+    product.focus();
+    await userEvent.keyboard('{Enter}');
+    const panel = await screen.findByRole('region', { name: 'เมนูผลิตภัณฑ์' });
+    const links = within(panel).getAllByRole('link');
+
+    await userEvent.tab();
+    await waitFor(() => expect(links[0]).toHaveFocus());
+    await userEvent.tab({ shift: true });
+    expect(product).toHaveFocus();
+
+    links.at(-1)!.focus();
+    await userEvent.tab();
+    expect(within(nav).getByRole('button', { name: 'โซลูชัน' })).toHaveFocus();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'เมนูผลิตภัณฑ์' })).toBeNull());
   });
 
   it('closes on outside click', async () => {

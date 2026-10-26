@@ -236,6 +236,30 @@ describe('cookie consent', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('closing Cookie Settings returns focus to the control that opened it (EP21)', async () => {
+    renderRoute('/');
+    const banner = await screen.findByRole('region', { name: 'คุกกี้และความเป็นส่วนตัว' });
+    await userEvent.click(within(banner).getByRole('button', { name: 'ตั้งค่าคุกกี้' }));
+    screen.getByRole('dialog', { name: 'การตั้งค่าคุกกี้' });
+    await userEvent.keyboard('{Escape}');
+    // The banner re-mounts with the dialog closed; its Settings button gets focus back.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'คุกกี้และความเป็นส่วนตัว' })).getByRole(
+          'button',
+          { name: 'ตั้งค่าคุกกี้' },
+        ),
+      ).toHaveFocus(),
+    );
+
+    acceptStored();
+    const footer = screen.getByRole('contentinfo');
+    const footerButton = within(footer).getByRole('button', { name: 'การตั้งค่าคุกกี้' });
+    await userEvent.click(footerButton);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(footerButton).toHaveFocus());
+  });
+
   it('a stored choice hides the banner; a stale version asks again', async () => {
     acceptStored();
     const first = renderRoute('/');

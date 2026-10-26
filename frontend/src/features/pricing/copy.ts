@@ -99,7 +99,7 @@ const th = {
     support: 'การสนับสนุน',
     demo: 'ขอ Demo',
     configure: 'จำลองการตั้งค่าแพ็คเกจนี้',
-    talk: 'พูดคุยกับทีม PDA BLISS',
+    talk: 'คุยกับทีม PDA BLISS',
     process: 'ดูขั้นตอน Enterprise',
     change: 'อัปเกรดได้ทุกเมื่อ · ดาวน์เกรดได้ตามรอบบิล',
     layer: 'ชั้น',
@@ -546,7 +546,7 @@ const th = {
     ],
     scopeNote: 'ความสามารถของ Enterprise สามารถกำหนดในขอบเขตโครงการ ไม่ได้รวมทุกรายการโดยอัตโนมัติ',
     quote: 'ขอใบเสนอราคา',
-    talk: 'พูดคุยกับทีม PDA BLISS',
+    talk: 'คุยกับทีม PDA BLISS',
   },
   early: {
     eyebrow: 'CORE Early Access',
@@ -642,7 +642,7 @@ const th = {
     title: 'เริ่มจากสิ่งที่องค์กรต้องใช้',
     lead: 'ดูระบบจริงกับทีมงาน แล้วเลือกแพ็คเกจที่เหมาะกับวิธีทำงานของคุณ',
     demo: 'ขอ Demo',
-    consult: 'ปรึกษาทีม PDA BLISS',
+    consult: 'คุยกับทีม PDA BLISS',
   },
 };
 
@@ -1831,7 +1831,7 @@ const zh: PricingCopy = {
     title: '从组织需要的开始',
     lead: '与团队一起了解真实系统，再选择适合您工作方式的方案。',
     demo: '申请演示',
-    consult: '咨询 PDA BLISS 团队',
+    consult: '与 PDA BLISS 团队沟通',
   },
 };
 

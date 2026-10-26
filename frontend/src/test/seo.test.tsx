@@ -259,7 +259,7 @@ describe('non-indexed pages and invalid URLs', () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     renderRoute('/pricing?plan=business#packages');
     await screen.findByRole('heading', { level: 1 });
-    await userEvent.click(screen.getByRole('button', { name: /^ภาษา:/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^TH, ภาษา:/ }));
     expect(screen.getByRole('link', { name: /^English/ })).toHaveAttribute(
       'href',
       '/en/pricing?plan=business#packages',

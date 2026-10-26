@@ -69,7 +69,7 @@ const th: Record<DepartmentId, DepartmentText> = {
     purpose: 'รับสินค้า ตรวจคุณภาพ ควบคุมล็อตและวันหมดอายุ ด้วยหน้าจอที่เน้นงานหน้างาน',
     focus: ['รอรับสินค้า / รอ QC', 'ล็อตใกล้หมดอายุ (FEFO)', 'งานตรวจนับสต็อก'],
     documents: ['Goods Receipt', 'Stock Movement', 'Stock Count'],
-    visibility: 'เห็นเฉพาะจำนวน ล็อต และวันที่ — ไม่มีข้อมูลราคาส่งมาจากเซิร์ฟเวอร์',
+    visibility: 'เห็นเฉพาะจำนวน ล็อต และวันที่ — ออกแบบให้ไม่มีข้อมูลราคาส่งมาถึง',
     highlights: ['รับสินค้า', 'Stock', 'Lot / Batch', 'วันหมดอายุ'],
   },
   purchasing: {
@@ -129,7 +129,7 @@ const en: Record<DepartmentId, DepartmentText> = {
       'Receive goods, check quality and control lots and expiry on screens built for the floor.',
     focus: ['Awaiting receipt / QC', 'Lots near expiry (FEFO)', 'Stock counts'],
     documents: ['Goods Receipt', 'Stock Movement', 'Stock Count'],
-    visibility: 'Sees quantities, lots and dates only — the server sends no price data.',
+    visibility: 'Sees quantities, lots and dates only — designed so no price data is sent to it.',
     highlights: ['Goods receipt', 'Stock', 'Lot / Batch', 'Expiry dates'],
   },
   purchasing: {
@@ -190,7 +190,7 @@ const zhCN: Record<DepartmentId, DepartmentText> = {
     purpose: '收货、质检、管控批次与有效期，界面专为现场作业设计。',
     focus: ['待收货 / 待质检', '临期批次（FEFO）', '库存盘点'],
     documents: ['Goods Receipt', 'Stock Movement', 'Stock Count'],
-    visibility: '仅查看数量、批次与日期——服务器不发送任何价格数据。',
+    visibility: '仅查看数量、批次与日期——按设计不会向其发送任何价格数据。',
     highlights: ['收货', '库存', '批次 / Batch', '有效期'],
   },
   purchasing: {

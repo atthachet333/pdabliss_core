@@ -155,7 +155,8 @@ describe('/security page', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ทุกคนไม่ควรเห็นทุกอย่าง');
     expect(document.querySelector('[data-concept]')).toHaveTextContent('Firewall');
-    expect(document.title).toContain('ความปลอดภัยและความไว้วางใจ');
+    // The title is set by an effect after the page commits.
+    await waitFor(() => expect(document.title).toContain('ความปลอดภัยและความไว้วางใจ'));
   });
 
   it('shows the Warehouse window first: money fields stop before the view', async () => {

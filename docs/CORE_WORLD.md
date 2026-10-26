@@ -184,6 +184,11 @@ tier (never up).
   homepage disposes the renderer (R3F `forceContextLoss`); returning creates exactly one new
   canvas. On a 390 × 844 phone the stage starts in the first viewport (y ≈ 693 px), so the
   scene still loads after first paint rather than on scroll. See [PERFORMANCE.md](PERFORMANCE.md).
+- **EP21 — shared GPU resources are released on unmount** (`halo.ts`): the cached halo texture
+  and three.js's shared sprite geometry kept every past renderer — WebGL context, canvas and the
+  old homepage DOM — reachable through their `dispose` listeners (≈ 300 detached nodes per
+  homepage visit). Both are now disposed when the scene unmounts and re-upload on the next visit;
+  repeated homepage visits retain nothing.
 
 ## 10. Mobile
 

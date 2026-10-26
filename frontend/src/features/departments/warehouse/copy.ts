@@ -27,7 +27,7 @@ const th = {
   privacy: {
     eyebrow: 'Operational privacy',
     title: 'ข้อมูลที่คลังไม่จำเป็นต้องรู้\nจะไม่ถูกส่งมาที่คลังเลย',
-    lead: 'พื้นที่คลังแสดงจำนวน Lot วันที่ และตำแหน่ง — ไม่มีราคาซื้อ ต้นทุน ราคาขาย หรือยอดชำระ Supplier เพราะไม่เกี่ยวกับหน้าที่ของคลัง และเซิร์ฟเวอร์ไม่ส่งข้อมูลเหล่านี้มาตั้งแต่ต้น ไม่ใช่แค่ซ่อนไว้บนหน้าจอ',
+    lead: 'พื้นที่คลังแสดงจำนวน Lot วันที่ และตำแหน่ง — ไม่มีราคาซื้อ ต้นทุน ราคาขาย หรือยอดชำระ Supplier เพราะไม่เกี่ยวกับหน้าที่ของคลัง และ CORE ออกแบบให้เซิร์ฟเวอร์ไม่ส่งข้อมูลเหล่านี้มาตั้งแต่ต้น ไม่ใช่แค่ซ่อนไว้บนหน้าจอ',
     sees: 'คลังเห็น',
     seesItems: [
       'จำนวน',
@@ -232,7 +232,7 @@ export const WAREHOUSE: Localized<typeof th> = {
     privacy: {
       eyebrow: 'Operational privacy',
       title: 'Data the warehouse doesn’t need\nis never sent to the warehouse',
-      lead: 'The warehouse workspace shows quantities, lots, dates and locations — no purchase price, cost, selling price or supplier payments. They are not part of the job, and the server never sends them in the first place; they are not merely hidden on screen.',
+      lead: 'The warehouse workspace shows quantities, lots, dates and locations — no purchase price, cost, selling price or supplier payments. They are not part of the job, and CORE is designed so the server never sends them in the first place — they are not merely hidden on screen.',
       sees: 'The warehouse sees',
       seesItems: [
         'Quantities',
@@ -442,7 +442,7 @@ export const WAREHOUSE: Localized<typeof th> = {
     privacy: {
       eyebrow: 'Operational privacy',
       title: '仓库不需要知道的数据\n根本不会发送到仓库',
-      lead: '仓库工作空间只显示数量、批次、日期与库位——没有采购价、成本、售价或供应商付款，因为这些与仓库的职责无关，而且服务器从一开始就不会发送，并不只是在界面上隐藏。',
+      lead: '仓库工作空间只显示数量、批次、日期与库位——没有采购价、成本、售价或供应商付款，因为这些与仓库的职责无关，而且按 CORE 的设计，服务器从一开始就不会发送，并不只是在界面上隐藏。',
       sees: '仓库看得到',
       seesItems: ['数量', '批次 / Batch', '生产日期 · 到期日', '库位', '可用 / 暂扣状态'],
       never: '仓库看不到',

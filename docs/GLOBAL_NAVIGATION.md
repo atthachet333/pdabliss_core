@@ -113,6 +113,10 @@ The keyboard and semantics are unchanged from EP05, and tested:
 - ↓ opens a menu and focuses its first link.
 - Escape closes and returns focus.
 - Tabbing out or clicking outside closes the menu, as does navigating.
+- EP21: an open panel follows its trigger in the Tab order. Enter / Space opens it with focus on
+  the trigger; Tab moves to the panel's first link, Shift+Tab from that link returns to the
+  trigger, and Tab from the last link closes the panel and moves to the next item. (The panel is
+  rendered after the whole bar, so without this the other triggers were visited first.)
 
 ## Mobile menu
 

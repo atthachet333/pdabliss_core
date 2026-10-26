@@ -68,7 +68,7 @@ const th = {
     keyLead:
       'ทุกความสามารถในหน้านี้ระบุสถานะไว้ชัดเจน — สิ่งที่มีวันนี้ สิ่งที่กำหนดตามขอบเขต และสิ่งที่อยู่ในแผน',
     quote: 'ขอใบเสนอราคา',
-    talk: 'พูดคุยกับทีม PDA BLISS',
+    talk: 'คุยกับทีม PDA BLISS',
     pricing: 'ดูแพ็คเกจ Enterprise',
     workflowLink: 'ดูกลไกใน How CORE Works',
     solutionsLink: 'ดูปัญหาที่เกี่ยวข้อง',

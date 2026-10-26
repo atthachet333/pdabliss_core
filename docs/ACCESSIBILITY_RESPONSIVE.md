@@ -10,6 +10,11 @@ certification.
 - A skip link is first in the tab order on the public shell and on `/login`.
 - Header, mega menus, language selector, mobile navigation, cookie preferences and the floating
   contact panel expose names, state and focus return. Escape closes temporary overlays.
+- EP21: closing Cookie Settings without a choice returns focus to the control that opened it
+  (the banner's Settings button, re-found after the banner re-mounts, or the footer button). The
+  language button's accessible name starts with its visible code (`TH, ภาษา: ภาษาไทย`) so
+  speech input and automated checks match it (WCAG 2.5.3). Mega-menu panels follow their
+  trigger in the Tab order (see [GLOBAL_NAVIGATION.md](GLOBAL_NAVIGATION.md)).
 - Focus uses a visible `:focus-visible` indicator. Controls remain at least 44 CSS pixels where
   they are primary touch actions, and public pill buttons may wrap and grow instead of clipping.
 - Contact uses fieldsets and legends, focuses each new question, focuses the first invalid field,

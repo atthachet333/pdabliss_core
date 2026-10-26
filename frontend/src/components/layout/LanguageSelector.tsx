@@ -78,8 +78,9 @@ export function LanguageSelector({ variant = 'menu' }: { variant?: 'menu' | 'inl
         type="button"
         aria-expanded={open}
         aria-controls={listId}
-        // EP19: the name contains the visible code (TH / EN / 中文) for voice control (WCAG 2.5.3).
-        aria-label={`${t.language.current(current.nativeName)} (${current.short})`}
+        // EP19: the name contains the visible code (TH / EN / 中文) for voice control (WCAG 2.5.3);
+        // EP21: it comes first, as a plain word, so speech input and checkers match it.
+        aria-label={`${current.short}, ${t.language.current(current.nativeName)}`}
         onClick={() => setOpen((v) => !v)}
         // EP18.1: an outlined pill, so it reads as a control; emerald edge while open.
         className={cn(

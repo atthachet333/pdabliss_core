@@ -124,15 +124,33 @@ export function DesktopNav({ onOpenChange }: { onOpenChange: (open: boolean) => 
     } else if (e.key === 'Escape' && open) {
       e.preventDefault();
       set(null);
+    } else if (e.key === 'Tab' && !e.shiftKey && entry.kind === 'mega' && open === entry.id) {
+      // EP21: the panel follows its trigger in the Tab order (it is rendered after
+      // the whole bar, so the browser would otherwise visit the other triggers first).
+      e.preventDefault();
+      focusFirstLink();
     }
   };
 
   const onPanelKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape' && open) {
+    if (!open) return;
+    const i = TOP_NAV.findIndex((n) => n.kind === 'mega' && n.id === open);
+    if (e.key === 'Escape') {
       e.preventDefault();
-      const i = TOP_NAV.findIndex((n) => n.kind === 'mega' && n.id === open);
       set(null);
       items.current[i]?.focus();
+    } else if (e.key === 'Tab') {
+      const links = [...(panelRef.current?.querySelectorAll<HTMLElement>('a[href]') ?? [])];
+      if (e.shiftKey && document.activeElement === links[0]) {
+        // Shift+Tab from the first link returns to the trigger.
+        e.preventDefault();
+        items.current[i]?.focus();
+      } else if (!e.shiftKey && document.activeElement === links.at(-1) && items.current[i + 1]) {
+        // Tab from the last link closes the panel and continues with the next item.
+        e.preventDefault();
+        set(null);
+        items.current[i + 1]?.focus();
+      }
     }
   };
 

@@ -7,7 +7,9 @@ that guard it and the rules for keeping it that way. Established in EP20 (see
 > **Scope and honesty.** Every number here is a **local, synthetic, pre-production**
 > measurement. None of it is real-user (field) Core Web Vitals data — there is no RUM yet.
 > **Real production delivery through Cloudflare (compression, cache headers, HTTP/2–3, per-route
-> HTML, redirects, 404) is NOT verified in EP20**; EP22.1 verifies it on the public URL.
+> HTML, redirects, 404) is NOT verified in EP20 or EP21**; it is verified on the public URL in the
+> production-deployment phase, after the backend is built (EP21 roadmap update — EP22 freezes the
+> public frontend; EP23+ is backend work; deployment and production checks come later).
 > Never quote these figures as "the site loads in X seconds for users".
 
 ## 1. Measurement method
@@ -126,7 +128,7 @@ Lighthouse's *simulated* LCP for `/` and `/en` came out worse (≈ +0.6 s). With
 over HTTP/1.1 its own devtools mode also showed `/` LCP +0.2 s — that is the local server: one
 HTTP/1.1 host allows 6 connections, and the EP20 page issues more, smaller requests. Over HTTP/2
 (what a CDN serves) both the harness and Lighthouse devtools show LCP improving (`/` −0.5 s,
-`/en` −1.2 s). EP22.1 must re-check on the real host.
+`/en` −1.2 s). The production-deployment phase must re-check on the real host.
 
 ### Warm navigation (desktop, first visit to each route in a session)
 
@@ -164,6 +166,18 @@ DOM size constant. WebGL contexts created: 14 → **8** (each homepage visit cre
 probe context *and* the scene context; the probe now runs once per session). Heap after GC
 16.1 → 16.3 MB after 3 rounds (+≈ 0.8 MB per round both before and after EP20 — pre-existing,
 small, noted for EP21). R3F disposes the renderer (`forceContextLoss`) on leave.
+
+**EP21 follow-up — real leak found and fixed.** CDP DOM counters (after forced GC) showed every
+homepage visit retaining ≈ 308 detached DOM nodes and 37 event listeners (the whole previous
+hero). Heap-snapshot retainer paths traced it to two module-level GPU resources — the cached
+CORE World halo texture and the one geometry three.js shares between all sprites — whose
+`dispose` listeners kept every past renderer, its WebGL context, canvas and old DOM reachable.
+`src/features/landing/core-world/halo.ts` now releases both when the scene unmounts.
+Measured (6 homepage visits per round): before +1,848 nodes / +222 listeners / +1.1–2.1 MB per
+round; after **0 nodes / 0 listeners**, heap flat within GC noise. One canvas and one WebGL
+context per homepage visit; no other public page retains anything. (A Playwright
+`ElementHandle` held by the test script itself also retains old DOM — measure with in-page
+clicks.)
 
 ## 3. Performance budget (`scripts/perf-budget.mjs`)
 
@@ -300,7 +314,8 @@ downloaded; left in place (removal is a content decision, not a performance one)
 - Fonts (`/assets/*.woff2`) are same-origin and hashed — same immutable rule; preload uses
   `crossorigin`.
 - These are recommendations for the host configuration; nothing is hard-coded in the app.
-  **EP22.1 verifies the real Cloudflare headers, compression, per-route HTML, redirects and 404.**
+  **The production-deployment phase (after the backend) verifies the real Cloudflare headers,
+  compression, per-route HTML, redirects and 404.**
 
 ## 10. Regression rules
 
@@ -322,5 +337,4 @@ downloaded; left in place (removal is a content decision, not a performance one)
 - Accepted debt: the CORE World chunk (≈ 236 KiB gzip; R3F pulls in most of three.js); the one
   Tailwind stylesheet includes `/app` workspace styles (≈ 44.5 KiB gzip, split not worth the
   architecture change); Framer Motion's full `motion` component (a `LazyMotion` migration
-  touches every animated file); ≈ 0.8 MB heap growth per 12-route navigation round
-  (pre-existing).
+  touches every animated file). The heap growth noted in EP20 was a real leak and is fixed (EP21).

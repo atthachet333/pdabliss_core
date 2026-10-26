@@ -62,7 +62,7 @@ const th = {
       lead: 'ทุกประเภทธุรกิจใช้แพ็คเกจ CORE ชุดเดียวกัน ไม่มีราคาแยกตามอุตสาหกรรม',
       cta: 'ดูแพ็คเกจ',
     },
-    consult: 'ปรึกษาทีม PDA BLISS',
+    consult: 'คุยกับทีม PDA BLISS',
     all: 'ประเภทธุรกิจทั้งหมด',
     solutionsTitle: 'ปัญหาที่เกี่ยวข้อง',
     workflowTitle: 'ดูกลไกใน How CORE Works',

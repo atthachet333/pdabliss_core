@@ -6,6 +6,7 @@ import { INTRO, QUALITY_SETTINGS } from './constants';
 import { CoreSphere } from './CoreSphere';
 import { DataConnections } from './DataConnections';
 import { DepartmentNode } from './DepartmentNode';
+import { releaseSharedResources } from './halo';
 import { WebGLBoundary } from './WebGLBoundary';
 import { cameraDistance, CAMERA, nodeLocal, TILT } from './layout';
 import { OrbitSystem } from './OrbitSystem';
@@ -66,6 +67,9 @@ function Scene(props: CoreWorldProps) {
     runtime.stage = props.stage;
     invalidate();
   }, [runtime, props.hovered, props.selected, props.stage, invalidate]);
+  // EP21: shared GPU resources must not keep this renderer alive (see halo.ts).
+  useEffect(() => releaseSharedResources, []);
+
   const { invalidateRef } = props;
   useEffect(() => {
     invalidateRef.current = invalidate;

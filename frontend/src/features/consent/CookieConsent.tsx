@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useBodyScrollLock, useFocusTrap } from '@/components/core/hooks';
 import { keepFocusInPage } from '@/components/layout/focus';
@@ -102,7 +102,12 @@ function CookieBanner({
             {t.cookie.rejectNonEssential}
           </button>
         </div>
-        <button type="button" className={cn(btnQuiet, 'mt-1 -ml-3')} onClick={onSettings}>
+        <button
+          type="button"
+          data-cookie-settings
+          className={cn(btnQuiet, 'mt-1 -ml-3')}
+          onClick={onSettings}
+        >
           {t.cookie.settings}
         </button>
       </div>
@@ -311,8 +316,14 @@ export function CookieConsent({ children }: { children: ReactNode }) {
   const consent = useConsent();
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+  // The control that opened Cookie Settings (footer button or banner button).
+  const opener = useRef<HTMLElement | null>(null);
+  const openPrefs = useCallback(() => {
+    opener.current = document.activeElement as HTMLElement | null;
+    setPrefsOpen(true);
+  }, []);
 
-  const value = useMemo(() => ({ openPreferences: () => setPrefsOpen(true) }), []);
+  const value = useMemo(() => ({ openPreferences: openPrefs }), [openPrefs]);
 
   const decide = (choices: ConsentChoices) => {
     saveConsent(choices);
@@ -330,7 +341,7 @@ export function CookieConsent({ children }: { children: ReactNode }) {
             key="banner"
             onAcceptAll={() => decide(ALL_ACCEPTED)}
             onReject={() => decide(ESSENTIAL_ONLY)}
-            onSettings={() => setPrefsOpen(true)}
+            onSettings={openPrefs}
           />
         )}
       </AnimatePresence>
@@ -342,7 +353,20 @@ export function CookieConsent({ children }: { children: ReactNode }) {
             onSave={decide}
             onClose={() => {
               setPrefsOpen(false);
-              keepFocusInPage();
+              // EP21: closing without a choice returns focus to the control that
+              // opened the dialog. A banner opener re-mounts with the banner, so
+              // it is looked up again; the page landmark is the last resort.
+              window.setTimeout(() => {
+                const el = opener.current;
+                const target =
+                  el && document.contains(el)
+                    ? el
+                    : document.querySelector<HTMLElement>(
+                        '[data-shell="cookie-banner"] [data-cookie-settings]',
+                      );
+                if (target) target.focus();
+                else keepFocusInPage();
+              });
             }}
           />
         )}

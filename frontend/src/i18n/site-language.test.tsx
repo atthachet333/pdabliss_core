@@ -80,7 +80,7 @@ describe('whole-site language switching', () => {
       'ปัญหาไม่ได้อยู่ที่งานเยอะเสมอไป',
     );
     const header = screen.getByRole('banner');
-    await userEvent.click(within(header).getByRole('button', { name: 'ภาษา: ภาษาไทย (TH)' }));
+    await userEvent.click(within(header).getByRole('button', { name: 'TH, ภาษา: ภาษาไทย' }));
     await userEvent.click(within(header).getByRole('link', { name: /English/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/en/solutions'));
     await waitFor(() =>

@@ -33,7 +33,7 @@ describe('header menus', () => {
 describe('language selector', () => {
   it('opens a list where the current language is explicit', async () => {
     renderRoute('/zh/resources');
-    const trigger = await screen.findByRole('button', { name: /^语言/ });
+    const trigger = await screen.findByRole('button', { name: /^中文, 语言/ });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');

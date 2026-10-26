@@ -12,6 +12,16 @@ CORE is a different product from PDA ONE. PDA ONE is company-centric business ma
 CORE is department-, role-, task- and workflow-centric. See
 [docs/PRODUCT_CONCEPT.md](docs/PRODUCT_CONCEPT.md).
 
+## Project status
+
+The **public frontend v1** passed its release-candidate audit in EP21
+([docs/EP21_RELEASE_AUDIT.md](docs/EP21_RELEASE_AUDIT.md)) and is next frozen in EP22. That does
+**not** mean the product is production-ready: real authentication, the database, RBAC and the
+CORE engines are built from EP23 on, and production deployment (with real Cloudflare and SEO
+verification) comes only after full-system QA. The order is: finish public frontend → freeze it →
+build the backend and product → full-system QA, security and release readiness → deploy →
+verify production delivery → production SEO launch.
+
 ## Repository layout
 
 ```
@@ -55,7 +65,7 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 | `npm run dev`          | Vite dev server on 1111        | `tsx watch` on 1112             |
 | `npm run build`        | typecheck + production bundle + prerendered head for all 105 public URLs (verified) + performance budget | compile to `dist/` |
 | `npm run test:prerender` | re-check the built HTML of every public URL (no JavaScript) | — |
-| `npm run perf:budget`  | re-check bundle / chunk / asset / HTML budgets of the last build (docs/PERFORMANCE.md) | — |
+| `npm run perf` / `perf:budget` | re-check bundle / chunk / asset / HTML budgets of the last build (docs/PERFORMANCE.md) | — |
 | `npm start`            | —                              | run compiled server             |
 | `npm run typecheck`    | `tsc -b`                       | `tsc --noEmit`                  |
 | `npm run lint`         | ESLint                         | ESLint (type-aware)             |
@@ -233,6 +243,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP19_REPORT.md](docs/EP19_REPORT.md) — responsive and accessibility hardening report
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — public performance method, baseline, budgets, loading and runtime rules
 - [docs/EP20_REPORT.md](docs/EP20_REPORT.md) — public performance hardening report
+- [docs/EP21_RELEASE_AUDIT.md](docs/EP21_RELEASE_AUDIT.md) — public frontend release-candidate audit (findings, fixes, verdict)
+- [docs/PUBLIC_FRONTEND_RELEASE_CHECKLIST.md](docs/PUBLIC_FRONTEND_RELEASE_CHECKLIST.md) — reusable checklist for every future public release review
 
 ---
 

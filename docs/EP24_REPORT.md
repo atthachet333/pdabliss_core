@@ -105,7 +105,7 @@ indicator, focus to the first invalid field, focus to the code field, wrong code
 
 | Chrome | Edge | Firefox |
 | --- | --- | --- |
-| 273/273 | 273/273 | **not run** — both installed Playwright Firefox builds fail to start on this machine ("side-by-side configuration is incorrect"); a fresh browser download was not made without approval |
+| 273/273 | 273/273 | **not run** — Playwright Firefox cannot start on this machine: Windows 11 26H2 (build 26300) refuses its private `mozglue` side-by-side assembly ("side-by-side configuration is incorrect", SideBySide event log). A fresh `playwright install --force firefox` (owner-approved) fails identically, so the cause is the OS, not the download. Needs another Windows build or machine |
 
 Safari not available.
 

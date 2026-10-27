@@ -14,6 +14,7 @@ import {
 } from '../mail/templates.js';
 import { recordAuthEvent, type RequestMeta } from './audit.js';
 import { normalizeEmail, randomToken, sha256, subjectHash } from './crypto.js';
+import { demoBypassEnabled, isDemoBypassAccount } from './demo-bypass.js';
 import {
   accountUnavailable,
   emailNotVerified,
@@ -105,7 +106,12 @@ const isUniqueViolation = (e: unknown) =>
   e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
 
 export class AuthService {
-  constructor(private readonly deps: AuthDeps) {}
+  /** Development / test only: see src/auth/demo-bypass.ts. Always false in production. */
+  readonly demoBypass: boolean;
+
+  constructor(private readonly deps: AuthDeps) {
+    this.demoBypass = demoBypassEnabled(deps.env);
+  }
 
   private get db() {
     return this.deps.db;
@@ -362,6 +368,17 @@ export class AuthService {
 
     // Platform accounts: a code on every sign-in. Customers: on a new browser.
     const privileged = !!user.platformRole;
+    // DEVELOPMENT ONLY: the seeded demo customers skip the code (after the
+    // password and status checks above). Never a platform account.
+    if (!privileged && this.demoBypass && (await isDemoBypassAccount(this.db, user))) {
+      await recordAuthEvent(this.db, meta, {
+        type: 'DEMO_AUTH_BYPASS',
+        userId: user.id,
+        subjectHash: subject,
+        metadata: { skipped: 'login_otp' },
+      });
+      return this.openSession(user, { privileged: false, stepUp: false, subject, meta });
+    }
     const trusted = !privileged && (await isTrustedDevice(this.db, user.id, deviceToken));
     if (!trusted) {
       const bindingToken = randomToken();

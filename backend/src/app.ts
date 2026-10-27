@@ -103,6 +103,11 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
       // The manual activation exists only outside production (EP24).
       companies: new CompanyService(db, env.NODE_ENV !== 'production'),
     };
+    if (services.auth.demoBypass) {
+      app.log.warn(
+        'Demo sign-in bypass is ON (development only): the seeded demo customers skip the emailed code.',
+      );
+    }
     if (mailer.kind === 'dev') {
       app.log.warn(
         `Mail goes to the local development sink (${env.DEV_MAIL_DIR}); nothing is delivered.`,

@@ -121,7 +121,7 @@ use `429` with code `RATE_LIMITED` (per IP) or the specific auth code.
 `EMAIL_VERIFIED`, `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `OTP_SENT`, `OTP_SUCCESS`, `OTP_FAILURE`,
 `STEP_UP_SUCCESS`, `PASSWORD_RESET_REQUEST`, `PASSWORD_RESET_SUCCESS`, `LOGOUT`, `LOGOUT_ALL`,
 `SESSION_REVOKED`, `INVITATION_CREATED/ACCEPTED/REVOKED`, `PLATFORM_ROLE_GRANTED/REVOKED`,
-`ACCOUNT_SUSPENDED/REACTIVATED`, `PLATFORM_BOOTSTRAP`. Failed sign-ins are attributed by a keyed
+`ACCOUNT_SUSPENDED/REACTIVATED`, `PLATFORM_BOOTSTRAP`, and (development only) `DEMO_AUTH_BYPASS`. Failed sign-ins are attributed by a keyed
 hash of the address, never the typed text. No password, code, token or cookie value is stored or
 logged (tested against the store and the server log).
 
@@ -178,6 +178,30 @@ npm --prefix backend run auth:cleanup   # remove expired tokens / old sessions
   production.
 - Demo identities: `owner.demo@`, `admin.demo@`, `executive.demo@`, `staff.demo@pdabliss.com` in
   `PDA BLISS CORE DEMO COMPANY` (six departments, marked demo).
+
+### Development-only demo sign-in bypass
+
+`backend/src/auth/demo-bypass.ts` (added after EP24 at the owner's request). The four seeded demo
+customers may skip the emailed **login** code so local demos do not need the mail sink. The bypass
+applies only when **all** of these hold:
+
+1. `NODE_ENV !== 'production'` (checked in code, whatever else is configured);
+2. `ENABLE_DEMO_ROUTES` resolved to `true` (it defaults to off in production);
+3. the normalized email is exactly `owner.demo@pdabliss.com`, `admin.demo@pdabliss.com`,
+   `executive.demo@pdabliss.com` or `staff.demo@pdabliss.com` — no domain or pattern match;
+4. the account has no platform role (PLATFORM_OWNER / PLATFORM_ADMIN are always challenged);
+5. the account is a member of a seeded demo company (`Company.isDemo`).
+
+It runs only after the normal checks: throttling, the Argon2id password check, suspended /
+unverified refusal. The result is an ordinary customer session (not privileged, no step-up, same
+lifetimes); authorization and company isolation are unchanged. Each use is audited as
+`DEMO_AUTH_BYPASS` (`{ skipped: 'login_otp' }`, next to the usual `LOGIN_SUCCESS`), and the
+server logs a warning at start-up while the bypass is on. Migration
+`20261027100000_dev_demo_auth_bypass_event` adds the event type. Tests:
+`backend/test/auth-demo-bypass.test.ts` — development success for all four, wrong password,
+unverified / suspended, platform roles with demo addresses, other `@pdabliss.com` and look-alike
+addresses, normal customers, a demo address outside the demo company, no platform access, demo
+routes off, and production with demo routes forced on.
 
 ## 9. Testing
 

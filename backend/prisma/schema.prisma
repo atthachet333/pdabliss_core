@@ -532,6 +532,8 @@ enum AuthEventType {
   ACCOUNT_SUSPENDED
   ACCOUNT_REACTIVATED
   PLATFORM_BOOTSTRAP
+  /// Development only: a seeded demo customer signed in without the emailed code.
+  DEMO_AUTH_BYPASS
 }
 
 /// Security-relevant authentication events. Append-only; never holds secrets.

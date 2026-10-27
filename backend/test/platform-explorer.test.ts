@@ -46,6 +46,8 @@ interface Overview {
   subscriptions: unknown;
   attention: unknown;
   customerAccounts: { total: number };
+  demoAccounts: number;
+  operators: unknown;
 }
 const json = <T>(res: { json(): unknown }) => res.json() as T;
 
@@ -373,5 +375,133 @@ describeDb('Platform Company Explorer (EP24.1)', () => {
     const suspend = await admin.post(`/api/v1/platform/users/${ownerId}/suspend`);
     expect(suspend.statusCode).toBe(403);
     expect(await h.db.user.count({ where: { id: ownerId, status: 'ACTIVE' } })).toBe(1);
+  });
+
+  // ---------------------------------------------------------------- EP24.1.2
+
+  it('keeps customer, demo and platform populations apart (scenario A: demo only)', async () => {
+    const demo = await company(1, {
+      name: 'PDA BLISS CORE DEMO COMPANY',
+      isDemo: true,
+      status: 'ACTIVE',
+      subscription: 'ACTIVE',
+      plan: 'PROFESSIONAL',
+    });
+    for (const [email, role] of [
+      ['owner.demo@pdabliss.test', 'COMPANY_OWNER'],
+      ['admin.demo@pdabliss.test', 'SYSTEM_ADMIN'],
+      ['executive.demo@pdabliss.test', 'EXECUTIVE'],
+      ['staff.demo@pdabliss.test', 'DEPARTMENT_STAFF'],
+    ] as const) {
+      const u = await createUser(h.db, email);
+      await h.db.companyMember.create({
+        data: {
+          companyId: demo.id,
+          userId: u.id,
+          role,
+          ownerSlot: role === 'COMPANY_OWNER' ? true : null,
+        },
+      });
+    }
+    // A suspended demo account is demo data, not a customer problem.
+    await h.db.user.update({
+      where: { emailNormalized: 'staff.demo@pdabliss.test' },
+      data: { status: 'SUSPENDED' },
+    });
+    const op = await operator('PLATFORM_OWNER');
+    await createUser(h.db, 'admin@pdabliss.test', { platformRole: 'PLATFORM_ADMIN' });
+    const o = json<Overview>(await op.get('/api/v1/platform/overview'));
+    expect(o.companies).toMatchObject({
+      customer: 0,
+      demo: 1,
+      byStatus: { ACTIVE: 0, PENDING_SUBSCRIPTION: 0, SUSPENDED: 0 },
+    });
+    expect(o.subscriptions).toEqual({});
+    expect(o.customerAccounts.total).toBe(0);
+    expect(o.demoAccounts).toBe(4);
+    expect(o.operators).toEqual({ PLATFORM_OWNER: 1, PLATFORM_ADMIN: 1 });
+    expect(o.attention).toEqual({
+      readyToActivate: 0,
+      onboardingIncomplete: 0,
+      awaitingCompany: 0,
+      unverifiedAccounts: 0,
+      suspendedCompanies: 0,
+      suspendedAccounts: 0,
+    });
+    // The explorer can show customers and demo apart.
+    expect(json<Page>(await list(op, '?demo=exclude')).total).toBe(0);
+    expect(json<Page>(await list(op, '?demo=only')).companies.map((c) => c.name)).toEqual([
+      'PDA BLISS CORE DEMO COMPANY',
+    ]);
+    expect((await list(op, '?demo=yes')).statusCode).toBe(400);
+  });
+
+  it('counts real customers by lifecycle next to demo data (scenario B)', async () => {
+    await company(1, { name: 'Demo', isDemo: true, status: 'ACTIVE', subscription: 'ACTIVE' });
+    await company(2, {
+      status: 'ACTIVE',
+      subscription: 'ACTIVE',
+      owner: { email: 'a@example.com' },
+    });
+    await company(3, { plan: 'STARTER', owner: { email: 'p@example.com' } });
+    await company(4, {
+      status: 'SUSPENDED',
+      plan: 'PROFESSIONAL',
+      owner: { email: 's@example.com' },
+    });
+    await company(5, { onboarding: 'IN_PROGRESS', departments: [], plan: 'ENTERPRISE' });
+    await createUser(h.db, 'registered@example.com');
+    const op = await operator('PLATFORM_ADMIN');
+    const o = json<Overview>(await op.get('/api/v1/platform/overview'));
+    expect(o.companies).toMatchObject({
+      customer: 4,
+      demo: 1,
+      byStatus: { ACTIVE: 1, PENDING_SUBSCRIPTION: 2, SUSPENDED: 1 },
+      onboarding: { IN_PROGRESS: 1 },
+    });
+    expect(o.attention).toMatchObject({
+      readyToActivate: 1,
+      onboardingIncomplete: 1,
+      suspendedCompanies: 1,
+      awaitingCompany: 1,
+    });
+    // Owners of the three customer companies + the registered person; operators excluded.
+    expect(o.customerAccounts.total).toBe(4);
+    expect(o.demoAccounts).toBe(0);
+    const customers = json<Page>(await list(op, '?demo=exclude&limit=5')).companies;
+    expect(customers.every((c) => !c.isDemo)).toBe(true);
+    expect(customers).toHaveLength(4);
+  });
+
+  it('one readable activity timeline: security and company events, safe fields only', async () => {
+    const c = await company(1, { name: 'Timeline Co' });
+    const op = await operator('PLATFORM_OWNER');
+    await op.get(`/api/v1/platform/companies/${c.id}`); // audited inspection
+    const all = json<{ items: Record<string, unknown>[] }>(
+      await op.get('/api/v1/platform/activity?limit=20'),
+    ).items;
+    expect(all.some((i) => i.kind === 'security' && i.type === 'LOGIN_SUCCESS')).toBe(true);
+    const inspection = all.find((i) => i.type === 'PLATFORM_COMPANY_INSPECTED');
+    expect(inspection).toMatchObject({
+      kind: 'company',
+      actorScope: 'platform_owner',
+      company: { id: c.id, name: 'Timeline Co', isDemo: false },
+    });
+    const times = all.map((i) => Date.parse(String(i.occurredAt)));
+    expect([...times].sort((x, y) => y - x)).toEqual(times);
+    expect(JSON.stringify(all)).not.toMatch(/ipAddress|subjectHash|tokenHash|metadata/);
+    const security = json<{ items: { kind: string }[] }>(
+      await op.get('/api/v1/platform/activity?scope=security'),
+    ).items;
+    expect(security.every((i) => i.kind === 'security')).toBe(true);
+    const companyOnly = json<{ items: { kind: string }[] }>(
+      await op.get('/api/v1/platform/activity?scope=company'),
+    ).items;
+    expect(companyOnly.every((i) => i.kind === 'company')).toBe(true);
+    expect((await op.get('/api/v1/platform/activity?limit=500')).statusCode).toBe(400);
+    // Customers never see it.
+    await createUser(h.db, 'cust@example.com', { companyRole: 'COMPANY_OWNER', companyId: c.id });
+    const cust = await signIn(h, 'cust@example.com');
+    expect((await cust.get('/api/v1/platform/activity')).statusCode).toBe(403);
   });
 });

@@ -23,6 +23,12 @@ import { parseInput } from '../../lib/validation.js';
  */
 
 const UserParams = z.object({ userId: z.string().min(1).max(64) });
+const ActivityQuery = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(30),
+    scope: z.enum(['all', 'security', 'company']).default('all'),
+  })
+  .strict();
 const GrantBody = z.object({ email: z.string().trim().max(254).pipe(z.email()) }).strict();
 
 export const platformRoutes: FastifyPluginAsync<{
@@ -66,6 +72,11 @@ export const platformRoutes: FastifyPluginAsync<{
     );
   }
   app.get('/audit', async () => ({ events: await platform.recentAuthEvents() }));
+  // EP24.1.2: one readable timeline of security and company events.
+  app.get('/activity', async (request) => {
+    const q = parseInput(ActivityQuery, request.query);
+    return { items: await platform.recentActivity(q.limit, q.scope) };
+  });
 
   // ---- owner-only -----------------------------------------------------------
   app.get('/operators', { preHandler: requireOwner }, async () => ({

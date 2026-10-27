@@ -26,6 +26,8 @@ const OVERVIEW: PlatformOverview = {
   },
   subscriptions: { PENDING: 2, ACTIVE: 1 },
   customerAccounts: { total: 7, byStatus: { ACTIVE: 5, PENDING_VERIFICATION: 2 } },
+  demoAccounts: 4,
+  operators: { PLATFORM_OWNER: 1, PLATFORM_ADMIN: 1 },
   attention: {
     readyToActivate: 1,
     onboardingIncomplete: 1,
@@ -189,24 +191,55 @@ const admin = () =>
 
 const overviewApi = {
   'GET /api/v1/platform/overview': ok(OVERVIEW),
-  'GET /api/v1/platform/companies': ok({
-    companies: [
-      row(1),
-      row(2, { isDemo: true, name: 'PDA BLISS CORE DEMO COMPANY', plan: 'PROFESSIONAL' }),
-    ],
-    total: 2,
-    nextCursor: null,
-    developmentActivation: true,
-  }),
-  'GET /api/v1/platform/users': ok({ users: [] }),
-  'GET /api/v1/platform/audit': ok({
-    events: [
+  'GET /api/v1/platform/companies': (_body: unknown, query: URLSearchParams) =>
+    ok({
+      companies:
+        query.get('demo') === 'only'
+          ? [
+              row(9, {
+                isDemo: true,
+                name: 'PDA BLISS CORE DEMO COMPANY',
+                plan: 'PROFESSIONAL',
+                status: 'ACTIVE',
+                subscriptionStatus: 'ACTIVE',
+                members: 4,
+                departments: 6,
+              }),
+            ]
+          : [row(1, { status: 'ACTIVE', subscriptionStatus: 'ACTIVE' }), row(2), row(3)],
+      total: query.get('demo') === 'only' ? 1 : 3,
+      nextCursor: null,
+      developmentActivation: true,
+    }),
+  'GET /api/v1/platform/activity': ok({
+    items: [
       {
-        id: 'e1',
-        type: 'LOGIN_SUCCESS',
+        id: 'c_1',
+        kind: 'company',
+        type: 'PLATFORM_COMPANY_INSPECTED',
         email: 'owner@pdabliss.test',
-        ipAddress: null,
+        company: { id: 'c1', name: 'Company 1', isDemo: false },
+        actorScope: 'platform_owner',
         occurredAt: '2026-10-27T03:00:00.000Z',
+      },
+      {
+        id: 'a_1',
+        kind: 'security',
+        type: 'LOGIN_FAILURE',
+        email: 'someone@example.com',
+        company: null,
+        actorScope: null,
+        occurredAt: '2026-10-27T02:00:00.000Z',
+      },
+      {
+        // Routine: not "key" activity, so the overview leaves it out.
+        id: 'a_2',
+        kind: 'security',
+        type: 'OTP_SENT',
+        email: 'someone@example.com',
+        company: null,
+        actorScope: null,
+        occurredAt: '2026-10-27T01:00:00.000Z',
       },
     ],
   }),
@@ -215,7 +248,7 @@ const overviewApi = {
       {
         userId: 'u1',
         email: 'owner@pdabliss.test',
-        fullName: null,
+        fullName: 'Platform Owner',
         status: 'ACTIVE',
         role: 'PLATFORM_OWNER',
         since: '2026-10-26T03:00:00.000Z',
@@ -232,66 +265,189 @@ const overviewApi = {
   }),
 };
 
-describe('Platform overview (EP24.1)', () => {
-  it('PLATFORM_OWNER: highest authority, real headline counts, lifecycle rail, owner-only operators', async () => {
-    const api = fakeApi({ ...owner(), ...overviewApi });
+/** Scenario A — the development database: no real customers, one demo company. */
+const SCENARIO_A: PlatformOverview = {
+  ...OVERVIEW,
+  companies: {
+    customer: 0,
+    demo: 1,
+    byStatus: { PENDING_SUBSCRIPTION: 0, ACTIVE: 0, SUSPENDED: 0, CLOSED: 0 },
+    onboarding: { IN_PROGRESS: 0, COMPLETED: 0 },
+  },
+  subscriptions: {},
+  customerAccounts: { total: 0, byStatus: {} },
+  demoAccounts: 4,
+  operators: { PLATFORM_OWNER: 1, PLATFORM_ADMIN: 1 },
+  attention: {
+    readyToActivate: 0,
+    onboardingIncomplete: 0,
+    awaitingCompany: 0,
+    unverifiedAccounts: 0,
+    suspendedCompanies: 0,
+    suspendedAccounts: 0,
+  },
+};
+
+const metric = (key: string) => document.querySelector(`[data-metric="${key}"]`);
+
+describe('Platform overview — operator first (EP24.1.2)', () => {
+  it('scenario A: zero customers reads as zero customers, demo kept apart and labelled', async () => {
+    fakeApi({
+      ...owner(),
+      ...overviewApi,
+      'GET /api/v1/platform/overview': ok(SCENARIO_A),
+      'GET /api/v1/platform/companies': (_b: unknown, q: URLSearchParams) =>
+        ok({
+          companies:
+            q.get('demo') === 'only'
+              ? [
+                  row(9, {
+                    isDemo: true,
+                    name: 'PDA BLISS CORE DEMO COMPANY',
+                    plan: 'PROFESSIONAL',
+                    members: 4,
+                    departments: 6,
+                  }),
+                ]
+              : [],
+          total: q.get('demo') === 'only' ? 1 : 0,
+          nextCursor: null,
+          developmentActivation: true,
+        }),
+    });
     renderRoute('/platform');
     await screen.findByRole('heading', { level: 1, name: 'Platform Control Center' });
-    expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    await waitFor(() => expect(metric('companies')).toHaveAttribute('data-count', '0'));
+    expect(metric('accounts')).toHaveAttribute('data-count', '0');
+    // Demo and the platform team are counted beside the customer figures, never inside.
+    expect(document.querySelector('[data-separate-demo]')).toHaveTextContent(
+      'สาธิต · 1 บริษัท · 4 บัญชี',
+    );
+    expect(document.querySelector('[data-separate-operators]')).toHaveTextContent(
+      '1 Owner · 1 Admin',
+    );
+    // Deliberate empty states, not empty boxes.
+    expect(screen.getByText('ยังไม่มีบริษัทลูกค้า')).toBeInTheDocument();
+    expect(screen.getByText(/บริษัทสาธิตแสดงแยกไว้ด้านล่าง/)).toBeInTheDocument();
+    expect(document.querySelector('[data-path-empty]')).toBeInTheDocument();
+    expect(document.querySelector('[data-attention-none]')).toBeInTheDocument();
+    expect(document.querySelector('[data-attention-count]')).toBeNull();
+    // The demo company lives only in the demo environment.
+    const demo = document.querySelector('[data-demo-environment]')!;
+    expect(demo).toHaveTextContent('PDA BLISS CORE DEMO COMPANY');
+    expect(demo).toHaveTextContent('สาธิต');
+    expect(demo).toHaveTextContent('บัญชีสาธิต 4 บัญชี');
+    expect(document.querySelector('[data-latest]')).not.toHaveTextContent('DEMO COMPANY');
+    expect(document.body.textContent).not.toMatch(/MRR|ARR|revenue|รายได้|growth/i);
+  });
+
+  it('scenario B: customer metrics, path, attention and latest customers link into the explorer', async () => {
+    const api = fakeApi({ ...owner(), ...overviewApi });
+    renderRoute('/platform');
+    await waitFor(() => expect(metric('companies')).toHaveAttribute('data-count', '3'));
+    expect(metric('active')).toHaveAttribute('data-count', '1');
+    expect(metric('pending')).toHaveAttribute('data-count', '2');
+    expect(metric('accounts')).toHaveAttribute('data-count', '7');
+    expect(within(metric('pending') as HTMLElement).getByRole('link')).toHaveAttribute(
+      'href',
+      '/platform/companies?demo=exclude&status=PENDING_SUBSCRIPTION',
+    );
+    // The customer path, from real counts.
+    expect(document.querySelector('[data-stage="registered"]')).toHaveAttribute('data-count', '2');
+    expect(document.querySelector('[data-stage="setup"]')).toHaveAttribute('data-count', '1');
+    // Needs attention: only real, non-zero items; the header shows the counted total.
+    expect(document.querySelector('[data-attention-item="readyToActivate"] a')).toHaveAttribute(
+      'href',
+      '/platform/companies?demo=exclude&status=PENDING_SUBSCRIPTION&onboardingStatus=COMPLETED',
+    );
+    expect(document.querySelector('[data-attention-item="suspendedCompanies"]')).toBeNull();
+    expect(document.querySelector('[data-attention-count]')).toHaveAttribute(
+      'data-attention-count',
+      '4',
+    );
+    // Latest customers: customer-only request, rows open the inspection.
+    expect(
+      api.calls.find((c) => c.path === '/api/v1/platform/companies' && c.query.demo === 'exclude'),
+    ).toBeTruthy();
+    expect(document.querySelector('[data-latest-row="c1"] a')).toHaveAttribute(
+      'href',
+      '/platform/companies/c1',
+    );
+    // Key activity only (OTP_SENT is routine), human label first.
+    const activity = document.querySelector('[data-key-activity]')!;
+    expect(activity).toHaveTextContent('ทีมแพลตฟอร์มเปิดดูข้อมูล');
+    expect(activity).toHaveTextContent('เข้าสู่ระบบไม่สำเร็จ');
+    expect(activity.querySelector('[data-type="OTP_SENT"]')).toBeNull();
+    // Session details are folded away.
+    expect(document.querySelector('[data-session]')).not.toHaveAttribute('open');
+  });
+
+  it('PLATFORM_OWNER gets the Operators area; PLATFORM_ADMIN does not', async () => {
+    fakeApi({ ...owner(), ...overviewApi });
+    renderRoute('/platform');
+    await waitFor(() => expect(metric('companies')).toBeInTheDocument());
     expect(document.querySelector('[data-platform-role="PLATFORM_OWNER"]')).toHaveTextContent(
       'Platform Owner',
     );
-    expect(document.querySelector('[data-authority="PLATFORM_OWNER"]')).toBeInTheDocument();
-    const headline = await waitFor(() => {
-      const el = document.querySelector('[data-headline]');
-      expect(el).toHaveTextContent('3');
-      return el!;
-    });
-    expect(headline).toHaveTextContent('บริษัทลูกค้า');
-    expect(headline).toHaveTextContent('7');
-    // Lifecycle nodes are real counts and link into the filtered explorer.
-    const rail = document.querySelector('[data-lifecycle]')!;
-    expect(rail.querySelector('[data-stage="onboarding"]')).toHaveAttribute('data-count', '1');
-    expect(rail.querySelector('[data-stage="waiting"]')).toHaveAttribute('data-count', '1');
-    expect(rail.querySelector('[data-stage="active"]')).toHaveAttribute('data-count', '1');
-    expect(within(rail as HTMLElement).getByRole('link', { name: /รอเปิดใช้งาน/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /ผู้ดูแล$/ })).toHaveAttribute(
       'href',
-      '/platform/companies?status=PENDING_SUBSCRIPTION&onboardingStatus=COMPLETED',
+      '/platform/operators',
     );
-    expect(document.querySelector('[data-attention-item="awaitingCompany"]')).toHaveAttribute(
-      'data-count',
-      '2',
-    );
-    // Owner-only operators, real data; no revenue / growth figures anywhere.
-    expect(document.querySelector('[data-owner-only]')).toHaveTextContent('Ops Admin');
-    expect(document.body.textContent).not.toMatch(/MRR|ARR|revenue|รายได้|growth/i);
-    // Human event labels first, the raw code second.
-    expect(document.querySelector('[data-security]')).toHaveTextContent('เข้าสู่ระบบสำเร็จ');
-    expect(api.called('GET /api/v1/platform/operators')).toHaveLength(1);
-    // The newest companies link into inspection; the demo company is tagged.
-    expect(
-      document.querySelector('[data-newest] a[href="/platform/companies/c1"]'),
-    ).toBeInTheDocument();
-    expect(document.querySelector('[data-company-row="c2"]')).toHaveTextContent('สาธิต');
-  });
+    cleanup();
+    resetIdentityForTests();
 
-  it('PLATFORM_ADMIN: visibly a lower level, no owner-only area or request', async () => {
     const api = fakeApi({ ...admin(), ...overviewApi });
     renderRoute('/platform');
-    await screen.findByRole('heading', { level: 1, name: 'Platform Control Center' });
-    await waitFor(() => expect(document.querySelector('[data-headline]')).toHaveTextContent('3'));
+    await waitFor(() => expect(metric('companies')).toBeInTheDocument());
     expect(document.querySelector('[data-platform-role="PLATFORM_ADMIN"]')).toHaveTextContent(
       'Platform Admin',
     );
-    expect(document.querySelector('[data-owner-only]')).toBeNull();
-    expect(
-      screen.getByText('การจัดการผู้ดูแลแพลตฟอร์มสงวนไว้สำหรับ Platform Owner'),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /ผู้ดูแล$/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'ดูผู้ดูแลแพลตฟอร์ม' })).toBeNull();
     expect(api.called('GET /api/v1/platform/operators')).toHaveLength(0);
   });
 
+  it('header quick search opens the Company Explorer with the query', async () => {
+    fakeApi({ ...owner(), ...overviewApi });
+    const { router } = renderRoute('/platform');
+    await waitFor(() => expect(metric('companies')).toBeInTheDocument());
+    await userEvent.type(screen.getByRole('searchbox', { name: 'ค้นหาบริษัท' }), 'siam{Enter}');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/platform/companies'));
+    expect(router.state.location.search).toBe('?q=siam');
+  });
+
+  it('speaks English and Chinese', async () => {
+    for (const [lang, locale, title, demoLine] of [
+      ['en', 'en', 'Real customers', 'Demo · 1 company · 4 accounts'],
+      ['zh', 'zh-CN', '真实客户', '演示 · 1 家公司 · 4 个账户'],
+    ] as const) {
+      fakeApi({
+        ...signedIn({
+          ...identity({ platformRole: 'PLATFORM_OWNER' }),
+          user: { ...identity().user, locale },
+        }),
+        ...overviewApi,
+        'GET /api/v1/platform/overview': ok(SCENARIO_A),
+      });
+      renderRoute(`/platform?lang=${lang}`);
+      await waitFor(() =>
+        expect(document.querySelector('[data-separate-demo]')).toHaveTextContent(demoLine),
+      );
+      expect(screen.getByRole('heading', { level: 2, name: title })).toBeInTheDocument();
+      expect(document.querySelector('main')!.textContent).not.toMatch(/[฀-๿]/);
+      cleanup();
+      resetIdentityForTests();
+    }
+  });
+
   it('a customer account is sent from every platform route to /account', async () => {
-    for (const path of ['/platform', '/platform/companies', '/platform/companies/c1']) {
+    for (const path of [
+      '/platform',
+      '/platform/companies',
+      '/platform/companies/c1',
+      '/platform/activity',
+      '/platform/operators',
+    ]) {
       fakeApi({ ...signedIn(identity()) });
       const { router } = renderRoute(path);
       await waitFor(() => expect(router.state.location.pathname).toBe('/account'));
@@ -301,23 +457,72 @@ describe('Platform overview (EP24.1)', () => {
   });
 
   it('names the error: forbidden, expired session, temporary failure (with retry)', async () => {
-    fakeApi({ ...owner(), 'GET /api/v1/platform/overview': fail(403, 'FORBIDDEN') });
+    fakeApi({
+      ...owner(),
+      ...overviewApi,
+      'GET /api/v1/platform/overview': fail(403, 'FORBIDDEN'),
+    });
     renderRoute('/platform');
     expect(await screen.findByRole('alert')).toHaveTextContent('ไม่มีสิทธิ์');
     cleanup();
     resetIdentityForTests();
 
-    fakeApi({ ...owner(), 'GET /api/v1/platform/overview': fail(401, 'UNAUTHENTICATED') });
+    fakeApi({
+      ...owner(),
+      ...overviewApi,
+      'GET /api/v1/platform/overview': fail(401, 'UNAUTHENTICATED'),
+    });
     renderRoute('/platform');
     expect(await screen.findByRole('alert')).toHaveTextContent('เซสชันหมดอายุ');
-    expect(screen.getByRole('link', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
     cleanup();
     resetIdentityForTests();
 
-    fakeApi({ ...owner(), 'GET /api/v1/platform/overview': fail(500, 'INTERNAL') });
+    fakeApi({ ...owner(), ...overviewApi, 'GET /api/v1/platform/overview': fail(500, 'INTERNAL') });
     renderRoute('/platform');
     expect(await screen.findByRole('alert')).toHaveTextContent('ชั่วคราว');
     expect(screen.getByRole('button', { name: 'ลองอีกครั้ง' })).toBeInTheDocument();
+  });
+});
+
+describe('Platform activity and operators (EP24.1.2)', () => {
+  it('activity: one readable timeline with three views over the server feed', async () => {
+    const api = fakeApi({ ...owner(), ...overviewApi });
+    renderRoute('/platform/activity');
+    await screen.findByRole('heading', { level: 1, name: 'กิจกรรมแพลตฟอร์ม' });
+    await waitFor(() =>
+      expect(document.querySelectorAll('[data-activity-list] > li')).toHaveLength(3),
+    );
+    expect(document.querySelector('[data-type="OTP_SENT"]')).toHaveTextContent('ส่งรหัสยืนยัน');
+    await userEvent.click(screen.getByRole('button', { name: 'การเข้าสู่ระบบและความปลอดภัย' }));
+    await waitFor(() =>
+      expect(api.calls.at(-1)!.query).toMatchObject({ scope: 'security', limit: '100' }),
+    );
+    expect(screen.getByRole('button', { name: 'การเข้าสู่ระบบและความปลอดภัย' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('operators: the Owner above, Admins below; an Admin sees why, not an error', async () => {
+    fakeApi({ ...owner(), ...overviewApi });
+    renderRoute('/platform/operators');
+    await screen.findByRole('heading', { level: 1, name: 'ผู้ดูแลแพลตฟอร์ม' });
+    await waitFor(() =>
+      expect(document.querySelector('[data-operator-group="owner"]')).toHaveTextContent(
+        'Platform Owner',
+      ),
+    );
+    expect(document.querySelector('[data-operator-group="admin"]')).toHaveTextContent('Ops Admin');
+    cleanup();
+    resetIdentityForTests();
+
+    const api = fakeApi({ ...admin(), ...overviewApi });
+    renderRoute('/platform/operators');
+    await screen.findByRole('heading', { level: 1, name: 'ผู้ดูแลแพลตฟอร์ม' });
+    expect(
+      screen.getByText('รายชื่อผู้ดูแลแพลตฟอร์มสงวนไว้สำหรับ Platform Owner'),
+    ).toBeInTheDocument();
+    expect(api.called('GET /api/v1/platform/operators')).toHaveLength(0);
   });
 });
 

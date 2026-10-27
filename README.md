@@ -44,6 +44,12 @@ and security — read-only, audited, never impersonation). Registration now coll
 (full name, phone, optional role) and, in a second step, business context for PDA BLISS — without
 creating the company. Auth screens gained a large-screen companion panel, emails a refined layout,
 and /about a chapter on S2 ACCOUNTING CONSULTANT ([docs/EP24_1_REPORT.md](docs/EP24_1_REPORT.md)).
+
+**EP24.1.2** (completed locally, awaiting owner review) reworks `/platform` for daily operator work:
+real-customer figures first with demo and platform data counted separately, the customer path,
+latest customer companies next to what needs attention, an isolated demo environment, a quick
+company search in the header, and new Activity and Operators areas; session details are folded
+away ([docs/EP24_1_2_REPORT.md](docs/EP24_1_2_REPORT.md)).
 Next: EP25 RBAC / Information boundaries (not started).
 
 ### Auth & Transactional Email Polish (EP24)
@@ -60,8 +66,9 @@ Next: EP25 RBAC / Information boundaries (not started).
 Roadmap:
 
 1. EP20 Performance → EP21 Release-candidate audit → **EP22 Public Frontend Freeze**
-2. EP23 Account & Real Authentication → EP24 Company & Subscription Foundation → **EP24.1 Platform
-   Control Center, Company Explorer & Account Profile** → EP25 RBAC / Information boundaries →
+2. EP23 Account & Real Authentication → EP24 Company & Subscription Foundation → EP24.1 Platform
+   Control Center, Company Explorer & Account Profile → **EP24.1.2 Operator-first Platform Control
+   Center** → EP25 RBAC / Information boundaries →
    EP26 Organization / Users / Departments → EP27 Audit / Notifications / Activity → EP28 Master Data
 3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
    EP34 Executive
@@ -303,6 +310,7 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/COMPANY_SUBSCRIPTION.md](docs/COMPANY_SUBSCRIPTION.md) — company, Head Office, package catalog, entitlements, subscription lifecycle, isolation, demo company
 - [docs/EP24_REPORT.md](docs/EP24_REPORT.md) — company and subscription foundation report
 - [docs/EP24_1_REPORT.md](docs/EP24_1_REPORT.md) — Platform Control Center, Company Explorer, Platform Inspection, account profile, About S2 chapter
+- [docs/EP24_1_2_REPORT.md](docs/EP24_1_2_REPORT.md) — operator-first Platform Control Center: customer/demo separation, attention rules, activity, operators
 
 ---
 

@@ -31,14 +31,23 @@ export class PlatformService {
   constructor(private readonly db: Db) {}
 
   /**
-   * Platform-wide state from real rows only (EP24.1): customer companies by
-   * lifecycle, current subscriptions by status, customer accounts and what
-   * needs a platform operator's attention. No revenue or growth figures —
-   * billing does not exist yet. Demo companies are counted separately.
+   * Platform-wide state from real rows only (EP24.1, operator-first in
+   * EP24.1.2). Three populations are kept apart, all decided on the server:
+   *
+   * - customer companies: Company.isDemo = false;
+   * - demo data: companies with isDemo = true and the accounts that belong
+   *   to them (never counted as customers);
+   * - platform operators: accounts holding a platform role.
+   *
+   * Customer accounts = no platform role and not a member of a demo company
+   * (including verified people who have not created their company yet).
+   * No revenue or growth figures — billing does not exist yet.
    */
   async overview() {
     const now = new Date();
     const customerCompany = { isDemo: false };
+    const demoMember = { companyMember: { is: { company: { isDemo: true } } } };
+    const customerUser = { platformRole: null, NOT: demoMember };
     const [
       users,
       companies,
@@ -46,6 +55,8 @@ export class PlatformService {
       onboarding,
       subscriptions,
       customerAccounts,
+      demoAccounts,
+      operators,
       awaitingCompany,
       readyToActivate,
       suspendedAccounts,
@@ -64,11 +75,9 @@ export class PlatformService {
         where: { currentSlot: true, company: customerCompany },
         _count: { _all: true },
       }),
-      this.db.user.groupBy({
-        by: ['status'],
-        where: { platformRole: null },
-        _count: { _all: true },
-      }),
+      this.db.user.groupBy({ by: ['status'], where: customerUser, _count: { _all: true } }),
+      this.db.user.count({ where: demoMember }),
+      this.db.platformRoleAssignment.groupBy({ by: ['role'], _count: { _all: true } }),
       // Verified customers who have not created their company yet.
       this.db.user.count({
         where: { status: 'ACTIVE', platformRole: null, companyMember: null },
@@ -81,7 +90,7 @@ export class PlatformService {
           onboardingStatus: 'COMPLETED',
         },
       }),
-      this.db.user.count({ where: { status: 'SUSPENDED', platformRole: null } }),
+      this.db.user.count({ where: { ...customerUser, status: 'SUSPENDED' } }),
       this.db.session.count({
         where: { revokedAt: null, absoluteExpiresAt: { gt: now }, idleExpiresAt: { gt: now } },
       }),
@@ -92,6 +101,7 @@ export class PlatformService {
     ) => Object.fromEntries(rows.map((r) => [r[key] as string, r._count._all]));
     const companyCounts = tally(companyStatus, 'status');
     const onboardingCounts = tally(onboarding, 'onboardingStatus');
+    const operatorCounts = tally(operators, 'role');
     return {
       users: tally(users, 'status'),
       companies: {
@@ -113,6 +123,12 @@ export class PlatformService {
         total: customerAccounts.reduce((n, r) => n + r._count._all, 0),
         byStatus: tally(customerAccounts, 'status'),
       },
+      /** Accounts that belong to demo companies — never customers. */
+      demoAccounts,
+      operators: {
+        PLATFORM_OWNER: operatorCounts.PLATFORM_OWNER ?? 0,
+        PLATFORM_ADMIN: operatorCounts.PLATFORM_ADMIN ?? 0,
+      },
       attention: {
         readyToActivate,
         onboardingIncomplete: onboardingCounts.IN_PROGRESS ?? 0,
@@ -124,6 +140,63 @@ export class PlatformService {
       },
       activeSessions,
     };
+  }
+
+  /**
+   * Recent platform activity (EP24.1.2): sign-in / security events and
+   * company events (creation, activation, platform inspection) in one
+   * timeline. Safe fields only — no IPs, hashes or raw metadata. `scope`
+   * narrows it to one of the two kinds.
+   */
+  async recentActivity(limit: number, scope: 'all' | 'security' | 'company' = 'all') {
+    const [auth, company] = await Promise.all([
+      scope === 'company'
+        ? Promise.resolve([])
+        : this.db.authAuditEvent.findMany({
+            take: limit,
+            orderBy: { occurredAt: 'desc' },
+            include: { user: { select: { email: true } } },
+          }),
+      scope === 'security'
+        ? Promise.resolve([])
+        : this.db.auditLog.findMany({
+            take: limit,
+            where: { companyId: { not: null } },
+            orderBy: { occurredAt: 'desc' },
+            include: {
+              actor: { select: { email: true } },
+              company: { select: { id: true, name: true, isDemo: true } },
+            },
+          }),
+    ]);
+    const scopeOf = (changes: unknown) => {
+      const v = (changes as Record<string, unknown> | null)?.actorScope;
+      return typeof v === 'string' ? v : null;
+    };
+    const items = [
+      ...auth.map((e) => ({
+        id: `a_${e.id}`,
+        kind: 'security' as const,
+        type: e.type,
+        email: e.user?.email ?? null,
+        company: null as { id: string; name: string; isDemo: boolean } | null,
+        actorScope: null as string | null,
+        occurredAt: e.occurredAt,
+      })),
+      ...company.map((e) => ({
+        id: `c_${e.id}`,
+        kind: 'company' as const,
+        type: e.action,
+        email: e.actor?.email ?? null,
+        company: e.company,
+        actorScope: scopeOf(e.changes),
+        occurredAt: e.occurredAt,
+      })),
+    ];
+    return items
+      .sort((x, y) => y.occurredAt.getTime() - x.occurredAt.getTime())
+      .slice(0, limit)
+      .map((x) => ({ ...x, occurredAt: x.occurredAt.toISOString() }));
   }
 
   async listOperators() {

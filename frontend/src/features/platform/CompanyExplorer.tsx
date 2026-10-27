@@ -20,6 +20,7 @@ import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { CompanyColumns, CompanyRow } from './CompanyRow';
 import { PLATFORM_COPY } from './copy';
+import { PLATFORM_OPS_COPY } from './opsCopy';
 import { classifyError, departmentName, type LoadError } from './model';
 import { LoadErrorMessage, StateMessage } from './parts';
 import { PlatformShell } from './PlatformShell';
@@ -32,7 +33,14 @@ import { PlatformShell } from './PlatformShell';
  */
 
 const PAGE = 25;
-const FILTERS = ['plan', 'subscriptionStatus', 'status', 'onboardingStatus', 'department'] as const;
+const FILTERS = [
+  'demo',
+  'plan',
+  'subscriptionStatus',
+  'status',
+  'onboardingStatus',
+  'department',
+] as const;
 type FilterKey = (typeof FILTERS)[number];
 
 type View =
@@ -49,6 +57,7 @@ type View =
 export function CompanyExplorer({ identity }: { identity: Identity }) {
   const p = useCopy(PLATFORM_COPY);
   const e = p.explorer;
+  const ops = useCopy(PLATFORM_OPS_COPY);
   const { locale } = useLocale();
   const location = useLocation();
   usePageMeta(p.meta.companies, p.meta.description, { index: false });
@@ -149,6 +158,10 @@ export function CompanyExplorer({ identity }: { identity: Identity }) {
   };
 
   const options: Record<FilterKey, { value: string; label: string }[]> = {
+    demo: [
+      { value: 'exclude', label: ops.explorer.customerOnly },
+      { value: 'only', label: ops.explorer.demoOnly },
+    ],
     plan: PLAN_CODES.map((code) => ({ value: code, label: getPlan(planId(code)).name })),
     subscriptionStatus: (['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] as const).map((s) => ({
       value: s,
@@ -165,6 +178,7 @@ export function CompanyExplorer({ identity }: { identity: Identity }) {
     department: DEPARTMENT_CODES.map((d) => ({ value: d, label: departmentName(d, locale) })),
   };
   const labels: Record<FilterKey, string> = {
+    demo: ops.explorer.data,
     plan: e.plan,
     subscriptionStatus: e.subscription,
     status: e.status,
@@ -191,7 +205,7 @@ export function CompanyExplorer({ identity }: { identity: Identity }) {
           role="search"
           aria-label={e.search}
           onSubmit={(ev) => ev.preventDefault()}
-          className="grid gap-4 rounded-[1.375rem] bg-white/[0.02] p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.07)] sm:p-5 xl:grid-cols-[minmax(18rem,1.4fr)_repeat(5,minmax(0,1fr))_auto] xl:items-end"
+          className="grid gap-4 rounded-[1.375rem] bg-white/[0.02] p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.07)] sm:p-5 xl:grid-cols-[minmax(16rem,1.3fr)_repeat(6,minmax(0,1fr))_auto] xl:items-end"
         >
           <div className="min-w-0">
             <label

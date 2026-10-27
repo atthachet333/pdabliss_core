@@ -100,6 +100,8 @@ export const PlatformCompanyQuery = z
     status: optionalParam(z.enum(['PENDING_SUBSCRIPTION', 'ACTIVE', 'SUSPENDED', 'CLOSED'])),
     onboardingStatus: optionalParam(z.enum(['IN_PROGRESS', 'COMPLETED'])),
     department: optionalParam(z.enum(DEPARTMENT_CODES)),
+    /** EP24.1.2: customer data only, demo data only, or both (default). */
+    demo: optionalParam(z.enum(['exclude', 'only'])),
     cursor: optionalParam(z.string().min(1).max(64)),
     limit: z.coerce.number().int().min(1).max(100).default(25),
   })

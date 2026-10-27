@@ -105,6 +105,14 @@ still later episodes.
   plan change), billing data, branch or member management, impersonation — none exists, none is
   shown.
 
+**EP24.1.2 update (operator-first Platform Control Center):** see
+[EP24_1_2_REPORT.md](EP24_1_2_REPORT.md). Customer vs demo vs platform populations are decided on
+the server (`Company.isDemo`, demo-company membership, platform roles): the overview's
+`customerAccounts` excludes demo accounts and adds `demoAccounts` / `operators`; the company list
+takes `demo=exclude|only`; `GET /api/v1/platform/activity` is one safe-field timeline of security
+and company events. New internal routes `/platform/activity` and `/platform/operators` (lazy,
+noindex, served by the existing `/platform/*` shell rewrite).
+
 ## 6. RBAC handoff (EP25)
 
 - Access is decided on the server. Frontend navigation and hidden UI are **not** access control.

@@ -174,6 +174,8 @@ export interface PlatformCompanyQuery {
   status?: CompanyStatus;
   onboardingStatus?: 'IN_PROGRESS' | 'COMPLETED';
   department?: DepartmentCode;
+  /** EP24.1.2: customer data only, demo only, or both (omitted). */
+  demo?: 'exclude' | 'only';
   cursor?: string;
   limit?: number;
 }

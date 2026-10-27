@@ -159,8 +159,11 @@ export interface PlatformOverview {
   };
   /** Current subscriptions of customer companies, by status. */
   subscriptions: Partial<Record<'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED', number>>;
-  /** Accounts without a platform role. */
+  /** Accounts with no platform role that do not belong to a demo company. */
   customerAccounts: { total: number; byStatus: UserStatusCounts };
+  /** Accounts of demo companies — never customers (EP24.1.2). */
+  demoAccounts: number;
+  operators: Record<PlatformRole, number>;
   attention: {
     readyToActivate: number;
     onboardingIncomplete: number;
@@ -203,7 +206,22 @@ export interface AuthEventRow {
   occurredAt: string;
 }
 
+/** One item of the platform activity timeline (EP24.1.2). Safe fields only. */
+export interface ActivityItem {
+  id: string;
+  kind: 'security' | 'company';
+  type: string;
+  email: string | null;
+  company: { id: string; name: string; isDemo: boolean } | null;
+  actorScope: string | null;
+  occurredAt: string;
+}
+
+export type ActivityScope = 'all' | 'security' | 'company';
+
 export const platformApi = {
+  activity: (limit: number, scope: ActivityScope = 'all') =>
+    apiRequest<{ items: ActivityItem[] }>('GET', `${P}/activity?limit=${limit}&scope=${scope}`),
   overview: () => apiRequest<PlatformOverview>('GET', `${P}/overview`),
   users: () => apiRequest<{ users: PlatformUser[] }>('GET', `${P}/users`),
   audit: () => apiRequest<{ events: AuthEventRow[] }>('GET', `${P}/audit`),

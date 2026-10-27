@@ -105,3 +105,52 @@ export function eventLabel(p: PlatformCopy, code: string) {
 /** The quiet surface every platform zone sits on. */
 export const ZONE =
   'min-w-0 rounded-[1.375rem] bg-[linear-gradient(180deg,rgb(12_24_34/0.92),rgb(7_14_21/0.96))] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.07)]';
+
+/**
+ * Needs-attention rules (EP24.1.2) — one definition for the overview list and
+ * the header badge. Every item is a real count from the platform overview;
+ * `href` opens the matching Company Explorer view where one exists.
+ * Unverified sign-ups are shown but not counted: the next step is theirs.
+ */
+export const ATTENTION_RULES = [
+  {
+    key: 'readyToActivate',
+    counted: true,
+    href: '/platform/companies?demo=exclude&status=PENDING_SUBSCRIPTION&onboardingStatus=COMPLETED',
+  },
+  {
+    key: 'onboardingIncomplete',
+    counted: true,
+    href: '/platform/companies?demo=exclude&onboardingStatus=IN_PROGRESS',
+  },
+  {
+    key: 'suspendedCompanies',
+    counted: true,
+    href: '/platform/companies?demo=exclude&status=SUSPENDED',
+  },
+  { key: 'suspendedAccounts', counted: true, href: null },
+  { key: 'awaitingCompany', counted: true, href: null },
+  { key: 'unverifiedAccounts', counted: false, href: null },
+] as const;
+
+export type AttentionKey = (typeof ATTENTION_RULES)[number]['key'];
+
+export const attentionTotal = (a: Record<AttentionKey, number>) =>
+  ATTENTION_RULES.reduce((n, r) => n + (r.counted ? a[r.key] : 0), 0);
+
+/** Overview "key activity": events an operator acts on, not routine noise. */
+export const KEY_ACTIVITY = new Set([
+  'LOGIN_FAILURE',
+  'OTP_FAILURE',
+  'STEP_UP_SUCCESS',
+  'PLATFORM_ROLE_GRANTED',
+  'PLATFORM_ROLE_REVOKED',
+  'ACCOUNT_SUSPENDED',
+  'ACCOUNT_REACTIVATED',
+  'REGISTER',
+  'COMPANY_CREATED',
+  'COMPANY_ONBOARDING_COMPLETED',
+  'SUBSCRIPTION_STATUS_CHANGED',
+  'COMPANY_STATUS_CHANGED',
+  'PLATFORM_COMPANY_INSPECTED',
+]);

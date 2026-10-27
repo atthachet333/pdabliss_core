@@ -191,6 +191,15 @@ export const routes: RouteObject[] = [
         path: 'platform/companies/:companyId',
         ...pageRoute(() => import('@/pages/account/PlatformCompanyPage')),
       },
+      // EP24.1.2: platform activity timeline and operator hierarchy.
+      {
+        path: 'platform/activity',
+        ...pageRoute(() => import('@/pages/account/PlatformActivityPage')),
+      },
+      {
+        path: 'platform/operators',
+        ...pageRoute(() => import('@/pages/account/PlatformOperatorsPage')),
+      },
       // English and Simplified Chinese.
       localeRoutes('en', 'en'),
       localeRoutes('zh', 'zh-CN'),

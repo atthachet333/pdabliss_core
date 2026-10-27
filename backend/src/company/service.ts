@@ -504,6 +504,7 @@ export class CompanyService {
         : {};
     const where: Prisma.CompanyWhereInput = {
       ...(filter.status && { status: filter.status }),
+      ...(filter.demo && { isDemo: filter.demo === 'only' }),
       ...(filter.onboardingStatus && { onboardingStatus: filter.onboardingStatus }),
       ...(filter.department && {
         departments: { some: { code: filter.department, isActive: true } },

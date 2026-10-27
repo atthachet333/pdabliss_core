@@ -120,8 +120,6 @@ ignored `.env`). Committed content scanned for credentials, database URLs, SMTP 
 
 ## 5. Known limitations / deferred
 
-- **S2 logo:** not available in this session; the chapter shows a typographic "S2" mark and reads
-  `INSIGHT_PARTNER.logo` from `config/partners.ts` — add the owner-supplied file there.
 - Firefox, Safari, real devices and screen readers not exercised.
 - Search uses case-insensitive `contains` (fine at today's scale; a trigram index later).
 - No operator actions beyond the development activation (no suspend / close / plan change),
@@ -129,7 +127,21 @@ ignored `.env`). Committed content scanned for credentials, database URLs, SMTP 
 - `/login` keeps its EP15 / EP23 gateway design (reviewed, not redesigned).
 - Company profile fields on `Company` deferred (§2).
 
-## 6. Status
+## 6. Follow-up: elevated S2 chapter
+
+Separate local commit `feat: elevate S2 partner chapter on CORE About page`. Chapter 07 became a
+deliberate moment in the About story — **two fields converging at CORE**: a split backdrop (teal
+technology grid · silver accounting "ledger" rules), a centred headline "Technology × Business
+Reality", the label *Business & Accounting Insight Partner*, mirrored PDA BLISS and S2 fields whose
+line bundles draw into one CORE node on entry (static under reduced motion), the owner-supplied S2
+logo on a light silver plate (280 / 560 px WebP, 7 / 18 KB, square, undistorted; source in
+`docs/assets/partners/`), and a "Learn about S2" link. Phones run PDA BLISS → CORE → S2 top to
+bottom. Separate-companies line kept; no Thai on EN / ZH. Chrome and Edge 75/75 each (TH / EN / ZH ×
+390 / 768 / 1440 / 1920, with and without reduced motion: no overflow, logo square, lines visible,
+safe external link, axe clean, no console errors; the homepage never requests the logo). Initial JS
+unchanged (180.7 kB); the About route chunk 52 → 53.4 kB.
+
+## 7. Status
 
 - **Push status:** NOT PUSHED.
 - **EP25:** NOT STARTED.

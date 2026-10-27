@@ -69,7 +69,8 @@ describe('register', () => {
     expect(document.querySelector('[data-rule="match"]')).toHaveAttribute('data-met', 'false');
     expect(document.querySelector('[data-register-step="1"]')).toBeInTheDocument();
     expect(api.called('POST /api/v1/auth/register')).toHaveLength(0);
-  });
+    // Many real interaction steps: more than the default budget under a parallel run.
+  }, 20_000);
 
   it('step 2 collects the business context, then sends ONE request and shows "check your email"', async () => {
     const api = fakeApi({

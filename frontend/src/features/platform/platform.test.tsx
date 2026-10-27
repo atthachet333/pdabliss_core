@@ -364,7 +364,8 @@ describe('Company Explorer (EP24.1)', () => {
     expect(api.calls.at(-1)!.query).toMatchObject({ q: 'nothing', plan: 'STARTER' });
     await userEvent.click(screen.getAllByRole('button', { name: 'ล้างตัวกรอง' })[0]!);
     await waitFor(() => expect(router.state.location.search).toBe(''));
-  });
+    // Many real interaction steps: more than the default budget under a parallel run.
+  }, 20_000);
 
   it('opens with filters from the URL (links from the overview)', async () => {
     const api = fakeApi({

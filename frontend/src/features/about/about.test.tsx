@@ -572,6 +572,14 @@ describe('/about — business insight with S2 (EP24.1, owner-approved)', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).toHaveAccessibleName(/เว็บไซต์ S2.*แท็บใหม่/);
+    // The owner-supplied logo, undistorted, with a localized name; the label names the role.
+    const logo = chapter.querySelector<HTMLImageElement>('[data-partner-logo] img')!;
+    expect(logo).toHaveAttribute('alt', 'โลโก้ S2 ACCOUNTING CONSULTANT');
+    expect(logo).toHaveAttribute('width', logo.getAttribute('height'));
+    expect(logo.getAttribute('srcset')).toContain('2x');
+    expect(chapter.querySelector('[data-partner-label]')).toHaveTextContent(
+      'พันธมิตรด้านมุมมองธุรกิจและบัญชี',
+    );
     // Chapter order: consulting (06) → business insight (07) → implementation (08).
     const ids = [...main().querySelectorAll('section[id]')].map((s) => s.id);
     expect(ids.indexOf(ABOUT_CHAPTER.partner)).toBe(ids.indexOf(ABOUT_CHAPTER.consulting) + 1);
@@ -594,6 +602,9 @@ describe('/about — business insight with S2 (EP24.1, owner-approved)', () => {
     await open('/en/about');
     const en = section(ABOUT_CHAPTER.partner);
     expect(en.querySelector('[data-side="s2"] h3')).toHaveTextContent(INSIGHT_PARTNER.legalName);
-    expect(en).toHaveTextContent('Visit the S2 website');
+    expect(en).toHaveTextContent('Learn about S2');
+    expect(en.querySelector('[data-partner-label]')).toHaveTextContent(
+      'Business & Accounting Insight Partner',
+    );
   });
 });

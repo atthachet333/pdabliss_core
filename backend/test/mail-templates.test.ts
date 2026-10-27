@@ -57,6 +57,23 @@ describe.each(LOCALES)('templates (%s)', (locale) => {
     }
   });
 
+  it('carry the CORE band with the message kind, a titled facts panel and the sender line (EP24.1)', () => {
+    const kinds = {
+      th: ['ความปลอดภัย', 'ยืนยันอีเมล', 'สิ่งที่ควรรู้'],
+      en: ['Security', 'Email verification', 'Good to know'],
+      'zh-CN': ['安全', '邮箱验证', '须知'],
+    }[locale];
+    for (const m of all) {
+      expect(m.html).toContain('PDA BLISS <span');
+      expect(m.html).toContain('PDA BLISS CORE · PDA BLISS COMPANY LIMITED');
+      expect(m.text).toContain('PDA BLISS CORE · PDA BLISS COMPANY LIMITED');
+    }
+    expect(passwordResetMail(locale, resetUrl).html).toContain(kinds[0]);
+    expect(otpMail(locale, '042917', 'login').html).toContain(kinds[0]);
+    expect(verifyEmailMail(locale, verifyUrl).html).toContain(kinds[1]);
+    expect(passwordResetMail(locale, resetUrl).text).toContain(kinds[2]);
+  });
+
   it('password reset: one dominant button, the link once more as a small fallback, honest facts', () => {
     const m = passwordResetMail(locale, resetUrl);
     const escapedUrl = resetUrl.replace(/&/g, '&#38;');

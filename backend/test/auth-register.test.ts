@@ -6,6 +6,7 @@ import {
   describeDb,
   PASSWORD,
   resetDb,
+  signIn,
   tokenFrom,
   type Harness,
 } from './support.js';
@@ -22,12 +23,19 @@ describeDb('registration (EP23)', () => {
   });
 
   const register = (b: Browser, body: Record<string, unknown>) =>
-    b.post('/api/v1/auth/register', { password: PASSWORD, acceptTerms: true, ...body });
+    b.post('/api/v1/auth/register', {
+      password: PASSWORD,
+      fullName: 'สมชาย ใจดี',
+      phone: '081-234-5678',
+      business: { companyName: 'Test Co', industry: 'SERVICES', teamSize: 'SIZE_1_10' },
+      acceptTerms: true,
+      ...body,
+    });
 
   it('creates a pending account and emails a verification link from notify@pdabliss.com', async () => {
     const res = await register(new Browser(h.app), {
       email: 'new.person@example.com',
-      displayName: 'New Person',
+      fullName: 'New Person',
       locale: 'en',
       plan: 'business',
     });
@@ -133,7 +141,7 @@ describeDb('registration (EP23)', () => {
   it('refuses oversized payloads', async () => {
     const res = await register(new Browser(h.app), {
       email: 'big@example.com',
-      displayName: 'x'.repeat(20_000),
+      fullName: 'x'.repeat(20_000),
     });
     expect(res.statusCode).toBe(413);
   });
@@ -162,7 +170,14 @@ describeDb('email verification (EP23)', () => {
 
   async function registered(email = 'verify.me@example.com') {
     const b = new Browser(h.app);
-    await b.post('/api/v1/auth/register', { email, password: PASSWORD, acceptTerms: true });
+    await b.post('/api/v1/auth/register', {
+      email,
+      password: PASSWORD,
+      fullName: 'Verify Person',
+      phone: '0812345678',
+      business: { companyName: 'Test Co', industry: 'SERVICES', teamSize: 'SIZE_1_10' },
+      acceptTerms: true,
+    });
     return { b, token: tokenFrom(h.mailer, email, 'verify_email') };
   }
 
@@ -255,5 +270,257 @@ describeDb('email verification (EP23)', () => {
     const dump = JSON.stringify(events);
     expect(dump).not.toContain(token);
     expect(dump).not.toContain(PASSWORD);
+  });
+});
+
+describeDb('registration profile (EP24.1)', () => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await createHarness();
+  });
+  afterAll(async () => h.close());
+  beforeEach(async () => {
+    await resetDb(h.db);
+    h.mailer.clear();
+  });
+
+  const base = {
+    email: 'profile@example.com',
+    password: PASSWORD,
+    fullName: '  สมหญิง   รักงาน ',
+    phone: '081-234-5678',
+    business: {
+      companyName: 'บริษัท ตัวอย่าง จำกัด',
+      industry: 'DISTRIBUTION',
+      teamSize: 'SIZE_11_50',
+    },
+    acceptTerms: true,
+  };
+  const register = (body: Record<string, unknown>) =>
+    new Browser(h.app).post('/api/v1/auth/register', body);
+  const fieldsOf = (res: { json(): { error: { details?: unknown } } }) =>
+    ((res.json().error.details ?? []) as { path: string }[]).map((d) => d.path);
+
+  it('stores the person: normalized full name, E.164 phone and the optional job function', async () => {
+    expect((await register({ ...base, jobFunction: 'ACCOUNTING' })).statusCode).toBe(202);
+    const user = await h.db.user.findUniqueOrThrow({
+      where: { emailNormalized: 'profile@example.com' },
+    });
+    expect(user).toMatchObject({
+      fullName: 'สมหญิง รักงาน',
+      phone: '+66812345678',
+      jobFunction: 'ACCOUNTING',
+    });
+  });
+
+  it('accepts Thai and international phone formats and normalizes them', async () => {
+    const cases: [string, string][] = [
+      ['0812345678', '+66812345678'],
+      ['02 123 4567', '+6621234567'],
+      ['+66 81 234 5678', '+66812345678'],
+      ['(081) 234.5678', '+66812345678'],
+      ['+1 415 555 0100', '+14155550100'],
+      ['0044 20 7946 0958', '+442079460958'],
+    ];
+    for (const [i, [input, stored]] of cases.entries()) {
+      const email = `phone${i}@example.com`;
+      const res = await register({ ...base, email, phone: input });
+      expect(res.statusCode, `${input}: ${res.body}`).toBe(202);
+      const user = await h.db.user.findUniqueOrThrow({ where: { emailNormalized: email } });
+      expect(user.phone).toBe(stored);
+    }
+  });
+
+  it('requires a real full name and a valid phone, with field-level errors', async () => {
+    for (const body of [
+      { ...base, fullName: undefined },
+      { ...base, fullName: ' ' },
+      { ...base, fullName: 'A' },
+      { ...base, fullName: '12345' },
+      { ...base, fullName: '<b>Admin</b>' },
+    ]) {
+      const res = await register(body);
+      expect(res.statusCode, JSON.stringify(body.fullName)).toBe(400);
+      expect(fieldsOf(res)).toContain('fullName');
+    }
+    for (const phone of [
+      undefined,
+      '',
+      '12345',
+      '081-234',
+      'call me',
+      '+66 0812345678',
+      '+0123456789',
+    ]) {
+      const res = await register({ ...base, phone });
+      expect(res.statusCode, String(phone)).toBe(400);
+      expect(fieldsOf(res)).toContain('phone');
+    }
+    expect((await register({ ...base, jobFunction: 'CEO' })).statusCode).toBe(400);
+    expect(await h.db.user.count()).toBe(0);
+  });
+
+  it('refuses injected fields: roles, company, status, the old displayName', async () => {
+    for (const extra of [
+      { role: 'COMPANY_OWNER' },
+      { platformRole: 'PLATFORM_OWNER' },
+      { companyRole: 'SYSTEM_ADMIN' },
+      { companyId: 'c1' },
+      { status: 'ACTIVE' },
+      { emailVerified: true },
+      { displayName: 'Nick' },
+      { phoneVerified: true },
+    ]) {
+      expect((await register({ ...base, ...extra })).statusCode, JSON.stringify(extra)).toBe(400);
+    }
+    expect(await h.db.user.count()).toBe(0);
+  });
+
+  it('a job function never grants anything: no role, no company, no platform access', async () => {
+    await register({ ...base, jobFunction: 'OWNER' });
+    const token = tokenFrom(h.mailer, 'profile@example.com', 'verify_email');
+    const b = new Browser(h.app);
+    await b.post('/api/v1/auth/verify-email', { token });
+    const signedIn = await signIn(h, 'profile@example.com', { browser: b });
+    const me = (await signedIn.get('/api/v1/auth/me')).json().identity;
+    expect(me).toMatchObject({
+      platformRole: null,
+      company: null,
+      user: { fullName: 'สมหญิง รักงาน', phone: '+66812345678', jobFunction: 'OWNER' },
+    });
+    expect(await h.db.companyMember.count()).toBe(0);
+    expect(await h.db.platformRoleAssignment.count()).toBe(0);
+    expect((await signedIn.get('/api/v1/platform/companies')).statusCode).toBe(403);
+    expect((await signedIn.get('/api/v1/company/current')).statusCode).toBe(404);
+  });
+
+  it('registering an existing address changes nothing about that account', async () => {
+    await createUser(h.db, 'profile@example.com');
+    await register({ ...base, fullName: 'Someone Else', phone: '0899999999' });
+    const user = await h.db.user.findUniqueOrThrow({
+      where: { emailNormalized: 'profile@example.com' },
+    });
+    expect(user.fullName).toBeNull();
+    expect(user.phone).toBeNull();
+  });
+});
+
+describeDb('registration business context (EP24.1)', () => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await createHarness();
+  });
+  afterAll(async () => h.close());
+  beforeEach(async () => {
+    await resetDb(h.db);
+    h.mailer.clear();
+  });
+
+  const business = {
+    companyName: '  บริษัท สยามเทรด จำกัด ',
+    industry: 'DISTRIBUTION',
+    teamSize: 'SIZE_51_200',
+    preferredContact: 'LINE',
+    lineId: '@siamtrade',
+    interests: ['WAREHOUSE', 'PURCHASING', 'WAREHOUSE'],
+    note: 'สต็อกไม่ตรงกับบัญชีทุกสิ้นเดือน',
+  };
+  const register = (b: Record<string, unknown>, email = 'lead@example.com') =>
+    new Browser(h.app).post('/api/v1/auth/register', {
+      email,
+      password: PASSWORD,
+      fullName: 'ผู้ติดต่อ ทดสอบ',
+      phone: '0812345678',
+      acceptTerms: true,
+      business: b,
+    });
+
+  it('stores the business context with the person — not as a company', async () => {
+    expect((await register(business)).statusCode).toBe(202);
+    const user = await h.db.user.findUniqueOrThrow({
+      where: { emailNormalized: 'lead@example.com' },
+      include: { signupContext: true, companyMember: true },
+    });
+    expect(user.signupContext).toMatchObject({
+      companyName: 'บริษัท สยามเทรด จำกัด',
+      industry: 'DISTRIBUTION',
+      teamSize: 'SIZE_51_200',
+      preferredContact: 'LINE',
+      lineId: '@siamtrade',
+      interests: ['WAREHOUSE', 'PURCHASING'],
+      note: 'สต็อกไม่ตรงกับบัญชีทุกสิ้นเดือน',
+    });
+    // Lead information never creates or claims a CORE company.
+    expect(user.companyMember).toBeNull();
+    expect(await h.db.company.count()).toBe(0);
+  });
+
+  it('defaults to email contact and no interests; the note is optional', async () => {
+    const res = await register({
+      companyName: 'Minimal Co',
+      industry: 'OTHER',
+      teamSize: 'SIZE_1_10',
+    });
+    expect(res.statusCode, res.body).toBe(202);
+    const ctx = await h.db.accountSignupContext.findFirstOrThrow();
+    expect(ctx).toMatchObject({
+      preferredContact: 'EMAIL',
+      interests: [],
+      note: null,
+      lineId: null,
+    });
+  });
+
+  it('requires the business basics and refuses unknown or server-decided fields', async () => {
+    const bad = [
+      undefined,
+      { ...business, companyName: '' },
+      { ...business, industry: 'BANKING' },
+      { ...business, teamSize: '1000' },
+      { ...business, preferredContact: 'LINE', lineId: undefined },
+      { ...business, lineId: 'not a line id!' },
+      { ...business, interests: ['PAYROLL'] },
+      { ...business, note: 'x'.repeat(1001) },
+      { ...business, plan: 'PROFESSIONAL' },
+      { ...business, companyId: 'c1' },
+      { ...business, departments: ['SALES'] },
+    ];
+    for (const b of bad) {
+      expect((await register(b as Record<string, unknown>)).statusCode, JSON.stringify(b)).toBe(
+        400,
+      );
+    }
+    expect(await h.db.user.count()).toBe(0);
+  });
+
+  it('the account holder sees it; platform inspection shows it as sign-up context', async () => {
+    await register(business);
+    const token = tokenFrom(h.mailer, 'lead@example.com', 'verify_email');
+    const b = new Browser(h.app);
+    await b.post('/api/v1/auth/verify-email', { token });
+    const me = await signIn(h, 'lead@example.com', { browser: b });
+    const identity = (await me.get('/api/v1/auth/me')).json().identity;
+    expect(identity.user.signup).toMatchObject({
+      companyName: 'บริษัท สยามเทรด จำกัด',
+      interests: ['WAREHOUSE', 'PURCHASING'],
+    });
+    await createUser(h.db, 'admin@pdabliss.test', { platformRole: 'PLATFORM_ADMIN' });
+    const op = await signIn(h, 'admin@pdabliss.test');
+    const users = (await op.get('/api/v1/platform/users')).json<{
+      users: { email: string; signup: unknown }[];
+    }>().users;
+    expect(users.find((u) => u.email === 'lead@example.com')?.signup).toMatchObject({
+      companyName: 'บริษัท สยามเทรด จำกัด',
+      industry: 'DISTRIBUTION',
+    });
+  });
+
+  it('an existing address keeps its own context; nothing is overwritten', async () => {
+    await register(business);
+    await register({ ...business, companyName: 'Someone Else Co' });
+    expect(await h.db.accountSignupContext.count()).toBe(1);
+    expect((await h.db.accountSignupContext.findFirstOrThrow()).companyName).toBe(
+      'บริษัท สยามเทรด จำกัด',
+    );
   });
 });

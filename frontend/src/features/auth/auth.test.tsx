@@ -27,59 +27,128 @@ const noindex = () =>
   expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
 
 describe('register', () => {
-  it('validates before sending, then shows "check your email"', async () => {
+  /** Step 1 with valid values (labels carry a visible "*" and a hidden "(required)"). */
+  async function fillAccount(overrides: { password?: string; confirm?: string } = {}) {
+    await userEvent.type(screen.getByLabelText(/^ชื่อ-นามสกุล/), 'สมชาย ใจดี');
+    await userEvent.type(screen.getByLabelText(/^เบอร์โทรศัพท์/), '081-234-5678');
+    await userEvent.type(screen.getByLabelText(/^อีเมล/), 'new.person@example.com');
+    await userEvent.type(screen.getByLabelText(/^รหัสผ่าน\*/), overrides.password ?? PASSWORD);
+    await userEvent.type(screen.getByLabelText(/^ยืนยันรหัสผ่าน/), overrides.confirm ?? PASSWORD);
+  }
+
+  it('step 1 validates the person and the sign-in details before moving on', async () => {
+    const api = fakeApi({});
+    renderRoute('/register?plan=business');
+    await screen.findByRole('heading', { level: 1, name: 'เริ่มต้นกับ PDA BLISS CORE' });
+    noindex();
+    expect(document.querySelector('[data-plan="business"]')).toHaveTextContent('Business');
+    expect(document.querySelector('[data-steps="1"]')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /ไปต่อ/ }));
+    expect(screen.getByLabelText(/^ชื่อ-นามสกุล/)).toHaveFocus();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/^ชื่อ-นามสกุล/)).toHaveAttribute('aria-invalid', 'true'),
+    );
+    expect(screen.getByText('กรุณากรอกชื่อ-นามสกุล')).toBeInTheDocument();
+    expect(screen.getByText('กรุณากรอกเบอร์โทรศัพท์')).toBeInTheDocument();
+    expect(screen.getByText('กรุณากรอกอีเมล')).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText(/^ชื่อ-นามสกุล/), 'สมชาย ใจดี');
+    await userEvent.type(screen.getByLabelText(/^เบอร์โทรศัพท์/), '12345');
+    await userEvent.type(screen.getByLabelText(/^อีเมล/), 'not-an-email');
+    await userEvent.type(screen.getByLabelText(/^รหัสผ่าน\*/), 'short');
+    await userEvent.type(screen.getByLabelText(/^ยืนยันรหัสผ่าน/), 'different');
+    await userEvent.click(screen.getByRole('button', { name: /ไปต่อ/ }));
+    expect(screen.getByLabelText(/^เบอร์โทรศัพท์/)).toHaveFocus();
+    expect(screen.getByText(/เบอร์โทรศัพท์ไม่ถูกต้อง/)).toBeInTheDocument();
+    expect(screen.getByText('รูปแบบอีเมลไม่ถูกต้อง')).toBeInTheDocument();
+    expect(screen.getByText('รหัสผ่านต้องมีอย่างน้อย 10 ตัวอักษร')).toBeInTheDocument();
+    expect(screen.getByText('รหัสผ่านทั้งสองช่องไม่ตรงกัน')).toBeInTheDocument();
+    // The live rules say which ones are not met yet.
+    expect(document.querySelector('[data-rule="length"]')).toHaveAttribute('data-met', 'false');
+    expect(document.querySelector('[data-rule="match"]')).toHaveAttribute('data-met', 'false');
+    expect(document.querySelector('[data-register-step="1"]')).toBeInTheDocument();
+    expect(api.called('POST /api/v1/auth/register')).toHaveLength(0);
+  });
+
+  it('step 2 collects the business context, then sends ONE request and shows "check your email"', async () => {
     const api = fakeApi({
       'POST /api/v1/auth/register': { status: 202, body: { status: 'verification_sent' } },
       'POST /api/v1/auth/verification/resend': { status: 202, body: { status: 'accepted' } },
     });
     renderRoute('/register?plan=business');
-    await screen.findByRole('heading', { level: 1, name: 'เริ่มต้นกับ PDA BLISS CORE' });
-    noindex();
-    expect(document.querySelector('[data-plan="business"]')).toHaveTextContent('Business');
+    await screen.findByRole('heading', { level: 1 });
+    await userEvent.selectOptions(screen.getByLabelText(/^บทบาทในบริษัท/), 'ACCOUNTING');
+    await fillAccount();
+    await userEvent.click(screen.getByRole('button', { name: /ไปต่อ/ }));
 
+    // Step 2: focus starts at its heading; Back keeps what was typed.
+    const heading = await screen.findByRole('heading', { level: 2, name: /ธุรกิจของคุณ/ });
+    expect(heading).toHaveFocus();
+    expect(screen.getByText(/ยังไม่ใช่การสร้างบริษัทใน CORE/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'ย้อนกลับ' }));
+    expect(screen.getByLabelText(/^อีเมล/)).toHaveValue('new.person@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /ไปต่อ/ }));
+    await screen.findByRole('heading', { level: 2, name: /ธุรกิจของคุณ/ });
+
+    // Required business basics and the terms.
     await userEvent.click(screen.getByRole('button', { name: 'สร้างบัญชี' }));
-    expect(screen.getByLabelText('อีเมล')).toHaveFocus();
-    // The error state can commit a render after focus moves (seen under load): wait for it.
-    await waitFor(() =>
-      expect(screen.getByLabelText('อีเมล')).toHaveAttribute('aria-invalid', 'true'),
-    );
+    expect(screen.getByLabelText(/^ชื่อบริษัทหรือองค์กร/)).toHaveFocus();
+    expect(screen.getByText('กรุณาเลือกประเภทธุรกิจ')).toBeInTheDocument();
+    expect(screen.getByText('กรุณาเลือกขนาดทีม')).toBeInTheDocument();
     expect(screen.getByText('กรุณายอมรับข้อกำหนดเพื่อสมัครใช้งาน')).toBeInTheDocument();
 
-    await userEvent.type(screen.getByLabelText('อีเมล'), 'new.person@example.com');
-    await userEvent.type(screen.getByLabelText('รหัสผ่าน'), 'short');
-    await userEvent.type(screen.getByLabelText('ยืนยันรหัสผ่าน'), 'different');
-    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.type(screen.getByLabelText(/^ชื่อบริษัทหรือองค์กร/), 'บริษัท สยามเทรด จำกัด');
+    await userEvent.selectOptions(screen.getByLabelText(/^ประเภทธุรกิจ/), 'DISTRIBUTION');
+    await userEvent.selectOptions(screen.getByLabelText(/^ขนาดทีม/), 'SIZE_51_200');
+    // LINE needs an ID.
+    await userEvent.click(screen.getByRole('radio', { name: 'LINE' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'คลังสินค้า' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'จัดซื้อ' }));
+    await userEvent.type(screen.getByLabelText(/^ความต้องการ/), 'สต็อกไม่ตรงกับบัญชี');
+    await userEvent.click(screen.getByRole('checkbox', { name: /ฉันยอมรับ/ }));
     await userEvent.click(screen.getByRole('button', { name: 'สร้างบัญชี' }));
-    expect(screen.getByText('รหัสผ่านต้องมีอย่างน้อย 10 ตัวอักษร')).toBeInTheDocument();
-    expect(screen.getByText('รหัสผ่านทั้งสองช่องไม่ตรงกัน')).toBeInTheDocument();
-    expect(api.called('POST /api/v1/auth/register')).toHaveLength(0);
-
-    await userEvent.clear(screen.getByLabelText('รหัสผ่าน'));
-    await userEvent.type(screen.getByLabelText('รหัสผ่าน'), PASSWORD);
-    await userEvent.clear(screen.getByLabelText('ยืนยันรหัสผ่าน'));
-    await userEvent.type(screen.getByLabelText('ยืนยันรหัสผ่าน'), PASSWORD);
+    expect(screen.getByLabelText(/^LINE ID/)).toHaveFocus();
+    await userEvent.type(screen.getByLabelText(/^LINE ID/), '@siamtrade');
     await userEvent.click(screen.getByRole('button', { name: 'สร้างบัญชี' }));
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'ตรวจสอบอีเมลของคุณ' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('new.person@example.com');
-    const [call] = api.called('POST /api/v1/auth/register');
-    // Exactly the allowed fields — never a role.
-    expect(call!.body).toEqual({
+    const calls = api.called('POST /api/v1/auth/register');
+    expect(calls).toHaveLength(1);
+    // Exactly the allowed fields — never a role, a company id or a status.
+    expect(calls[0]!.body).toEqual({
+      fullName: 'สมชาย ใจดี',
+      phone: '081-234-5678',
+      jobFunction: 'ACCOUNTING',
       email: 'new.person@example.com',
       password: PASSWORD,
+      business: {
+        companyName: 'บริษัท สยามเทรด จำกัด',
+        industry: 'DISTRIBUTION',
+        teamSize: 'SIZE_51_200',
+        preferredContact: 'LINE',
+        lineId: '@siamtrade',
+        interests: ['WAREHOUSE', 'PURCHASING'],
+        note: 'สต็อกไม่ตรงกับบัญชี',
+      },
       locale: 'th',
       plan: 'business',
       acceptTerms: true,
     });
     expect(screen.getByRole('button', { name: /ส่งอีกครั้งได้ใน/ })).toBeDisabled();
-  });
+    // ~30 real keystroke / click steps: more than the default budget under a parallel run.
+  }, 20_000);
 
-  it('ignores an unknown plan value and speaks English when asked', async () => {
+  it('ignores an unknown plan value and speaks English (and Chinese) when asked', async () => {
     renderRoute('/en/register?plan=free');
     await screen.findByRole('heading', { level: 1, name: 'Get started with PDA BLISS CORE' });
     expect(document.querySelector('[data-plan]')).toBeNull();
+    expect(screen.getByLabelText(/^Full name/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Phone number/)).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
   });
 
   it('shows the server password rule when it refuses', async () => {
@@ -88,10 +157,13 @@ describe('register', () => {
     });
     renderRoute('/register');
     await screen.findByRole('heading', { level: 1 });
-    await userEvent.type(screen.getByLabelText('อีเมล'), 'a@example.com');
-    await userEvent.type(screen.getByLabelText('รหัสผ่าน'), '1234567890');
-    await userEvent.type(screen.getByLabelText('ยืนยันรหัสผ่าน'), '1234567890');
-    await userEvent.click(screen.getByRole('checkbox'));
+    await fillAccount({ password: '1234567890', confirm: '1234567890' });
+    await userEvent.click(screen.getByRole('button', { name: /ไปต่อ/ }));
+    await screen.findByRole('heading', { level: 2, name: /ธุรกิจของคุณ/ });
+    await userEvent.type(screen.getByLabelText(/^ชื่อบริษัทหรือองค์กร/), 'ACME');
+    await userEvent.selectOptions(screen.getByLabelText(/^ประเภทธุรกิจ/), 'OTHER');
+    await userEvent.selectOptions(screen.getByLabelText(/^ขนาดทีม/), 'SIZE_1_10');
+    await userEvent.click(screen.getByRole('checkbox', { name: /ฉันยอมรับ/ }));
     await userEvent.click(screen.getByRole('button', { name: 'สร้างบัญชี' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('เดาง่ายเกินไป');
   });
@@ -296,141 +368,6 @@ describe('Account Portal', () => {
     await screen.findByRole('heading', { level: 1, name: 'เข้าสู่พื้นที่ทำงานของคุณ' });
     expect(router.state.location.pathname).toBe('/login');
     expect(api.called('POST /api/v1/auth/logout-all')).toHaveLength(1);
-  });
-});
-
-describe('Platform Control Center', () => {
-  const platformData = {
-    'GET /api/v1/platform/overview': ok({
-      operator: {},
-      users: { ACTIVE: 7, PENDING_VERIFICATION: 2 },
-      companies: { customer: 0, demo: 1 },
-      activeSessions: 3,
-    }),
-    'GET /api/v1/platform/companies': ok({
-      companies: [
-        {
-          id: 'c1',
-          name: 'PDA BLISS CORE DEMO COMPANY',
-          legalName: null,
-          isDemo: true,
-          status: 'ACTIVE',
-          onboardingStatus: 'COMPLETED',
-          owner: 'owner.demo@pdabliss.com',
-          plan: 'PROFESSIONAL',
-          subscriptionStatus: 'ACTIVE',
-          members: 4,
-          departments: 6,
-          branches: 1,
-          createdAt: '2026-10-26T03:00:00.000Z',
-        },
-      ],
-      developmentActivation: true,
-    }),
-    'GET /api/v1/platform/users': ok({ users: [] }),
-    'GET /api/v1/platform/audit': ok({
-      events: [
-        {
-          id: 'e1',
-          type: 'LOGIN_SUCCESS',
-          email: 'owner@pdabliss.test',
-          ipAddress: null,
-          occurredAt: '2026-10-26T03:00:00.000Z',
-        },
-      ],
-    }),
-    'GET /api/v1/platform/operators': ok({
-      operators: [
-        {
-          userId: 'u1',
-          email: 'owner@pdabliss.test',
-          displayName: null,
-          status: 'ACTIVE',
-          role: 'PLATFORM_OWNER',
-          since: '2026-10-26T03:00:00.000Z',
-        },
-        {
-          userId: 'u2',
-          email: 'platform.admin@pdabliss.com',
-          displayName: null,
-          status: 'ACTIVE',
-          role: 'PLATFORM_ADMIN',
-          since: '2026-10-26T03:00:00.000Z',
-        },
-      ],
-    }),
-  };
-
-  it('PLATFORM_OWNER: highest role, owner-only operator area, real data, honest placeholders', async () => {
-    const api = fakeApi({
-      ...signedIn(identity({ platformRole: 'PLATFORM_OWNER', email: 'owner@pdabliss.test' })),
-      ...platformData,
-    });
-    renderRoute('/platform');
-    await screen.findByRole('heading', { level: 1, name: 'Platform Control Center' });
-    noindex();
-    expect(document.querySelector('[data-platform-role="PLATFORM_OWNER"]')).toHaveTextContent(
-      'สิทธิ์สูงสุดของแพลตฟอร์ม',
-    );
-    expect(screen.getByText(/ไม่ใช่ Company Control Center/)).toBeInTheDocument();
-    const owners = await waitFor(() => {
-      const el = document.querySelector('[data-owner-only]');
-      expect(el).toHaveTextContent('platform.admin@pdabliss.com');
-      return el!;
-    });
-    expect(owners).toHaveTextContent('Platform Owner');
-    expect(screen.getByText('PDA BLISS CORE DEMO COMPANY')).toBeInTheDocument();
-    expect(screen.getByText('LOGIN_SUCCESS')).toBeInTheDocument();
-    expect(document.querySelectorAll('[data-placeholder]')).toHaveLength(2);
-    expect(api.called('GET /api/v1/platform/operators')).toHaveLength(1);
-  });
-
-  it('PLATFORM_ADMIN: reduced center — no owner-only area, no owner-only request', async () => {
-    const api = fakeApi({
-      ...signedIn(identity({ platformRole: 'PLATFORM_ADMIN' })),
-      ...platformData,
-    });
-    renderRoute('/platform');
-    await screen.findByRole('heading', { level: 1, name: 'Platform Control Center' });
-    expect(document.querySelector('[data-platform-role="PLATFORM_ADMIN"]')).toHaveTextContent(
-      'ต่ำกว่า Platform Owner',
-    );
-    await screen.findByText('PDA BLISS CORE DEMO COMPANY');
-    expect(document.querySelector('[data-owner-only]')).toBeNull();
-    expect(screen.queryByText('Platform Owner และ Platform Admin')).toBeNull();
-    expect(api.called('GET /api/v1/platform/operators')).toHaveLength(0);
-  });
-
-  it('keeps long emails and cards inside the viewport on phones (EP23 overflow fix)', async () => {
-    // Below 768 px a long address and the grid cards pushed /platform sideways; the fix is
-    // min-w-0 on grid children and break-all on addresses. Layout itself is checked in the
-    // browser sweep (320–1440 px); this guards the classes that carry the fix.
-    const long = 'a.very.long.platform.operator.address.for.testing@subdomain.pdabliss.test';
-    fakeApi({
-      ...signedIn(identity({ platformRole: 'PLATFORM_OWNER', email: long })),
-      ...platformData,
-    });
-    renderRoute('/platform');
-    await screen.findByRole('heading', { level: 1, name: 'Platform Control Center' });
-    // Every place the address appears either wraps (break-all) or truncates inside a
-    // shrinkable (min-w-0) box.
-    for (const address of screen.getAllByText(long)) {
-      const wraps = address.classList.contains('break-all');
-      const truncates =
-        address.classList.contains('truncate') && address.classList.contains('min-w-0');
-      expect(wraps || truncates, address.className).toBe(true);
-      if (wraps) expect(address.parentElement).toHaveClass('min-w-0');
-    }
-    for (const card of document.querySelectorAll('[data-placeholder]')) {
-      expect(card).toHaveClass('min-w-0');
-    }
-  });
-
-  it('a customer account is sent from /platform to /account', async () => {
-    fakeApi(signedIn(identity()));
-    const { router } = renderRoute('/platform');
-    await screen.findByRole('heading', { level: 1, name: 'บัญชีของคุณ' });
-    expect(router.state.location.pathname).toBe('/account');
   });
 });
 

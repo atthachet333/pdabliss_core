@@ -82,3 +82,27 @@ export const CreateCompanyBody = z
 export type CreateCompanyInput = z.output<typeof CreateCompanyBody>;
 
 export const IdParams = z.object({ id: z.string().min(1).max(64) });
+
+/** `?x=` with an empty value means "not set" (a cleared filter in the UI). */
+const optionalParam = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+
+/**
+ * Platform Company Explorer query (EP24.1). Newest first; `cursor` is the id
+ * of the last row of the previous page. Filters apply to the company and its
+ * current subscription.
+ */
+export const PlatformCompanyQuery = z
+  .object({
+    q: optionalParam(z.string().trim().min(1).max(100)),
+    plan: optionalParam(z.enum(PLAN_CODES)),
+    subscriptionStatus: optionalParam(z.enum(['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'])),
+    status: optionalParam(z.enum(['PENDING_SUBSCRIPTION', 'ACTIVE', 'SUSPENDED', 'CLOSED'])),
+    onboardingStatus: optionalParam(z.enum(['IN_PROGRESS', 'COMPLETED'])),
+    department: optionalParam(z.enum(DEPARTMENT_CODES)),
+    cursor: optionalParam(z.string().min(1).max(64)),
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+  })
+  .strict();
+
+export type PlatformCompanyFilter = z.output<typeof PlatformCompanyQuery>;

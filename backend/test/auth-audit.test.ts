@@ -37,6 +37,9 @@ describeDb('auth audit trail (EP23)', () => {
     const reg = await first.post('/api/v1/auth/register', {
       email,
       password: PASSWORD,
+      fullName: 'Audit Person',
+      phone: '0812345678',
+      business: { companyName: 'Test Co', industry: 'SERVICES', teamSize: 'SIZE_1_10' },
       acceptTerms: true,
     });
     expect(reg.statusCode, reg.body).toBe(202);

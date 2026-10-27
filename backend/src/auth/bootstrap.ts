@@ -96,7 +96,7 @@ async function upsertVerifiedUser(
   email: string,
   password: string,
   resetPassword: boolean,
-  displayName: string,
+  fullName: string,
 ): Promise<{ id: string; outcome: 'created' | 'updated' | 'unchanged' }> {
   const emailNormalized = normalizeEmail(email);
   const existing = await db.user.findUnique({
@@ -109,7 +109,7 @@ async function upsertVerifiedUser(
       data: {
         email,
         emailNormalized,
-        displayName,
+        fullName,
         status: 'ACTIVE',
         emailVerifiedAt: now,
         credential: { create: { passwordHash: await hashPassword(password) } },
@@ -128,6 +128,11 @@ async function upsertVerifiedUser(
       where: { id: existing.id },
       data: { emailVerifiedAt: existing.emailVerifiedAt ?? now, status: 'ACTIVE' },
     });
+    outcome = 'updated';
+  }
+  // EP24.1: older accounts without a name get the seed's name once (never overwritten).
+  if (!existing.fullName) {
+    await db.user.update({ where: { id: existing.id }, data: { fullName } });
     outcome = 'updated';
   }
   if (!existing.credential || resetPassword) {

@@ -11,6 +11,8 @@ export const ABOUT_CHAPTER = {
   systems: 'systems',
   approach: 'approach',
   consulting: 'consulting',
+  /** EP24.1: S2 — accounting and business-process insight. */
+  partner: 'business-insight',
   implementation: 'implementation-approach',
   longTerm: 'long-term',
   info: 'company-information',

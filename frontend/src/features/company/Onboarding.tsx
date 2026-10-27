@@ -212,6 +212,7 @@ function SetupFlow({
   ) : (
     <CompanyForm
       plan={chosen!}
+      suggestedName={identity.user.signup?.companyName ?? ''}
       onChangePlan={() => setChanging(true)}
       onCreated={onDone}
       c={c}
@@ -399,12 +400,15 @@ const SERVER_PATHS: Record<string, FieldKey> = {
 
 function CompanyForm({
   plan,
+  suggestedName,
   onChangePlan,
   onCreated,
   c,
   a,
 }: {
   plan: PlanCode;
+  /** EP24.1: the name given at sign-up, as a starting point the owner can change. */
+  suggestedName: string;
   onChangePlan: () => void;
   onCreated: () => Promise<void>;
   c: CompanyCopy;
@@ -416,8 +420,8 @@ function CompanyForm({
   const executiveAllowed = facts(plan).executiveAccess;
   const quotation = facts(plan).cta === 'quote';
   const [values, setValues] = useState<Record<FieldKey, string>>({
-    legalName: '',
-    displayName: '',
+    legalName: suggestedName,
+    displayName: suggestedName,
     taxId: '',
     registrationNumber: '',
     hoName: '',

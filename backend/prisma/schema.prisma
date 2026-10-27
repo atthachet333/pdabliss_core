@@ -83,6 +83,8 @@ model Company {
 
   @@index([status])
   @@index([onboardingStatus])
+  /// Platform Company Explorer: newest first, cursor by id (EP24.1).
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
 }
 
 /// The six standard CORE departments (EP24 canonical codes).
@@ -269,6 +271,74 @@ enum AppLocale {
   zh_CN
 }
 
+/// Self-described work area of the person (EP24.1). Profile information only —
+/// it never grants a role, a department or any permission.
+enum JobFunction {
+  OWNER
+  EXECUTIVE
+  ACCOUNTING
+  PURCHASING
+  SALES
+  OPERATIONS
+  WAREHOUSE
+  IT
+  OTHER
+}
+
+/// Business context a person gives at sign-up (EP24.1) — lead information for
+/// PDA BLISS. It is NOT the company record (that is created in onboarding) and
+/// it never grants anything.
+enum SignupIndustry {
+  DISTRIBUTION
+  SERVICES
+  PROJECTS
+  RETAIL
+  PROPERTY
+  MANUFACTURING
+  OTHER
+}
+
+enum SignupTeamSize {
+  SIZE_1_10
+  SIZE_11_50
+  SIZE_51_200
+  SIZE_201_500
+  SIZE_500_PLUS
+}
+
+enum ContactPreference {
+  EMAIL
+  PHONE
+  LINE
+}
+
+enum SignupInterest {
+  SALES
+  WAREHOUSE
+  PURCHASING
+  OPERATIONS
+  ACCOUNTING_WORKFLOW
+  EXECUTIVE_VISIBILITY
+  FULL_ORGANIZATION
+}
+
+model AccountSignupContext {
+  userId           String            @id
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The company the person says they represent (free text; not verified, not a Company row).
+  companyName      String
+  industry         SignupIndustry
+  teamSize         SignupTeamSize
+  preferredContact ContactPreference @default(EMAIL)
+  /// LINE ID when LINE is the preferred contact.
+  lineId           String?
+  interests        SignupInterest[]
+  /// Optional needs / pain points in the person's own words.
+  note             String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
 /// One human = one account, across the whole platform.
 model User {
   id               String                   @id @default(cuid())
@@ -276,7 +346,12 @@ model User {
   email            String
   /// Lower-cased, trimmed, NFC — the identity key. Unique.
   emailNormalized  String                   @unique
-  displayName      String?
+  /// The person's full name (EP24.1: required at registration; NULL only for older accounts).
+  fullName         String?
+  /// Contact phone, normalized to E.164 (e.g. +66812345678). Profile data — not an MFA factor.
+  phone            String?
+  /// Self-described work area; never an authorization input.
+  jobFunction      JobFunction?
   locale           AppLocale                @default(th)
   status           UserStatus               @default(PENDING_VERIFICATION)
   emailVerifiedAt  DateTime?
@@ -303,6 +378,7 @@ model User {
   actedEvents      AuthAuditEvent[]         @relation("AuthEventActor")
   auditLogs        AuditLog[]
   companiesCreated Company[]                @relation("CompanyCreator")
+  signupContext    AccountSignupContext?
 
   @@index([status])
 }

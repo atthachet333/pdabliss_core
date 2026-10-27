@@ -2,6 +2,13 @@ import { apiRequest } from '@/lib/api';
 import type { DepartmentId } from '@/config/departments';
 import type { PlanId } from '@/features/pricing/plans';
 import type { CompanyRole } from '@/features/auth/api';
+import type {
+  ContactPreference,
+  JobFunction,
+  SignupIndustry,
+  SignupInterest,
+  SignupTeamSize,
+} from '@/features/auth/profile';
 
 /*
  * Typed client for the EP24 company & subscription foundation
@@ -142,22 +149,87 @@ export interface PlatformCompanyRow {
   isDemo: boolean;
   status: CompanyStatus;
   onboardingStatus: 'IN_PROGRESS' | 'COMPLETED';
+  /** Owner email / full name. */
   owner: string | null;
+  ownerName: string | null;
   plan: PlanCode | null;
   subscriptionStatus: SubscriptionStatus | null;
+  billingCycle: 'MONTHLY' | 'ANNUAL' | null;
+  maxDepartments: number | 'CUSTOM' | null;
+  enabledDepartments: DepartmentCode[];
   members: number;
+  /** Count of enabled departments. */
   departments: number;
   branches: number;
   createdAt: string;
+  /** Latest company audit event, when there is one. */
+  lastActivityAt: string | null;
+}
+
+/** Explorer filters (EP24.1); all optional, combined with AND. */
+export interface PlatformCompanyQuery {
+  q?: string;
+  plan?: PlanCode;
+  subscriptionStatus?: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED';
+  status?: CompanyStatus;
+  onboardingStatus?: 'IN_PROGRESS' | 'COMPLETED';
+  department?: DepartmentCode;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface PlatformCompanyPage {
+  companies: PlatformCompanyRow[];
+  total: number;
+  nextCursor: string | null;
+  developmentActivation: boolean;
+}
+
+export type DepartmentState = 'ENABLED' | 'NOT_ENABLED' | 'NOT_IN_PACKAGE';
+
+export interface PlatformActivity {
+  id: string;
+  action: string;
+  actorScope: 'customer' | 'platform_owner' | 'platform_admin' | 'seed' | null;
+  actor: { email: string; fullName: string | null } | null;
+  entityType: string;
+  details: Record<string, unknown>;
+  occurredAt: string;
 }
 
 export interface PlatformCompanyDetail {
   company: CompanyInfo['company'];
+  owner: {
+    email: string;
+    fullName: string | null;
+    phone: string | null;
+    /** The owner's sign-up context — what they said, not company data. */
+    signup: {
+      companyName: string;
+      industry: SignupIndustry;
+      teamSize: SignupTeamSize;
+      preferredContact: ContactPreference;
+      lineId: string | null;
+      interests: SignupInterest[];
+      note: string | null;
+    } | null;
+  } | null;
   branches: BranchInfo[];
   departments: DepartmentCode[];
+  departmentStates: { code: DepartmentCode; state: DepartmentState }[];
   subscriptions: SubscriptionInfo[];
   entitlements: Entitlements | null;
-  members: { email: string; status: string; role: CompanyRole }[];
+  members: {
+    email: string;
+    fullName: string | null;
+    jobFunction: JobFunction | null;
+    status: string;
+    role: CompanyRole;
+    joinedAt: string;
+    lastLoginAt: string | null;
+  }[];
+  activity: PlatformActivity[];
+  security: { id: string; type: string; email: string | null; occurredAt: string }[];
   access: { canEnterCore: boolean };
   /** True only outside production: the manual development activation exists. */
   developmentActivation: boolean;
@@ -175,8 +247,13 @@ export const companyApi = {
 const P = '/api/v1/platform/companies';
 
 export const platformCompanyApi = {
-  list: () =>
-    apiRequest<{ companies: PlatformCompanyRow[]; developmentActivation: boolean }>('GET', P),
+  list: (query: PlatformCompanyQuery = {}) => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(query))
+      if (v !== undefined && v !== '') params.set(k, String(v));
+    const qs = params.toString();
+    return apiRequest<PlatformCompanyPage>('GET', qs ? `${P}?${qs}` : P);
+  },
   detail: (id: string) =>
     apiRequest<PlatformCompanyDetail>('GET', `${P}/${encodeURIComponent(id)}`),
   activateForDevelopment: (id: string) =>

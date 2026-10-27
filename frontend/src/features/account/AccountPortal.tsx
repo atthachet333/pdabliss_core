@@ -3,6 +3,8 @@ import { Link } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import type { Identity } from '@/features/auth/api';
 import { AUTH_COPY } from '@/features/auth/copy';
+import { formatPhone } from '@/features/auth/profile';
+import { PROFILE_COPY } from '@/features/auth/profileCopy';
 import { CompanyOnboarding } from '@/features/company/Onboarding';
 import { LOCALE_META } from '@/i18n/locales';
 import { useCopy } from '@/i18n/useCopy';
@@ -21,6 +23,7 @@ import { SessionsPanel } from './SessionsPanel';
  */
 export function AccountPortal({ identity }: { identity: Identity }) {
   const c = useCopy(AUTH_COPY);
+  const p = useCopy(PROFILE_COPY);
   const { locale } = useLocale();
   usePageMeta(c.account.meta.title, c.account.meta.description, { index: false });
   const lang = LOCALE_META[locale].htmlLang;
@@ -40,8 +43,16 @@ export function AccountPortal({ identity }: { identity: Identity }) {
 
         <Panel id="identity-title" title={c.account.identity}>
           <dl className="grid gap-3 text-label sm:grid-cols-[max-content_minmax(0,1fr)] sm:gap-x-6">
-            <dt className="text-text-muted">{c.account.name}</dt>
-            <dd className="text-text-primary">{user.displayName ?? c.account.noName}</dd>
+            <dt className="text-text-muted">{p.account.fullName}</dt>
+            <dd className="text-text-primary">{user.fullName ?? p.account.notGiven}</dd>
+            <dt className="text-text-muted">{p.account.phone}</dt>
+            <dd className="text-text-primary tabular-nums">
+              {formatPhone(user.phone) ?? p.account.notGiven}
+            </dd>
+            <dt className="text-text-muted">{p.account.jobFunction}</dt>
+            <dd className="text-text-primary">
+              {user.jobFunction ? p.jobFunctions[user.jobFunction] : p.account.notGiven}
+            </dd>
             <dt className="text-text-muted">{c.common.email}</dt>
             <dd className="break-all text-text-primary">
               {user.email}

@@ -16,8 +16,9 @@ import type {
 /*
  * /about words (EP12). Thai is the source; English and Simplified Chinese
  * share its shape. Claim discipline: no founding year, headcount, client
- * count, projects, awards, certifications, partners or testimonials — none
- * exists in an approved source. Company names come from config/company.ts and
+ * count, projects, awards, certifications or testimonials — none exists in an
+ * approved source. The one approved relationship, S2 ACCOUNTING CONSULTANT
+ * (EP24.1), lives in partnerCopy.ts and states no merger or credential. Company names come from config/company.ts and
  * contact values from config/contact.ts, never from here.
  *
  * `|` marks where a display line may wrap on narrow screens.

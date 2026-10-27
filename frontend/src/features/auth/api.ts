@@ -1,4 +1,12 @@
 import { apiRequest } from '@/lib/api';
+import type {
+  ContactPreference,
+  JobFunction,
+  SignupBusiness,
+  SignupIndustry,
+  SignupInterest,
+  SignupTeamSize,
+} from './profile';
 import type { Locale } from '@/i18n/locales';
 
 /*
@@ -20,7 +28,20 @@ export interface Identity {
   user: {
     id: string;
     email: string;
-    displayName: string | null;
+    /** EP24.1: the person's full name (null only for older accounts). */
+    fullName: string | null;
+    /** E.164; shown to the account holder and platform operators only. */
+    phone: string | null;
+    /** Self-described — never an authorization input. */
+    jobFunction: JobFunction | null;
+    /** What the person said about their business at sign-up (lead info; never authorization). */
+    signup: {
+      companyName: string;
+      industry: SignupIndustry;
+      teamSize: SignupTeamSize;
+      preferredContact: ContactPreference;
+      interests: SignupInterest[];
+    } | null;
     locale: Locale;
     status: string;
     emailVerified: boolean;
@@ -75,7 +96,10 @@ export const authApi = {
   register: (body: {
     email: string;
     password: string;
-    displayName?: string;
+    fullName: string;
+    phone: string;
+    jobFunction?: JobFunction;
+    business: SignupBusiness;
     locale: Locale;
     plan?: PlanIntent;
     acceptTerms: true;
@@ -118,16 +142,42 @@ export const authApi = {
 
 const P = '/api/v1/platform';
 
+type UserStatusCounts = Partial<
+  Record<'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'DISABLED', number>
+>;
+
+/** Real platform-wide counts (EP24.1). No revenue or growth — billing does not exist yet. */
 export interface PlatformOverview {
   operator: { email: string; role: PlatformRole };
-  users: Partial<Record<'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'DISABLED', number>>;
-  companies: { customer: number; demo: number };
+  users: UserStatusCounts;
+  companies: {
+    /** Customer companies (demo excluded). */
+    customer: number;
+    demo: number;
+    byStatus: Record<'PENDING_SUBSCRIPTION' | 'ACTIVE' | 'SUSPENDED' | 'CLOSED', number>;
+    onboarding: Record<'IN_PROGRESS' | 'COMPLETED', number>;
+  };
+  /** Current subscriptions of customer companies, by status. */
+  subscriptions: Partial<Record<'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED', number>>;
+  /** Accounts without a platform role. */
+  customerAccounts: { total: number; byStatus: UserStatusCounts };
+  attention: {
+    readyToActivate: number;
+    onboardingIncomplete: number;
+    awaitingCompany: number;
+    unverifiedAccounts: number;
+    suspendedCompanies: number;
+    suspendedAccounts: number;
+  };
   activeSessions: number;
 }
 
 export interface PlatformUser {
   id: string;
   email: string;
+  fullName: string | null;
+  /** Stated at sign-up — lead context, distinct from `company`. */
+  signup: { companyName: string; industry: SignupIndustry; teamSize: SignupTeamSize } | null;
   status: string;
   emailVerified: boolean;
   platformRole: PlatformRole | null;
@@ -139,7 +189,7 @@ export interface PlatformUser {
 export interface PlatformOperator {
   userId: string;
   email: string;
-  displayName: string | null;
+  fullName: string | null;
   status: string;
   role: PlatformRole;
   since: string;

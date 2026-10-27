@@ -87,6 +87,24 @@ the authoritative package catalog `backend/src/billing/catalog.ts` (parity-teste
 browser) and the platform company list. Master data, branch management and department modules are
 still later episodes.
 
+**EP24.1 update (platform explorer & account profile):** see [EP24_1_REPORT.md](EP24_1_REPORT.md).
+
+- *Account profile:* `User.fullName` (renamed from `displayName`, data kept), `phone` (E.164),
+  `jobFunction` (self-described, never authorization) and `AccountSignupContext` (stated company
+  name, industry, team size, contact preference, interests, note) — lead information captured at
+  registration, separate from `Company`. Contract: [AUTHENTICATION.md](AUTHENTICATION.md) › Account
+  profile.
+- *Platform / customer boundary:* platform operators read companies only through
+  `/api/v1/platform/companies` (paginated: `q`, `plan`, `subscriptionStatus`, `status`,
+  `onboardingStatus`, `department`, `cursor`, `limit` ≤ 100) and
+  `/api/v1/platform/companies/:id` (Platform Inspection: read-only, audited as
+  `PLATFORM_COMPANY_INSPECTED` once per operator and company per 15 minutes). Inspection never
+  creates a membership or a customer session — it is not impersonation. Customer routes keep
+  deriving the company from the caller's membership.
+- *Not yet:* operator actions on companies beyond the development activation (suspend / close /
+  plan change), billing data, branch or member management, impersonation — none exists, none is
+  shown.
+
 ## 6. RBAC handoff (EP25)
 
 - Access is decided on the server. Frontend navigation and hidden UI are **not** access control.

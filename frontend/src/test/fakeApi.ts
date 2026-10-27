@@ -12,11 +12,13 @@ export interface Reply {
   status: number;
   body: unknown;
 }
-type Handler = Reply | ((body: unknown) => Reply | Promise<Reply>);
+type Handler = Reply | ((body: unknown, query: URLSearchParams) => Reply | Promise<Reply>);
 export interface Call {
   method: string;
   path: string;
   body: unknown;
+  /** The query string, as an object (EP24.1: explorer search and filters). */
+  query: Record<string, string>;
   credentials: RequestCredentials | undefined;
 }
 
@@ -31,15 +33,21 @@ export function fakeApi(handlers: Record<string, Handler>) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
-      const { pathname } = new URL(url);
+      const { pathname, searchParams } = new URL(url);
       const method = init?.method ?? 'GET';
       const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
-      calls.push({ method, path: pathname, body, credentials: init?.credentials });
+      calls.push({
+        method,
+        path: pathname,
+        body,
+        query: Object.fromEntries(searchParams),
+        credentials: init?.credentials,
+      });
       const handler = handlers[`${method} ${pathname}`];
       const reply = !handler
         ? fail(404, 'ROUTE_NOT_FOUND')
         : typeof handler === 'function'
-          ? await handler(body)
+          ? await handler(body, searchParams)
           : handler;
       return new Response(JSON.stringify(reply.body), {
         status: reply.status,
@@ -56,7 +64,7 @@ export function identity(
     company?: Identity['company'];
     planIntent?: string | null;
     email?: string;
-    displayName?: string | null;
+    fullName?: string | null;
   } = {},
 ): Identity {
   const platformRole = overrides.platformRole ?? null;
@@ -65,7 +73,10 @@ export function identity(
     user: {
       id: 'u_1',
       email: overrides.email ?? 'person@example.com',
-      displayName: overrides.displayName === undefined ? 'Person Example' : overrides.displayName,
+      fullName: overrides.fullName === undefined ? 'Person Example' : overrides.fullName,
+      phone: '+66812345678',
+      jobFunction: null,
+      signup: null,
       locale: 'th',
       status: 'ACTIVE',
       emailVerified: true,

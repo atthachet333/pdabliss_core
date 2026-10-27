@@ -41,10 +41,26 @@ Portal says so honestly instead of pretending.
 
 ## 3. Flows
 
-**Registration** — `POST /api/v1/auth/register` (email, password, `acceptTerms`, optional
-`displayName`, `locale`, `plan` intent). Email is normalized (trim, NFC, lower-case; no
+**Registration** — `POST /api/v1/auth/register` (email, password, `acceptTerms`, `locale`, `plan`
+intent; EP24.1: `fullName`, `phone`, optional `jobFunction`, and `business` — see *Account profile*
+below). Email is normalized (trim, NFC, lower-case; no
 provider-specific rewriting). A duplicate address gets the **same 202 answer**; the existing owner
 is mailed instead (no enumeration). The account starts `PENDING_VERIFICATION`.
+
+**Account profile (EP24.1)** — registration creates the *person*, never the company:
+
+| Field | Rule | Purpose |
+| --- | --- | --- |
+| `fullName` | required, 2–120 characters, at least one letter, no markup; whitespace collapsed, NFC | the human name shown on the account, ownership and audit views. Replaces the old optional `displayName` (renamed in place — existing values kept) |
+| `phone` | required; Thai national (`0` + 8–9 digits) or international (`+` / `00`, E.164 8–15 digits); stored as E.164 (`+66812345678`) | contact only — not a sign-in factor, never public |
+| `jobFunction` | optional: OWNER, EXECUTIVE, ACCOUNTING, PURCHASING, SALES, OPERATIONS, WAREHOUSE, IT, OTHER | self-described profile data. **It never grants a role, department or permission** (tested) |
+| `business` | required object, stored in `AccountSignupContext`: `companyName` (2–160), `industry`, `teamSize` band, `preferredContact` (EMAIL / PHONE / LINE, LINE needs `lineId`), `interests[]`, optional `note` (≤ 1000) | lead information for PDA BLISS. It does **not** create, name or claim a CORE company — onboarding does that after verification (the company form starts from `companyName`) |
+
+Every object is strict: `role`, `platformRole`, `companyId`, `status`, `displayName`,
+`plan` inside `business`, … are `400`. Registering an existing address changes nothing about that
+account (no profile or context overwrite). The account holder sees their own profile in the Account
+Portal; platform operators see it in Platform Inspection, labelled as self-described. No new field
+appears in any email.
 
 **Email verification** — a 256-bit link token (stored as SHA-256), 24 h, single use, delivered in
 the URL **fragment** (`/verify-email#token=…`, never sent to servers or logs; the page removes it

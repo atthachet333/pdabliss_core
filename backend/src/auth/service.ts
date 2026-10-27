@@ -15,6 +15,7 @@ import {
 import { recordAuthEvent, type RequestMeta } from './audit.js';
 import { normalizeEmail, randomToken, sha256, subjectHash } from './crypto.js';
 import { demoBypassEnabled, isDemoBypassAccount } from './demo-bypass.js';
+import type { JobFunctionCode, SignupContextInput } from './profile.js';
 import {
   accountUnavailable,
   emailNotVerified,
@@ -81,7 +82,19 @@ export interface IdentityView {
   user: {
     id: string;
     email: string;
-    displayName: string | null;
+    fullName: string | null;
+    /** E.164; the account's own contact number (shown only to its owner and platform operators). */
+    phone: string | null;
+    /** Self-described; never an authorization input. */
+    jobFunction: JobFunctionCode | null;
+    /** What the person said about their business at sign-up (lead info; never authorization). */
+    signup: {
+      companyName: string;
+      industry: string;
+      teamSize: string;
+      preferredContact: string;
+      interests: string[];
+    } | null;
     locale: ApiLocale;
     status: string;
     emailVerified: boolean;
@@ -145,7 +158,10 @@ export class AuthService {
     input: {
       email: string;
       password: string;
-      displayName?: string;
+      fullName: string;
+      phone: string;
+      jobFunction?: JobFunctionCode;
+      business: SignupContextInput;
       locale?: ApiLocale;
       plan?: PlanIntent;
     },
@@ -166,7 +182,10 @@ export class AuthService {
         data: {
           email: input.email.trim(),
           emailNormalized,
-          displayName: input.displayName?.trim() || null,
+          fullName: input.fullName,
+          phone: input.phone,
+          jobFunction: input.jobFunction ?? null,
+          signupContext: { create: input.business },
           locale: toDbLocale(input.locale),
           planIntent: input.plan ?? null,
           status: 'PENDING_VERIFICATION',
@@ -693,10 +712,13 @@ export class AuthService {
   // ---------------------------------------------------------------- identity
 
   async identity(ctx: AuthContext): Promise<IdentityView> {
-    const member = await this.db.companyMember.findUnique({
-      where: { userId: ctx.user.id },
-      include: { company: true },
-    });
+    const [member, signup] = await Promise.all([
+      this.db.companyMember.findUnique({
+        where: { userId: ctx.user.id },
+        include: { company: true },
+      }),
+      this.db.accountSignupContext.findUnique({ where: { userId: ctx.user.id } }),
+    ]);
     const platformRole = ctx.user.platformRole?.role ?? null;
     const stepUpUntil = ctx.session.stepUpAt
       ? new Date(ctx.session.stepUpAt.getTime() + AUTH_POLICY.stepUpFreshMs)
@@ -705,7 +727,18 @@ export class AuthService {
       user: {
         id: ctx.user.id,
         email: ctx.user.email,
-        displayName: ctx.user.displayName,
+        fullName: ctx.user.fullName,
+        phone: ctx.user.phone,
+        jobFunction: ctx.user.jobFunction,
+        signup: signup
+          ? {
+              companyName: signup.companyName,
+              industry: signup.industry,
+              teamSize: signup.teamSize,
+              preferredContact: signup.preferredContact,
+              interests: signup.interests,
+            }
+          : null,
         locale: toApiLocale(ctx.user.locale),
         status: ctx.user.status,
         emailVerified: !!ctx.user.emailVerifiedAt,

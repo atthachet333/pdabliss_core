@@ -2,13 +2,14 @@ import type { RequestMeta } from '../auth/audit.js';
 import { forbidden } from '../auth/errors.js';
 import type { AuthContext } from '../auth/sessions.js';
 import {
+  DEPARTMENT_CODES,
   isPlanCode,
   PLAN_CATALOG,
   type DepartmentCode,
   type PlanCode,
 } from '../billing/catalog.js';
 import type { Db } from '../db/client.js';
-import type { Branch, Company, Subscription } from '../generated/prisma/client.js';
+import type { Branch, Company, Prisma, Subscription } from '../generated/prisma/client.js';
 import type { AppLocale, CompanyRole } from '../generated/prisma/enums.js';
 import { AppError, NotFoundError } from '../lib/errors.js';
 import { recordCompanyEvent, type ActorScope } from './audit.js';
@@ -21,7 +22,7 @@ import {
   snapshotFor,
   type EntitlementView,
 } from './entitlements.js';
-import type { CreateCompanyInput } from './input.js';
+import type { CreateCompanyInput, PlatformCompanyFilter } from './input.js';
 
 /*
  * Company onboarding and the customer company context (EP24).
@@ -41,6 +42,13 @@ import type { CreateCompanyInput } from './input.js';
  */
 
 export const HEAD_OFFICE_CODE = '00000';
+
+/** One audited Platform Inspection per operator and company per window (EP24.1). */
+export const INSPECTION_AUDIT_WINDOW_MS = 15 * 60_000;
+
+/** Departments in the canonical CORE order. */
+const sortDepartments = (codes: DepartmentCode[]) =>
+  DEPARTMENT_CODES.filter((code) => codes.includes(code));
 
 const DEPARTMENT_NAMES: Record<DepartmentCode, string> = {
   SALES: 'Sales',
@@ -474,40 +482,120 @@ export class CompanyService {
 
   // --------------------------------------------------------------- platform
 
-  /** Every customer company (platform operators only — enforced by the route). */
-  async listForPlatform() {
-    const rows = await this.db.company.findMany({
-      orderBy: { createdAt: 'asc' },
-      include: {
-        members: {
-          where: { role: 'COMPANY_OWNER' },
-          include: { user: { select: { email: true } } },
+  /**
+   * The Platform Company Explorer (operators only — enforced by the route).
+   * Newest first, one page at a time (cursor = last id), so the list scales
+   * past a handful of companies. Search covers company names and the owner's
+   * email / name; filters apply to the company and its current subscription.
+   */
+  async listForPlatform(filter: PlatformCompanyFilter) {
+    const q = filter.q;
+    const sub =
+      filter.plan || filter.subscriptionStatus
+        ? {
+            subscriptions: {
+              some: {
+                currentSlot: true,
+                ...(filter.plan && { plan: filter.plan }),
+                ...(filter.subscriptionStatus && { status: filter.subscriptionStatus }),
+              },
+            },
+          }
+        : {};
+    const where: Prisma.CompanyWhereInput = {
+      ...(filter.status && { status: filter.status }),
+      ...(filter.onboardingStatus && { onboardingStatus: filter.onboardingStatus }),
+      ...(filter.department && {
+        departments: { some: { code: filter.department, isActive: true } },
+      }),
+      ...sub,
+      ...(q && {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { legalName: { contains: q, mode: 'insensitive' } },
+          {
+            members: {
+              some: {
+                role: 'COMPANY_OWNER',
+                user: {
+                  OR: [
+                    { emailNormalized: { contains: q.toLowerCase() } },
+                    { fullName: { contains: q, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      }),
+    };
+    const [rows, total] = await Promise.all([
+      this.db.company.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: filter.limit + 1,
+        ...(filter.cursor && { cursor: { id: filter.cursor }, skip: 1 }),
+        include: {
+          members: {
+            where: { role: 'COMPANY_OWNER' },
+            include: { user: { select: { email: true, fullName: true } } },
+          },
+          subscriptions: { where: { currentSlot: true } },
+          departments: { where: { isActive: true }, select: { code: true } },
+          _count: { select: { members: true, branches: true } },
         },
-        subscriptions: { where: { currentSlot: true } },
-        _count: { select: { members: true, departments: true, branches: true } },
-      },
-    });
-    return rows.map((c) => {
-      const sub = c.subscriptions[0] ?? null;
-      return {
-        id: c.id,
-        name: c.name,
-        legalName: c.legalName,
-        isDemo: c.isDemo,
-        status: c.status,
-        onboardingStatus: c.onboardingStatus,
-        owner: c.members[0]?.user.email ?? null,
-        plan: sub?.plan ?? null,
-        subscriptionStatus: sub?.status ?? null,
-        members: c._count.members,
-        departments: c._count.departments,
-        branches: c._count.branches,
-        createdAt: c.createdAt.toISOString(),
-      };
-    });
+      }),
+      this.db.company.count({ where }),
+    ]);
+    const page = rows.slice(0, filter.limit);
+    const activity = page.length
+      ? await this.db.auditLog.groupBy({
+          by: ['companyId'],
+          where: { companyId: { in: page.map((c) => c.id) } },
+          _max: { occurredAt: true },
+        })
+      : [];
+    const lastActivity = new Map(activity.map((a) => [a.companyId, a._max.occurredAt]));
+    return {
+      companies: page.map((c) => {
+        const current = c.subscriptions[0] ?? null;
+        const owner = c.members[0]?.user ?? null;
+        const enabled = sortDepartments(c.departments.map((d) => d.code));
+        return {
+          id: c.id,
+          name: c.name,
+          legalName: c.legalName,
+          isDemo: c.isDemo,
+          status: c.status,
+          onboardingStatus: c.onboardingStatus,
+          owner: owner?.email ?? null,
+          ownerName: owner?.fullName ?? null,
+          plan: current?.plan ?? null,
+          subscriptionStatus: current?.status ?? null,
+          billingCycle: current?.billingCycle ?? null,
+          maxDepartments: current
+            ? entitlementView(readSnapshot(current.entitlements, current.plan)).maxDepartments
+            : null,
+          enabledDepartments: enabled,
+          members: c._count.members,
+          departments: enabled.length,
+          branches: c._count.branches,
+          createdAt: c.createdAt.toISOString(),
+          lastActivityAt: lastActivity.get(c.id)?.toISOString() ?? null,
+        };
+      }),
+      total,
+      nextCursor: rows.length > filter.limit ? (page.at(-1)?.id ?? null) : null,
+    };
   }
 
-  async detailForPlatform(id: string) {
+  /**
+   * Platform Inspection of one company: read-only, at platform level — the
+   * operator never becomes the customer. A visit is audited
+   * (PLATFORM_COMPANY_INSPECTED, at most once per operator and company per
+   * INSPECTION_AUDIT_WINDOW_MS) when `inspector` is given.
+   */
+  async detailForPlatform(id: string, inspector?: { ctx: AuthContext; meta: RequestMeta }) {
     const c = await this.db.company.findUnique({
       where: { id },
       include: {
@@ -516,24 +604,137 @@ export class CompanyService {
         subscriptions: { orderBy: { createdAt: 'desc' } },
         members: {
           orderBy: { createdAt: 'asc' },
-          include: { user: { select: { email: true, status: true } } },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                fullName: true,
+                phone: true,
+                jobFunction: true,
+                status: true,
+                lastLoginAt: true,
+                signupContext: {
+                  select: {
+                    companyName: true,
+                    industry: true,
+                    teamSize: true,
+                    preferredContact: true,
+                    lineId: true,
+                    interests: true,
+                    note: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
     if (!c) throw new NotFoundError('Company not found.');
+    if (inspector) await this.recordInspection(inspector.ctx, inspector.meta, c.id);
+
     const current = c.subscriptions.find((s) => s.currentSlot) ?? null;
+    const entitlements = current
+      ? entitlementView(readSnapshot(current.entitlements, current.plan))
+      : null;
+    const enabled = new Set(c.departments.filter((d) => d.isActive).map((d) => d.code));
+    const owner = c.members.find((m) => m.role === 'COMPANY_OWNER')?.user ?? null;
+    const userIds = c.members.map((m) => m.user.id);
+    const [activity, security] = await Promise.all([
+      this.db.auditLog.findMany({
+        where: { companyId: c.id },
+        orderBy: { occurredAt: 'desc' },
+        take: 50,
+        include: { actor: { select: { email: true, fullName: true } } },
+      }),
+      userIds.length
+        ? this.db.authAuditEvent.findMany({
+            where: { userId: { in: userIds } },
+            orderBy: { occurredAt: 'desc' },
+            take: 30,
+            include: { user: { select: { email: true } } },
+          })
+        : Promise.resolve([]),
+    ]);
+
     return {
       company: companyFields(c),
-      branches: c.branches.map(branchView),
-      departments: c.departments.map((d) => d.code),
-      subscriptions: c.subscriptions.map(subscriptionView),
-      entitlements: current
-        ? entitlementView(readSnapshot(current.entitlements, current.plan))
+      owner: owner
+        ? {
+            email: owner.email,
+            fullName: owner.fullName,
+            phone: owner.phone,
+            // What the owner said at sign-up — lead context, not company data.
+            signup: owner.signupContext,
+          }
         : null,
-      members: c.members.map((m) => ({ email: m.user.email, status: m.user.status, role: m.role })),
+      branches: c.branches.map(branchView),
+      departments: sortDepartments([...enabled]),
+      departmentStates: DEPARTMENT_CODES.map((code) => ({
+        code,
+        state: enabled.has(code)
+          ? ('ENABLED' as const)
+          : code === 'EXECUTIVE' && entitlements && !entitlements.executiveAllowed
+            ? ('NOT_IN_PACKAGE' as const)
+            : ('NOT_ENABLED' as const),
+      })),
+      subscriptions: c.subscriptions.map(subscriptionView),
+      entitlements,
+      members: c.members.map((m) => ({
+        email: m.user.email,
+        fullName: m.user.fullName,
+        jobFunction: m.user.jobFunction,
+        status: m.user.status,
+        role: m.role,
+        joinedAt: m.createdAt.toISOString(),
+        lastLoginAt: m.user.lastLoginAt?.toISOString() ?? null,
+      })),
+      // Business events of this company (EP24 AuditLog): small, non-secret details only.
+      activity: activity.map((a) => {
+        const { actorScope, ...details } = (a.changes ?? {}) as Record<string, unknown>;
+        return {
+          id: a.id,
+          action: a.action,
+          actorScope: typeof actorScope === 'string' ? actorScope : null,
+          actor: a.actor ? { email: a.actor.email, fullName: a.actor.fullName } : null,
+          entityType: a.entityType,
+          details,
+          occurredAt: a.occurredAt.toISOString(),
+        };
+      }),
+      // Sign-in / security events of this company's members — type, person and time only.
+      security: security.map((e) => ({
+        id: e.id,
+        type: e.type,
+        email: e.user?.email ?? null,
+        occurredAt: e.occurredAt.toISOString(),
+      })),
       access: { canEnterCore: canEnterCore(c, current) },
       developmentActivation: this.developmentActivation,
     };
+  }
+
+  private async recordInspection(ctx: AuthContext, meta: RequestMeta, companyId: string) {
+    const recent = await this.db.auditLog.count({
+      where: {
+        companyId,
+        actorId: ctx.user.id,
+        action: 'PLATFORM_COMPANY_INSPECTED',
+        occurredAt: { gte: new Date(Date.now() - INSPECTION_AUDIT_WINDOW_MS) },
+      },
+    });
+    if (recent) return;
+    await recordCompanyEvent(this.db, meta, {
+      action: 'PLATFORM_COMPANY_INSPECTED',
+      actorId: ctx.user.id,
+      actorScope:
+        ctx.user.platformRole?.role === 'PLATFORM_OWNER' ? 'platform_owner' : 'platform_admin',
+      companyId,
+      entityType: 'Company',
+      entityId: companyId,
+      details: { mode: 'read_only' },
+    });
   }
 
   /**

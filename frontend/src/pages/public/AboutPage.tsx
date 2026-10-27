@@ -3,6 +3,7 @@ import { ApproachChapter } from '@/features/about/Method';
 import { BeliefChapter, CompanyChapter, ProblemChapter, SystemsChapter } from '@/features/about/Belief';
 import { ABOUT } from '@/features/about/copy';
 import { AboutHero } from '@/features/about/Hero';
+import { PartnerChapter } from '@/features/about/Partner';
 import { ChapterRail } from '@/features/about/Rail';
 import {
   CompanyInfoChapter,
@@ -20,6 +21,7 @@ import { usePageMeta } from '@/lib/usePageMeta';
  * the company's real contact details. Nothing here is a metric or a claim.
  * EP13: four signature scenes (hero, design table, defense rings, work
  * table) whose motion is state transformation, never decoration.
+ * EP24.1 (owner-approved): chapter 07, business insight with S2 ACCOUNTING CONSULTANT.
  */
 export default function AboutPage() {
   const c = useCopy(ABOUT);
@@ -35,6 +37,7 @@ export default function AboutPage() {
       <SystemsChapter />
       <ApproachChapter />
       <ConsultingChapter />
+      <PartnerChapter />
       <ImplementationChapter />
       <LongTermChapter />
       <CompanyInfoChapter />

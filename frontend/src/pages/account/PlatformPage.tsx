@@ -1,11 +1,11 @@
 import { SignedInArea } from '@/features/account/PortalShell';
-import { PlatformCenter } from '@/features/platform/PlatformCenter';
+import { PlatformOverview } from '@/features/platform/PlatformOverview';
 
-/** /platform (EP23) — Platform Control Center (PLATFORM_OWNER / PLATFORM_ADMIN only). */
+/** /platform — Platform Control Center overview (PLATFORM_OWNER / PLATFORM_ADMIN only). */
 export default function PlatformPage() {
   return (
     <SignedInArea area="platform">
-      {(identity) => <PlatformCenter identity={identity} />}
+      {(identity) => <PlatformOverview identity={identity} />}
     </SignedInArea>
   );
 }

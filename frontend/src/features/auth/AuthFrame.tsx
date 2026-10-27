@@ -6,6 +6,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { AUTH_COPY } from './copy';
+import { AUTH_ASIDE_COPY } from './authAsideCopy';
 
 export type StateTone = 'brand' | 'success' | 'warning';
 
@@ -77,47 +78,143 @@ export function AuthFrame({
         className="mx-auto flex w-full max-w-[1640px] flex-1 flex-col items-center px-4 pt-4 pb-10 outline-none sm:px-6 sm:pt-6 lg:px-10"
       >
         {/* my-auto: centred when there is room, top-aligned and scrollable when there is not. */}
-        <div className={cn('my-auto w-full', wide ? 'max-w-3xl' : 'max-w-[30rem]')}>
-          <section
-            aria-labelledby="auth-title"
-            className="relative w-full overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,rgb(13_25_36/0.97),rgb(7_15_22/0.99))] p-6 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1),0_40px_120px_-60px_rgb(0_0_0/0.9)] sm:p-9"
-          >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-brand-glow/45 to-transparent"
-            />
-            {state && <StateEmblem tone={state.tone ?? 'brand'}>{state.icon}</StateEmblem>}
-            <p
-              className={cn(
-                'font-mono text-[0.6875rem] tracking-[0.16em] text-text-muted uppercase',
-                state && 'mt-5',
+        {/* EP24.1: on large screens a companion panel (true safeguards only) fills the
+            space beside the card; phones keep the single focused card. */}
+        <div
+          className={cn(
+            'my-auto w-full lg:grid lg:items-center lg:gap-12 xl:gap-20',
+            wide
+              ? 'max-w-3xl lg:max-w-[72rem] lg:grid-cols-[minmax(0,22rem)_minmax(0,48rem)]'
+              : 'max-w-[30rem] lg:max-w-[64rem] lg:grid-cols-[minmax(0,1fr)_30rem]',
+          )}
+        >
+          <AuthAside />
+          <div className="min-w-0">
+            <section
+              aria-labelledby="auth-title"
+              className="relative w-full overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,rgb(13_25_36/0.97),rgb(7_15_22/0.99))] p-6 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1),0_40px_120px_-60px_rgb(0_0_0/0.9)] sm:p-9"
+            >
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-brand-glow/45 to-transparent"
+              />
+              {state && <StateEmblem tone={state.tone ?? 'brand'}>{state.icon}</StateEmblem>}
+              <p
+                className={cn(
+                  'font-mono text-[0.6875rem] tracking-[0.16em] text-text-muted uppercase',
+                  state && 'mt-5',
+                )}
+              >
+                CORE · {kicker}
+              </p>
+              <h1
+                id="auth-title"
+                className="mt-3 text-[clamp(1.45rem,1.15rem+1.3vw,2rem)] leading-[1.3] font-semibold tracking-tight text-text-primary"
+              >
+                {title}
+              </h1>
+              {lead && (
+                <p className="mt-2.5 text-label leading-relaxed text-text-secondary">{lead}</p>
               )}
-            >
-              CORE · {kicker}
+              <div className="mt-7">{children}</div>
+            </section>
+            <p className="mt-5 text-center text-caption text-text-muted">
+              {c.common.help}{' '}
+              <Link
+                to={href('/contact')}
+                className="inline-flex min-h-11 items-center text-brand-soft underline-offset-4 hover:underline"
+              >
+                {c.common.contactTeam}
+              </Link>
             </p>
-            <h1
-              id="auth-title"
-              className="mt-3 text-[clamp(1.45rem,1.15rem+1.3vw,2rem)] leading-[1.3] font-semibold tracking-tight text-text-primary"
-            >
-              {title}
-            </h1>
-            {lead && (
-              <p className="mt-2.5 text-label leading-relaxed text-text-secondary">{lead}</p>
-            )}
-            <div className="mt-7">{children}</div>
-          </section>
-          <p className="mt-5 text-center text-caption text-text-muted">
-            {c.common.help}{' '}
-            <Link
-              to={href('/contact')}
-              className="inline-flex min-h-11 items-center text-brand-soft underline-offset-4 hover:underline"
-            >
-              {c.common.contactTeam}
-            </Link>
-          </p>
+          </div>
         </div>
       </main>
     </div>
+  );
+}
+
+/** Large screens only: what protects this account, in four true statements. */
+function AuthAside() {
+  const a = useCopy(AUTH_ASIDE_COPY);
+  return (
+    <aside
+      aria-label={a.label}
+      className="relative order-first hidden min-w-0 self-center lg:block"
+      data-auth-aside
+    >
+      <CoreNetworkMark />
+      <p className="mt-8 font-mono text-[0.6875rem] tracking-[0.18em] text-brand-soft uppercase">
+        {a.kicker}
+      </p>
+      <p className="mt-3 text-[clamp(1.375rem,1rem+1vw,1.875rem)] leading-[1.25] font-semibold tracking-tight text-text-primary">
+        {a.title}
+      </p>
+      <ul className="mt-8 space-y-5">
+        {a.points.map((pt) => (
+          <li key={pt.title} className="flex gap-3.5">
+            <span
+              aria-hidden
+              className="mt-1.5 grid size-5 shrink-0 place-items-center rounded-full bg-brand-primary/[0.1] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.35)]"
+            >
+              <span className="size-1.5 rounded-full bg-brand-glow" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-label font-medium text-text-primary">{pt.title}</span>
+              <span className="mt-0.5 block text-caption leading-relaxed text-text-secondary">
+                {pt.text}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-10 text-caption text-text-muted">{a.maker}</p>
+    </aside>
+  );
+}
+
+/** A quiet CORE motif: six department nodes around one core, joined by hairlines. Static. */
+function CoreNetworkMark() {
+  const nodes = [0, 1, 2, 3, 4, 5].map((i) => {
+    const t = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    return { x: 60 + Math.cos(t) * 44, y: 60 + Math.sin(t) * 44 };
+  });
+  return (
+    <svg aria-hidden viewBox="0 0 120 120" className="size-24 text-brand-glow">
+      <circle cx="60" cy="60" r="44" fill="none" stroke="currentColor" strokeOpacity="0.12" />
+      {nodes.map((n, i) => (
+        <line
+          key={`l${i}`}
+          x1="60"
+          y1="60"
+          x2={n.x}
+          y2={n.y}
+          stroke="currentColor"
+          strokeOpacity="0.18"
+        />
+      ))}
+      {nodes.map((n, i) => (
+        <circle
+          key={`n${i}`}
+          cx={n.x}
+          cy={n.y}
+          r="4"
+          fill="rgb(5 11 18)"
+          stroke="currentColor"
+          strokeOpacity="0.7"
+        />
+      ))}
+      <circle
+        cx="60"
+        cy="60"
+        r="9"
+        fill="currentColor"
+        fillOpacity="0.16"
+        stroke="currentColor"
+        strokeOpacity="0.8"
+      />
+      <circle cx="60" cy="60" r="3" fill="currentColor" />
+    </svg>
   );
 }
 

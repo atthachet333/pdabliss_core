@@ -11,6 +11,7 @@ import {
   requireSession,
   setSessionCookie,
 } from '../../auth/http.js';
+import { FullName, JOB_FUNCTIONS, Phone, SignupContext } from '../../auth/profile.js';
 import type { InvitationService } from '../../auth/invitations.js';
 import { PASSWORD_MAX } from '../../auth/password.js';
 import { AUTH_POLICY, AUTH_RATE_LIMITS, PLAN_INTENTS } from '../../auth/policy.js';
@@ -37,7 +38,12 @@ const RegisterBody = z
   .object({
     email,
     password,
-    displayName: z.string().trim().max(80).optional(),
+    // EP24.1: the person behind the account (profile only — never authorization).
+    fullName: FullName,
+    phone: Phone,
+    jobFunction: z.enum(JOB_FUNCTIONS).optional(),
+    // Sign-up business context — lead information, not the company record.
+    business: SignupContext,
     locale: z.enum(API_LOCALES).optional(),
     plan: z.enum(PLAN_INTENTS).optional(),
     acceptTerms: z.literal(true),

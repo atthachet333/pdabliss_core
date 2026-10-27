@@ -30,23 +30,97 @@ export function canManageAccount(actor: Actor, target: Target): boolean {
 export class PlatformService {
   constructor(private readonly db: Db) {}
 
+  /**
+   * Platform-wide state from real rows only (EP24.1): customer companies by
+   * lifecycle, current subscriptions by status, customer accounts and what
+   * needs a platform operator's attention. No revenue or growth figures —
+   * billing does not exist yet. Demo companies are counted separately.
+   */
   async overview() {
-    const [users, companies, activeSessions] = await Promise.all([
+    const now = new Date();
+    const customerCompany = { isDemo: false };
+    const [
+      users,
+      companies,
+      companyStatus,
+      onboarding,
+      subscriptions,
+      customerAccounts,
+      awaitingCompany,
+      readyToActivate,
+      suspendedAccounts,
+      activeSessions,
+    ] = await Promise.all([
       this.db.user.groupBy({ by: ['status'], _count: { _all: true } }),
       this.db.company.groupBy({ by: ['isDemo'], _count: { _all: true } }),
-      this.db.session.count({
+      this.db.company.groupBy({ by: ['status'], where: customerCompany, _count: { _all: true } }),
+      this.db.company.groupBy({
+        by: ['onboardingStatus'],
+        where: customerCompany,
+        _count: { _all: true },
+      }),
+      this.db.subscription.groupBy({
+        by: ['status'],
+        where: { currentSlot: true, company: customerCompany },
+        _count: { _all: true },
+      }),
+      this.db.user.groupBy({
+        by: ['status'],
+        where: { platformRole: null },
+        _count: { _all: true },
+      }),
+      // Verified customers who have not created their company yet.
+      this.db.user.count({
+        where: { status: 'ACTIVE', platformRole: null, companyMember: null },
+      }),
+      // Onboarding finished, subscription still pending: waiting for activation.
+      this.db.company.count({
         where: {
-          revokedAt: null,
-          absoluteExpiresAt: { gt: new Date() },
-          idleExpiresAt: { gt: new Date() },
+          ...customerCompany,
+          status: 'PENDING_SUBSCRIPTION',
+          onboardingStatus: 'COMPLETED',
         },
       }),
+      this.db.user.count({ where: { status: 'SUSPENDED', platformRole: null } }),
+      this.db.session.count({
+        where: { revokedAt: null, absoluteExpiresAt: { gt: now }, idleExpiresAt: { gt: now } },
+      }),
     ]);
+    const tally = <K extends string>(
+      rows: ({ _count: { _all: number } } & Record<string, unknown>)[],
+      key: K,
+    ) => Object.fromEntries(rows.map((r) => [r[key] as string, r._count._all]));
+    const companyCounts = tally(companyStatus, 'status');
+    const onboardingCounts = tally(onboarding, 'onboardingStatus');
     return {
-      users: Object.fromEntries(users.map((u) => [u.status, u._count._all])),
+      users: tally(users, 'status'),
       companies: {
         customer: companies.find((c) => !c.isDemo)?._count._all ?? 0,
         demo: companies.find((c) => c.isDemo)?._count._all ?? 0,
+        byStatus: {
+          PENDING_SUBSCRIPTION: companyCounts.PENDING_SUBSCRIPTION ?? 0,
+          ACTIVE: companyCounts.ACTIVE ?? 0,
+          SUSPENDED: companyCounts.SUSPENDED ?? 0,
+          CLOSED: companyCounts.CLOSED ?? 0,
+        },
+        onboarding: {
+          IN_PROGRESS: onboardingCounts.IN_PROGRESS ?? 0,
+          COMPLETED: onboardingCounts.COMPLETED ?? 0,
+        },
+      },
+      subscriptions: tally(subscriptions, 'status'),
+      customerAccounts: {
+        total: customerAccounts.reduce((n, r) => n + r._count._all, 0),
+        byStatus: tally(customerAccounts, 'status'),
+      },
+      attention: {
+        readyToActivate,
+        onboardingIncomplete: onboardingCounts.IN_PROGRESS ?? 0,
+        awaitingCompany,
+        unverifiedAccounts:
+          customerAccounts.find((r) => r.status === 'PENDING_VERIFICATION')?._count._all ?? 0,
+        suspendedCompanies: companyCounts.SUSPENDED ?? 0,
+        suspendedAccounts,
       },
       activeSessions,
     };
@@ -54,13 +128,13 @@ export class PlatformService {
 
   async listOperators() {
     const rows = await this.db.platformRoleAssignment.findMany({
-      include: { user: { select: { id: true, email: true, displayName: true, status: true } } },
+      include: { user: { select: { id: true, email: true, fullName: true, status: true } } },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
     });
     return rows.map((r) => ({
       userId: r.user.id,
       email: r.user.email,
-      displayName: r.user.displayName,
+      fullName: r.user.fullName,
       status: r.user.status,
       role: r.role,
       since: r.createdAt.toISOString(),
@@ -74,11 +148,15 @@ export class PlatformService {
       include: {
         platformRole: { select: { role: true } },
         companyMember: { include: { company: { select: { name: true, isDemo: true } } } },
+        signupContext: { select: { companyName: true, industry: true, teamSize: true } },
       },
     });
     return rows.map((u) => ({
       id: u.id,
       email: u.email,
+      fullName: u.fullName,
+      // Stated at sign-up (lead info) — distinct from the CORE company below.
+      signup: u.signupContext,
       status: u.status,
       emailVerified: !!u.emailVerifiedAt,
       platformRole: u.platformRole?.role ?? null,

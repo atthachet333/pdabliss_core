@@ -34,7 +34,17 @@ company onboarding with its Company Owner, Head Office `00000` and departments, 
 waits for activation (no payment, no fake paid state), server-side entitlements, company isolation,
 the Platform Control Center company list and an active Professional demo company
 ([docs/COMPANY_SUBSCRIPTION.md](docs/COMPANY_SUBSCRIPTION.md)). It also includes the **Auth &
-Transactional Email Polish** (below). Next: **EP24.1** Platform Company Explorer (not started).
+Transactional Email Polish** (below).
+
+**EP24.1** (completed locally, awaiting owner review) turns the platform layer into the **Platform
+Control Center**: an overview built from real counts (company lifecycle rail, what needs
+attention), the **Company Explorer** (server search, filters, cursor paging) and **Platform
+Inspection** of one company (subscription, entitlements, departments, branches, members, activity
+and security — read-only, audited, never impersonation). Registration now collects the person
+(full name, phone, optional role) and, in a second step, business context for PDA BLISS — without
+creating the company. Auth screens gained a large-screen companion panel, emails a refined layout,
+and /about a chapter on S2 ACCOUNTING CONSULTANT ([docs/EP24_1_REPORT.md](docs/EP24_1_REPORT.md)).
+Next: EP25 RBAC / Information boundaries (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -50,8 +60,8 @@ Transactional Email Polish** (below). Next: **EP24.1** Platform Company Explorer
 Roadmap:
 
 1. EP20 Performance → EP21 Release-candidate audit → **EP22 Public Frontend Freeze**
-2. EP23 Account & Real Authentication → **EP24 Company & Subscription Foundation** → EP24.1 Platform
-   Company Explorer → EP25 RBAC / Information boundaries →
+2. EP23 Account & Real Authentication → EP24 Company & Subscription Foundation → **EP24.1 Platform
+   Control Center, Company Explorer & Account Profile** → EP25 RBAC / Information boundaries →
    EP26 Organization / Users / Departments → EP27 Audit / Notifications / Activity → EP28 Master Data
 3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
    EP34 Executive
@@ -292,6 +302,7 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP23_REPORT.md](docs/EP23_REPORT.md) — account and real authentication foundation report
 - [docs/COMPANY_SUBSCRIPTION.md](docs/COMPANY_SUBSCRIPTION.md) — company, Head Office, package catalog, entitlements, subscription lifecycle, isolation, demo company
 - [docs/EP24_REPORT.md](docs/EP24_REPORT.md) — company and subscription foundation report
+- [docs/EP24_1_REPORT.md](docs/EP24_1_REPORT.md) — Platform Control Center, Company Explorer, Platform Inspection, account profile, About S2 chapter
 
 ---
 

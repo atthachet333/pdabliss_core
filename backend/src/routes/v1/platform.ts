@@ -8,7 +8,7 @@ import {
   requireRecentStepUp,
 } from '../../auth/http.js';
 import type { PlatformService } from '../../auth/platform.js';
-import { IdParams } from '../../company/input.js';
+import { IdParams, PlatformCompanyQuery } from '../../company/input.js';
 import type { CompanyService } from '../../company/service.js';
 import { parseInput } from '../../lib/validation.js';
 
@@ -40,14 +40,18 @@ export const platformRoutes: FastifyPluginAsync<{
   });
 
   app.get('/users', async () => ({ users: await platform.listUsers() }));
-  app.get('/companies', async () => ({
-    companies: await companies.listForPlatform(),
+  app.get('/companies', async (request) => ({
+    ...(await companies.listForPlatform(parseInput(PlatformCompanyQuery, request.query))),
     // Lets the UI offer the development activation only where the route exists.
     developmentActivation: companies.developmentActivation,
   }));
+  // EP24.1: Platform Inspection — read-only, audited, never impersonation.
   app.get('/companies/:id', async (request) => {
     const { id } = parseInput(IdParams, request.params);
-    return companies.detailForPlatform(id);
+    return companies.detailForPlatform(id, {
+      ctx: requireAuth(request),
+      meta: requestMeta(request),
+    });
   });
 
   // ---- development / test only: manual activation without payment ---------

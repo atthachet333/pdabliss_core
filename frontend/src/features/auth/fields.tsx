@@ -1,5 +1,11 @@
 import { CircleAlert, Eye, EyeOff } from 'lucide-react';
-import { useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useState,
+  type InputHTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
 import { controlClass } from '@/components/ui/fieldStyles';
 
 /*
@@ -107,6 +113,48 @@ export function PasswordField({
           {capsLockLabel}
         </p>
       )}
+    </div>
+  );
+}
+
+interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> {
+  id: string;
+  label: ReactNode;
+  hint?: string;
+  error?: string | null;
+  children: ReactNode;
+}
+
+/** A native select with the same label / hint / error wiring as TextField. */
+export function SelectField({
+  id,
+  label,
+  hint,
+  error,
+  className,
+  children,
+  ...select
+}: SelectProps) {
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-2 block text-label font-medium text-text-primary">
+        {label}
+      </label>
+      <select
+        id={id}
+        className={controlClass(!!error)}
+        aria-invalid={!!error}
+        aria-describedby={describedBy(id, hint && 'hint', error && 'error')}
+        {...select}
+      >
+        {children}
+      </select>
+      {hint && (
+        <p id={`${id}-hint`} className="mt-1.5 text-caption text-text-muted">
+          {hint}
+        </p>
+      )}
+      {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
     </div>
   );
 }

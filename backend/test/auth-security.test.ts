@@ -208,6 +208,9 @@ describeDb('secret hygiene (EP23)', () => {
     await b.post('/api/v1/auth/register', {
       email: 'logs@example.com',
       password: PASSWORD,
+      fullName: 'Log Person',
+      phone: '0812345678',
+      business: { companyName: 'Test Co', industry: 'SERVICES', teamSize: 'SIZE_1_10' },
       acceptTerms: true,
     });
     const verifyToken = tokenFrom(h.mailer, 'logs@example.com', 'verify_email');

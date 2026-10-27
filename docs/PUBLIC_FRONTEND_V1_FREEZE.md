@@ -333,8 +333,8 @@ boundaries, routing, SEO, performance and claim constraints, and the EP23 starti
 | EP21 Release-candidate audit | done, pushed |
 | EP22 Public Frontend Freeze | done, pushed |
 | EP23 Account & Real Authentication | done, pushed |
-| **EP24 Company & Subscription Foundation** | local commit; push after owner approval ([EP24_REPORT.md](EP24_REPORT.md)) |
-| EP24.1 Platform Company Explorer | next — not started |
+| EP24 Company & Subscription Foundation | local commit; push after owner approval ([EP24_REPORT.md](EP24_REPORT.md)) |
+| **EP24.1 Platform Control Center, Company Explorer & Account Profile** | local commit; push after owner approval ([EP24_1_REPORT.md](EP24_1_REPORT.md)). Public change (Category B, owner-approved): /about chapter 07 (S2) |
 | EP25 RBAC / Information boundaries | planned |
 | EP26 Organization / Users / Departments | planned |
 | EP27 Audit / Notifications / Activity | planned |

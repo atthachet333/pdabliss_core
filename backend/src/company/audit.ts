@@ -15,7 +15,9 @@ export type CompanyAuditAction =
   | 'SUBSCRIPTION_STATUS_CHANGED'
   | 'DEPARTMENTS_SELECTED'
   | 'COMPANY_ONBOARDING_COMPLETED'
-  | 'COMPANY_STATUS_CHANGED';
+  | 'COMPANY_STATUS_CHANGED'
+  /** EP24.1: a platform operator opened the read-only Platform Inspection. */
+  | 'PLATFORM_COMPANY_INSPECTED';
 
 export type ActorScope = 'customer' | 'platform_owner' | 'platform_admin' | 'seed';
 

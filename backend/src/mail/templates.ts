@@ -19,7 +19,27 @@ export function appLink(baseUrl: string, path: string, locale: MailLocale, token
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+/** What kind of message this is — a small tag in the CORE band (EP24.1). */
+type Kind = 'security' | 'verification' | 'account' | 'invitation';
+
+const KIND: Record<Kind, Record<MailLocale, string>> = {
+  security: { th: 'ความปลอดภัย', en: 'Security', 'zh-CN': '安全' },
+  verification: { th: 'ยืนยันอีเมล', en: 'Email verification', 'zh-CN': '邮箱验证' },
+  account: { th: 'บัญชี', en: 'Account', 'zh-CN': '账户' },
+  invitation: { th: 'คำเชิญ', en: 'Invitation', 'zh-CN': '邀请' },
+};
+
+const FACTS_TITLE: Record<MailLocale, string> = {
+  th: 'สิ่งที่ควรรู้',
+  en: 'Good to know',
+  'zh-CN': '须知',
+};
+
+/** The sender line under every message. */
+const SIGNATURE = 'PDA BLISS CORE · PDA BLISS COMPANY LIMITED';
+
 interface Body {
+  kind: Kind;
   subject: string;
   /** Inbox preview line (hidden in the message). */
   preheader: string;
@@ -63,6 +83,9 @@ const COLORS = {
   body: '#33454f',
   muted: '#5c6d75',
   rule: '#e1e8ea',
+  /** The facts panel. */
+  panel: '#f4f8f7',
+  bandMuted: '#8fb3a8',
   /** White on this green is 5.2:1 (AA). */
   button: '#0b7a61',
   codeBg: '#eef7f4',
@@ -77,10 +100,11 @@ function render(body: Body, locale: MailLocale): Pick<MailMessage, 'subject' | '
     '',
     ...body.paragraphs.flatMap((p) => [p, '']),
     ...(body.code ? [`${body.code.label}: ${body.code.value}`, ''] : []),
-    ...(body.facts?.length ? [...body.facts.map((f) => `• ${f}`), ''] : []),
+    ...(body.facts?.length ? [FACTS_TITLE[locale], ...body.facts.map((f) => `• ${f}`), ''] : []),
     ...(body.action ? [`${body.action.label}:`, body.action.url, ''] : []),
     '—',
     body.footer,
+    SIGNATURE,
   ].join('\n');
 
   const c = COLORS;
@@ -92,8 +116,8 @@ function render(body: Body, locale: MailLocale): Pick<MailMessage, 'subject' | '
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escape(body.preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${c.card};border-radius:16px;overflow:hidden;border:1px solid ${c.rule}">
-<tr><td style="background:${c.band};padding:20px 32px;font-size:13px;font-weight:700;letter-spacing:.16em;color:${c.bandText}">PDA BLISS <span style="color:${c.accent}">CORE</span></td></tr>
-${row(`<h1 style="margin:0;font-size:22px;line-height:1.4;font-weight:600;color:${c.heading}">${escape(body.heading)}</h1>`, 'padding-top:28px')}
+<tr><td style="background:${c.band};padding:20px 32px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:13px;font-weight:700;letter-spacing:.16em;color:${c.bandText}">PDA BLISS <span style="color:${c.accent}">CORE</span></td><td align="right" style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${c.bandMuted}">${escape(KIND[body.kind][locale])}</td></tr></table></td></tr>
+${row(`<h1 style="margin:0;font-size:24px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:${c.heading}">${escape(body.heading)}</h1>`, 'padding-top:28px')}
 ${body.paragraphs.map((p) => row(`<p style="margin:0;font-size:15px;line-height:1.7;color:${c.body}">${escape(p)}</p>`, 'padding-top:12px')).join('\n')}
 ${
   body.code
@@ -114,12 +138,12 @@ ${
 ${
   body.facts?.length
     ? row(
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${c.rule}">${body.facts
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.panel};border-radius:12px"><tr><td colspan="2" style="padding:14px 16px 0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:${c.muted}">${escape(FACTS_TITLE[locale])}</td></tr>${body.facts
           .map(
             (f) =>
-              `<tr><td width="18" valign="top" style="padding:10px 0 0;font-size:14px;line-height:1.6;color:${c.button}">•</td><td style="padding:10px 0 0;font-size:14px;line-height:1.6;color:${c.body}">${escape(f)}</td></tr>`,
+              `<tr><td width="34" valign="top" style="padding:8px 0 0 16px;font-size:14px;line-height:1.6;color:${c.button}">•</td><td style="padding:8px 16px 0 0;font-size:14px;line-height:1.6;color:${c.body}">${escape(f)}</td></tr>`,
           )
-          .join('')}</table>`,
+          .join('')}<tr><td colspan="2" style="padding:0 0 14px"></td></tr></table>`,
         'padding-top:24px',
       )
     : ''
@@ -132,7 +156,7 @@ ${
       )
     : ''
 }
-${row(`<p style="margin:0;padding-top:16px;border-top:1px solid ${c.rule};font-size:12px;line-height:1.6;color:${c.muted}">${escape(body.footer)}</p>`, 'padding-top:22px;padding-bottom:28px')}
+${row(`<p style="margin:0;padding-top:16px;border-top:1px solid ${c.rule};font-size:12px;line-height:1.6;color:${c.muted}">${escape(body.footer)}</p><p style="margin:8px 0 0;font-size:11px;letter-spacing:.04em;color:${c.muted}">${SIGNATURE}</p>`, 'padding-top:22px;padding-bottom:28px')}
 </table></td></tr></table></body></html>`;
 
   return { subject: body.subject, text, html };
@@ -173,7 +197,10 @@ export function verifyEmailMail(locale: MailLocale, url: string): Rendered {
       label: '验证邮箱',
     },
   }[locale];
-  return render({ ...copy, action: { label: copy.label, url }, footer: FOOTER[locale] }, locale);
+  return render(
+    { ...copy, kind: 'verification', action: { label: copy.label, url }, footer: FOOTER[locale] },
+    locale,
+  );
 }
 
 export function otpMail(locale: MailLocale, code: string, purpose: 'login' | 'step_up'): Rendered {
@@ -243,7 +270,12 @@ export function otpMail(locale: MailLocale, code: string, purpose: 'login' | 'st
     },
   }[locale];
   return render(
-    { ...copy, code: { label: copy.codeLabel, value: code }, footer: FOOTER[locale] },
+    {
+      ...copy,
+      kind: 'security',
+      code: { label: copy.codeLabel, value: code },
+      footer: FOOTER[locale],
+    },
     locale,
   );
 }
@@ -289,7 +321,10 @@ export function passwordResetMail(locale: MailLocale, url: string): Rendered {
       label: '设置新密码',
     },
   }[locale];
-  return render({ ...copy, action: { label: copy.label, url }, footer: FOOTER[locale] }, locale);
+  return render(
+    { ...copy, kind: 'security', action: { label: copy.label, url }, footer: FOOTER[locale] },
+    locale,
+  );
 }
 
 export function passwordChangedMail(locale: MailLocale, url: string): Rendered {
@@ -325,7 +360,10 @@ export function passwordChangedMail(locale: MailLocale, url: string): Rendered {
       label: '前往登录',
     },
   }[locale];
-  return render({ ...copy, action: { label: copy.label, url }, footer: FOOTER[locale] }, locale);
+  return render(
+    { ...copy, kind: 'security', action: { label: copy.label, url }, footer: FOOTER[locale] },
+    locale,
+  );
 }
 
 /** Sent instead of a second account when someone registers an address that already has one. */
@@ -363,7 +401,12 @@ export function existingAccountMail(locale: MailLocale, loginUrl: string): Rende
     },
   }[locale];
   return render(
-    { ...copy, action: { label: copy.label, url: loginUrl }, footer: FOOTER[locale] },
+    {
+      ...copy,
+      kind: 'account',
+      action: { label: copy.label, url: loginUrl },
+      footer: FOOTER[locale],
+    },
     locale,
   );
 }
@@ -398,5 +441,8 @@ export function invitationMail(locale: MailLocale, companyName: string, url: str
       label: '查看邀请',
     },
   }[locale];
-  return render({ ...copy, action: { label: copy.label, url }, footer: FOOTER[locale] }, locale);
+  return render(
+    { ...copy, kind: 'invitation', action: { label: copy.label, url }, footer: FOOTER[locale] },
+    locale,
+  );
 }

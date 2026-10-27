@@ -182,6 +182,15 @@ export const routes: RouteObject[] = [
         ...pageRoute(() => import('@/pages/account/InvitationPage')),
       },
       { path: 'platform', ...pageRoute(() => import('@/pages/account/PlatformPage')) },
+      // EP24.1: Company Explorer and Platform Inspection (own lazy chunks).
+      {
+        path: 'platform/companies',
+        ...pageRoute(() => import('@/pages/account/PlatformCompaniesPage')),
+      },
+      {
+        path: 'platform/companies/:companyId',
+        ...pageRoute(() => import('@/pages/account/PlatformCompanyPage')),
+      },
       // English and Simplified Chinese.
       localeRoutes('en', 'en'),
       localeRoutes('zh', 'zh-CN'),

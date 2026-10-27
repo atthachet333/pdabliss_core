@@ -2,9 +2,11 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { COMPANY, companyName, PRODUCTS } from '@/config/company';
+import { INSIGHT_PARTNER } from '@/config/partners';
 import { CONTACT } from '@/config/contact';
 import { renderRoute } from '@/test/render';
 import { ABOUT } from './copy';
+import { PARTNER } from './partnerCopy';
 import {
   ABOUT_CHAPTER,
   ACTIVITIES,
@@ -39,7 +41,8 @@ const LOCALES = ['th', 'en', 'zh-CN'] as const;
 const THAI = /[฀-฾เ-๿]/;
 const TRADITIONAL = /[們個發這開時關庫說價購資費號門運營權證統線際體與變]/;
 // No invented company facts: founding year, headcount, client counts,
-// projects, awards, certifications, partners or testimonials.
+// projects, awards, certifications or testimonials (the one approved
+// relationship, S2, is tested on its own below).
 const INVENTED =
   /ก่อตั้ง|founded|since \d{4}|成立于|\d+\s?\+?\s?(ลูกค้า|clients|customers|projects|employees|โครงการ|พนักงาน|客户|员工|项目)|\bISO\b|certified|award-winning|ได้รับรางวัล|获奖|testimonial|“[^”]*”\s?—|partner of/i;
 // The approved address is an office — never a house or a home.
@@ -549,5 +552,48 @@ describe('signature scenes (EP13)', () => {
     }
     unmount();
     expect(document.head.querySelector('script[data-schema="organization"]')).toBeNull();
+  });
+});
+
+describe('/about — business insight with S2 (EP24.1, owner-approved)', () => {
+  it('presents two separate companies meeting at CORE, with the website and no invented facts', async () => {
+    await open();
+    const chapter = section(ABOUT_CHAPTER.partner);
+    expect(within(chapter).getByRole('heading', { level: 2 })).toHaveTextContent('เทคโนโลยี');
+    expect(chapter.querySelector('[data-side="pda"]')).toHaveTextContent(COMPANY.legalNameTh);
+    expect(chapter.querySelector('[data-side="s2"]')).toHaveTextContent(
+      INSIGHT_PARTNER.legalNameTh,
+    );
+    expect(chapter.querySelector('[data-side="s2"]')).toHaveTextContent(INSIGHT_PARTNER.legalName);
+    expect(chapter.querySelector('[data-bridge]')).toHaveTextContent('CORE');
+    expect(chapter.querySelector('[data-boundary]')).toHaveTextContent('บริษัทแยกกัน');
+    const link = chapter.querySelector<HTMLAnchorElement>('[data-partner-link]')!;
+    expect(link).toHaveAttribute('href', 'https://www.s2aconsultant.com/');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveAccessibleName(/เว็บไซต์ S2.*แท็บใหม่/);
+    // Chapter order: consulting (06) → business insight (07) → implementation (08).
+    const ids = [...main().querySelectorAll('section[id]')].map((s) => s.id);
+    expect(ids.indexOf(ABOUT_CHAPTER.partner)).toBe(ids.indexOf(ABOUT_CHAPTER.consulting) + 1);
+  });
+
+  it('TH / EN / ZH copy: same shape, no merger or credential claims, Simplified only', () => {
+    for (const locale of ['th', 'en', 'zh-CN'] as const) {
+      const text = allStrings(PARTNER[locale]).join(' ');
+      expect(text).not.toMatch(INVENTED);
+      expect(text).not.toMatch(
+        /merge|merger|ควบรวม|合并|subsidiary|บริษัทในเครือ|子公司|certif|รับรอง|认证/i,
+      );
+    }
+    expect(allStrings(PARTNER['zh-CN']).join('')).not.toMatch(TRADITIONAL);
+    expect(Object.keys(PARTNER.en)).toEqual(Object.keys(PARTNER.th));
+    expect(Object.keys(PARTNER['zh-CN'])).toEqual(Object.keys(PARTNER.th));
+  });
+
+  it('speaks English and Chinese, with the English and Thai names where they belong', async () => {
+    await open('/en/about');
+    const en = section(ABOUT_CHAPTER.partner);
+    expect(en.querySelector('[data-side="s2"] h3')).toHaveTextContent(INSIGHT_PARTNER.legalName);
+    expect(en).toHaveTextContent('Visit the S2 website');
   });
 });

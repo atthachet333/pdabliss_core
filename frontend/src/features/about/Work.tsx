@@ -152,7 +152,7 @@ export function ImplementationChapter() {
       <Frame width="wide">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <StoryHead
-            index="07"
+            index="08"
             ghost
             notation={s.notation.implementation}
             kicker={c.kicker}
@@ -245,7 +245,7 @@ export function LongTermChapter() {
         <div className="grid grid-cols-1 gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-20">
           <div>
             <StoryHead
-              index="08"
+              index="09"
               ghost
               notation={s.notation.longTerm}
               kicker={c.kicker}
@@ -393,7 +393,7 @@ export function CompanyInfoChapter() {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20">
           <div>
             <StoryHead
-              index="09"
+              index="10"
               notation={s.notation.info}
               kicker={c.kicker}
               id="company-information-title"

@@ -24,7 +24,7 @@ export function ProfileMenu({ ws }: { ws: WorkspaceDefinition }) {
   } = useMenu();
   const WsIcon = ws.icon;
   const email = identity.status === 'ready' ? identity.identity.user.email : '';
-  const name = identity.status === 'ready' ? (identity.identity.user.displayName ?? email) : '';
+  const name = identity.status === 'ready' ? (identity.identity.user.fullName ?? email) : '';
 
   // Real sign-out (EP23): the server revokes the session, then back to /login.
   const signOut = async () => {

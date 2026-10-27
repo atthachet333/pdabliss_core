@@ -94,7 +94,6 @@ export function safeNext(next: string | null): string | null {
   return /^\/(account|platform|app)(\/[a-z0-9-]+){0,3}$/.test(next) ? next : null;
 }
 
-/** The post-sign-in destination: a safe `next` the identity may use, else its home. */
 /**
  * EP24: a package picked on the public site (`/login?plan=business`) is carried
  * to the customer's Account Portal, where the package step preselects it. Only
@@ -105,6 +104,7 @@ export function withPlan(destination: string, plan: string | null): string {
   return id && destination === '/account' ? `/account?plan=${id}` : destination;
 }
 
+/** The post-sign-in destination: a safe `next` the identity may use, else its home. */
 export function destinationFor(identity: Identity, next: string | null): string {
   const safe = safeNext(next);
   if (!safe) return homeFor(identity);

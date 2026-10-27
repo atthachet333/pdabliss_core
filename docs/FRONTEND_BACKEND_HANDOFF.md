@@ -36,7 +36,7 @@ them into enforced behaviour without changing the frozen public site.
 | `/app` data | Mock fixtures in the frontend | API data filtered per audience (EP24–EP25 and module episodes) |
 | Contact | Prepared message, hand-off by LINE / email / copy / phone; `UNAVAILABLE` delivery | `POST /api/inquiries` behind the existing seam (§10) |
 | Demo (`/demo`) | Deterministic client-side scenario SO-1042 | Stays static (§11) |
-| Pricing | Static plan table (`src/features/pricing/plans.ts`) | Billing / checkout is out of scope until the owner schedules it |
+| Pricing | Static plan table (`src/features/pricing/plans.ts`); since EP24 parity-tested against the backend catalog | Billing / checkout is out of scope until the owner schedules it |
 
 The demo-only reviewer credentials are **not production credentials** and must never appear in
 production documentation, public UI or a production bundle.
@@ -76,6 +76,17 @@ gateway gained the real form (Category B, presented for owner review).
 The account tables (users, credentials, platform roles, sessions, tokens, invitations, auth audit)
 exist; company, branch and master-data modelling beyond the demo company remains EP24+ work.
 
+**EP24 update (company & subscription foundation):** see [COMPANY_SUBSCRIPTION.md](COMPANY_SUBSCRIPTION.md)
+and [EP24_REPORT.md](EP24_REPORT.md). The product direction is now SaaS: **one CORE workspace = one
+company, one company per customer account** (`CompanyMember.userId` unique — still no company
+selector or switching), many companies on the platform. Added: `Company` lifecycle and onboarding
+status, `Branch` with exactly one Head Office (`00000`, enforced in SQL), canonical
+`DepartmentCode`, `Subscription` with a plan snapshot (`PENDING` until activation; no payment),
+the authoritative package catalog `backend/src/billing/catalog.ts` (parity-tested against the frozen
+`plans.ts`), server-side entitlements, membership-derived company context (no company id from the
+browser) and the platform company list. Master data, branch management and department modules are
+still later episodes.
+
 ## 6. RBAC handoff (EP25)
 
 - Access is decided on the server. Frontend navigation and hidden UI are **not** access control.
@@ -89,6 +100,9 @@ exist; company, branch and master-data modelling beyond the demo company remains
   is never serialized (see [ARCHITECTURE.md](ARCHITECTURE.md#security)).
 - Package limits (departments per plan, Executive availability, API availability, storage) from
   §8 of the freeze manifest become server-side entitlements.
+- **EP24:** these entitlements now exist (`backend/src/company/entitlements.ts`, from the
+  subscription snapshot); department limits are enforced at company creation. EP25 enforces data
+  boundaries per role on top of them.
 
 ## 7. Warehouse boundary
 

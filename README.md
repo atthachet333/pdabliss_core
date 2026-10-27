@@ -28,10 +28,30 @@ codes, sessions, password recovery, Platform Owner / Platform Admin, the Account
 Platform Control Center ([docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)). Payment, company setup and
 the Company Control Center come later.
 
+**EP24** (completed locally, awaiting owner review) establishes the company & subscription
+foundation: package catalog (one source for enforcement, parity-tested against public pricing),
+company onboarding with its Company Owner, Head Office `00000` and departments, a subscription that
+waits for activation (no payment, no fake paid state), server-side entitlements, company isolation,
+the Platform Control Center company list and an active Professional demo company
+([docs/COMPANY_SUBSCRIPTION.md](docs/COMPANY_SUBSCRIPTION.md)). It also includes the **Auth &
+Transactional Email Polish** (below). Next: **EP24.1** Platform Company Explorer (not started).
+
+### Auth & Transactional Email Polish (EP24)
+
+- Account screens: clear "check your email" states after registration and forgot-password, email
+  verification states (verifying, verified, already verified, expired, used, invalid, missing link),
+  reset-password form / success / expired-used-invalid states, and the one-time-code step —
+  checked at 320–1440 px, keyboard, focus, errors and TH / EN / ZH.
+- Emails (verification, sign-in / step-up code, password reset, password changed, existing account,
+  invitation): one PDA BLISS CORE band, one dominant button, a small fallback link, and only true
+  facts — single use, the real expiry (24 h / 10 min / 30 min / 7 days), sign-out of every device
+  after a reset, "ignore if this was not you". Authentication behaviour is unchanged.
+
 Roadmap:
 
 1. EP20 Performance → EP21 Release-candidate audit → **EP22 Public Frontend Freeze**
-2. **EP23 Account & Real Authentication** → EP24 Database / Prisma → EP25 RBAC / Information boundaries →
+2. EP23 Account & Real Authentication → **EP24 Company & Subscription Foundation** → EP24.1 Platform
+   Company Explorer → EP25 RBAC / Information boundaries →
    EP26 Organization / Users / Departments → EP27 Audit / Notifications / Activity → EP28 Master Data
 3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
    EP34 Executive
@@ -270,6 +290,8 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/FRONTEND_BACKEND_HANDOFF.md](docs/FRONTEND_BACKEND_HANDOFF.md) — what the backend episodes (EP23+) inherit from the frozen frontend
 - [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) — accounts, roles, sign-in, one-time codes, sessions, recovery, rate limits, audit, bootstrap, testing
 - [docs/EP23_REPORT.md](docs/EP23_REPORT.md) — account and real authentication foundation report
+- [docs/COMPANY_SUBSCRIPTION.md](docs/COMPANY_SUBSCRIPTION.md) — company, Head Office, package catalog, entitlements, subscription lifecycle, isolation, demo company
+- [docs/EP24_REPORT.md](docs/EP24_REPORT.md) — company and subscription foundation report
 
 ---
 

@@ -90,7 +90,16 @@ describe.each(LOCALES)('templates (%s)', (locale) => {
     expect(login.text).toMatch(/10/);
     const share = { th: 'อย่าบอกรหัสนี้', en: 'Do not share', 'zh-CN': '请勿告诉任何人' }[locale];
     expect(login.text).toContain(share);
-    expect(otpMail(locale, '042917', 'step_up').text).not.toBe(login.text);
+    const stepUp = otpMail(locale, '042917', 'step_up');
+    expect(stepUp.text).not.toBe(login.text);
+    // A step-up code is asked for by a signed-in session: never "if you were not signing in".
+    const signInHint = {
+      th: 'ไม่ได้พยายามเข้าสู่ระบบ',
+      en: 'not trying to sign in',
+      'zh-CN': '没有尝试登录',
+    }[locale];
+    expect(login.text).toContain(signInHint);
+    expect(stepUp.text).not.toContain(signInHint);
     // No button for a code.
     expect(login.html).not.toContain('href=');
   });

@@ -142,7 +142,7 @@ export function RegisterForm() {
           capsLockLabel={c.common.capsLock}
         />
         <div>
-          <label className="flex items-start gap-3 text-caption text-text-secondary">
+          <label className="flex min-h-6 items-start gap-3 text-caption text-text-secondary">
             <input
               id="register-terms"
               type="checkbox"

@@ -194,7 +194,9 @@ export function otpMail(locale: MailLocale, code: string, purpose: 'login' | 'st
       facts: [
         'รหัสหมดอายุใน 10 นาที และใช้ได้ครั้งเดียว',
         'อย่าบอกรหัสนี้กับใคร — ทีม PDA BLISS จะไม่ขอรหัสนี้จากคุณ',
-        'หากคุณไม่ได้พยายามเข้าสู่ระบบ ให้เปลี่ยนรหัสผ่านของคุณ',
+        purpose === 'login'
+          ? 'หากคุณไม่ได้พยายามเข้าสู่ระบบ ให้เปลี่ยนรหัสผ่านของคุณ'
+          : 'หากคุณไม่ได้ทำรายการนี้ ให้เปลี่ยนรหัสผ่านของคุณ',
       ],
     },
     en: {
@@ -213,7 +215,9 @@ export function otpMail(locale: MailLocale, code: string, purpose: 'login' | 'st
       facts: [
         'The code expires in 10 minutes and works once.',
         'Do not share it — the PDA BLISS team will never ask you for it.',
-        'If you were not trying to sign in, change your password.',
+        purpose === 'login'
+          ? 'If you were not trying to sign in, change your password.'
+          : 'If you did not start this action, change your password.',
       ],
     },
     'zh-CN': {
@@ -232,7 +236,9 @@ export function otpMail(locale: MailLocale, code: string, purpose: 'login' | 'st
       facts: [
         '验证码 10 分钟后失效，且仅可使用一次。',
         '请勿告诉任何人——PDA BLISS 团队绝不会向您索取验证码。',
-        '如果您没有尝试登录，请修改密码。',
+        purpose === 'login'
+          ? '如果您没有尝试登录，请修改密码。'
+          : '如果这不是您本人发起的操作，请修改密码。',
       ],
     },
   }[locale];

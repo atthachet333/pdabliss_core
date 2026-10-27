@@ -188,8 +188,11 @@ function SetupFlow({
   const fromUrl = planIntent(params.get('plan'));
   const fromIntent = planIntent(identity.onboarding.planIntent);
   const [changing, setChanging] = useState(false);
+  // A different plan picked on /pricing than the one saved is offered once (preselected).
+  const [urlHandled, setUrlHandled] = useState(false);
   const chosen = onboarding.selectedPlan;
-  const showPackages = !chosen || changing;
+  const urlDiffers = !!fromUrl && planCode(fromUrl) !== chosen && !urlHandled;
+  const showPackages = !chosen || changing || urlDiffers;
   const suggested: PlanCode = fromUrl
     ? planCode(fromUrl)
     : (chosen ?? (fromIntent ? planCode(fromIntent) : 'BUSINESS'));
@@ -200,6 +203,7 @@ function SetupFlow({
       fromPricing={fromUrl ? planCode(fromUrl) : null}
       onChosen={async () => {
         setChanging(false);
+        setUrlHandled(true);
         await onDone();
       }}
       c={c}

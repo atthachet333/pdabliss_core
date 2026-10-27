@@ -137,6 +137,29 @@ describe('package selection', () => {
     );
   });
 
+  it('offers a pricing-page plan once when it differs from the saved one', async () => {
+    const api = onboardingServer({ plan: 'BUSINESS' });
+    renderRoute('/account?plan=professional');
+    const step = (await screen.findByRole('heading', { name: 'เลือกแพ็กเกจ' })).closest('section')!;
+    expect(within(step).getByRole('radio', { name: /Professional/ })).toBeChecked();
+    // Keeping the saved plan is a choice too: the form follows, no loop back.
+    await userEvent.click(within(step).getByRole('radio', { name: /Business/ }));
+    await userEvent.click(within(step).getByRole('button', { name: 'เลือกแพ็กเกจนี้' }));
+    expect(api.called('POST /api/v1/account/package')[0]!.body).toEqual({ plan: 'BUSINESS' });
+    await screen.findByRole('heading', { name: 'สร้างบริษัทของคุณ' });
+    expect(document.querySelector('[data-chosen-plan]')).toHaveAttribute(
+      'data-chosen-plan',
+      'BUSINESS',
+    );
+  });
+
+  it('a pricing-page plan equal to the saved one goes straight to the company form', async () => {
+    onboardingServer({ plan: 'BUSINESS' });
+    renderRoute('/account?plan=business');
+    await screen.findByRole('heading', { name: 'สร้างบริษัทของคุณ' });
+    expect(screen.queryByRole('heading', { name: 'เลือกแพ็กเกจ' })).not.toBeInTheDocument();
+  });
+
   it('Enterprise explains the quotation path instead of a checkout', async () => {
     onboardingServer();
     renderRoute('/account');

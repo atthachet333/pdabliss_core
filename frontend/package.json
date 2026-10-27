@@ -20,7 +20,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "assets": "node scripts/build-assets.mjs && node scripts/build-department-scenes.mjs"
+    "assets": "node scripts/build-assets.mjs && node scripts/build-department-scenes.mjs && node scripts/build-brand.mjs",
+    "assets:brand": "node scripts/build-brand.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

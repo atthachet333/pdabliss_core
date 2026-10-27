@@ -43,7 +43,7 @@ function Window({
       style={{ '--ws-accent': w.accent } as CSSProperties}
     >
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-nav px-4">
-        <LogoMark className="size-5" />
+        <LogoMark className="size-5" size="micro" />
         <span className="hidden text-[0.6875rem] font-semibold tracking-[0.12em] text-fg-primary sm:block">
           PDA BLISS <span className="text-brand-glow">CORE</span>
         </span>

@@ -50,6 +50,11 @@ real-customer figures first with demo and platform data counted separately, the 
 latest customer companies next to what needs attention, an isolated demo environment, a quick
 company search in the header, and new Activity and Operators areas; session details are folded
 away ([docs/EP24_1_2_REPORT.md](docs/EP24_1_2_REPORT.md)).
+
+**EP24.1.3** (completed locally, awaiting owner review) establishes the production brand identity:
+the orbital CORE mark, a vector wordmark, a micro mark for favicons, light / dark / monochrome
+variants, favicons and app icons, and a new social card — all generated from one vector source
+([docs/BRAND_IDENTITY.md](docs/BRAND_IDENTITY.md)).
 Next: EP25 RBAC / Information boundaries (not started).
 
 ### Auth & Transactional Email Polish (EP24)
@@ -129,7 +134,8 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 | `npm run lint`         | ESLint                         | ESLint (type-aware)             |
 | `npm test`             | Vitest + Testing Library       | Vitest + Fastify `inject`       |
 | `npm run format`       | Prettier                       | Prettier                        |
-| `npm run assets`       | regenerate WebP/AVIF/PNG assets + department scenes | —          |
+| `npm run assets`       | regenerate WebP/AVIF/PNG assets + department scenes + brand set | — |
+| `npm run assets:brand` | regenerate logo / mark / favicon / app-icon / OG files from `geometry.ts` | — |
 | `npm run db:validate`  | —                              | validate the Prisma schema      |
 
 ## Routes

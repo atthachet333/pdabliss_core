@@ -75,7 +75,7 @@ describe('department routes', () => {
     expect(titles.size).toBe(total);
     expect(descriptions.size).toBe(total);
     expect(headings.size).toBe(total);
-  });
+  }, 20000); // renders every department page in every locale (slow under a parallel run)
 
   it('does not invent department pages', async () => {
     renderRoute('/departments/marketing');

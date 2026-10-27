@@ -96,7 +96,7 @@ export function PartnerChapter() {
               side="left"
               mark={
                 <span className="grid size-20 place-items-center rounded-[1.5rem] bg-[linear-gradient(145deg,rgb(18_44_52),rgb(6_14_21))] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.3),0_24px_60px_-30px_rgb(62_240_192/0.5)] sm:size-24">
-                  <LogoMark className="size-11 sm:size-13" />
+                  <LogoMark className="size-12 sm:size-14" size="large" />
                 </span>
               }
               name={companyName(locale)}

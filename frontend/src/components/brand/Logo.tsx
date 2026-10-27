@@ -1,67 +1,80 @@
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 import { cn } from '@/lib/cn';
+import { logoInner, markInner, type MarkSize, type MarkVariant } from './geometry';
 
-/** CORE mark: a luminous core inside an orbit with six department nodes. */
-export function LogoMark({ className }: { className?: string }) {
-  const id = useId();
+/*
+ * EP24.1.3: both components render the production brand geometry
+ * (geometry.ts) — the same vectors as /public/brand and the favicon.
+ * The markup is generated from constants only (never user input).
+ */
+
+/** Gradient ids must be unique per instance (a hidden duplicate would break `url(#…)`). */
+function useSvgId() {
+  return `cm${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+}
+
+/**
+ * CORE brand mark (symbol only): a luminous core held by a silver ring and a
+ * teal orbit. `size` is the optical size — 'micro' (tile) below ~24 px,
+ * 'mark' for navigation and headers, 'large' for showcase tiles.
+ */
+export function LogoMark({
+  className,
+  variant = 'dark',
+  size = 'mark',
+}: {
+  className?: string;
+  variant?: MarkVariant;
+  size?: MarkSize;
+}) {
+  const id = useSvgId();
+  const html = useMemo(() => markInner(id, variant, size), [id, variant, size]);
   return (
-    <svg viewBox="0 0 40 40" className={cn('size-9', className)} aria-hidden>
-      <defs>
-        <radialGradient id={`${id}-core`} cx="50%" cy="45%" r="55%">
-          <stop offset="0%" stopColor="var(--color-brand-soft)" />
-          <stop offset="55%" stopColor="var(--color-brand-glow)" />
-          <stop offset="100%" stopColor="var(--color-brand-deep)" />
-        </radialGradient>
-      </defs>
-      <circle
-        cx="20"
-        cy="20"
-        r="17"
-        fill="none"
-        stroke="var(--color-brand-primary)"
-        strokeOpacity="0.45"
-        strokeWidth="1.2"
-      />
-      {Array.from({ length: 6 }, (_, i) => {
-        const a = (Math.PI / 3) * i - Math.PI / 2;
-        return (
-          <circle
-            key={i}
-            cx={20 + 17 * Math.cos(a)}
-            cy={20 + 17 * Math.sin(a)}
-            r="2"
-            fill="var(--color-brand-glow)"
-          />
-        );
-      })}
-      <circle cx="20" cy="20" r="8" fill={`url(#${id}-core)`} />
-      <circle
-        cx="20"
-        cy="20"
-        r="11.5"
-        fill="none"
-        stroke="var(--color-brand-glow)"
-        strokeOpacity="0.25"
-      />
-    </svg>
+    <svg
+      viewBox="0 0 64 64"
+      className={cn('size-9', className)}
+      aria-hidden
+      focusable="false"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
 
-export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
+/**
+ * Primary logo: mark + "PDA BLISS / CORE" vector wordmark. Not compact adds the
+ * "Department Operations" lockup. The artwork is decorative; one text name
+ * (sr-only) keeps a single, meaningful accessible name — callers that label
+ * their link override it, so nothing is announced twice.
+ */
+export function Logo({
+  className,
+  compact = false,
+  variant = 'dark',
+}: {
+  className?: string;
+  compact?: boolean;
+  variant?: MarkVariant;
+}) {
+  const id = useSvgId();
+  const logo = useMemo(() => logoInner(id, variant), [id, variant]);
   return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
-      <LogoMark />
-      <span className="flex flex-col leading-none">
-        <span className="text-[0.95rem] font-semibold tracking-[0.14em] text-text-primary">
-          PDA BLISS <span className="text-brand-glow">CORE</span>
+    <span className={cn('inline-flex items-center gap-3.5', className)}>
+      <svg
+        viewBox={`0 0 ${logo.width} 64`}
+        className="h-9 w-auto shrink-0 sm:h-10"
+        aria-hidden
+        focusable="false"
+        dangerouslySetInnerHTML={{ __html: logo.markup }}
+      />
+      <span className="sr-only">PDA BLISS CORE</span>
+      {/* EP19: a real space, so the accessible text reads "… CORE Department Operations". */}{' '}
+      {/* Secondary: quieter than the wordmark, and only where callers have room (not compact). */}
+      {!compact && (
+        <span className="border-l border-white/[0.1] pl-3.5 text-[0.5625rem] leading-[1.4] font-medium tracking-[0.22em] text-text-muted uppercase">
+          Department <br aria-hidden />
+          Operations
         </span>
-        {/* EP19: a real space, so the accessible text reads "… CORE Department Operations". */}{' '}
-        {!compact && (
-          <span className="mt-1 text-[0.6875rem] tracking-[0.16em] text-text-muted uppercase">
-            Department Operations
-          </span>
-        )}
-      </span>
+      )}
     </span>
   );
 }

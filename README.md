@@ -61,6 +61,10 @@ users and invitations, owner protection, department configuration and assignment
 package, a factual subscription page, company activity, settings, and the server-side branch
 context leading into a neutral CORE Operations entry (`/core`)
 ([docs/COMPANY_CONTROL_CENTER.md](docs/COMPANY_CONTROL_CENTER.md), [docs/EP25_REPORT.md](docs/EP25_REPORT.md)).
+**EP24.1.4** (completed locally, awaiting owner review) is a small approved public patch: the
+PDA BLISS × S2 chapter on /about rebuilt as one symmetric composition (equal sides, CORE centred on
+the logos' axis, matched actions), and a consent-aware Google map on /contact that loads only when
+the visitor asks ([docs/EP24_1_4_REPORT.md](docs/EP24_1_4_REPORT.md)).
 Next: EP26 (not started).
 
 ### Auth & Transactional Email Polish (EP24)

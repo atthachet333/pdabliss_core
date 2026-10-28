@@ -5,6 +5,7 @@ import { OrganizationSchema } from '@/components/seo/OrganizationSchema';
 import { ContactFlow } from '@/features/contact/ContactFlow';
 import { CONTACT_COPY } from '@/features/contact/copy';
 import { parsePrefill } from '@/features/contact/model';
+import { LocationSection } from '@/features/contact/Location';
 import { ContactHero, ContextBanner, DirectPanel } from '@/features/contact/Panels';
 import { flowReducer, initialFlow } from '@/features/contact/state';
 import { useCopy } from '@/i18n/useCopy';
@@ -16,6 +17,7 @@ import { usePageMeta } from '@/lib/usePageMeta';
  * summary. Nothing is sent by the website today — the review hands the
  * prepared message to email, LINE OA or phone (see features/contact/delivery.ts).
  * `?interest=`, `?plan=`, `?industry=` and `?department=` prefill the flow.
+ * EP24.1.4: the location section (address, channels, the map) follows the flow.
  */
 export default function ContactPage() {
   const c = useCopy(CONTACT_COPY);
@@ -38,6 +40,8 @@ export default function ContactPage() {
             <DirectPanel inquiry={state.inquiry} />
           </div>
         </div>
+        {/* EP24.1.4: who, how to reach, and where — with the map. */}
+        <LocationSection />
       </Frame>
     </>
   );

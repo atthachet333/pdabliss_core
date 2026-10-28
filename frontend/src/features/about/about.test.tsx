@@ -598,11 +598,54 @@ describe('/about — business insight with S2 (EP24.1, owner-approved)', () => {
     expect(Object.keys(PARTNER['zh-CN'])).toEqual(Object.keys(PARTNER.th));
   });
 
+  it('is one symmetric composition: equal sides, a central connector, matched marks and actions (EP24.1.4)', async () => {
+    await open();
+    const chapter = section(ABOUT_CHAPTER.partner);
+    const grid = chapter.querySelector<HTMLElement>('[data-partner-grid]')!;
+    // 1fr | connector | 1fr — both company zones get the same structural width.
+    expect(grid.className).toMatch(/lg:grid-cols-\[minmax\(0,1fr\)_[^\]]+_minmax\(0,1fr\)\]/);
+    const order = [...grid.children].map(
+      (el) => el.getAttribute('data-side') ?? (el.hasAttribute('data-bridge') ? 'core' : '?'),
+    );
+    expect(order).toEqual(['pda', 'core', 's2']);
+    // Both sides share the rows (subgrid), so names, roles, points and actions line up.
+    for (const side of ['pda', 's2'])
+      expect(grid.querySelector(`[data-side="${side}"]`)!.className).toContain(
+        'lg:grid-rows-subgrid',
+      );
+    // Logos on plates of one size — neither logo resized or recoloured.
+    const pda = chapter.querySelector<HTMLElement>('[data-pda-mark]')!;
+    const s2 = chapter.querySelector<HTMLElement>('[data-partner-logo]')!;
+    const plate = (el: HTMLElement) =>
+      el.className
+        .split(/\s+/)
+        .filter((c) => /^(lg:)?size-/.test(c))
+        .join(' ');
+    expect(plate(pda)).toBe(plate(s2));
+    // CORE is the meeting point, not a third company: a node on the connector, no company name.
+    const node = chapter.querySelector('[data-connector] [data-core-node]')!;
+    expect(node).toHaveTextContent('CORE');
+    expect(chapter.querySelector('[data-bridge]')).not.toHaveTextContent(/จำกัด|LIMITED|Ltd/);
+    // An action on each side, the same shape.
+    const actions = [...chapter.querySelectorAll<HTMLAnchorElement>('[data-partner-action]')];
+    expect(actions.map((a) => a.dataset.partnerAction)).toEqual(['pda', 's2']);
+    expect(actions[0]).toHaveAttribute('href', '/how-core-works');
+    expect(actions[1]).toHaveAttribute('href', INSIGHT_PARTNER.website);
+    expect(actions[0]!.className.split(' ').slice(0, 6)).toEqual(
+      actions[1]!.className.split(' ').slice(0, 6),
+    );
+  });
+
   it('speaks English and Chinese, with the English and Thai names where they belong', async () => {
     await open('/en/about');
     const en = section(ABOUT_CHAPTER.partner);
     expect(en.querySelector('[data-side="s2"] h3')).toHaveTextContent(INSIGHT_PARTNER.legalName);
     expect(en).toHaveTextContent('Learn about S2');
+    expect(en.querySelector('[data-partner-action="pda"]')).toHaveAttribute(
+      'href',
+      '/en/how-core-works',
+    );
+    expect(en.textContent).not.toMatch(/[฀-๿]/);
     expect(en.querySelector('[data-partner-label]')).toHaveTextContent(
       'Business & Accounting Insight Partner',
     );

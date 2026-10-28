@@ -39,6 +39,8 @@ const th = {
   boundary:
     'PDA BLISS และ S2 เป็นบริษัทแยกกัน แต่ละบริษัทดูแลงานของตัวเอง — PDA BLISS พัฒนาแพลตฟอร์มและเทคโนโลยี S2 ให้มุมมองด้านบัญชี ที่ปรึกษา และกระบวนการธุรกิจ',
   visit: 'รู้จัก S2',
+  /** EP24.1.4: the PDA BLISS side's action, matching the S2 one in weight. */
+  pdaAction: 'CORE ทำงานอย่างไร',
   external: '(เปิดเว็บไซต์ S2 ในแท็บใหม่)',
   logoAlt: 'โลโก้ S2 ACCOUNTING CONSULTANT',
 };
@@ -78,6 +80,7 @@ export const PARTNER: Localized<PartnerCopy> = {
     boundary:
       'PDA BLISS and S2 are separate companies, each responsible for its own work — PDA BLISS develops the platform and technology; S2 contributes the accounting, advisory and business-process perspective.',
     visit: 'Learn about S2',
+    pdaAction: 'How CORE works',
     external: '(opens the S2 website in a new tab)',
     logoAlt: 'S2 ACCOUNTING CONSULTANT logo',
   },
@@ -112,6 +115,7 @@ export const PARTNER: Localized<PartnerCopy> = {
     boundary:
       'PDA BLISS 与 S2 是两家独立的公司，各自负责自己的工作 — PDA BLISS 开发平台与技术；S2 提供会计、咨询与业务流程方面的视角。',
     visit: '了解 S2',
+    pdaAction: 'CORE 如何运作',
     external: '（在新标签页中打开 S2 网站）',
     logoAlt: 'S2 ACCOUNTING CONSULTANT 标志',
   },

@@ -1,4 +1,4 @@
-import { ArrowRight, Mail, MessageCircle, Phone, Sparkles } from 'lucide-react';
+import { ArrowRight, Mail, MapPin, MessageCircle, Phone, Sparkles } from 'lucide-react';
 import { Fragment } from 'react';
 import { useMediaQuery } from '@/components/core/hooks';
 import { Frame } from '@/components/editorial/Layout';
@@ -9,6 +9,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { CONTACT_COPY } from './copy';
+import { LOCATION_COPY } from './locationCopy';
 import type { Inquiry, Prefill } from './model';
 import { Summary } from './Summary';
 import { useDeptName } from './summaryText';
@@ -194,6 +195,7 @@ export function DirectPanel({ inquiry }: { inquiry: Inquiry }) {
   const c = useCopy(CONTACT_COPY).panel;
   const { locale } = useLocale();
   const wide = useMediaQuery('(min-width: 64rem)');
+  const seeMap = useCopy(LOCATION_COPY).seeMap;
   return (
     <aside
       aria-labelledby="direct-title"
@@ -243,6 +245,14 @@ export function DirectPanel({ inquiry }: { inquiry: Inquiry }) {
         <p lang="th" className="mt-1 text-caption text-text-secondary">
           {CONTACT.address}
         </p>
+        <a
+          href="#location"
+          data-see-map
+          className="mt-3 inline-flex min-h-6 items-center gap-1.5 text-caption text-brand-soft underline underline-offset-4 hover:text-brand-glow"
+        >
+          <MapPin aria-hidden className="size-3.5" />
+          {seeMap}
+        </a>
       </div>
     </aside>
   );

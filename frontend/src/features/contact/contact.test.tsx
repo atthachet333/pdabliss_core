@@ -2,6 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CONTACT } from '@/config/contact';
+import { OFFICE_LOCATION } from '@/config/location';
+import { ALL_ACCEPTED, clearConsent, saveConsent } from '@/features/consent/consent';
 import type { Localized } from '@/i18n/useCopy';
 import { renderRoute } from '@/test/render';
 import { CONTACT_COPY, type ContactCopy } from './copy';
@@ -60,7 +62,7 @@ const next = () => userEvent.click(within(flow()).getByRole('button', { name: /�
 function visibleText() {
   const m = main().cloneNode(true) as HTMLElement;
   m.querySelectorAll('[inert], [aria-hidden="true"]').forEach((n) => n.remove());
-  return (m.textContent ?? '').replace(CONTACT.address, '');
+  return (m.textContent ?? '').replaceAll(CONTACT.address, ''); // the address is Thai in every locale (approved)
 }
 async function toDetails() {
   for (let i = 0; i < 4; i++) await next();
@@ -436,5 +438,99 @@ describe('localization', () => {
       unmount();
     }
     expect(seen.size).toBe(6);
+  });
+});
+
+describe('/contact — location and map (EP24.1.4, owner-approved)', () => {
+  afterEach(() => clearConsent());
+  const location = () => document.querySelector<HTMLElement>('[data-location]')!;
+
+  it('shows who and where without loading Google; the map loads only when asked', async () => {
+    await open();
+    const loc = location();
+    expect(within(loc).getByRole('heading', { level: 2 })).toHaveTextContent('ที่ตั้งบริษัท');
+    expect(loc).toHaveTextContent(CONTACT.address);
+    expect(loc).toHaveTextContent(CONTACT.phone.display);
+    expect(loc).toHaveTextContent(CONTACT.email);
+    expect(loc.querySelector('[data-map-placeholder]')).not.toBeNull();
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(document.body.innerHTML).not.toMatch(/maps\.google\.com\/maps\?/);
+
+    await userEvent.click(within(loc).getByRole('button', { name: 'แสดงแผนที่' }));
+    const frame = loc.querySelector<HTMLIFrameElement>('[data-map-frame]')!;
+    expect(frame).toHaveAttribute('title', 'แผนที่ Google แสดงที่ตั้ง PDA BLISS COMPANY LIMITED');
+    expect(frame).toHaveAttribute('loading', 'lazy');
+    const src = new URL(frame.src);
+    expect(src.hostname).toBe('maps.google.com');
+    expect(src.searchParams.get('q')).toBe(`${OFFICE_LOCATION.lat},${OFFICE_LOCATION.lng}`);
+    expect(src.searchParams.get('output')).toBe('embed');
+    expect(src.searchParams.get('hl')).toBe('th');
+    expect(src.searchParams.has('key')).toBe(false);
+    expect(frame).toHaveFocus();
+  });
+
+  it('opens the owner-provided listing safely, in a new tab, with a clear name', async () => {
+    await open();
+    const links = within(location()).getAllByRole('link', { name: /เปิดใน Google Maps/ });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', OFFICE_LOCATION.listingUrl);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    expect(OFFICE_LOCATION.listingUrl).toContain('!3d13.956774!4d100.3378182');
+    // The long URL is behind the button, never printed.
+    expect(location().textContent).not.toContain('google.com/maps/place');
+    // The direct panel points to the location section.
+    expect(document.querySelector('[data-see-map]')).toHaveAttribute('href', '#location');
+  });
+
+  it('never loads the map by itself — not even after "Accept all"', async () => {
+    saveConsent(ALL_ACCEPTED);
+    await open();
+    expect(location().querySelector('[data-map-placeholder]')).not.toBeNull();
+    expect(document.querySelector('iframe')).toBeNull();
+  });
+
+  it('labels the map in English and Chinese, without Thai beyond the address', async () => {
+    for (const [path, show, open_, title, hl] of [
+      [
+        '/en/contact',
+        'Show map',
+        'Open in Google Maps',
+        'Google map showing PDA BLISS COMPANY LIMITED',
+        'en',
+      ],
+      [
+        '/zh/contact',
+        '显示地图',
+        '在 Google 地图中打开',
+        '显示 PDA BLISS COMPANY LIMITED 位置的 Google 地图',
+        'zh-CN',
+      ],
+    ] as const) {
+      const { unmount } = await open(path);
+      const loc = location();
+      expect(within(loc).getAllByRole('link', { name: new RegExp(open_) }).length).toBeGreaterThan(
+        0,
+      );
+      expect(loc.textContent!.replaceAll(CONTACT.address, '')).not.toMatch(THAI);
+      await userEvent.click(within(loc).getByRole('button', { name: show }));
+      const frame = loc.querySelector<HTMLIFrameElement>('[data-map-frame]')!;
+      expect(frame).toHaveAttribute('title', title);
+      expect(new URL(frame.src).searchParams.get('hl')).toBe(hl);
+      unmount();
+    }
+  });
+
+  it('is only on /contact: no map or Google location anywhere else', async () => {
+    for (const path of ['/', '/about', '/en/pricing']) {
+      const { unmount } = renderRoute(path);
+      await screen.findAllByRole('heading', { level: 1 });
+      expect(document.querySelector('[data-location], [data-map]')).toBeNull();
+      expect(document.body.innerHTML).not.toContain(OFFICE_LOCATION.listingUrl);
+      expect(document.body.innerHTML).not.toMatch(/maps\.google\.com/);
+      unmount();
+    }
   });
 });

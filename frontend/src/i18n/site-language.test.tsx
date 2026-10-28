@@ -22,7 +22,7 @@ const THAI = /[฀-๿]/;
 function visibleMainText() {
   const main = document.getElementById('main')!.cloneNode(true) as HTMLElement;
   main.querySelectorAll('[inert], [aria-hidden="true"]').forEach((n) => n.remove());
-  return (main.textContent ?? '').replace(CONTACT.address, '');
+  return (main.textContent ?? '').replaceAll(CONTACT.address, '');
 }
 
 /** Thai script runs. The baht sign (฿, U+0E3F) is a currency symbol, allowed in every locale. */

@@ -8,7 +8,12 @@ import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { ADMIN_COPY } from './adminCopy';
 import { ScopeSummary } from './adminParts';
-import { controlApi, type InvitationList, type InvitationRecord, type InvitationState } from './api';
+import {
+  controlApi,
+  type InvitationList,
+  type InvitationRecord,
+  type InvitationState,
+} from './api';
 import { RequireCapability } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
@@ -53,7 +58,9 @@ function Invitations() {
     const next = await controlApi.invitations(state, page);
     if (n !== request.current) return;
     setData((prev) =>
-      page > 1 && prev ? { ...next, invitations: [...prev.invitations, ...next.invitations] } : next,
+      page > 1 && prev
+        ? { ...next, invitations: [...prev.invitations, ...next.invitations] }
+        : next,
     );
     setError(null);
   };
@@ -190,7 +197,7 @@ function InvitationRow({
     <li
       data-invitation={i.email}
       data-state={i.state}
-      className="grid gap-3 rounded-xl bg-white/[0.02] px-4 py-3 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.06)] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] lg:items-center lg:gap-4"
+      className="grid gap-3 rounded-xl bg-white/[0.02] px-4 py-3 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.06)] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.4fr)_minmax(0,1fr)_13.5rem] lg:items-center lg:gap-4"
     >
       <div className="flex min-w-0 items-start gap-3">
         {i.state === 'ACCEPTED' ? (
@@ -199,7 +206,9 @@ function InvitationRow({
           <UserRound aria-hidden className="mt-0.5 size-4 shrink-0 text-text-muted" />
         )}
         <div className="min-w-0">
-          <p className="text-label break-all text-text-primary">{i.email}</p>
+          <p id={`invitation-${i.id}`} className="text-label break-all text-text-primary">
+            {i.email}
+          </p>
           <p className="flex flex-wrap items-center gap-x-2 text-caption text-text-muted">
             <span>{auth.roles[i.role]}</span>
             {i.resent && <Pill tone="muted">{a.invitations.resentTag}</Pill>}
@@ -223,9 +232,7 @@ function InvitationRow({
       <div className="grid gap-0.5 text-caption">
         <span className="flex flex-wrap items-center gap-2">
           <Pill
-            tone={
-              i.state === 'ACCEPTED' ? 'teal' : i.state === 'PENDING' ? 'neutral' : 'warning'
-            }
+            tone={i.state === 'ACCEPTED' ? 'teal' : i.state === 'PENDING' ? 'neutral' : 'warning'}
           >
             {a.invitations.states[i.state]}
           </Pill>
@@ -247,6 +254,7 @@ function InvitationRow({
               }
               className={buttonClasses('secondary', 'md')}
               data-resend={i.email}
+              aria-describedby={`invitation-${i.id}`}
             >
               <RotateCw aria-hidden className="size-4" />
               {a.invitations.resend}
@@ -257,6 +265,7 @@ function InvitationRow({
                 onClick={() => setConfirming(true)}
                 className={buttonClasses('ghost', 'md')}
                 data-revoke={i.email}
+                aria-describedby={`invitation-${i.id}`}
               >
                 {a.invitations.revoke}
               </button>

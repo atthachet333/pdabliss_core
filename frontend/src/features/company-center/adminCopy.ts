@@ -47,7 +47,8 @@ const th = {
     updated: (date: string) => `แก้ไขล่าสุด ${date}`,
     edit: 'แก้ไขข้อมูลสาขา',
     statusActive: 'ใช้งานอยู่ — ผู้ที่มีสิทธิ์เลือกสาขานี้เพื่อทำงานใน CORE ได้',
-    statusInactive: 'ปิดใช้งาน — ไม่มีใครเลือกสาขานี้ได้ สิทธิ์ที่กำหนดไว้ยังอยู่และกลับมาเมื่อเปิดใช้งาน',
+    statusInactive:
+      'ปิดใช้งาน — ไม่มีใครเลือกสาขานี้ได้ สิทธิ์ที่กำหนดไว้ยังอยู่และกลับมาเมื่อเปิดใช้งาน',
     headOfficeLocked: 'สำนักงานใหญ่ใช้งานอยู่เสมอ ปิดใช้งานหรือลบไม่ได้',
     accessTitle: 'การเข้าถึงสาขา',
     accessLead: 'ใครทำงานในสาขานี้ได้ — กำหนดที่หน้าผู้ใช้แต่ละคน',
@@ -114,8 +115,7 @@ const th = {
     departmentsLead: 'แผนกที่คนนี้เข้าได้ใน CORE — เฉพาะแผนกที่บริษัทเปิดใช้',
     saveDepartments: 'บันทึกแผนก',
     branchesTitle: 'สาขาที่ทำงานได้',
-    branchesLead:
-      'สาขาที่คนนี้เลือกทำงานได้ใน CORE — ไม่เปลี่ยนสิทธิ์การดูแลบริษัทตามบทบาท',
+    branchesLead: 'สาขาที่คนนี้เลือกทำงานได้ใน CORE — ไม่เปลี่ยนสิทธิ์การดูแลบริษัทตามบทบาท',
     saveBranches: 'บันทึกสาขา',
     inactiveBranch: 'ปิดใช้งาน',
     headOffice: 'สำนักงานใหญ่',
@@ -162,6 +162,10 @@ const th = {
     revoke: 'ยกเลิก',
     confirmRevoke: (email: string) => `ยกเลิกคำเชิญของ ${email}? ลิงก์ในอีเมลจะใช้ไม่ได้ทันที`,
     showMore: 'แสดงเพิ่ม',
+  },
+  events: {
+    deactivated: 'นำสิทธิ์เข้าใช้บริษัทออก',
+    reactivated: 'คืนสิทธิ์เข้าใช้บริษัท',
   },
   selector: {
     headOffice: 'สำนักงานใหญ่',
@@ -217,8 +221,7 @@ const en: Copy = {
     headOfficeLocked: 'The Head Office is always active and cannot be deactivated or removed',
     accessTitle: 'Branch access',
     accessLead: 'Who can work in this branch — set on each person’s page',
-    allBranches: (n: number) =>
-      `${n} ${n === 1 ? 'person works' : 'people work'} in every branch`,
+    allBranches: (n: number) => `${n} ${n === 1 ? 'person works' : 'people work'} in every branch`,
     selected: (n: number) =>
       `${n} ${n === 1 ? 'person has' : 'people have'} access to this branch specifically`,
     peopleTitle: 'People who can work here',
@@ -269,7 +272,8 @@ const en: Copy = {
   member: {
     back: 'Back to people',
     identity: 'Person',
-    identityNote: 'Personal details belong to the account holder and are changed in their own account',
+    identityNote:
+      'Personal details belong to the account holder and are changed in their own account',
     name: 'Name',
     email: 'Email',
     phone: 'Phone',
@@ -332,6 +336,10 @@ const en: Copy = {
     confirmRevoke: (email: string) =>
       `Revoke the invitation for ${email}? The link in the email stops working at once.`,
     showMore: 'Show more',
+  },
+  events: {
+    deactivated: 'Company access removed',
+    reactivated: 'Company access restored',
   },
   selector: {
     headOffice: 'Head Office',
@@ -492,6 +500,10 @@ const zh: Copy = {
     revoke: '撤销',
     confirmRevoke: (email: string) => `撤销发给 ${email} 的邀请？邮件中的链接将立即失效。`,
     showMore: '显示更多',
+  },
+  events: {
+    deactivated: '已移除公司访问权限',
+    reactivated: '已恢复公司访问权限',
   },
   selector: {
     headOffice: '总部',

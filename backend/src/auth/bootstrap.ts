@@ -3,6 +3,7 @@ import type { Db } from '../db/client.js';
 import type { CompanyRole } from '../generated/prisma/enums.js';
 import { recordAuthEvent, type RequestMeta } from './audit.js';
 import { recordCompanyEvent, type CompanyAuditAction } from '../company/audit.js';
+import { clearStaleBranchSessions } from '../company/branch-access.js';
 import { snapshotFor } from '../company/entitlements.js';
 import { HEAD_OFFICE_CODE } from '../company/service.js';
 import { normalizeEmail } from './crypto.js';
@@ -497,7 +498,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     });
     if (!decided) {
       await db.$transaction(async (tx) => {
-        await tx.companyMember.update({
+        const restricted = await tx.companyMember.update({
           where: { id: staffMember.id },
           data: { branchScope: 'SELECTED_BRANCHES' },
         });
@@ -505,6 +506,8 @@ export async function seedDemo(db: Db, env: SeedEnv) {
           data: [{ companyId: company.id, memberId: staffMember.id, branchId: demoBranch.id }],
           skipDuplicates: true,
         });
+        // Like any access change: a session left on another branch is cleared.
+        await clearStaleBranchSessions(tx, restricted);
         await recordCompanyEvent(tx, SEED_META, {
           action: 'MEMBER_BRANCH_ACCESS_CHANGED',
           actorId: null,

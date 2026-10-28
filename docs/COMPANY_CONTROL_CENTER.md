@@ -1,4 +1,4 @@
-# Company Control Center (EP25)
+# Company Control Center (EP25, deepened in EP26)
 
 The customer side of company administration in PDA BLISS CORE. It sits between the Account Portal
 and CORE Operations:
@@ -98,6 +98,9 @@ moves; the API contract stays.
   The code is fixed once created (documents will reference it).
 - Status: `ACTIVE` ⇄ `INACTIVE` (deactivate / reactivate). `CLOSED` stays platform-controlled.
   There is no delete endpoint. Deactivating clears every session's branch context in that branch.
+- **EP26:** a dense code-first branch list, a branch detail page (`/company/branches/:id`: identity,
+  address, contact, edit, status, branch access, departments present) — see
+  [BRANCH_USER_ADMINISTRATION.md](BRANCH_USER_ADMINISTRATION.md).
 
 ## 6. People, invitations, department assignment
 
@@ -116,6 +119,10 @@ moves; the API contract stays.
 - **Department assignment** = `Membership` (user × department, optional `isPrimary`; `roleId`
   optional until EP27). Only enabled departments can be assigned; assignments to a soft-disabled
   department are kept untouched.
+- **EP26:** server-side search / filters / paging, a member page (`/company/users/:id`), branch
+  access per member (All branches / Selected branches), invitation intent (role, departments,
+  branches — re-validated at acceptance), the invitation lifecycle page with resend (new token, old
+  link dead) and revoke. Details: [BRANCH_USER_ADMINISTRATION.md](BRANCH_USER_ADMINISTRATION.md).
 
 ## 7. Departments
 
@@ -139,11 +146,12 @@ not weakened: department staff do not even receive the subscription price (`pric
 
 ## 9. Branch context and CORE Operations
 
-- `GET /api/v1/company/context` → active branches, the selected one, `needsSelection`, and the
-  departments this person may open. One active branch → selected automatically. A stored branch
-  that is no longer valid (another company, deactivated) is dropped.
+- `GET /api/v1/company/context` → the active branches **this person may work in** (EP26 branch
+  access), the selected one, `needsSelection`, `scope`, `blocked` (`NO_BRANCH_ACCESS` when none),
+  and the departments this person may open. One allowed branch → selected automatically. A stored
+  branch that is no longer valid (another company, deactivated, access removed) is dropped.
 - `POST /api/v1/company/context/branch {branchId}` → only an ACTIVE branch of the caller's own
-  company; stored on the server-side **session** (`Session.branchId`), never trusted from the
+  company that the caller may work in (`403 BRANCH_NOT_ALLOWED` otherwise); stored on the server-side **session** (`Session.branchId`), never trusted from the
   client afterwards.
 - `requireOperationsContext()` is the gate for every future operational API: active member,
   eligible company, a selected still-active branch of that company, and `departments` =
@@ -158,7 +166,8 @@ not weakened: department staff do not even receive the subscription price (`pric
 `COMPANY_SETTINGS_UPDATED`, `BRANCH_CREATED`, `BRANCH_UPDATED`, `BRANCH_STATUS_CHANGED`,
 `INVITATION_SENT`, `INVITATION_REVOKED`, `INVITATION_ACCEPTED`, `MEMBER_ROLE_CHANGED`,
 `MEMBER_STATUS_CHANGED`, `MEMBER_JOB_TITLE_CHANGED`, `MEMBER_DEPARTMENTS_CHANGED`,
-`DEPARTMENT_ENABLED`, `DEPARTMENT_DISABLED`. Details: field names, codes, roles, from → to, the
+`DEPARTMENT_ENABLED`, `DEPARTMENT_DISABLED`; EP26 adds `MEMBER_BRANCH_ACCESS_CHANGED` and
+`INVITATION_RESENT`. Details: field names, codes, roles, from → to, the
 invitee email — never tokens, passwords or file bytes. EP23 auth events for invitations remain.
 
 ## 11. API summary (`/api/v1`, session required, no company id anywhere)
@@ -171,11 +180,14 @@ invitee email — never tokens, passwords or file bytes. EP23 auth events for in
 | GET · POST | `/company/current/branches` |
 | GET · PATCH | `/company/current/branches/:id` |
 | POST | `/company/current/branches/:id/deactivate` · `/reactivate` |
-| GET | `/company/current/members` |
-| PATCH | `/company/current/members/:id` |
+| GET | `/company/current/branches/:id/detail` (EP26) |
+| GET | `/company/current/members?q=&role=&status=&department=&branch=&page=&pageSize=` |
+| GET · PATCH | `/company/current/members/:id` (GET: EP26) |
+| PUT | `/company/current/members/:id/branches` (EP26) |
 | POST | `/company/current/members/:id/deactivate` · `/reactivate` |
 | PUT | `/company/current/members/:id/departments` |
-| POST | `/company/invitations` · `/company/invitations/:id/revoke` |
+| POST | `/company/invitations` · `/company/invitations/:id/resend` (EP26) · `/company/invitations/:id/revoke` |
+| GET | `/company/current/invitations?state=` (EP26) |
 | GET · PUT | `/company/current/departments` |
 | GET | `/company/current/subscription` |
 | GET · PATCH | `/company/current/settings` |
@@ -187,8 +199,8 @@ invitee email — never tokens, passwords or file bytes. EP23 auth events for in
 
 - Ownership transfer, member removal (hard), company closure and plan changes are not
   self-service.
-- One company per account (v1). Branch-scoped permissions (who may work in which branch) are not
-  modelled yet — every active member may choose any active branch.
+- One company per account (v1). Branch access (who may work in which branch) exists since EP26;
+  what each role may *do* inside a department and branch is the EP27 action matrix.
 - Department roles / fine-grained permissions (`Role`, `RolePermission`) are EP27.
 - Logo bytes live in PostgreSQL until an object store exists.
 - In-app navigation keeps the language in router state; a full page load uses the account's saved

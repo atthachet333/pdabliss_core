@@ -7,8 +7,9 @@ import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { controlApi, type ActivityItem } from './api';
 import { RequireCapability } from './CompanyShell';
+import { ADMIN_COPY } from './adminCopy';
 import { CONTROL_COPY } from './copy';
-import { errorText, useDateFormat, useDepartmentName, useLoad } from './model';
+import { errorText, eventLabel, useDateFormat, useDepartmentName, useLoad } from './model';
 import { Loading, PageTitle, Section } from './parts';
 
 /*
@@ -116,7 +117,8 @@ function Entry({ item }: { item: ActivityItem }) {
     INACTIVE: c.common.inactive,
     DEACTIVATED: c.common.deactivated,
   };
-  const label = c.security.events[item.type] ?? item.type;
+  const ad = useCopy(ADMIN_COPY);
+  const label = eventLabel(item, c, ad);
   const who =
     item.actor.kind === 'platform'
       ? c.security.platform

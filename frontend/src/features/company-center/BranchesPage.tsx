@@ -213,9 +213,7 @@ function BranchRows({ rows }: { rows: BranchList['branches'] }) {
                   <BranchStatusPill status={b.status} />
                 </span>
                 <span className="text-caption text-text-secondary">
-                  <span className="text-text-muted lg:hidden">
-                    {a.branchList.columns.people}:{' '}
-                  </span>
+                  <span className="text-text-muted lg:hidden">{a.branchList.columns.people}: </span>
                   {a.branchList.people(b.access.people)}
                 </span>
                 <span className="flex min-w-0 flex-wrap gap-1">

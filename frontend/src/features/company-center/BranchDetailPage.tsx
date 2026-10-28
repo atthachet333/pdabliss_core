@@ -47,7 +47,9 @@ function BranchLoader({ branchId }: { branchId: string }) {
     return (
       <div className="grid gap-4">
         <BackLink />
-        <Notice tone="error">{missing ? a.branchDetail.notFound : errorText(state.error, c)}</Notice>
+        <Notice tone="error">
+          {missing ? a.branchDetail.notFound : errorText(state.error, c)}
+        </Notice>
       </div>
     );
   }
@@ -121,7 +123,10 @@ function Detail({
           <BranchStatusPill status={b.status} />
         </div>
         <p className="text-caption text-text-muted">
-          {[b.createdAt && a.branchDetail.created(date(b.createdAt)), b.updatedAt && a.branchDetail.updated(date(b.updatedAt))]
+          {[
+            b.createdAt && a.branchDetail.created(date(b.createdAt)),
+            b.updatedAt && a.branchDetail.updated(date(b.updatedAt)),
+          ]
             .filter(Boolean)
             .join(' · ')}
         </p>
@@ -132,7 +137,7 @@ function Detail({
         <div className="grid content-start gap-8">
           <Section
             id="branch-identity-title"
-            title={c.profile.address}
+            title={a.branchForm.identity}
             aside={
               data.canManage &&
               !editing && (

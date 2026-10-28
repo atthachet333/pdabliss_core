@@ -56,9 +56,24 @@ function useBranchLabel() {
 }
 export function CoreArea({ identity }: { identity: Identity }) {
   const c = useCopy(CONTROL_COPY);
-  const { state, set, reload } = useLoad(controlApi.context);
+  const { state, set, fail, reload } = useLoad(controlApi.context);
   const { locale } = useLocale();
   usePageMeta(c.core.title, c.core.lead, { index: false });
+
+  // The branch context can change behind this tab (access removed, branch
+  // closed, membership deactivated). Ask the server again whenever the tab
+  // comes back, so a branch the person may no longer use is never left on
+  // screen. A refusal replaces the context; a network blip keeps it.
+  useEffect(() => {
+    const revalidate = () => {
+      if (document.visibilityState !== 'visible') return;
+      controlApi.context().then(set, (e: unknown) => {
+        if (e instanceof ApiError && e.status >= 400 && e.status < 500) fail(e);
+      });
+    };
+    document.addEventListener('visibilitychange', revalidate);
+    return () => document.removeEventListener('visibilitychange', revalidate);
+  }, [set, fail]);
 
   if (state.status === 'loading') {
     return (
@@ -107,7 +122,11 @@ export function CoreArea({ identity }: { identity: Identity }) {
         <Route
           path="branch"
           element={
-            ctx.blocked ? <Blocked /> : <BranchSelector context={ctx} onSelected={set} />
+            ctx.blocked ? (
+              <Blocked />
+            ) : (
+              <BranchSelector context={ctx} onSelected={set} onStale={reload} />
+            )
           }
         />
         <Route path="*" element={<Navigate to="/core" replace {...withLocale(locale)} />} />
@@ -127,6 +146,7 @@ function CoreFrame({
 }) {
   const c = useCopy(CONTROL_COPY);
   const a = useCopy(AUTH_COPY);
+  const ad = useCopy(ADMIN_COPY);
   const { t, locale } = useLocale();
   const navigate = useNavigate();
   const branchLabel = useBranchLabel();
@@ -187,8 +207,10 @@ function CoreFrame({
             >
               <Building aria-hidden className="size-4 shrink-0 text-brand-soft" />
               <span className="min-w-0 truncate">
-                <span className="sr-only">{c.core.branch}: </span>
-                {branchLabel(context.selected)}
+                <span className="text-text-muted max-sm:sr-only">{ad.selector.current}: </span>
+                <span className="font-semibold text-text-primary">
+                  {branchLabel(context.selected)}
+                </span>
               </span>
             </p>
           )}
@@ -224,12 +246,18 @@ function CoreFrame({
   );
 }
 
+/** Refusals that mean the branch list on screen is out of date. */
+const STALE_BRANCH = new Set(['BRANCH_NOT_ALLOWED', 'BRANCH_INACTIVE', 'BRANCH_NOT_FOUND']);
+
 function BranchSelector({
   context,
   onSelected,
+  onStale,
 }: {
   context: BranchContext;
   onSelected: (ctx: BranchContext) => void;
+  /** Re-read the context from the server (the list on screen was out of date). */
+  onStale: () => Promise<unknown>;
 }) {
   const c = useCopy(CONTROL_COPY);
   const { locale } = useLocale();
@@ -259,6 +287,10 @@ function BranchSelector({
     } catch (err) {
       setError(errorText(err, c));
       setBusy(false);
+      if (err instanceof ApiError && STALE_BRANCH.has(err.code)) {
+        setChoice(null);
+        void onStale().catch(() => undefined);
+      }
     }
   };
 
@@ -275,7 +307,9 @@ function BranchSelector({
       ) : (
         <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-6">
           {context.scope === 'SELECTED_BRANCHES' && (
-            <p className="text-caption text-text-muted">{a.selector.scope(context.branches.length)}</p>
+            <p className="text-caption text-text-muted">
+              {a.selector.scope(context.branches.length)}
+            </p>
           )}
           {groups.map(([group, branches]) => (
             <fieldset key={group} aria-labelledby={`${legendId}-${group}`} className="grid gap-2.5">

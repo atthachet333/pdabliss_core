@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import type { BranchInfo } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { ADMIN_COPY } from './adminCopy';
@@ -71,7 +70,9 @@ export function ScopeSummary({
         <BranchChip key={b.id} branch={b} />
       ))}
       {shown.length < access.branches.length && (
-        <span className="text-caption text-text-muted">+{access.branches.length - shown.length}</span>
+        <span className="text-caption text-text-muted">
+          +{access.branches.length - shown.length}
+        </span>
       )}
     </span>
   );

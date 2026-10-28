@@ -4,6 +4,8 @@ import { departmentId, type BranchInfo, type DepartmentCode } from '@/features/c
 import { LOCALE_META } from '@/i18n/locales';
 import { useLocale } from '@/i18n/useLocale';
 import { ApiError } from '@/lib/api';
+import type { AdminCopy } from './adminCopy';
+import type { ActivityItem } from './api';
 import type { ControlCopy } from './copy';
 
 /* Helpers and hooks shared by the Company Control Center screens (EP25). */
@@ -46,7 +48,10 @@ export function useLoad<T>(fn: () => Promise<T>) {
   useEffect(() => {
     reload().catch(() => undefined);
   }, [reload]);
-  return { state, reload, set: (data: T) => setState({ status: 'ready', data }) };
+  const set = useCallback((data: T) => setState({ status: 'ready', data }), []);
+  /** Replace the data with an error (a revalidation the server refused). */
+  const fail = useCallback((error: unknown) => setState({ status: 'error', error }), []);
+  return { state, reload, set, fail };
 }
 
 /** Department name in the current language. */
@@ -128,3 +133,16 @@ export const branchFields = (b: BranchInfo): BranchFields => ({
   countryCode: b.address.countryCode,
   phone: b.phone ?? '',
 });
+
+/** An activity entry in words; a status change says which way it went (EP26). */
+export function eventLabel(
+  e: Pick<ActivityItem, 'type' | 'details'>,
+  c: ControlCopy,
+  a: AdminCopy,
+) {
+  if (e.type === 'MEMBER_STATUS_CHANGED') {
+    if (e.details.to === 'DEACTIVATED') return a.events.deactivated;
+    if (e.details.to === 'ACTIVE') return a.events.reactivated;
+  }
+  return c.security.events[e.type] ?? e.type;
+}

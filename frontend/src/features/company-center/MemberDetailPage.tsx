@@ -16,7 +16,7 @@ import { controlApi, type BranchScope, type MemberDetail } from './api';
 import { RequireCapability } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
-import { errorText, useDateFormat, useDepartmentName, useLoad } from './model';
+import { errorText, eventLabel, useDateFormat, useDepartmentName, useLoad } from './model';
 import { AreaLink, Fact, Facts, Loading, Pill, Result, Section } from './parts';
 import { BranchScopeEditor } from './UsersPage';
 
@@ -153,6 +153,9 @@ function Member({ data, replace }: { data: MemberDetail; replace: (d: MemberDeta
               ) : (
                 <ScopeSummary access={m.branchAccess} />
               )}
+              {m.role === 'SYSTEM_ADMIN' && (
+                <p className="mt-3 text-caption text-text-muted">{a.member.adminNote}</p>
+              )}
             </Section>
           )}
 
@@ -165,9 +168,7 @@ function Member({ data, replace }: { data: MemberDetail; replace: (d: MemberDeta
               <ol className="grid gap-2.5" data-member-history>
                 {data.history.map((e) => (
                   <li key={e.id} className="grid gap-0.5 border-l border-white/[0.08] pl-3">
-                    <span className="text-label text-text-primary">
-                      {c.security.events[e.type] ?? e.type}
-                    </span>
+                    <span className="text-label text-text-primary">{eventLabel(e, c, a)}</span>
                     <span className="text-caption text-text-muted">
                       {dateTime(e.occurredAt)}
                       {e.actor.kind === 'member' &&
@@ -329,7 +330,9 @@ function RoleEditor({ data, replace }: { data: MemberDetail; replace: (d: Member
           onChange={(e) => setJobTitle(e.target.value)}
         />
       </div>
-      {role === 'EXECUTIVE' && <p className="text-caption text-text-muted">{c.users.executiveNote}</p>}
+      {role === 'EXECUTIVE' && (
+        <p className="text-caption text-text-muted">{c.users.executiveNote}</p>
+      )}
     </Editor>
   );
 }
@@ -355,7 +358,8 @@ function DepartmentEditor({
   const toggle = (code: DepartmentCode) =>
     setDepartments((list) => {
       const next = list.includes(code) ? list.filter((d) => d !== code) : [...list, code];
-      if (!next.includes(primary as DepartmentCode)) setPrimary(next.length === 1 ? next[0]! : null);
+      if (!next.includes(primary as DepartmentCode))
+        setPrimary(next.length === 1 ? next[0]! : null);
       return next;
     });
   return (
@@ -417,7 +421,13 @@ function DepartmentEditor({
   );
 }
 
-function BranchEditor({ data, replace }: { data: MemberDetail; replace: (d: MemberDetail) => void }) {
+function BranchEditor({
+  data,
+  replace,
+}: {
+  data: MemberDetail;
+  replace: (d: MemberDetail) => void;
+}) {
   const a = useCopy(ADMIN_COPY);
   const base = useId();
   const m = data.member;
@@ -426,9 +436,7 @@ function BranchEditor({ data, replace }: { data: MemberDetail; replace: (d: Memb
   const [error, setError] = useState<string | null>(null);
   const { busy, result, run } = useSave(data, replace);
   // Active branches can be granted; an inactive one already granted stays visible to remove.
-  const options = data.branches.filter(
-    (b) => b.status === 'ACTIVE' || selected.includes(b.id),
-  );
+  const options = data.branches.filter((b) => b.status === 'ACTIVE' || selected.includes(b.id));
   return (
     <Editor
       id="member-branches-title"
@@ -468,7 +476,13 @@ function BranchEditor({ data, replace }: { data: MemberDetail; replace: (d: Memb
   );
 }
 
-function StatusPanel({ data, replace }: { data: MemberDetail; replace: (d: MemberDetail) => void }) {
+function StatusPanel({
+  data,
+  replace,
+}: {
+  data: MemberDetail;
+  replace: (d: MemberDetail) => void;
+}) {
   const c = useCopy(CONTROL_COPY);
   const a = useCopy(ADMIN_COPY);
   const m = data.member;

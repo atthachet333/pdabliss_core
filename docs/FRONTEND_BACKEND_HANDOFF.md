@@ -141,6 +141,16 @@ noindex, served by the existing `/platform/*` shell rewrite).
   clearance per department (Warehouse: operational only) is still applied per response by the
   module episodes; EP25 already withholds the subscription price from department roles.
 
+- **EP26 (Branch & User Administration):** see [BRANCH_USER_ADMINISTRATION.md](BRANCH_USER_ADMINISTRATION.md)
+  and [EP26_REPORT.md](EP26_REPORT.md). The authorization foundation is now: Company Membership +
+  Company Role + Enabled Departments + Member Department Assignments + Branch Access
+  (`CompanyMember.branchScope` + `MemberBranchAccess`) + Selected Branch (`Session.branchId`).
+  `requireOperationsContext()` already requires a selected branch the member may still work in;
+  every access change clears stale session branches in the same transaction. Branch access is
+  operational scope only — administration authority stays with the role (a restricted System Admin
+  still administers the company). **EP27** adds the action / permission matrix on top; do not
+  re-derive branch or department reach in module code — call the existing gate.
+
 ## 7. Warehouse boundary
 
 Warehouse must never receive price, unit cost, total cost, margin, payment amount, supplier

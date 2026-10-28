@@ -132,11 +132,7 @@ function People() {
   if (!data) return <Notice tone="error">{errorText(error, c)}</Notice>;
   const filtered = !!debounced || Object.values(filters).some(Boolean);
 
-  const select = (
-    key: keyof Filters,
-    label: string,
-    options: [string, string][],
-  ) => (
+  const select = (key: keyof Filters, label: string, options: [string, string][]) => (
     <SelectField
       id={`${base}-${key}`}
       label={label}
@@ -343,8 +339,8 @@ function MemberRows({ data }: { data: MemberList }) {
                     <span className="block text-caption text-text-muted">{m.jobTitle}</span>
                   )}
                 </span>
-                <span>
-                  <Pill tone={m.isOwner ? 'teal' : 'neutral'}>
+                <span className="min-w-0">
+                  <Pill tone={m.isOwner ? 'teal' : 'neutral'} wrap>
                     {m.isOwner && <ShieldCheck aria-hidden className="size-3.5" />}
                     {auth.roles[m.role]}
                   </Pill>
@@ -446,7 +442,7 @@ export function BranchScopeEditor({
           aria-describedby={error ? errorId : undefined}
         >
           <legend className="sr-only">{a.member.branchesTitle}</legend>
-          <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-1.5">
             {branches.map((b) => (
               <li key={b.id}>
                 <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)] has-[:checked]:bg-brand-primary/[0.06] has-[:checked]:shadow-[inset_0_0_0_1px_rgb(62_240_192/0.25)]">

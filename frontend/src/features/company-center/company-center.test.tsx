@@ -160,7 +160,9 @@ const MEMBERS: MemberList = {
       departments: [{ code: 'WAREHOUSE', primary: true, active: true }],
       branchAccess: {
         scope: 'SELECTED_BRANCHES',
-        branches: [{ id: 'b1', code: '00001', name: 'Chiang Mai', type: 'BRANCH', status: 'ACTIVE' }],
+        branches: [
+          { id: 'b1', code: '00001', name: 'Chiang Mai', type: 'BRANCH', status: 'ACTIVE' },
+        ],
       },
       isOwner: false,
       isSelf: false,

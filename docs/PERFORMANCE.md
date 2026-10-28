@@ -213,7 +213,7 @@ right fonts), never another route's.
   CORE Operations entry, ≈ 100 KiB raw / ≈ 30 KiB gzip in two lazy chunks plus their copy). None
   of it is loaded by a public page: the initial bundle grew by 0.5 KiB gzip (two route entries and
   the sign-in destination rules), every public-page budget is unchanged, and the cap still catches
-  an accidental heavy dependency. Total after EP25: 4,103 KiB. *Owner review requested.*
+  an accidental heavy dependency. Total after EP25: 4,103 KiB. *Approved by the owner (2026-10-28).*
 
 ## 4. Route splitting and loading
 

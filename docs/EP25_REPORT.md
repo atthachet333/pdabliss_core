@@ -103,7 +103,7 @@ and in the full rerun — noted as timing-sensitive.
 **Performance:** both areas are lazy chunks (Control Center ≈ 57 KiB raw, CORE entry ≈ 10 KiB,
 copy ≈ 23 KiB). Initial JS 184.0 → 184.5 KiB gzip (route entries + sign-in destination rules);
 public page budgets unchanged. **The all-JS raw cap was raised 4,100 → 4,300 KiB** (total 4,103)
-with the reason recorded in [PERFORMANCE.md](PERFORMANCE.md) — *owner review requested*.
+with the reason recorded in [PERFORMANCE.md](PERFORMANCE.md) — *approved by the owner (2026-10-28)*.
 
 ### Real-stack QA (browser → Vite → API → scratch PostgreSQL, dev mail sink)
 

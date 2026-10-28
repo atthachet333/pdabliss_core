@@ -14,7 +14,7 @@ import {
   type InvitationRecord,
   type InvitationState,
 } from './api';
-import { RequireCapability } from './CompanyShell';
+import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useDateFormat, useDepartmentName } from './model';
@@ -34,9 +34,9 @@ const STATES: (InvitationState | 'ALL')[] = ['PENDING', 'EXPIRED', 'ACCEPTED', '
 
 export function InvitationsPage() {
   return (
-    <RequireCapability capability="members.view">
+    <RequirePermission permission="company.members.view">
       <Invitations />
-    </RequireCapability>
+    </RequirePermission>
   );
 }
 

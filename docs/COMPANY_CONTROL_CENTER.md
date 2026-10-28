@@ -1,4 +1,4 @@
-# Company Control Center (EP25, deepened in EP26)
+# Company Control Center (EP25, deepened in EP26 and EP27)
 
 The customer side of company administration in PDA BLISS CORE. It sits between the Account Portal
 and CORE Operations:
@@ -36,23 +36,29 @@ the landing page.
 | `/company/departments` | six departments, package state, assignments, enable / disable | read: everyone · manage: Owner, System Admin |
 | `/company/subscription` | package facts, status, cycle, price, period, entitlements, branches; "Contact PDA BLISS" | Owner, System Admin, Executive |
 | `/company/security` | administration events + members' sign-in / security events (no IPs) | Owner, System Admin |
+| `/company/permissions` (EP27) | role profiles (read only) and per-member permission exceptions | Owner, System Admin |
 | `/company/settings` | company time zone, default language; closure note | Owner, System Admin |
 | `/core/branch` | branch selector | active members |
 | `/core` | CORE Operations entry: selected branch, permitted departments | active members |
 
-Navigation lists only areas the role may open (`capabilities` from the server). A page outside the
+Navigation lists only areas the person may open (EP27: their effective permission codes from the
+server, `overview.me.permissions`). A page outside the
 role shows "Your role cannot open this page"; the API refuses it regardless.
 
-## 3. Roles (server: `backend/src/company/policy.ts`)
+## 3. Roles (permissions: `backend/src/permissions/catalog.ts`; invariants: `backend/src/company/policy.ts`)
 
-| Capability | Owner | System Admin | Executive | Dept. Manager / Staff / Viewer |
+EP27 renamed the EP25 capabilities to catalog permission codes (same grants, role-bound — see
+[PERMISSION_ACTION_MATRIX.md](PERMISSION_ACTION_MATRIX.md)):
+
+| Permission | Owner | System Admin | Executive | Dept. Manager / Staff / Viewer |
 | --- | --- | --- | --- | --- |
-| company.view | ✓ | ✓ | ✓ | ✓ |
-| profile.edit, branches.manage, departments.manage, settings.manage | ✓ | ✓ | — | — |
-| members.view | ✓ | ✓ | ✓ | — |
-| members.manage (invite, role, job title, departments, deactivate) | ✓ | ✓ (limits below) | — | — |
-| subscription.view (incl. price) | ✓ | ✓ | ✓ | — |
-| activity.view | ✓ | ✓ | — | — |
+| company.profile.view, company.branches.view | ✓ | ✓ | ✓ | ✓ |
+| company.profile.edit, company.branches.manage, company.departments.manage, company.settings.manage | ✓ | ✓ | — | — |
+| company.members.view | ✓ | ✓ | ✓ | — |
+| company.members.manage (invite, role, job title, departments, deactivate) | ✓ | ✓ (limits below) | — | — |
+| company.subscription.view (incl. price) | ✓ | ✓ | ✓ | — |
+| company.activity.view | ✓ | ✓ | — | — |
+| company.permissions.view / .manage (EP27) | ✓ | ✓ (limits below) | — | — |
 
 **Assignable roles:** Owner → System Admin, Executive, Department Manager, Department Staff,
 Viewer. System Admin → Executive, Department Manager, Department Staff, Viewer. `COMPANY_OWNER`
@@ -159,6 +165,9 @@ not weakened: department staff do not even receive the subscription price (`pric
   everyone else, System Admin included → assigned). `GET /api/v1/operations/context` exposes it.
 - `/core` shows the selected branch and permitted departments; workspaces are named as coming in a
   later phase. No business figures.
+- **EP27:** CORE departments are those whose `<dept>.workspace.view` the person effectively holds;
+  the context and the operations context carry the effective `permissions`, and every operational
+  route goes through `requirePermission()`.
 
 ## 10. Audit actions (AuditLog, `actorScope: customer`)
 
@@ -167,7 +176,7 @@ not weakened: department staff do not even receive the subscription price (`pric
 `INVITATION_SENT`, `INVITATION_REVOKED`, `INVITATION_ACCEPTED`, `MEMBER_ROLE_CHANGED`,
 `MEMBER_STATUS_CHANGED`, `MEMBER_JOB_TITLE_CHANGED`, `MEMBER_DEPARTMENTS_CHANGED`,
 `DEPARTMENT_ENABLED`, `DEPARTMENT_DISABLED`; EP26 adds `MEMBER_BRANCH_ACCESS_CHANGED` and
-`INVITATION_RESENT`. Details: field names, codes, roles, from → to, the
+`INVITATION_RESENT`; EP27 adds `MEMBER_PERMISSION_OVERRIDE_ADDED` / `_CHANGED` / `_REMOVED`. Details: field names, codes, roles, from → to, the
 invitee email — never tokens, passwords or file bytes. EP23 auth events for invitations remain.
 
 ## 11. API summary (`/api/v1`, session required, no company id anywhere)
@@ -188,20 +197,25 @@ invitee email — never tokens, passwords or file bytes. EP23 auth events for in
 | PUT | `/company/current/members/:id/departments` |
 | POST | `/company/invitations` · `/company/invitations/:id/resend` (EP26) · `/company/invitations/:id/revoke` |
 | GET | `/company/current/invitations?state=` (EP26) |
+| GET | `/company/current/permissions` (EP27) |
+| GET · PUT | `/company/current/members/:id/permissions` (EP27) |
 | GET · PUT | `/company/current/departments` |
 | GET | `/company/current/subscription` |
 | GET · PATCH | `/company/current/settings` |
 | GET | `/company/current/activity?scope=all\|admin\|security&limit=` |
 | GET · POST | `/company/context` · `/company/context/branch` |
 | GET | `/operations/context` |
+| GET | `/operations/workspaces/:department` · `/operations/authorize?permission=` (EP27) |
 
 ## 12. Known limitations
 
 - Ownership transfer, member removal (hard), company closure and plan changes are not
   self-service.
 - One company per account (v1). Branch access (who may work in which branch) exists since EP26;
-  what each role may *do* inside a department and branch is the EP27 action matrix.
-- Department roles / fine-grained permissions (`Role`, `RolePermission`) are EP27.
+  what each role may *do* inside a department and branch is the EP27 action matrix
+  ([PERMISSION_ACTION_MATRIX.md](PERMISSION_ACTION_MATRIX.md)).
+- Field-level / row-level rules and record approval workflows are not part of EP27 (they come with
+  the modules and the workflow / approval episodes).
 - Logo bytes live in PostgreSQL until an object store exists.
 - In-app navigation keeps the language in router state; a full page load uses the account's saved
   language (as in the Account Portal and Platform Control Center).

@@ -24,6 +24,7 @@ import {
 } from '../../company/input.js';
 import type { CompanyService } from '../../company/service.js';
 import type { Db } from '../../db/client.js';
+import { PermissionAdminService, PermissionChangesBody } from '../../permissions/admin.js';
 import { parseInput } from '../../lib/validation.js';
 
 /*
@@ -33,7 +34,8 @@ import { parseInput } from '../../lib/validation.js';
  * EP25: the Company Control Center (profile, logo, branches, people,
  * departments, settings, activity) and the branch context. EP26: branch
  * detail, branch access, the people list with search / filters / pages, one
- * member's detail, and the invitation lifecycle (list, resend).
+ * member's detail, and the invitation lifecycle (list, resend). EP27: role
+ * permission profiles and per-member permission exceptions.
  *
  * There is no endpoint that takes a company id: the company is resolved from
  * the caller's membership, and every id in a path (branch, member, invitation,
@@ -48,6 +50,7 @@ export const companyRoutes: FastifyPluginAsync<{
   control: CompanyControlService;
 }> = async (app, { db, invitations, companies, control }) => {
   app.addHook('preHandler', requireSession);
+  const permissions = new PermissionAdminService(db);
   const auth = requireAuth;
   const meta = requestMeta;
 
@@ -158,6 +161,18 @@ export const companyRoutes: FastifyPluginAsync<{
     const { id } = parseInput(IdParams, request.params);
     const body = parseInput(MemberDepartmentsBody, request.body);
     return control.setMemberDepartments(auth(request), id, body, meta(request));
+  });
+
+  // EP27: permission profiles (read only) and per-member exceptions.
+  app.get('/current/permissions', async (request) => permissions.profiles(auth(request)));
+  app.get('/current/members/:id/permissions', async (request) => {
+    const { id } = parseInput(IdParams, request.params);
+    return permissions.member(auth(request), id);
+  });
+  app.put('/current/members/:id/permissions', { bodyLimit: 16 * 1024 }, async (request) => {
+    const { id } = parseInput(IdParams, request.params);
+    const body = parseInput(PermissionChangesBody, request.body);
+    return permissions.setOverrides(auth(request), id, body, meta(request));
   });
 
   // Departments (within the package; the server decides).

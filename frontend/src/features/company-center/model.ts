@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api';
 import type { AdminCopy } from './adminCopy';
 import type { ActivityItem } from './api';
 import type { ControlCopy } from './copy';
+import type { PermissionCopy } from './permissionCopy';
 
 /* Helpers and hooks shared by the Company Control Center screens (EP25). */
 
@@ -134,15 +135,36 @@ export const branchFields = (b: BranchInfo): BranchFields => ({
   phone: b.phone ?? '',
 });
 
-/** An activity entry in words; a status change says which way it went (EP26). */
+/** An activity entry in words; a status change says which way it went (EP26), a permission exception names who and what (EP27). */
 export function eventLabel(
   e: Pick<ActivityItem, 'type' | 'details'>,
   c: ControlCopy,
   a: AdminCopy,
+  p: PermissionCopy,
 ) {
   if (e.type === 'MEMBER_STATUS_CHANGED') {
     if (e.details.to === 'DEACTIVATED') return a.events.deactivated;
     if (e.details.to === 'ACTIVE') return a.events.reactivated;
   }
+  if (
+    e.type.startsWith('MEMBER_PERMISSION_OVERRIDE_') &&
+    typeof e.details.permission === 'string'
+  ) {
+    const who = typeof e.details.member === 'string' ? e.details.member : '—';
+    const what = permissionLabel(e.details.permission, p);
+    if (e.type.endsWith('_REMOVED')) return p.events.removed(who, what);
+    const effect = e.details.to === 'ALLOW' ? 'ALLOW' : 'DENY';
+    return e.type.endsWith('_ADDED')
+      ? p.events.added(who, what, effect)
+      : p.events.changed(who, what, effect);
+  }
   return c.security.events[e.type] ?? e.type;
+}
+
+/** "Stock adjustments — Approve" for `warehouse.stock_adjustment.approve` (the raw code if unknown). */
+export function permissionLabel(code: string, p: PermissionCopy) {
+  const i = code.lastIndexOf('.');
+  const resource = p.resources[code.slice(0, i)];
+  const action = p.actions[code.slice(i + 1)];
+  return resource && action ? `${resource} — ${action}` : code;
 }

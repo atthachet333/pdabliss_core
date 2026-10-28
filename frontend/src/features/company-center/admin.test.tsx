@@ -11,7 +11,7 @@ import type {
   BranchContext,
   BranchDetail,
   BranchList,
-  Capability,
+  AdminPermission,
   ControlOverview,
   InvitationList,
   InvitationRecord,
@@ -27,16 +27,19 @@ import type {
  * rotation) is tested against the API in backend/test/branch-user-admin.test.ts.
  */
 
-const ADMIN: Capability[] = [
-  'company.view',
-  'profile.edit',
-  'branches.manage',
-  'members.view',
-  'members.manage',
-  'departments.manage',
-  'subscription.view',
-  'activity.view',
-  'settings.manage',
+const ADMIN: AdminPermission[] = [
+  'company.profile.view',
+  'company.profile.edit',
+  'company.branches.view',
+  'company.branches.manage',
+  'company.members.view',
+  'company.members.manage',
+  'company.departments.manage',
+  'company.permissions.view',
+  'company.permissions.manage',
+  'company.subscription.view',
+  'company.activity.view',
+  'company.settings.manage',
 ];
 
 const member = (role: CompanyRole) =>
@@ -98,7 +101,7 @@ const ref = (b: BranchInfo) => ({
   status: b.status,
 });
 
-function overview(caps: Capability[] = ADMIN): ControlOverview {
+function overview(caps: AdminPermission[] = ADMIN): ControlOverview {
   return {
     company: {
       id: 'c1',
@@ -124,7 +127,7 @@ function overview(caps: Capability[] = ADMIN): ControlOverview {
       memberId: 'm_admin',
       role: 'SYSTEM_ADMIN',
       jobTitle: null,
-      capabilities: caps,
+      permissions: caps,
       departments: [],
     },
     headOffice: HEAD,
@@ -141,7 +144,7 @@ function overview(caps: Capability[] = ADMIN): ControlOverview {
   };
 }
 
-const control = (role: CompanyRole = 'SYSTEM_ADMIN', caps: Capability[] = ADMIN) => ({
+const control = (role: CompanyRole = 'SYSTEM_ADMIN', caps: AdminPermission[] = ADMIN) => ({
   ...signedIn(member(role)),
   'GET /api/v1/company/control': ok(overview(caps)),
 });
@@ -266,7 +269,7 @@ describe('Branches (EP26)', () => {
 
   it('a department role cannot add branches (read only)', async () => {
     fakeApi({
-      ...control('DEPARTMENT_MANAGER', ['company.view']),
+      ...control('DEPARTMENT_MANAGER', ['company.profile.view', 'company.branches.view']),
       'GET /api/v1/company/current/branches': ok({ ...LIST, canManage: false }),
     });
     renderRoute('/company/branches?lang=en');

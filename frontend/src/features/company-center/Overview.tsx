@@ -27,8 +27,8 @@ export function Overview() {
   const { overview: o } = useControl();
   const deptName = useDepartmentName();
   const { date } = useDateFormat();
-  const caps = o.me.capabilities;
-  const admin = can(caps, 'members.manage');
+  const caps = o.me.permissions;
+  const admin = can(caps, 'company.members.manage');
   const max = o.plan
     ? o.plan.maxDepartments === 'CUSTOM'
       ? String(DEPARTMENT_CODES.length)
@@ -49,9 +49,9 @@ export function Overview() {
     {
       label: c.overview.members,
       value: String(o.counts.members.active),
-      to: can(caps, 'members.view') ? '/company/users' : null,
+      to: can(caps, 'company.members.view') ? '/company/users' : null,
     },
-    ...(can(caps, 'members.view')
+    ...(can(caps, 'company.members.view')
       ? [
           {
             label: c.overview.invitations,

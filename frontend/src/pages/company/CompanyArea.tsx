@@ -7,6 +7,7 @@ import { DepartmentsPage } from '@/features/company-center/DepartmentsPage';
 import { InvitationsPage } from '@/features/company-center/InvitationsPage';
 import { MemberDetailPage } from '@/features/company-center/MemberDetailPage';
 import { Overview } from '@/features/company-center/Overview';
+import { PermissionsPage } from '@/features/company-center/PermissionsPage';
 import { ProfilePage } from '@/features/company-center/ProfilePage';
 import { SecurityPage } from '@/features/company-center/SecurityPage';
 import { SettingsPage } from '@/features/company-center/SettingsPage';
@@ -21,6 +22,7 @@ import { UsersPage } from '@/features/company-center/UsersPage';
  *
  * EP26 adds the branch detail (/company/branches/:id), one member's page
  * (/company/users/:id) and the invitation lifecycle (/company/users/invitations).
+ * EP27 adds permission profiles and member exceptions (/company/permissions).
  */
 export default function CompanyArea() {
   return (
@@ -38,6 +40,7 @@ export default function CompanyArea() {
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />
             <Route path="security" element={<SecurityPage />} />
+            <Route path="permissions" element={<PermissionsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/company" replace />} />
           </Routes>

@@ -86,7 +86,9 @@ describeDb('Company Control Center (EP25)', () => {
     const o = j(res);
     expect(o.company).toMatchObject({ displayName: 'Alpha', status: 'ACTIVE', logo: null });
     expect(o.me.role).toBe('COMPANY_OWNER');
-    expect(o.me.capabilities).toContain('members.manage');
+    // EP27: catalog permission codes (administration by role, departments by the resolver).
+    expect(o.me.permissions).toContain('company.members.manage');
+    expect(o.me.permissions).toContain('warehouse.stock_adjustment.approve');
     expect(o.plan).toMatchObject({ plan: 'PROFESSIONAL', status: 'ACTIVE' });
     expect(o.plan.monthlyPriceThb).toBeUndefined();
     expect(o.departments.enabled).toEqual(['SALES', 'WAREHOUSE', 'EXECUTIVE']);
@@ -107,7 +109,7 @@ describeDb('Company Control Center (EP25)', () => {
 
     // Staff: same company facts, no administration, no attention list.
     const staff = j(await (await as('staff@a.example')).get('/api/v1/company/control'));
-    expect(staff.me.capabilities).toEqual(['company.view']);
+    expect(staff.me.permissions).toEqual(['company.profile.view', 'company.branches.view']);
     expect(staff.attention).toEqual([]);
     expect(staff.me.departments).toEqual([]);
   });
@@ -806,10 +808,11 @@ describeDb('Company Control Center (EP25)', () => {
     expect(
       await h.db.membership.count({ where: { user: { emailNormalized: 'staff@a.example' } } }),
     ).toBe(2);
-    // Executives reach the Executive department; System Admin only what is assigned.
+    // EP27: Executives read every enabled department (cross-functional view, READ only);
+    // System Admin only what is assigned.
     expect(
       j(await (await as('exec@a.example')).get('/api/v1/company/context')).departments,
-    ).toEqual(['EXECUTIVE']);
+    ).toEqual(['WAREHOUSE', 'EXECUTIVE']);
     expect(j(await admin.get('/api/v1/company/context')).departments).toEqual([]);
   });
 

@@ -22,7 +22,8 @@ Company Membership   CompanyMember (ACTIVE) — one company per account
   only (`backend/src/company/policy.ts`). Branch access never widens or narrows it.
 - **Operations** (CORE) require all of: active membership · eligible company · a selected branch
   that is active, of the same company and permitted by branch access · a department that is
-  enabled **and** assigned (Owner: every enabled department; Executive: Executive + assigned).
+  enabled **and** assigned (Owner: every enabled department; since EP27 the Executive reads every
+  enabled department) **and** the action permission (EP27, PERMISSION_ACTION_MATRIX.md).
   `requireOperationsContext()` + `assertDepartmentAccess()` are the gate for every EP29+ API.
 
 ## 2. Branch access model
@@ -149,9 +150,13 @@ Demo company: Head Office `00000`, demo branch `00001`. Demo Staff (Warehouse) i
 `00001` **once** — the seed applies it only if no `MEMBER_BRANCH_ACCESS_CHANGED` entry exists for
 that member, so a later administrator decision is never overwritten. The seed stays idempotent.
 
-## 10. EP27 handoff
+## 10. EP27: the action layer on top
 
-EP27 adds the action / permission matrix (what each role may do inside a department and branch).
-It should build on, not replace: the role policy for administration, `departmentAccess()` for
-department reach, branch access for branch reach, and `requireOperationsContext()` as the single
-gate. `Role` / `RolePermission` tables exist (unused) for it.
+EP27 added the permission & action matrix ([PERMISSION_ACTION_MATRIX.md](PERMISSION_ACTION_MATRIX.md)):
+the last link of the chain is now **Required action permission** (role default ± per-member
+exception, DENY first), resolved per request by `backend/src/permissions/resolver.ts` and enforced
+by `requirePermission()`. It composes with — never replaces — branch access: a permission is valid
+only inside a selected branch the member may work in, and never grants a branch. Department reach
+in CORE is now the effective `<dept>.workspace.view` (it replaces EP25's `departmentAccess()`).
+The legacy EP00 `Role` / `Permission` / `RolePermission` tables stay unused; role defaults live in
+code.

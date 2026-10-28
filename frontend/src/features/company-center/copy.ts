@@ -83,6 +83,10 @@ const th = {
     MEMBER_CHANGED: 'ข้อมูลของผู้ใช้นี้เพิ่งเปลี่ยน — โหลดใหม่แล้วลองอีกครั้ง',
     INVITATION_NOT_FOUND: 'คำเชิญนี้ไม่ได้รอตอบรับแล้ว',
     RESEND_TOO_SOON: 'เพิ่งส่งคำเชิญนี้ไป รอสักครู่แล้วส่งใหม่',
+    PERMISSION_DENIED: 'คุณไม่มีสิทธิ์ทำรายการนี้',
+    PERMISSION_UNKNOWN: 'ไม่มีสิทธิ์รายการนี้ในระบบ',
+    PERMISSION_NOT_OVERRIDABLE: 'การดูแลบริษัทเป็นไปตามบทบาท กำหนดรายบุคคลไม่ได้',
+    PERMISSION_NOT_ELIGIBLE: 'ผู้ใช้นี้ไม่อยู่ในแผนกนี้ หรือแผนกไม่ได้เปิดใช้ / ไม่อยู่ในแพ็กเกจ',
     FORBIDDEN: 'บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้',
   },
   overview: {
@@ -444,6 +448,12 @@ const en: Copy = {
     MEMBER_CHANGED: 'This person was just changed — reload and try again.',
     INVITATION_NOT_FOUND: 'This invitation is no longer pending.',
     RESEND_TOO_SOON: 'This invitation was just sent. Wait a moment, then resend.',
+    PERMISSION_DENIED: 'You do not have permission for this action.',
+    PERMISSION_UNKNOWN: 'This permission does not exist.',
+    PERMISSION_NOT_OVERRIDABLE:
+      'Company administration follows the role and cannot be set per person.',
+    PERMISSION_NOT_ELIGIBLE:
+      'This person is not in that department, or the department is not enabled or not in the package.',
     FORBIDDEN: 'Your role cannot do this',
   },
   overview: {
@@ -807,6 +817,10 @@ const zh: Copy = {
     MEMBER_CHANGED: '该成员信息刚刚发生变化——请重新加载后再试',
     INVITATION_NOT_FOUND: '该邀请已不再处于待接受状态',
     RESEND_TOO_SOON: '该邀请刚刚发出，请稍候再重新发送',
+    PERMISSION_DENIED: '您没有执行此操作的权限',
+    PERMISSION_UNKNOWN: '该权限不存在',
+    PERMISSION_NOT_OVERRIDABLE: '公司管理权限随角色而定，不能按个人设置',
+    PERMISSION_NOT_ELIGIBLE: '该人员不在此部门，或该部门未启用、不在套餐内',
     FORBIDDEN: '您的角色无法执行此操作',
   },
   overview: {

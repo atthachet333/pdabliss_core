@@ -83,7 +83,13 @@ list and detail, people search / filters / paging and member pages, per-member b
 Selected branches), invitation intent with resend / revoke, and a CORE branch selector that only
 offers permitted branches ([docs/BRANCH_USER_ADMINISTRATION.md](docs/BRANCH_USER_ADMINISTRATION.md),
 [docs/EP26_REPORT.md](docs/EP26_REPORT.md)).
-Next: EP27 Permission / action matrix (not started).
+**EP27** (completed locally, awaiting owner review) adds the permission & action matrix: a typed
+catalog of `<department>.<resource>.<action>` codes, code-defined role defaults, per-member
+ALLOW / DENY exceptions (DENY first) for operational permissions, one server resolver and
+`requirePermission()` guard, CORE navigation by effective workspace permission, and
+`/company/permissions` ([docs/PERMISSION_ACTION_MATRIX.md](docs/PERMISSION_ACTION_MATRIX.md),
+[docs/EP27_REPORT.md](docs/EP27_REPORT.md)).
+Next: EP28 Master Data (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -102,7 +108,7 @@ Roadmap:
 2. EP23 Account & Real Authentication → EP24 Company & Subscription Foundation → EP24.1 Platform
    Control Center, Company Explorer & Account Profile → **EP24.1.2 Operator-first Platform Control
    Center** → EP24.1.3 Brand identity → **EP25 Company Control Center foundation** →
-   **EP26 Branch & User Administration** → EP27 Permission / action matrix → EP28 Master Data
+   **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** → EP28 Master Data
 3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
    EP34 Executive
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

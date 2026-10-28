@@ -8,7 +8,7 @@ import { fail, fakeApi, identity, ok, signedIn } from '@/test/fakeApi';
 import { renderRoute } from '@/test/render';
 import type {
   BranchContext,
-  Capability,
+  AdminPermission,
   ControlOverview,
   DepartmentConfig,
   MemberList,
@@ -17,21 +17,24 @@ import type {
 
 /*
  * EP25 Company Control Center (UI). What the screens show follows the
- * server's answers — capabilities, canManage, package states, the branch
+ * server's answers — effective permissions, canManage, package states, the branch
  * context. Authorization itself is tested against the API in
  * backend/test/company-control.test.ts; the UI is never the boundary.
  */
 
-const ALL: Capability[] = [
-  'company.view',
-  'profile.edit',
-  'branches.manage',
-  'members.view',
-  'members.manage',
-  'departments.manage',
-  'subscription.view',
-  'activity.view',
-  'settings.manage',
+const ALL: AdminPermission[] = [
+  'company.profile.view',
+  'company.profile.edit',
+  'company.branches.view',
+  'company.branches.manage',
+  'company.members.view',
+  'company.members.manage',
+  'company.departments.manage',
+  'company.permissions.view',
+  'company.permissions.manage',
+  'company.subscription.view',
+  'company.activity.view',
+  'company.settings.manage',
 ];
 
 const member = (role: CompanyRole) =>
@@ -59,7 +62,10 @@ const HEAD: BranchInfo = {
 };
 const SECOND: BranchInfo = { ...HEAD, id: 'b1', code: '00001', name: 'Chiang Mai', type: 'BRANCH' };
 
-function overview(over: Partial<ControlOverview> = {}, caps: Capability[] = ALL): ControlOverview {
+function overview(
+  over: Partial<ControlOverview> = {},
+  caps: AdminPermission[] = ALL,
+): ControlOverview {
   return {
     company: {
       id: 'c1',
@@ -83,10 +89,10 @@ function overview(over: Partial<ControlOverview> = {}, caps: Capability[] = ALL)
     },
     me: {
       memberId: 'm_owner',
-      role: caps.includes('members.manage') ? 'COMPANY_OWNER' : 'DEPARTMENT_STAFF',
+      role: caps.includes('company.members.manage') ? 'COMPANY_OWNER' : 'DEPARTMENT_STAFF',
       jobTitle: null,
-      capabilities: caps,
-      departments: caps.includes('members.manage') ? ['SALES', 'WAREHOUSE'] : ['WAREHOUSE'],
+      permissions: caps,
+      departments: caps.includes('company.members.manage') ? ['SALES', 'WAREHOUSE'] : ['WAREHOUSE'],
     },
     headOffice: HEAD,
     plan: {
@@ -111,7 +117,7 @@ function overview(over: Partial<ControlOverview> = {}, caps: Capability[] = ALL)
       ],
       complete: false,
     },
-    attention: caps.includes('members.manage')
+    attention: caps.includes('company.members.manage')
       ? [
           { code: 'PROFILE_INCOMPLETE', fields: ['taxId', 'phone'] },
           { code: 'DEPARTMENTS_UNASSIGNED', departments: ['SALES'] },
@@ -123,7 +129,7 @@ function overview(over: Partial<ControlOverview> = {}, caps: Capability[] = ALL)
   };
 }
 
-const STAFF_CAPS: Capability[] = ['company.view'];
+const STAFF_CAPS: AdminPermission[] = ['company.profile.view', 'company.branches.view'];
 
 const MEMBERS: MemberList = {
   members: [
@@ -517,7 +523,12 @@ describe('Company Control Center configuration (EP25)', () => {
     fakeApi({
       ...signedIn(member('EXECUTIVE')),
       'GET /api/v1/company/control': ok(
-        overview({}, ['company.view', 'members.view', 'subscription.view']),
+        overview({}, [
+          'company.profile.view',
+          'company.branches.view',
+          'company.members.view',
+          'company.subscription.view',
+        ]),
       ),
     });
     renderRoute('/company/profile?lang=en');

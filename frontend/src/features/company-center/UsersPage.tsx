@@ -18,7 +18,7 @@ import {
   type MemberList,
   type MemberQuery,
 } from './api';
-import { RequireCapability } from './CompanyShell';
+import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useDateFormat, useDepartmentName } from './model';
@@ -49,9 +49,9 @@ const ROLES: CompanyRole[] = [
 
 export function UsersPage() {
   return (
-    <RequireCapability capability="members.view">
+    <RequirePermission permission="company.members.view">
       <People />
-    </RequireCapability>
+    </RequirePermission>
   );
 }
 

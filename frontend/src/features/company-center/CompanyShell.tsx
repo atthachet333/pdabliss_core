@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Building2,
   CircleUserRound,
+  KeyRound,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -27,9 +28,10 @@ import { useLocale } from '@/i18n/useLocale';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
-import { can, controlApi, type Capability } from './api';
+import { can, controlApi, type AdminPermission } from './api';
 import { ControlContext, useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
+import { PERMISSION_COPY } from './permissionCopy';
 import { useLoad } from './model';
 import { AreaLink, AreaNavLink, CompanyMark, Loading } from './parts';
 
@@ -41,23 +43,23 @@ import { AreaLink, AreaNavLink, CompanyMark, Loading } from './parts';
  * platform shows PDA BLISS; the way into CORE always in reach.
  *
  * Navigation lists only the areas this person's role may open (the server
- * sends the capabilities and checks them again on every call). On large
+ * sends the effective permissions and checks them again on every call). On large
  * screens the areas form a sidebar; below that, one scrollable row.
  */
 
 /** Shown in place of a page the role may not open (the API would refuse it anyway). */
-export function RequireCapability({
-  capability,
+export function RequirePermission({
+  permission,
   children,
 }: {
-  capability: Capability;
+  permission: AdminPermission;
   children: ReactNode;
 }) {
   const c = useCopy(CONTROL_COPY);
   const { overview } = useControl();
-  if (!can(overview.me.capabilities, capability)) {
+  if (!can(overview.me.permissions, permission)) {
     return (
-      <div className="py-10" data-forbidden={capability}>
+      <div className="py-10" data-forbidden={permission}>
         <Notice tone="info">{c.shell.forbidden}</Notice>
       </div>
     );
@@ -67,6 +69,7 @@ export function RequireCapability({
 
 export function CompanyShell({ identity, children }: { identity: Identity; children: ReactNode }) {
   const c = useCopy(CONTROL_COPY);
+  const p = useCopy(PERMISSION_COPY);
   const a = useCopy(AUTH_COPY);
   const { t, locale } = useLocale();
   const navigate = useNavigate();
@@ -107,33 +110,59 @@ export function CompanyShell({ identity, children }: { identity: Identity; child
   };
 
   const overview = state.status === 'ready' ? state.data : null;
-  const caps = overview?.me.capabilities ?? [];
+  const caps = overview?.me.permissions ?? [];
   const nav: {
     to: string;
     end?: boolean;
     label: string;
     icon: typeof Building2;
-    cap: Capability;
+    cap: AdminPermission;
   }[] = [
     {
       to: '/company',
       end: true,
       label: c.shell.overview,
       icon: LayoutDashboard,
-      cap: 'company.view',
+      cap: 'company.profile.view',
     },
-    { to: '/company/profile', label: c.shell.company, icon: Building2, cap: 'company.view' },
-    { to: '/company/branches', label: c.shell.branches, icon: Network, cap: 'company.view' },
-    { to: '/company/users', label: c.shell.users, icon: UsersRound, cap: 'members.view' },
-    { to: '/company/departments', label: c.shell.departments, icon: Layers, cap: 'company.view' },
+    {
+      to: '/company/profile',
+      label: c.shell.company,
+      icon: Building2,
+      cap: 'company.profile.view',
+    },
+    {
+      to: '/company/branches',
+      label: c.shell.branches,
+      icon: Network,
+      cap: 'company.branches.view',
+    },
+    { to: '/company/users', label: c.shell.users, icon: UsersRound, cap: 'company.members.view' },
+    {
+      to: '/company/departments',
+      label: c.shell.departments,
+      icon: Layers,
+      cap: 'company.profile.view',
+    },
     {
       to: '/company/subscription',
       label: c.shell.subscription,
       icon: Package,
-      cap: 'subscription.view',
+      cap: 'company.subscription.view',
     },
-    { to: '/company/security', label: c.shell.security, icon: Activity, cap: 'activity.view' },
-    { to: '/company/settings', label: c.shell.settings, icon: Settings, cap: 'settings.manage' },
+    {
+      to: '/company/security',
+      label: c.shell.security,
+      icon: Activity,
+      cap: 'company.activity.view',
+    },
+    { to: '/company/permissions', label: p.nav, icon: KeyRound, cap: 'company.permissions.view' },
+    {
+      to: '/company/settings',
+      label: c.shell.settings,
+      icon: Settings,
+      cap: 'company.settings.manage',
+    },
   ];
   const visible = nav.filter((n) => can(caps, n.cap));
 

@@ -151,6 +151,15 @@ noindex, served by the existing `/platform/*` shell rewrite).
   still administers the company). **EP27** adds the action / permission matrix on top; do not
   re-derive branch or department reach in module code — call the existing gate.
 
+- **EP27 (Permission & Action Matrix):** see [PERMISSION_ACTION_MATRIX.md](PERMISSION_ACTION_MATRIX.md)
+  and [EP27_REPORT.md](EP27_REPORT.md). The chain is complete: membership + role + enabled
+  department + package + assignment + branch access + selected branch + **action permission**.
+  Every operational route starts with
+  `requirePermission(db, auth(request), '<dept>.<resource>.<action>')` (from
+  `backend/src/permissions/guard.ts`), then scopes by `op.companyId` + `op.branch.id`. Add new
+  codes to the catalog (+ migration CHECK + TH/EN/ZH labels); never check roles or departments by
+  hand. The frontend reads `context.permissions` to show / disable / explain only.
+
 ## 7. Warehouse boundary
 
 Warehouse must never receive price, unit cost, total cost, margin, payment amount, supplier

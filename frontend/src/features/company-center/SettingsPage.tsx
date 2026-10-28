@@ -5,7 +5,7 @@ import { SelectField } from '@/features/auth/fields';
 import type { Locale } from '@/i18n/locales';
 import { useCopy } from '@/i18n/useCopy';
 import { controlApi, type CompanySettings } from './api';
-import { RequireCapability } from './CompanyShell';
+import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useLoad } from './model';
@@ -39,9 +39,9 @@ const ZONES = [
 
 export function SettingsPage() {
   return (
-    <RequireCapability capability="settings.manage">
+    <RequirePermission permission="company.settings.manage">
       <Settings />
-    </RequireCapability>
+    </RequirePermission>
   );
 }
 

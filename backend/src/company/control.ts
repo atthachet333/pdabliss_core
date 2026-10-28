@@ -10,7 +10,7 @@ import { AppError, ValidationError } from '../lib/errors.js';
 import { recordCompanyEvent, type CompanyAuditAction, type AuditEntityType } from './audit.js';
 import { clearStaleBranchSessions, effectiveScope, worksInBranch } from './branch-access.js';
 import {
-  allowedDepartments,
+  memberPermissions,
   enabledDepartments,
   requireCompanyAccess,
   type CompanyAccess,
@@ -49,7 +49,7 @@ import { branchRef, branchView, companyFields, departmentView } from './views.js
  * branches and members are deactivated, departments soft-disabled.
  */
 
-const MEMBER_PROBLEM_MESSAGES = {
+export const MEMBER_PROBLEM_MESSAGES = {
   OWNER_PROTECTED: 'The Company Owner cannot be changed here.',
   SELF_CHANGE: 'You cannot change your own access.',
   PEER_ADMIN: 'Only the Company Owner can change a System Admin.',
@@ -149,7 +149,7 @@ export class CompanyControlService {
   async overview(ctx: AuthContext) {
     const access = await requireCompanyAccess(this.db, ctx);
     const companyId = access.company.id;
-    const admin = can(access.member.role, 'members.manage');
+    const admin = can(access.member.role, 'company.members.manage');
     const now = new Date();
     const [branches, members, invitations, logo, departments, assignments, mine, withoutBranch] =
       await Promise.all([
@@ -171,7 +171,7 @@ export class CompanyControlService {
           },
           select: { department: { select: { code: true } } },
         }),
-        allowedDepartments(this.db, access),
+        memberPermissions(this.db, access),
         // EP26: active people restricted to branches of which none is active — they cannot work.
         this.db.companyMember.count({
           where: {
@@ -234,8 +234,8 @@ export class CompanyControlService {
         memberId: access.member.id,
         role: access.member.role,
         jobTitle: access.member.jobTitle,
-        capabilities: access.capabilities,
-        departments: mine,
+        permissions: mine.permissions,
+        departments: mine.departments,
       },
       headOffice: headOffice ? branchView(headOffice) : null,
       plan: sub
@@ -268,7 +268,7 @@ export class CompanyControlService {
   // ----------------------------------------------------------------- profile
 
   async updateProfile(ctx: AuthContext, input: ProfileInput, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'profile.edit' });
+    const access = await requireCompanyAccess(this.db, ctx, { permission: 'company.profile.edit' });
     const c = access.company;
     const headOffice = await this.db.branch.findFirst({
       where: { companyId: c.id, type: 'HEAD_OFFICE' },
@@ -354,7 +354,7 @@ export class CompanyControlService {
     input: { contentType: LogoType; data: string },
     meta: RequestMeta,
   ) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'profile.edit' });
+    const access = await requireCompanyAccess(this.db, ctx, { permission: 'company.profile.edit' });
     const bytes = Buffer.from(input.data, 'base64');
     if (bytes.length === 0 || bytes.length > LOGO_MAX_BYTES) {
       throw new AppError(413, 'LOGO_TOO_LARGE', 'The logo must be at most 256 KB.', {
@@ -395,7 +395,7 @@ export class CompanyControlService {
   }
 
   async removeLogo(ctx: AuthContext, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'profile.edit' });
+    const access = await requireCompanyAccess(this.db, ctx, { permission: 'company.profile.edit' });
     const companyId = access.company.id;
     await this.db.$transaction(async (tx) => {
       const { count } = await tx.companyLogo.deleteMany({ where: { companyId } });
@@ -453,7 +453,7 @@ export class CompanyControlService {
     return {
       branches: rows.map((b) => ({ ...branchView(b), access: stats(b.id) })),
       suggestedCode: nextBranchCode(rows.map((b) => b.code)),
-      canManage: access.canEnterCore && can(access.member.role, 'branches.manage'),
+      canManage: access.canEnterCore && can(access.member.role, 'company.branches.manage'),
     };
   }
 
@@ -468,7 +468,7 @@ export class CompanyControlService {
     const companyId = access.company.id;
     const branch = await this.db.branch.findFirst({ where: { id, companyId } });
     if (!branch) throw notFound('Branch');
-    const seePeople = can(access.member.role, 'members.view');
+    const seePeople = can(access.member.role, 'company.members.view');
     const [stats, all, granted, people, enabled] = await Promise.all([
       this.branchStats(companyId),
       this.db.companyMember.count({
@@ -516,8 +516,8 @@ export class CompanyControlService {
         : null,
       peopleTotal: seePeople ? all + granted : null,
       enabledDepartments: enabled,
-      canManage: access.canEnterCore && can(access.member.role, 'branches.manage'),
-      canManagePeople: can(access.member.role, 'members.manage'),
+      canManage: access.canEnterCore && can(access.member.role, 'company.branches.manage'),
+      canManagePeople: can(access.member.role, 'company.members.manage'),
     };
   }
 
@@ -535,7 +535,9 @@ export class CompanyControlService {
   }
 
   async createBranch(ctx: AuthContext, input: BranchCreateInput, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'branches.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.branches.manage',
+    });
     const companyId = access.company.id;
     try {
       const branch = await this.db.$transaction(async (tx) => {
@@ -577,7 +579,9 @@ export class CompanyControlService {
   }
 
   async updateBranch(ctx: AuthContext, id: string, input: BranchUpdateInput, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'branches.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.branches.manage',
+    });
     const branch = await this.db.branch.findFirst({ where: { id, companyId: access.company.id } });
     if (!branch) throw notFound('Branch');
     const merged = {
@@ -615,7 +619,9 @@ export class CompanyControlService {
     status: 'ACTIVE' | 'INACTIVE',
     meta: RequestMeta,
   ) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'branches.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.branches.manage',
+    });
     const branch = await this.db.branch.findFirst({ where: { id, companyId: access.company.id } });
     if (!branch) throw notFound('Branch');
     if (branch.type === 'HEAD_OFFICE') {
@@ -661,7 +667,7 @@ export class CompanyControlService {
    * and expired-but-pending); the full lifecycle is GET /current/invitations.
    */
   async members(ctx: AuthContext, query: MemberListInput = MEMBER_LIST_DEFAULTS) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.view' });
+    const access = await requireCompanyAccess(this.db, ctx, { permission: 'company.members.view' });
     const companyId = access.company.id;
     const where: Prisma.CompanyMemberWhereInput = { companyId };
     const and: Prisma.CompanyMemberWhereInput[] = [];
@@ -707,7 +713,7 @@ export class CompanyControlService {
       companyId,
       rows.map((m) => m.userId),
     );
-    const manage = can(access.member.role, 'members.manage');
+    const manage = can(access.member.role, 'company.members.manage');
     const now = new Date();
     const byId = new Map(branches.map((b) => [b.id, b]));
     return {
@@ -795,7 +801,7 @@ export class CompanyControlService {
    * this person's administration history. Another company's member is not found.
    */
   async member(ctx: AuthContext, memberId: string) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.view' });
+    const access = await requireCompanyAccess(this.db, ctx, { permission: 'company.members.view' });
     const companyId = access.company.id;
     const m = await this.db.companyMember.findFirst({
       where: { id: memberId, companyId },
@@ -807,7 +813,7 @@ export class CompanyControlService {
       },
     });
     if (!m) throw notFound('Member');
-    const manage = can(access.member.role, 'members.manage');
+    const manage = can(access.member.role, 'company.members.manage');
     const [branches, departmentsOf, enabled, history] = await Promise.all([
       this.db.branch.findMany({ where: { companyId }, orderBy: { code: 'asc' } }),
       this.departmentsByUser(companyId, [m.userId]),
@@ -834,7 +840,9 @@ export class CompanyControlService {
 
   /** The target member, if the caller may change them. */
   private async manageable(ctx: AuthContext, memberId: string) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.members.manage',
+    });
     const target = await this.db.companyMember.findFirst({
       where: { id: memberId, companyId: access.company.id },
     });
@@ -1051,7 +1059,7 @@ export class CompanyControlService {
    * departments and branch access, the inviter and the dates. Never a token.
    */
   async invitations(ctx: AuthContext, q: InvitationListInput) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.view' });
+    const access = await requireCompanyAccess(this.db, ctx, { permission: 'company.members.view' });
     const companyId = access.company.id;
     const now = new Date();
     const stateWhere: Record<(typeof INVITATION_STATES)[number], Prisma.InvitationWhereInput> = {
@@ -1084,7 +1092,7 @@ export class CompanyControlService {
       ),
       this.db.branch.findMany({ where: { companyId } }),
     ]);
-    const manage = can(access.member.role, 'members.manage');
+    const manage = can(access.member.role, 'company.members.manage');
     const byId = new Map(branches.map((b) => [b.id, b]));
     return {
       invitations: rows.map((i) => {
@@ -1140,7 +1148,9 @@ export class CompanyControlService {
    * agreed — at most the six). Disabling is soft and audited; assignments stay.
    */
   async setDepartments(ctx: AuthContext, codes: DepartmentCode[], meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'departments.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.departments.manage',
+    });
     const sub = access.subscription;
     if (!sub) throw new AppError(409, 'NO_SUBSCRIPTION', 'This company has no subscription.');
     assertDepartments(readSnapshot(sub.entitlements, sub.plan), codes);
@@ -1175,7 +1185,9 @@ export class CompanyControlService {
   // ---------------------------------------------------------------- settings
 
   async settings(ctx: AuthContext) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'settings.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.settings.manage',
+    });
     return {
       timezone: access.company.timezone,
       defaultLocale: toApiLocale(access.company.defaultLocale),
@@ -1183,7 +1195,9 @@ export class CompanyControlService {
   }
 
   async updateSettings(ctx: AuthContext, input: SettingsInput, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'settings.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.settings.manage',
+    });
     const c = access.company;
     const data: Prisma.CompanyUpdateInput = {};
     const fields: string[] = [];
@@ -1214,7 +1228,9 @@ export class CompanyControlService {
    * appear as "PDA BLISS", never by name.
    */
   async activity(ctx: AuthContext, q: { scope: 'all' | 'admin' | 'security'; limit: number }) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'activity.view' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.activity.view',
+    });
     const companyId = access.company.id;
     const members = await this.db.companyMember.findMany({
       where: { companyId },

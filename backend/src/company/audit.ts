@@ -44,7 +44,11 @@ export type CompanyAuditAction =
   /** Branch access changed: from / to scope and branch codes. */
   | 'MEMBER_BRANCH_ACCESS_CHANGED'
   /** A pending invitation was replaced by a fresh one (new token, new expiry). */
-  | 'INVITATION_RESENT';
+  | 'INVITATION_RESENT'
+  // ---- EP27: permission exceptions (details: member email, permission code, from / to effect)
+  | 'MEMBER_PERMISSION_OVERRIDE_ADDED'
+  | 'MEMBER_PERMISSION_OVERRIDE_CHANGED'
+  | 'MEMBER_PERMISSION_OVERRIDE_REMOVED';
 
 export type ActorScope = 'customer' | 'platform_owner' | 'platform_admin' | 'seed';
 

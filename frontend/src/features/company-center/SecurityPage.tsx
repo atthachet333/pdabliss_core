@@ -6,9 +6,10 @@ import { DEPARTMENT_CODES, type DepartmentCode } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { controlApi, type ActivityItem } from './api';
-import { RequireCapability } from './CompanyShell';
+import { RequirePermission } from './CompanyShell';
 import { ADMIN_COPY } from './adminCopy';
 import { CONTROL_COPY } from './copy';
+import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, eventLabel, useDateFormat, useDepartmentName, useLoad } from './model';
 import { Loading, PageTitle, Section } from './parts';
 
@@ -23,9 +24,9 @@ type Scope = 'all' | 'admin' | 'security';
 
 export function SecurityPage() {
   return (
-    <RequireCapability capability="activity.view">
+    <RequirePermission permission="company.activity.view">
       <Security />
-    </RequireCapability>
+    </RequirePermission>
   );
 }
 
@@ -118,7 +119,8 @@ function Entry({ item }: { item: ActivityItem }) {
     DEACTIVATED: c.common.deactivated,
   };
   const ad = useCopy(ADMIN_COPY);
-  const label = eventLabel(item, c, ad);
+  const pc = useCopy(PERMISSION_COPY);
+  const label = eventLabel(item, c, ad, pc);
   const who =
     item.actor.kind === 'platform'
       ? c.security.platform

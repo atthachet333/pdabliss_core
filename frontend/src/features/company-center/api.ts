@@ -21,19 +21,30 @@ import type {
  * The client never sends a company id, a role it holds or a branch it "is
  * in": the server resolves the company from the session, checks the role
  * policy, and keeps the selected branch on the server-side session.
- * `capabilities` only decide what the screens show.
+ * Effective permission codes only decide what the screens show.
  */
 
-export type Capability =
-  | 'company.view'
-  | 'profile.edit'
-  | 'branches.manage'
-  | 'members.view'
-  | 'members.manage'
-  | 'departments.manage'
-  | 'subscription.view'
-  | 'activity.view'
-  | 'settings.manage';
+/**
+ * EP27 permission codes (backend/src/permissions/catalog.ts is the source of
+ * truth). The server sends each person's EFFECTIVE codes; the screens only
+ * use them to show, disable or explain actions — every call is checked again.
+ */
+export type AdminPermission =
+  | 'company.profile.view'
+  | 'company.profile.edit'
+  | 'company.branches.view'
+  | 'company.branches.manage'
+  | 'company.members.view'
+  | 'company.members.manage'
+  | 'company.departments.manage'
+  | 'company.permissions.view'
+  | 'company.permissions.manage'
+  | 'company.subscription.view'
+  | 'company.activity.view'
+  | 'company.settings.manage';
+type DepartmentPrefix =
+  'sales' | 'operations' | 'warehouse' | 'purchasing' | 'accounting' | 'executive';
+export type PermissionCode = AdminPermission | `${DepartmentPrefix}.${string}.${string}`;
 
 export interface CompanyProfile {
   id: string;
@@ -74,7 +85,8 @@ export interface ControlOverview {
     memberId: string;
     role: CompanyRole;
     jobTitle: string | null;
-    capabilities: Capability[];
+    /** EP27: this person's effective permission codes. */
+    permissions: PermissionCode[];
     /** Departments this person may open in CORE Operations. */
     departments: DepartmentCode[];
   };
@@ -333,6 +345,72 @@ export interface CompanySettings {
   defaultLocale: Locale;
 }
 
+/* ---- EP27 permission administration ---------------------------------- */
+
+export type PermissionNamespace = 'COMPANY_ADMIN' | DepartmentCode;
+export type PermissionTier = 'READ' | 'OPERATE' | 'MANAGE';
+export type PermissionSource =
+  'INVARIANT' | 'ROLE_DEFAULT' | 'ALLOW_OVERRIDE' | 'DENY_OVERRIDE' | 'NONE';
+export type PermissionBlock = 'DEPARTMENT_DISABLED' | 'NOT_IN_PACKAGE' | 'NOT_ASSIGNED';
+export type PermissionEffect = 'ALLOW' | 'DENY';
+
+export interface PermissionDefinition {
+  code: PermissionCode;
+  namespace: PermissionNamespace;
+  /** `<namespace>.<resource>`, the grouping key. */
+  resource: string;
+  action: string;
+  scope: 'COMPANY' | 'BRANCH';
+  tier: PermissionTier;
+  /** Only operational permissions take per-member exceptions. */
+  overridable: boolean;
+}
+
+export interface PermissionProfiles {
+  catalog: PermissionDefinition[];
+  roles: {
+    role: CompanyRole;
+    admin: AdminPermission[];
+    operational: { tiers: PermissionTier[]; requiresAssignment: boolean };
+  }[];
+  enabledDepartments: DepartmentCode[];
+  executiveAllowed: boolean;
+  canManage: boolean;
+}
+
+export interface PermissionState {
+  code: PermissionCode;
+  effective: boolean;
+  roleDefault: boolean;
+  override: PermissionEffect | null;
+  source: PermissionSource;
+  blocked: PermissionBlock | null;
+}
+
+export interface MemberPermissions {
+  member: {
+    id: string;
+    fullName: string | null;
+    email: string;
+    role: CompanyRole;
+    status: MemberStatus;
+    isOwner: boolean;
+    isSelf: boolean;
+  };
+  assignedDepartments: DepartmentCode[];
+  enabledDepartments: DepartmentCode[];
+  executiveAllowed: boolean;
+  permissions: PermissionState[];
+  protection: MemberProtection | null;
+  canManage: boolean;
+}
+
+export interface PermissionChange {
+  permission: PermissionCode;
+  /** null removes the exception (back to the role default). */
+  effect: PermissionEffect | null;
+}
+
 export interface BranchContext {
   company: { id: string; displayName: string };
   role: CompanyRole;
@@ -345,6 +423,8 @@ export interface BranchContext {
   /** EP26: set when no active branch is open to this person. */
   blocked?: 'NO_BRANCH_ACCESS' | null;
   departments: DepartmentCode[];
+  /** EP27: effective permission codes (to show actions; the server checks again). */
+  permissions?: PermissionCode[];
 }
 
 const C = '/api/v1/company';
@@ -439,6 +519,14 @@ export const controlApi = {
   updateSettings: (body: Partial<CompanySettings>) =>
     apiRequest<CompanySettings>('PATCH', `${C}/current/settings`, body),
 
+  permissionProfiles: () => apiRequest<PermissionProfiles>('GET', `${C}/current/permissions`),
+  memberPermissions: (memberId: string) =>
+    apiRequest<MemberPermissions>('GET', `${C}/current/members/${id(memberId)}/permissions`),
+  setMemberPermissions: (memberId: string, changes: PermissionChange[]) =>
+    apiRequest<MemberPermissions>('PUT', `${C}/current/members/${id(memberId)}/permissions`, {
+      changes,
+    }),
+
   context: () => apiRequest<BranchContext>('GET', `${C}/context`),
   selectBranch: (branchId: string) =>
     apiRequest<BranchContext>('POST', `${C}/context/branch`, { branchId }),
@@ -448,4 +536,4 @@ export const controlApi = {
 export const logoUrl = (version: string) =>
   `${API_URL}${C}/current/logo?v=${encodeURIComponent(version)}`;
 
-export const can = (capabilities: readonly Capability[], c: Capability) => capabilities.includes(c);
+export const can = (permissions: readonly string[], p: PermissionCode) => permissions.includes(p);

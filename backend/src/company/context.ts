@@ -6,7 +6,16 @@ import type { Company, CompanyMember, Subscription } from '../generated/prisma/c
 import { AppError } from '../lib/errors.js';
 import { allowedActiveBranches, canWorkInBranch, effectiveScope } from './branch-access.js';
 import { canEnterCore } from './entitlements.js';
-import { can, departmentAccess, ROLE_CAPABILITIES, type CompanyCapability } from './policy.js';
+import {
+  ROLE_ADMIN_PERMISSIONS,
+  type AdminPermission,
+  type PermissionCode,
+} from '../permissions/catalog.js';
+import {
+  effectivePermissions,
+  loadPermissionInputs,
+  workspaceDepartments,
+} from '../permissions/resolver.js';
 import { branchView, type BranchView } from './views.js';
 
 /*
@@ -14,10 +23,11 @@ import { branchView, type BranchView } from './views.js';
  * session on every request, never from the request body or path:
  *
  *   session → user → CompanyMember (ACTIVE) → company (+ current subscription)
- *           → capabilities from the role policy
+ *           → company-administration permissions from the role (EP27 catalog)
  *           → branches the member may work in (EP26 branch access)
  *           → selected branch (Session.branchId, re-validated every time)
- *           → departments the member may enter
+ *           → effective permissions (EP27 resolver) and the departments
+ *             whose workspace the member may view
  *
  * Platform operators have no company context: the customer routes refuse them
  * (Platform Inspection is their read-only window, at platform level).
@@ -47,7 +57,8 @@ export interface CompanyAccess {
   company: Company;
   subscription: Subscription | null;
   canEnterCore: boolean;
-  capabilities: readonly CompanyCapability[];
+  /** Company-administration permissions (role-bound, EP27). */
+  adminPermissions: readonly AdminPermission[];
   /** The acting member, for the owner / peer protections. */
   actor: { memberId: string; userId: string; role: CompanyMember['role'] };
 }
@@ -60,7 +71,7 @@ export interface CompanyAccess {
 export async function requireCompanyAccess(
   db: Db,
   ctx: AuthContext,
-  opts: { capability?: CompanyCapability; eligible?: boolean } = {},
+  opts: { permission?: AdminPermission; eligible?: boolean } = {},
 ): Promise<CompanyAccess> {
   if (ctx.user.platformRole) throw forbidden();
   const member = await db.companyMember.findUnique({
@@ -74,14 +85,16 @@ export async function requireCompanyAccess(
   });
   const enter = canEnterCore(member.company, subscription);
   if ((opts.eligible ?? true) && !enter) throw companyNotActive();
-  if (opts.capability && !can(member.role, opts.capability)) throw forbidden();
+  if (opts.permission && !ROLE_ADMIN_PERMISSIONS[member.role].includes(opts.permission)) {
+    throw forbidden();
+  }
   const { company, ...plain } = member;
   return {
     member: plain,
     company,
     subscription,
     canEnterCore: enter,
-    capabilities: ROLE_CAPABILITIES[member.role],
+    adminPermissions: ROLE_ADMIN_PERMISSIONS[member.role],
     actor: { memberId: member.id, userId: member.userId, role: member.role },
   };
 }
@@ -109,17 +122,20 @@ export async function assignedDepartments(db: Db, userId: string, companyId: str
   }));
 }
 
-/** Departments this member may enter now: enabled for the company AND permitted for the person. */
+/**
+ * The member's effective permissions now (EP27 resolver: role defaults,
+ * department + package eligibility, explicit exceptions — DENY first) and
+ * the departments whose workspace they may view. Read fresh on every request.
+ */
+export async function memberPermissions(db: Db, access: CompanyAccess) {
+  const inputs = await loadPermissionInputs(db, access.member, access.subscription);
+  const permissions = effectivePermissions(inputs);
+  return { permissions, departments: workspaceDepartments(permissions) };
+}
+
+/** Departments this member may open in CORE (workspace view permission). */
 export async function allowedDepartments(db: Db, access: CompanyAccess) {
-  const [enabled, assigned] = await Promise.all([
-    enabledDepartments(db, access.company.id),
-    assignedDepartments(db, access.member.userId, access.company.id),
-  ]);
-  return departmentAccess(
-    access.member.role,
-    enabled,
-    assigned.map((a) => a.code),
-  );
+  return (await memberPermissions(db, access)).departments;
 }
 
 export interface BranchContextView {
@@ -136,6 +152,8 @@ export interface BranchContextView {
   blocked: 'NO_BRANCH_ACCESS' | null;
   /** Departments this person may open in CORE Operations. */
   departments: DepartmentCode[];
+  /** EP27: this person's effective permission codes (for showing actions only). */
+  permissions: PermissionCode[];
 }
 
 /**
@@ -162,6 +180,7 @@ export async function branchContext(db: Db, ctx: AuthContext): Promise<BranchCon
       data: { branchId: null, branchSelectedAt: null },
     });
   }
+  const granted = await memberPermissions(db, access);
   return {
     company: { id: companyId, displayName: access.company.name },
     role: access.member.role,
@@ -170,7 +189,8 @@ export async function branchContext(db: Db, ctx: AuthContext): Promise<BranchCon
     selected: selected ? branchView(selected) : null,
     needsSelection: !selected && branches.length > 0,
     blocked: branches.length === 0 ? 'NO_BRANCH_ACCESS' : null,
-    departments: await allowedDepartments(db, access),
+    departments: granted.departments,
+    permissions: granted.permissions,
   };
 }
 
@@ -202,6 +222,8 @@ export interface OperationsContext {
   branch: { id: string; code: string; name: string; type: 'HEAD_OFFICE' | 'BRANCH' };
   role: CompanyMember['role'];
   departments: DepartmentCode[];
+  /** EP27: effective permission codes in this context. */
+  permissions: PermissionCode[];
 }
 
 /**
@@ -234,11 +256,13 @@ export async function requireOperationsContext(
     }
     throw branchRequired();
   }
+  const granted = await memberPermissions(db, access);
   return {
     companyId: access.company.id,
     branch,
     role: access.member.role,
-    departments: await allowedDepartments(db, access),
+    departments: granted.departments,
+    permissions: granted.permissions,
   };
 }
 

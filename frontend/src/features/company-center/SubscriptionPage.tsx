@@ -6,7 +6,7 @@ import { getPlan } from '@/features/pricing/plans';
 import { useCopy } from '@/i18n/useCopy';
 import { formatNumber } from '@/lib/format';
 import { controlApi } from './api';
-import { RequireCapability } from './CompanyShell';
+import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useDateFormat, useDepartmentName, useLoad } from './model';
@@ -20,9 +20,9 @@ import { AreaLink, Fact, Facts, Loading, PageTitle, Pill, Section } from './part
  */
 export function SubscriptionPage() {
   return (
-    <RequireCapability capability="subscription.view">
+    <RequirePermission permission="company.subscription.view">
       <Subscription />
-    </RequireCapability>
+    </RequirePermission>
   );
 }
 

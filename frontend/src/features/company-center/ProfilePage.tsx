@@ -135,7 +135,7 @@ export function ProfilePage() {
   const c = useCopy(CONTROL_COPY);
   const p = useCopy(PROFILE_COPY);
   const { overview, replace } = useControl();
-  const editable = can(overview.me.capabilities, 'profile.edit');
+  const editable = can(overview.me.permissions, 'company.profile.edit');
   const [form, setForm] = useState<Form>(() => formFrom(overview));
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);

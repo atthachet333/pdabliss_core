@@ -356,7 +356,7 @@ export class CompanyService {
   }
 
   private async viewFor(companyId: string, role: CompanyRole): Promise<CompanyView> {
-    const priceVisible = can(role, 'subscription.view');
+    const priceVisible = can(role, 'company.subscription.view');
     const company = await this.db.company.findUniqueOrThrow({
       where: { id: companyId },
       include: {
@@ -407,7 +407,7 @@ export class CompanyService {
    */
   async subscription(ctx: AuthContext, id?: string) {
     const { companyId, role } = await this.requireMember(ctx);
-    if (!can(role, 'subscription.view')) throw forbidden();
+    if (!can(role, 'company.subscription.view')) throw forbidden();
     const row = id
       ? await this.db.subscription.findFirst({ where: { id, companyId } })
       : await this.currentSubscription(companyId);
@@ -468,7 +468,7 @@ export class CompanyService {
           assigned: row ? (counts.get(row.id) ?? 0) : 0,
         };
       }),
-      canManage: can(role, 'departments.manage'),
+      canManage: can(role, 'company.departments.manage'),
     };
   }
 

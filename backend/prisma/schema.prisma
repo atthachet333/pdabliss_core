@@ -175,30 +175,62 @@ enum CompanyMemberStatus {
 
 /// A user's place in a company. Department access (Membership) comes on top (EP25 foundation).
 model CompanyMember {
-  id            String               @id @default(cuid())
-  companyId     String
-  company       Company              @relation(fields: [companyId], references: [id])
-  userId        String
-  user          User                 @relation(fields: [userId], references: [id])
-  role          CompanyRole
+  id                  String                     @id @default(cuid())
+  companyId           String
+  company             Company                    @relation(fields: [companyId], references: [id])
+  userId              String
+  user                User                       @relation(fields: [userId], references: [id])
+  role                CompanyRole
   /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
   /// enforced by the database (unique + CHECK, EP24). The owner is always ACTIVE (CHECK, EP25).
-  ownerSlot     Boolean?
-  status        CompanyMemberStatus  @default(ACTIVE)
+  ownerSlot           Boolean?
+  status              CompanyMemberStatus        @default(ACTIVE)
   /// Job title inside this company (set by company administration; not a permission).
-  jobTitle      String?
-  deactivatedAt DateTime?
+  jobTitle            String?
+  deactivatedAt       DateTime?
   /// Operational branch access (EP26). Administration authority does not depend on it.
-  branchScope   BranchAccessScope    @default(ALL_BRANCHES)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  branchAccess  MemberBranchAccess[]
+  branchScope         BranchAccessScope          @default(ALL_BRANCHES)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  branchAccess        MemberBranchAccess[]
+  /// Per-member exceptions to the role's operational permissions (EP27).
+  permissionOverrides MemberPermissionOverride[]
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
   @@unique([companyId, ownerSlot])
   /// Target of MemberBranchAccess's company-bound foreign key (EP26).
   @@unique([id, companyId])
+  @@index([companyId])
+}
+
+/// Effect of a per-member permission exception (EP27). DENY beats every ALLOW.
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
+/// A per-member exception to the role's default operational permissions
+/// (EP27). Only codes of the canonical catalog (backend/src/permissions/
+/// catalog.ts) are accepted — the API validates, and a database CHECK lists
+/// the operational codes. Company-administration permissions follow the role
+/// and never appear here; the owner has none. The foreign key carries the
+/// company id, so an exception can never point into another company. An
+/// exception for a department that is later disabled stays (inactive) and
+/// returns with the department.
+model MemberPermissionOverride {
+  id          String           @id @default(cuid())
+  companyId   String
+  memberId    String
+  member      CompanyMember    @relation(fields: [memberId, companyId], references: [id, companyId], onDelete: Cascade)
+  permission  String
+  effect      PermissionEffect
+  createdById String?
+  updatedById String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([memberId, permission])
   @@index([companyId])
 }
 

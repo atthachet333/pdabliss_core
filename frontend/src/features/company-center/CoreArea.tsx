@@ -29,6 +29,7 @@ import { ADMIN_COPY } from './adminCopy';
 import { BranchCode } from './adminParts';
 import { controlApi, type BranchContext } from './api';
 import { CONTROL_COPY } from './copy';
+import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, locationSummary, oneLineAddress, useLoad } from './model';
 import { AreaLink, Loading, Pill } from './parts';
 
@@ -399,8 +400,12 @@ function Blocked() {
   );
 }
 
+/** Actions that approve or manage (the rest of a department's non-view actions are day-to-day work). */
+const MANAGE_ACTIONS = /.(approve|cancel|delete|export|manage|update_status)$/;
+
 function OperationsHome({ context }: { context: BranchContext }) {
   const c = useCopy(CONTROL_COPY);
+  const p = useCopy(PERMISSION_COPY);
   const a = useCopy(AUTH_COPY);
   const { locale } = useLocale();
   const branchLabel = useBranchLabel();
@@ -442,6 +447,15 @@ function OperationsHome({ context }: { context: BranchContext }) {
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-core-departments>
             {context.departments.map((code) => {
               const d = getDepartment(departmentId(code), locale);
+              // What the server says this person may do here — presentation only.
+              const mine = (context.permissions ?? []).filter((x) =>
+                x.startsWith(`${code.toLowerCase()}.`),
+              );
+              const level = mine.some((x) => MANAGE_ACTIONS.test(x))
+                ? p.coreLevel.manage
+                : mine.some((x) => !x.endsWith('.view'))
+                  ? p.coreLevel.work
+                  : p.coreLevel.readOnly;
               return (
                 <li
                   key={code}
@@ -457,7 +471,12 @@ function OperationsHome({ context }: { context: BranchContext }) {
                   <div className="min-w-0">
                     <h3 className="text-label font-semibold text-text-primary">{d.name}</h3>
                     <p className="mt-0.5 text-caption text-text-muted">{d.purpose}</p>
-                    <p className="mt-3 text-caption text-text-secondary">{c.core.later}</p>
+                    <p className="mt-3 flex flex-wrap items-center gap-2 text-caption text-text-secondary">
+                      <Pill tone="muted" data-level>
+                        {level}
+                      </Pill>
+                      {c.core.later}
+                    </p>
                   </div>
                 </li>
               );

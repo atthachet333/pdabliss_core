@@ -1,4 +1,4 @@
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, KeyRound, ShieldCheck } from 'lucide-react';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
@@ -12,10 +12,11 @@ import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { ADMIN_COPY } from './adminCopy';
 import { ScopeSummary } from './adminParts';
-import { controlApi, type BranchScope, type MemberDetail } from './api';
-import { RequireCapability } from './CompanyShell';
+import { can, controlApi, type BranchScope, type MemberDetail } from './api';
+import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
+import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, eventLabel, useDateFormat, useDepartmentName, useLoad } from './model';
 import { AreaLink, Fact, Facts, Loading, Pill, Result, Section } from './parts';
 import { BranchScopeEditor } from './UsersPage';
@@ -34,9 +35,9 @@ import { BranchScopeEditor } from './UsersPage';
 export function MemberDetailPage() {
   const { memberId = '' } = useParams();
   return (
-    <RequireCapability capability="members.view">
+    <RequirePermission permission="company.members.view">
       <MemberLoader key={memberId} memberId={memberId} />
-    </RequireCapability>
+    </RequirePermission>
   );
 }
 
@@ -75,7 +76,9 @@ type Saved = { tone: 'success' | 'error'; text: string } | null;
 function Member({ data, replace }: { data: MemberDetail; replace: (d: MemberDetail) => void }) {
   const c = useCopy(CONTROL_COPY);
   const a = useCopy(ADMIN_COPY);
+  const pc = useCopy(PERMISSION_COPY);
   const auth = useCopy(AUTH_COPY);
+  const { overview } = useControl();
   const { date, dateTime } = useDateFormat();
   const m = data.member;
   const name = m.fullName ?? m.email;
@@ -97,6 +100,16 @@ function Member({ data, replace }: { data: MemberDetail; replace: (d: MemberDeta
             {a.people.statuses[m.status]}
           </Pill>
           {m.isSelf && <Pill tone="muted">{c.users.you}</Pill>}
+          {can(overview.me.permissions, 'company.permissions.view') && (
+            <AreaLink
+              to={`/company/permissions?view=members&member=${encodeURIComponent(m.id)}`}
+              className={buttonClasses('ghost', 'md', 'ml-auto px-3')}
+              data-member-permissions
+            >
+              <KeyRound aria-hidden className="size-4" />
+              {pc.members.open}
+            </AreaLink>
+          )}
         </div>
       </div>
       {data.protection && (
@@ -168,7 +181,7 @@ function Member({ data, replace }: { data: MemberDetail; replace: (d: MemberDeta
               <ol className="grid gap-2.5" data-member-history>
                 {data.history.map((e) => (
                   <li key={e.id} className="grid gap-0.5 border-l border-white/[0.08] pl-3">
-                    <span className="text-label text-text-primary">{eventLabel(e, c, a)}</span>
+                    <span className="text-label text-text-primary">{eventLabel(e, c, a, pc)}</span>
                     <span className="text-caption text-text-muted">
                       {dateTime(e.occurredAt)}
                       {e.actor.kind === 'member' &&

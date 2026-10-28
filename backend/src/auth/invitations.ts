@@ -102,7 +102,9 @@ export class InvitationService {
   }
 
   async create(ctx: AuthContext, input: InvitationInput, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.members.manage',
+    });
     const company = access.company;
     const intent: Intent = {
       role: input.role,
@@ -138,7 +140,9 @@ export class InvitationService {
    * is re-checked, and the daily company limit and a short cooldown apply.
    */
   async resend(ctx: AuthContext, invitationId: string, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.members.manage',
+    });
     const old = await this.db.invitation.findFirst({
       where: { id: invitationId, companyId: access.company.id, status: 'PENDING' },
     });
@@ -266,7 +270,9 @@ export class InvitationService {
   }
 
   async revoke(ctx: AuthContext, invitationId: string, meta: RequestMeta) {
-    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.manage' });
+    const access = await requireCompanyAccess(this.db, ctx, {
+      permission: 'company.members.manage',
+    });
     const open = await this.db.invitation.findFirst({
       where: { id: invitationId, companyId: access.company.id, status: 'PENDING' },
       select: { role: true },

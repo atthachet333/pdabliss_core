@@ -4,6 +4,7 @@ import { DEPARTMENT_CODES, type DepartmentCode } from '../billing/catalog.js';
 import type { Db } from '../db/client.js';
 import type { Company, CompanyMember, Subscription } from '../generated/prisma/client.js';
 import { AppError } from '../lib/errors.js';
+import { allowedActiveBranches, canWorkInBranch, effectiveScope } from './branch-access.js';
 import { canEnterCore } from './entitlements.js';
 import { can, departmentAccess, ROLE_CAPABILITIES, type CompanyCapability } from './policy.js';
 import { branchView, type BranchView } from './views.js';
@@ -14,6 +15,7 @@ import { branchView, type BranchView } from './views.js';
  *
  *   session → user → CompanyMember (ACTIVE) → company (+ current subscription)
  *           → capabilities from the role policy
+ *           → branches the member may work in (EP26 branch access)
  *           → selected branch (Session.branchId, re-validated every time)
  *           → departments the member may enter
  *
@@ -36,6 +38,9 @@ export const companyNotActive = () =>
 
 export const branchRequired = () =>
   new AppError(409, 'BRANCH_REQUIRED', 'Choose the branch you are working in first.');
+
+export const branchNotAllowed = () =>
+  new AppError(403, 'BRANCH_NOT_ALLOWED', 'You do not have access to this branch.');
 
 export interface CompanyAccess {
   member: CompanyMember;
@@ -120,27 +125,30 @@ export async function allowedDepartments(db: Db, access: CompanyAccess) {
 export interface BranchContextView {
   company: { id: string; displayName: string };
   role: CompanyMember['role'];
-  /** Active branches, Head Office first. */
+  /** EP26: ALL_BRANCHES or SELECTED_BRANCHES (the owner is always ALL_BRANCHES). */
+  scope: CompanyMember['branchScope'];
+  /** Active branches this person may work in, Head Office first. */
   branches: BranchView[];
   selected: BranchView | null;
-  /** True when the person must choose (several active branches, none selected). */
+  /** True when the person must choose (several allowed branches, none selected). */
   needsSelection: boolean;
+  /** EP26: 'NO_BRANCH_ACCESS' when no active branch is open to this person. */
+  blocked: 'NO_BRANCH_ACCESS' | null;
   /** Departments this person may open in CORE Operations. */
   departments: DepartmentCode[];
 }
 
 /**
- * The branch context of this session. Exactly one active branch is selected
- * automatically; with several, the person chooses. A stored branch that is
- * no longer valid (another company, deactivated) is dropped, never trusted.
+ * The branch context of this session. Only branches the person may work in
+ * are listed (EP26). Exactly one is selected automatically; with several, the
+ * person chooses; with none, the context is blocked. A stored branch that is
+ * no longer valid (another company, deactivated, access removed) is dropped,
+ * never trusted.
  */
 export async function branchContext(db: Db, ctx: AuthContext): Promise<BranchContextView> {
   const access = await requireCompanyAccess(db, ctx);
   const companyId = access.company.id;
-  const branches = await db.branch.findMany({
-    where: { companyId, status: 'ACTIVE' },
-    orderBy: { code: 'asc' },
-  });
+  const branches = await allowedActiveBranches(db, access.member);
   let selected = branches.find((b) => b.id === ctx.session.branchId) ?? null;
   if (!selected && branches.length === 1) {
     selected = branches[0]!;
@@ -157,14 +165,21 @@ export async function branchContext(db: Db, ctx: AuthContext): Promise<BranchCon
   return {
     company: { id: companyId, displayName: access.company.name },
     role: access.member.role,
+    scope: effectiveScope(access.member),
     branches: branches.map(branchView),
     selected: selected ? branchView(selected) : null,
-    needsSelection: !selected,
+    needsSelection: !selected && branches.length > 0,
+    blocked: branches.length === 0 ? 'NO_BRANCH_ACCESS' : null,
     departments: await allowedDepartments(db, access),
   };
 }
 
-/** Selects the branch for this session — only an ACTIVE branch of the caller's own company. */
+/**
+ * Selects the branch for this session — only an ACTIVE branch of the caller's
+ * own company that the caller may work in (EP26). Another company's branch is
+ * simply not found; a branch of the own company outside the caller's access is
+ * refused.
+ */
 export async function selectBranch(db: Db, ctx: AuthContext, branchId: string) {
   const access = await requireCompanyAccess(db, ctx);
   const branch = await db.branch.findFirst({
@@ -174,6 +189,7 @@ export async function selectBranch(db: Db, ctx: AuthContext, branchId: string) {
   if (branch.status !== 'ACTIVE') {
     throw new AppError(409, 'BRANCH_INACTIVE', 'This branch is not active.');
   }
+  if (!(await canWorkInBranch(db, access.member, branch.id))) throw branchNotAllowed();
   await db.session.update({
     where: { id: ctx.session.id },
     data: { branchId: branch.id, branchSelectedAt: new Date() },
@@ -183,7 +199,7 @@ export async function selectBranch(db: Db, ctx: AuthContext, branchId: string) {
 
 export interface OperationsContext {
   companyId: string;
-  branch: { id: string; code: string; name: string };
+  branch: { id: string; code: string; name: string; type: 'HEAD_OFFICE' | 'BRANCH' };
   role: CompanyMember['role'];
   departments: DepartmentCode[];
 }
@@ -191,21 +207,33 @@ export interface OperationsContext {
 /**
  * The gate every future operational API goes through: an active member of an
  * eligible company, working in a selected, still-active branch of that same
- * company. Callers then scope every query by `companyId` + `branch.id` and
- * check the department against `departments`.
+ * company that the member may still work in (EP26). Callers then scope every
+ * query by `companyId` + `branch.id` and check the department against
+ * `departments`. A stored branch that fails any of this is cleared from the
+ * session, so a stale context cannot be reused.
  */
 export async function requireOperationsContext(
   db: Db,
   ctx: AuthContext,
 ): Promise<OperationsContext> {
   const access = await requireCompanyAccess(db, ctx);
-  const branch = ctx.session.branchId
-    ? await db.branch.findFirst({
-        where: { id: ctx.session.branchId, companyId: access.company.id, status: 'ACTIVE' },
-        select: { id: true, code: true, name: true },
-      })
-    : null;
-  if (!branch) throw branchRequired();
+  const stored = ctx.session.branchId;
+  const branch =
+    stored && (await canWorkInBranch(db, access.member, stored))
+      ? await db.branch.findFirst({
+          where: { id: stored, companyId: access.company.id, status: 'ACTIVE' },
+          select: { id: true, code: true, name: true, type: true },
+        })
+      : null;
+  if (!branch) {
+    if (stored) {
+      await db.session.update({
+        where: { id: ctx.session.id },
+        data: { branchId: null, branchSelectedAt: null },
+      });
+    }
+    throw branchRequired();
+  }
   return {
     companyId: access.company.id,
     branch,

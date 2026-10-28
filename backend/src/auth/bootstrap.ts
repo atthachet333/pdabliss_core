@@ -476,6 +476,54 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     assignments = 'created';
   }
 
+  // EP26: the demo staff works only in the demo branch (00001), so branch
+  // restriction can be exercised: one allowed branch → selected automatically.
+  // Applied once — the seed never overrides a later administrator decision
+  // (any branch-access change, by the seed or an admin, leaves an audit entry).
+  let branchAccess: 'restricted' | 'unchanged' = 'unchanged';
+  const staffMember = staff
+    ? await db.companyMember.findUnique({ where: { userId: staff.id } })
+    : null;
+  const demoBranch = await db.branch.findUnique({
+    where: { companyId_code: { companyId: company.id, code: DEMO_BRANCH.code } },
+  });
+  if (staffMember && demoBranch && staffMember.companyId === company.id) {
+    const decided = await db.auditLog.count({
+      where: {
+        companyId: company.id,
+        action: 'MEMBER_BRANCH_ACCESS_CHANGED',
+        entityId: staffMember.id,
+      },
+    });
+    if (!decided) {
+      await db.$transaction(async (tx) => {
+        await tx.companyMember.update({
+          where: { id: staffMember.id },
+          data: { branchScope: 'SELECTED_BRANCHES' },
+        });
+        await tx.memberBranchAccess.createMany({
+          data: [{ companyId: company.id, memberId: staffMember.id, branchId: demoBranch.id }],
+          skipDuplicates: true,
+        });
+        await recordCompanyEvent(tx, SEED_META, {
+          action: 'MEMBER_BRANCH_ACCESS_CHANGED',
+          actorId: null,
+          actorScope: 'seed',
+          companyId: company.id,
+          entityType: 'CompanyMember',
+          entityId: staffMember.id,
+          details: {
+            fromScope: staffMember.branchScope,
+            fromBranches: [],
+            toScope: 'SELECTED_BRANCHES',
+            toBranches: [DEMO_BRANCH.code],
+          },
+        });
+      });
+      branchAccess = 'restricted';
+    }
+  }
+
   return {
     companyId: company.id,
     company: companyOutcome,
@@ -484,6 +532,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     subscription: subscription ? 'unchanged' : 'created',
     identities: results,
     assignments,
+    staffBranchAccess: branchAccess,
   };
 }
 

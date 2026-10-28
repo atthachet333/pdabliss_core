@@ -144,6 +144,16 @@ model Department {
   @@unique([companyId, code])
 }
 
+/// Which branches a membership may work in (EP26). Every membership that
+/// existed before EP26 is ALL_BRANCHES — nobody is locked out by the upgrade.
+/// The Company Owner is always ALL_BRANCHES (database CHECK).
+enum BranchAccessScope {
+  /// Every active branch of the company, including branches added later.
+  ALL_BRANCHES
+  /// Only the branches listed in MemberBranchAccess.
+  SELECTED_BRANCHES
+}
+
 /// Customer-level role inside one company (EP23 foundation; enforced from EP25/EP26).
 /// Never confused with platform roles: SYSTEM_ADMIN administers one company,
 /// PLATFORM_ADMIN operates PDA BLISS CORE itself.
@@ -165,25 +175,48 @@ enum CompanyMemberStatus {
 
 /// A user's place in a company. Department access (Membership) comes on top (EP25 foundation).
 model CompanyMember {
-  id            String              @id @default(cuid())
+  id            String               @id @default(cuid())
   companyId     String
-  company       Company             @relation(fields: [companyId], references: [id])
+  company       Company              @relation(fields: [companyId], references: [id])
   userId        String
-  user          User                @relation(fields: [userId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
   role          CompanyRole
   /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
   /// enforced by the database (unique + CHECK, EP24). The owner is always ACTIVE (CHECK, EP25).
   ownerSlot     Boolean?
-  status        CompanyMemberStatus @default(ACTIVE)
+  status        CompanyMemberStatus  @default(ACTIVE)
   /// Job title inside this company (set by company administration; not a permission).
   jobTitle      String?
   deactivatedAt DateTime?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  /// Operational branch access (EP26). Administration authority does not depend on it.
+  branchScope   BranchAccessScope    @default(ALL_BRANCHES)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  branchAccess  MemberBranchAccess[]
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
   @@unique([companyId, ownerSlot])
+  /// Target of MemberBranchAccess's company-bound foreign key (EP26).
+  @@unique([id, companyId])
+  @@index([companyId])
+}
+
+/// One branch a SELECTED_BRANCHES membership may work in (EP26). Both foreign
+/// keys carry the company id, so the database refuses a grant that would mix
+/// companies; a branch appears at most once per membership.
+model MemberBranchAccess {
+  id          String        @id @default(cuid())
+  companyId   String
+  memberId    String
+  member      CompanyMember @relation(fields: [memberId, companyId], references: [id, companyId], onDelete: Cascade)
+  branchId    String
+  branch      Branch        @relation(fields: [branchId, companyId], references: [id, companyId])
+  grantedById String?
+  createdAt   DateTime      @default(now())
+
+  @@unique([memberId, branchId])
+  @@index([branchId])
   @@index([companyId])
 }
 
@@ -206,14 +239,14 @@ enum BranchStatus {
 }
 
 model Branch {
-  id             String       @id @default(cuid())
+  id             String               @id @default(cuid())
   companyId      String
-  company        Company      @relation(fields: [companyId], references: [id])
+  company        Company              @relation(fields: [companyId], references: [id])
   /// Stable 5-digit code, unique per company; the Head Office is 00000.
   code           String
   name           String
   type           BranchType
-  status         BranchStatus @default(ACTIVE)
+  status         BranchStatus         @default(ACTIVE)
   /// TRUE only for the Head Office (NULL otherwise): at most one per company in
   /// the database; onboarding creates it in the same transaction as the company.
   headOfficeSlot Boolean?
@@ -227,16 +260,20 @@ model Branch {
   province       String
   postalCode     String
   /// ISO 3166-1 alpha-2.
-  countryCode    String       @default("TH")
+  countryCode    String               @default("TH")
   phone          String?
   deactivatedAt  DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
   /// Sessions working in this branch (EP25 branch context).
   sessions       Session[]
+  /// Memberships granted this branch specifically (EP26).
+  memberAccess   MemberBranchAccess[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
+  /// Target of MemberBranchAccess's company-bound foreign key (EP26).
+  @@unique([id, companyId])
   @@index([companyId])
 }
 
@@ -610,28 +647,37 @@ enum InvitationStatus {
 }
 
 model Invitation {
-  id              String           @id @default(cuid())
+  id              String            @id @default(cuid())
   companyId       String
-  company         Company          @relation(fields: [companyId], references: [id])
+  company         Company           @relation(fields: [companyId], references: [id])
   /// The invitee address, bound: only an account with this normalized email can accept.
   email           String
   emailNormalized String
   role            CompanyRole
   /// Language of the invitation email (EP25; NULL for older invitations).
   locale          AppLocale?
-  tokenHash       String           @unique
-  status          InvitationStatus @default(PENDING)
+  tokenHash       String            @unique
+  status          InvitationStatus  @default(PENDING)
   invitedById     String
-  invitedBy       User             @relation("InvitationInviter", fields: [invitedById], references: [id])
+  invitedBy       User              @relation("InvitationInviter", fields: [invitedById], references: [id])
   expiresAt       DateTime
   acceptedAt      DateTime?
   acceptedById    String?
-  acceptedBy      User?            @relation("InvitationAcceptor", fields: [acceptedById], references: [id])
+  acceptedBy      User?             @relation("InvitationAcceptor", fields: [acceptedById], references: [id])
   revokedAt       DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  /// EP26 intent, re-validated at acceptance: departments to assign (only those
+  /// still enabled are applied) and the branch access to give.
+  departments     DepartmentCode[]  @default([])
+  branchScope     BranchAccessScope @default(ALL_BRANCHES)
+  /// Branch ids for SELECTED_BRANCHES (only active branches of the company are applied).
+  branchIds       String[]          @default([])
+  /// Set on the replacement when an invitation is resent (the old row is revoked).
+  resentFromId    String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([companyId, status])
+  @@index([companyId, createdAt])
   @@index([emailNormalized])
 }
 

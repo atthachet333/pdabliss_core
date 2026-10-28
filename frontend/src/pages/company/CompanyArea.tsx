@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router';
 import { SignedInArea } from '@/features/account/PortalShell';
+import { BranchDetailPage } from '@/features/company-center/BranchDetailPage';
 import { BranchesPage } from '@/features/company-center/BranchesPage';
 import { CompanyShell } from '@/features/company-center/CompanyShell';
 import { DepartmentsPage } from '@/features/company-center/DepartmentsPage';
+import { InvitationsPage } from '@/features/company-center/InvitationsPage';
+import { MemberDetailPage } from '@/features/company-center/MemberDetailPage';
 import { Overview } from '@/features/company-center/Overview';
 import { ProfilePage } from '@/features/company-center/ProfilePage';
 import { SecurityPage } from '@/features/company-center/SecurityPage';
@@ -15,6 +18,9 @@ import { UsersPage } from '@/features/company-center/UsersPage';
  * website and the Account Portal never load it. Only an active member of an
  * active company gets here (SignedInArea); each API call is authorized again
  * by the server.
+ *
+ * EP26 adds the branch detail (/company/branches/:id), one member's page
+ * (/company/users/:id) and the invitation lifecycle (/company/users/invitations).
  */
 export default function CompanyArea() {
   return (
@@ -25,7 +31,10 @@ export default function CompanyArea() {
             <Route index element={<Overview />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="branches" element={<BranchesPage />} />
+            <Route path="branches/:branchId" element={<BranchDetailPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="users/invitations" element={<InvitationsPage />} />
+            <Route path="users/:memberId" element={<MemberDetailPage />} />
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />
             <Route path="security" element={<SecurityPage />} />

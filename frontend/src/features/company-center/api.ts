@@ -63,7 +63,10 @@ export type Attention =
   | { code: 'DEPARTMENTS_UNASSIGNED'; departments: DepartmentCode[] }
   | { code: 'INVITATIONS_PENDING'; count: number }
   | { code: 'INVITATIONS_EXPIRED'; count: number }
-  | { code: 'PERIOD_ENDING'; endsAt: string };
+  | { code: 'PERIOD_ENDING'; endsAt: string }
+  /** EP26: active people whose branch access leaves them no active branch. */
+  | { code: 'MEMBERS_WITHOUT_BRANCH'; count: number }
+  | { code: 'BRANCHES_INACTIVE'; count: number };
 
 export interface ControlOverview {
   company: CompanyProfile;
@@ -119,8 +122,14 @@ export interface ProfileUpdate {
   };
 }
 
+/** Who works in a branch (EP26): active people with access, and their departments. */
+export interface BranchAccessSummary {
+  people: number;
+  departments: DepartmentCode[];
+}
+
 export interface BranchList {
-  branches: BranchInfo[];
+  branches: (BranchInfo & { access: BranchAccessSummary })[];
   /** The next free code, proposed for a new branch. */
   suggestedCode: string | null;
   canManage: boolean;
@@ -141,6 +150,24 @@ export interface BranchInput {
 
 export type MemberStatus = 'ACTIVE' | 'DEACTIVATED';
 
+/** EP26 branch access: every active branch, or the listed ones. */
+export type BranchScope = 'ALL_BRANCHES' | 'SELECTED_BRANCHES';
+
+/** A branch named inside another record (access lists, invitations). */
+export interface BranchRef {
+  id: string;
+  code: string;
+  name: string;
+  type: 'HEAD_OFFICE' | 'BRANCH';
+  status: string;
+}
+
+export interface BranchAccess {
+  scope: BranchScope;
+  /** Empty for ALL_BRANCHES. */
+  branches: BranchRef[];
+}
+
 export interface Member {
   id: string;
   fullName: string | null;
@@ -154,6 +181,8 @@ export interface Member {
   deactivatedAt: string | null;
   lastLoginAt: string | null;
   departments: { code: DepartmentCode; primary: boolean; active: boolean }[];
+  /** EP26: where this person may work (the owner is always ALL_BRANCHES). */
+  branchAccess: BranchAccess;
   isOwner: boolean;
   isSelf: boolean;
   /** Whether the caller may change this person (decided by the server). */
@@ -173,11 +202,100 @@ export interface Invitation {
 
 export interface MemberList {
   members: Member[];
+  /** EP26 paging (the list is searched and filtered on the server). */
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  summary: { active: number; deactivated: number };
   invitations: Invitation[];
+  branches: BranchRef[];
   assignableRoles: CompanyRole[];
   canManage: boolean;
   enabledDepartments: DepartmentCode[];
   defaultLocale: Locale;
+}
+
+export interface MemberQuery {
+  q?: string;
+  role?: CompanyRole | '';
+  status?: MemberStatus | '';
+  department?: DepartmentCode | '';
+  branch?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export type MemberProtection = 'OWNER_PROTECTED' | 'SELF_CHANGE' | 'PEER_ADMIN';
+
+export interface MemberDetail {
+  member: Member;
+  /** Why the caller may not change this person; null when they may (or only read). */
+  protection: MemberProtection | null;
+  assignableRoles: CompanyRole[];
+  enabledDepartments: DepartmentCode[];
+  branches: BranchRef[];
+  history: ActivityItem[];
+  canManage: boolean;
+}
+
+export interface BranchDetail {
+  branch: BranchInfo;
+  access: BranchAccessSummary & { allBranches: number; selected: number };
+  /** null when the caller may not see people. */
+  people:
+    | {
+        id: string;
+        fullName: string | null;
+        email: string;
+        role: CompanyRole;
+        scope: BranchScope;
+        departments: { code: DepartmentCode; primary: boolean; active: boolean }[];
+      }[]
+    | null;
+  peopleTotal: number | null;
+  enabledDepartments: DepartmentCode[];
+  canManage: boolean;
+  canManagePeople: boolean;
+}
+
+export type InvitationState = 'PENDING' | 'EXPIRED' | 'ACCEPTED' | 'REVOKED';
+
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  role: CompanyRole;
+  locale: Locale | null;
+  state: InvitationState;
+  departments: DepartmentCode[];
+  branchAccess: BranchAccess;
+  invitedBy: { email: string; fullName: string | null };
+  acceptedBy: { email: string; fullName: string | null } | null;
+  resent: boolean;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  canManage: boolean;
+}
+
+export interface InvitationList {
+  invitations: InvitationRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  counts: Record<InvitationState, number>;
+  canManage: boolean;
+}
+
+export interface InvitationInput {
+  email: string;
+  role: CompanyRole;
+  locale: Locale;
+  departments: DepartmentCode[];
+  branchScope: BranchScope;
+  branchIds?: string[];
 }
 
 export type DepartmentState = 'ENABLED' | 'AVAILABLE' | 'NOT_IN_PACKAGE';
@@ -218,14 +336,27 @@ export interface CompanySettings {
 export interface BranchContext {
   company: { id: string; displayName: string };
   role: CompanyRole;
+  /** EP26: the person's branch scope. */
+  scope?: BranchScope;
+  /** Only branches this person may work in (server-filtered). */
   branches: BranchInfo[];
   selected: BranchInfo | null;
   needsSelection: boolean;
+  /** EP26: set when no active branch is open to this person. */
+  blocked?: 'NO_BRANCH_ACCESS' | null;
   departments: DepartmentCode[];
 }
 
 const C = '/api/v1/company';
 const id = (v: string) => encodeURIComponent(v);
+
+/** `?a=1&b=2` from the set values (empty ones are left out). */
+const query = (params: Record<string, string | number | undefined>) => {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') q.set(k, String(v));
+  const s = q.toString();
+  return s ? `?${s}` : '';
+};
 
 export const controlApi = {
   overview: () => apiRequest<ControlOverview>('GET', `${C}/control`),
@@ -240,6 +371,8 @@ export const controlApi = {
     apiRequest<{ branch: BranchInfo }>('POST', `${C}/current/branches`, body),
   updateBranch: (branchId: string, body: Partial<BranchInput>) =>
     apiRequest<{ branch: BranchInfo }>('PATCH', `${C}/current/branches/${id(branchId)}`, body),
+  branchDetail: (branchId: string) =>
+    apiRequest<BranchDetail>('GET', `${C}/current/branches/${id(branchId)}/detail`),
   setBranchActive: (branchId: string, active: boolean) =>
     apiRequest<{ branch: BranchInfo }>(
       'POST',
@@ -247,7 +380,15 @@ export const controlApi = {
       {},
     ),
 
-  members: () => apiRequest<MemberList>('GET', `${C}/current/members`),
+  members: (q: MemberQuery = {}) =>
+    apiRequest<MemberList>('GET', `${C}/current/members${query({ ...q })}`),
+  member: (memberId: string) =>
+    apiRequest<MemberDetail>('GET', `${C}/current/members/${id(memberId)}`),
+  setMemberBranches: (memberId: string, branchScope: BranchScope, branchIds: string[]) =>
+    apiRequest<MemberDetail>('PUT', `${C}/current/members/${id(memberId)}/branches`, {
+      branchScope,
+      ...(branchScope === 'SELECTED_BRANCHES' ? { branchIds } : {}),
+    }),
   updateMember: (memberId: string, body: { role?: CompanyRole; jobTitle?: string | null }) =>
     apiRequest<MemberList>('PATCH', `${C}/current/members/${id(memberId)}`, body),
   setMemberActive: (memberId: string, active: boolean) =>
@@ -265,11 +406,22 @@ export const controlApi = {
       departments,
       primary,
     }),
-  invite: (body: { email: string; role: CompanyRole; locale: Locale }) =>
+  invite: (body: InvitationInput) =>
     apiRequest<{ id: string; email: string; role: CompanyRole; expiresAt: string }>(
       'POST',
       `${C}/invitations`,
       body,
+    ),
+  invitations: (state: InvitationState | 'ALL', page = 1) =>
+    apiRequest<InvitationList>(
+      'GET',
+      `${C}/current/invitations${query({ state, page, pageSize: 25 })}`,
+    ),
+  resendInvitation: (invitationId: string) =>
+    apiRequest<{ id: string; email: string; role: CompanyRole; expiresAt: string }>(
+      'POST',
+      `${C}/invitations/${id(invitationId)}/resend`,
+      {},
     ),
   revokeInvitation: (invitationId: string) =>
     apiRequest<{ status: 'revoked' }>('POST', `${C}/invitations/${id(invitationId)}/revoke`, {}),

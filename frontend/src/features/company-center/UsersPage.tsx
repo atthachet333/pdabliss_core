@@ -1,5 +1,5 @@
-import { MailPlus, ShieldCheck, UserRound } from 'lucide-react';
-import { useId, useState, type FormEvent } from 'react';
+import { ChevronRight, MailPlus, Search, ShieldCheck } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import type { CompanyRole } from '@/features/auth/api';
@@ -9,52 +9,152 @@ import type { DepartmentCode } from '@/features/company/api';
 import type { Locale } from '@/i18n/locales';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
-import { controlApi, type Member, type MemberList } from './api';
+import { ADMIN_COPY } from './adminCopy';
+import { BranchCode, FieldGroup, ScopeSummary } from './adminParts';
+import {
+  controlApi,
+  type BranchRef,
+  type BranchScope,
+  type MemberList,
+  type MemberQuery,
+} from './api';
 import { RequireCapability } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
-import { errorText, initials, useDateFormat, useDepartmentName, useLoad } from './model';
-import { Loading, PageTitle, Pill, Result, Section } from './parts';
+import { errorText, useDateFormat, useDepartmentName } from './model';
+import { AreaLink, AreaNavLink, Loading, PageTitle, Pill, Result, Section } from './parts';
 
 /*
- * /company/users — the people of the company and its open invitations.
- * Owner and System Admin manage; an Executive reads; department roles do not
- * open this page. What the caller may change on each person comes from the
- * server (`canManage`): the Company Owner is never manageable, nobody changes
- * their own access, and a System Admin leaves other System Admins to the owner.
+ * /company/users (EP25; EP26: a people-management surface). Who has access,
+ * with what role, in which departments and branches, whether they are active,
+ * and when they last signed in. Search (name, email, job title) and filters
+ * (role, status, department, branch) run on the SERVER, a page at a time, so
+ * a company with hundreds of people never renders them all. Each row opens
+ * the member's page (/company/users/:id) where access is managed. Owner and
+ * System Admin invite; an Executive reads; department roles do not open this.
  *
- * One human = one account: departments are assignments on that one account.
+ * One human = one account: departments and branches are access on that one
+ * account, never extra accounts.
  */
+
+const PAGE_SIZE = 25;
+const ROLES: CompanyRole[] = [
+  'COMPANY_OWNER',
+  'SYSTEM_ADMIN',
+  'EXECUTIVE',
+  'DEPARTMENT_MANAGER',
+  'DEPARTMENT_STAFF',
+  'VIEWER',
+];
 
 export function UsersPage() {
   return (
     <RequireCapability capability="members.view">
-      <Users />
+      <People />
     </RequireCapability>
   );
 }
 
-function Users() {
+/** People / Invitations — two views of the same administration. */
+export function PeopleTabs() {
+  const a = useCopy(ADMIN_COPY);
+  const tab =
+    'inline-flex min-h-11 items-center border-b-2 px-1 text-label transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus motion-reduce:transition-none';
+  return (
+    <nav aria-label={a.people.tabsLabel} className="flex gap-6 border-b border-white/[0.07]">
+      {(
+        [
+          ['/company/users', a.people.tabs.people, true],
+          ['/company/users/invitations', a.people.tabs.invitations, false],
+        ] as const
+      ).map(([to, label, end]) => (
+        <AreaNavLink
+          key={to}
+          to={to}
+          end={end}
+          className={({ isActive }) =>
+            cn(
+              tab,
+              isActive
+                ? 'border-brand-primary font-semibold text-text-primary'
+                : 'border-transparent text-text-secondary hover:text-text-primary',
+            )
+          }
+        >
+          {label}
+        </AreaNavLink>
+      ))}
+    </nav>
+  );
+}
+
+type Filters = Required<Pick<MemberQuery, 'role' | 'status' | 'department'>> & { branch: string };
+const NO_FILTERS: Filters = { role: '', status: '', department: '', branch: '' };
+
+function People() {
   const c = useCopy(CONTROL_COPY);
+  const a = useCopy(ADMIN_COPY);
+  const auth = useCopy(AUTH_COPY);
+  const deptName = useDepartmentName();
   const { reload: reloadOverview } = useControl();
-  const { state, set } = useLoad(controlApi.members);
+  const base = useId();
+  const [q, setQ] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [data, setData] = useState<MemberList | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const request = useRef(0);
 
-  if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
-  const data = state.data;
-  const active = data.members.filter((m) => m.status === 'ACTIVE').length;
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  const updated = (next: MemberList, text: string) => {
-    set(next);
-    setNotice({ tone: 'success', text });
-    void reloadOverview().catch(() => undefined);
+  const load = async (page: number) => {
+    const n = ++request.current;
+    const next = await controlApi.members({ q: debounced, ...filters, page, pageSize: PAGE_SIZE });
+    if (n !== request.current) return; // a newer search replaced this one
+    setData((prev) =>
+      page > 1 && prev ? { ...next, members: [...prev.members, ...next.members] } : next,
+    );
+    setError(null);
   };
 
+  useEffect(() => {
+    load(1).catch((e: unknown) => setError(e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debounced, filters]);
+
+  if (!data && !error) return <Loading label={c.shell.loading} />;
+  if (!data) return <Notice tone="error">{errorText(error, c)}</Notice>;
+  const filtered = !!debounced || Object.values(filters).some(Boolean);
+
+  const select = (
+    key: keyof Filters,
+    label: string,
+    options: [string, string][],
+  ) => (
+    <SelectField
+      id={`${base}-${key}`}
+      label={label}
+      value={filters[key]}
+      onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
+      data-filter={key}
+    >
+      <option value="">{a.people.any}</option>
+      {options.map(([value, text]) => (
+        <option key={value} value={value}>
+          {text}
+        </option>
+      ))}
+    </SelectField>
+  );
+
   return (
-    <div className="grid gap-8">
+    <div className="grid gap-6">
       <PageTitle
         title={c.users.title}
         lead={c.users.lead}
@@ -75,6 +175,7 @@ function Users() {
           ) : undefined
         }
       />
+      <PeopleTabs />
       {!data.canManage && <Notice tone="info">{c.shell.readOnly}</Notice>}
       <div aria-live="polite">{notice && <Notice tone={notice.tone}>{notice.text}</Notice>}</div>
 
@@ -83,394 +184,332 @@ function Users() {
           <InviteForm
             roles={data.assignableRoles}
             defaultLocale={data.defaultLocale}
+            departments={data.enabledDepartments}
+            branches={data.branches.filter((b) => b.status === 'ACTIVE')}
             onCancel={() => setInviting(false)}
-            onSent={async (email) => {
+            onSent={(email) => {
               setInviting(false);
               setNotice({ tone: 'success', text: c.users.sent(email) });
-              set(await controlApi.members());
               void reloadOverview().catch(() => undefined);
             }}
           />
         </Section>
       )}
 
-      <Section
-        id="members-title"
-        title={c.users.members}
-        aside={<span className="text-caption text-text-muted">{c.users.count(active)}</span>}
-      >
-        <ul className="grid gap-3" data-member-list>
-          {data.members.map((m) => (
-            <li key={m.id}>
-              <MemberRow
-                member={m}
-                data={data}
-                open={open === m.id}
-                onToggle={() => {
-                  setOpen(open === m.id ? null : m.id);
-                  setNotice(null);
-                }}
-                onUpdated={(next, text) => {
-                  updated(next, text);
-                  setOpen(null);
-                }}
-                onError={(text) => setNotice({ tone: 'error', text })}
+      <section aria-labelledby="members-title" className="grid gap-4">
+        <h2 id="members-title" className="sr-only">
+          {c.users.members}
+        </h2>
+        <div
+          role="search"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))] lg:items-end"
+        >
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label
+              htmlFor={`${base}-q`}
+              className="mb-2 block text-label font-medium text-text-primary"
+            >
+              {a.people.search}
+            </label>
+            <div className="relative">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
               />
-            </li>
-          ))}
-        </ul>
-      </Section>
+              <input
+                id={`${base}-q`}
+                type="search"
+                value={q}
+                maxLength={120}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={a.people.searchHint}
+                aria-describedby={`${base}-count`}
+                className="min-h-12 w-full rounded-xl bg-white/[0.04] py-2 pr-3 pl-9 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.14)] placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                data-member-search
+              />
+            </div>
+          </div>
+          {select(
+            'role',
+            a.people.role,
+            ROLES.map((r) => [r, auth.roles[r]]),
+          )}
+          {select('status', a.people.status, [
+            ['ACTIVE', a.people.statuses.ACTIVE],
+            ['DEACTIVATED', a.people.statuses.DEACTIVATED],
+          ])}
+          {select(
+            'department',
+            a.people.department,
+            data.enabledDepartments.map((d) => [d, deptName(d)]),
+          )}
+          {select(
+            'branch',
+            a.people.branch,
+            data.branches.map((b) => [b.id, `${b.code} · ${b.name}`]),
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p id={`${base}-count`} role="status" className="text-caption text-text-muted">
+            {a.people.results(data.total)} · {c.users.count(data.summary.active)}
+          </p>
+          {filtered && (
+            <button
+              type="button"
+              onClick={() => {
+                setQ('');
+                setFilters(NO_FILTERS);
+              }}
+              className={buttonClasses('ghost', 'md', 'px-3')}
+            >
+              {a.people.clear}
+            </button>
+          )}
+        </div>
 
-      <Invitations
-        data={data}
-        onChanged={(next, text) => updated(next, text)}
-        onError={(text) => setNotice({ tone: 'error', text })}
-      />
+        {data.members.length === 0 ? (
+          <p className="py-6 text-label text-text-secondary">{a.people.none}</p>
+        ) : (
+          <MemberRows data={data} />
+        )}
+        {data.hasMore && (
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => {
+              setLoadingMore(true);
+              load(data.page + 1)
+                .catch((e: unknown) => setNotice({ tone: 'error', text: errorText(e, c) }))
+                .finally(() => setLoadingMore(false));
+            }}
+            className={buttonClasses('secondary', 'md', 'w-fit')}
+            data-show-more
+          >
+            {loadingMore ? a.people.loadingMore : a.people.showMore}
+          </button>
+        )}
+      </section>
     </div>
   );
 }
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden
-      className="grid size-10 shrink-0 place-items-center rounded-full bg-white/[0.06] text-caption font-semibold text-text-secondary"
-    >
-      {initials(name)}
-    </span>
-  );
-}
-
-function MemberRow({
-  member: m,
-  data,
-  open,
-  onToggle,
-  onUpdated,
-  onError,
-}: {
-  member: Member;
-  data: MemberList;
-  open: boolean;
-  onToggle: () => void;
-  onUpdated: (next: MemberList, text: string) => void;
-  onError: (text: string) => void;
-}) {
+function MemberRows({ data }: { data: MemberList }) {
   const c = useCopy(CONTROL_COPY);
-  const a = useCopy(AUTH_COPY);
+  const a = useCopy(ADMIN_COPY);
+  const auth = useCopy(AUTH_COPY);
   const deptName = useDepartmentName();
   const { date } = useDateFormat();
-  const panelId = useId();
-  const name = m.fullName ?? m.email;
-  const off = m.status === 'DEACTIVATED';
-
+  const cols =
+    'lg:grid-cols-[minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.75fr)_minmax(0,0.8fr)_1.25rem]';
   return (
-    <article
-      aria-label={name}
-      data-member={m.email}
-      data-role={m.role}
-      data-status={m.status}
-      className={cn(
-        'grid gap-4 rounded-2xl p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)] sm:p-5',
-        off ? 'opacity-75' : 'bg-white/[0.025]',
-      )}
-    >
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:items-center">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={name} />
-          <div className="min-w-0">
-            <p className="flex flex-wrap items-center gap-2">
-              <span className="text-label font-semibold break-words text-text-primary">{name}</span>
-              {m.isSelf && <Pill tone="muted">{c.users.you}</Pill>}
-              {off && <Pill tone="warning">{c.users.deactivatedNote}</Pill>}
-            </p>
-            <p className="text-caption break-all text-text-secondary">{m.email}</p>
-            <p className="text-caption text-text-muted">
-              {[m.jobTitle, m.phone].filter(Boolean).join(' · ') || null}
-            </p>
-          </div>
-        </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Pill tone={m.isOwner ? 'teal' : 'neutral'}>
-            {m.isOwner && <ShieldCheck aria-hidden className="size-3.5" />}
-            {a.roles[m.role]}
-          </Pill>
-          {m.isOwner ? (
-            <span className="text-caption text-text-muted">{c.users.allDepartments}</span>
-          ) : m.departments.length ? (
-            m.departments.map((d) => (
-              <Pill key={d.code} tone="muted" className={d.active ? '' : 'line-through'}>
-                {deptName(d.code)}
-                {d.primary && <span className="text-brand-soft">· {c.users.primary}</span>}
-                {!d.active && <span className="sr-only">({c.users.disabledDept})</span>}
-              </Pill>
-            ))
-          ) : (
-            <span className="text-caption text-text-muted">{c.users.departmentsNone}</span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 md:justify-end">
-          {m.canManage ? (
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-expanded={open}
-              aria-controls={panelId}
-              className={buttonClasses('secondary', 'md')}
-              data-manage={m.email}
-            >
-              {c.users.manage}
-            </button>
-          ) : (
-            data.canManage && (
-              <span className="text-caption text-text-muted">
-                {m.isOwner ? c.users.owner : m.isSelf ? null : c.users.protectedNote}
-              </span>
-            )
-          )}
-        </div>
+    <div className="grid gap-1.5">
+      <div
+        aria-hidden
+        className={cn('hidden gap-4 px-4 pb-1 text-caption text-text-muted lg:grid', cols)}
+      >
+        <span>{a.people.columns.person}</span>
+        <span>{a.people.columns.role}</span>
+        <span>{a.people.columns.departments}</span>
+        <span>{a.people.columns.branches}</span>
+        <span>{a.people.columns.status}</span>
+        <span>{a.people.columns.lastSignIn}</span>
+        <span />
       </div>
-      <p className="text-caption text-text-muted">
-        {c.users.joined(date(m.joinedAt))} ·{' '}
-        {m.lastLoginAt ? c.users.lastLogin(date(m.lastLoginAt)) : c.users.neverLoggedIn}
-      </p>
-      <div id={panelId} hidden={!open}>
-        {open && <ManagePanel member={m} data={data} onUpdated={onUpdated} onError={onError} />}
-      </div>
-    </article>
+      <ul className="grid gap-1.5" data-member-list>
+        {data.members.map((m) => {
+          const name = m.fullName ?? m.email;
+          const off = m.status === 'DEACTIVATED';
+          return (
+            <li key={m.id} data-member={m.email} data-role={m.role} data-status={m.status}>
+              <AreaLink
+                to={`/company/users/${encodeURIComponent(m.id)}`}
+                className={cn(
+                  'relative grid gap-x-4 gap-y-2 rounded-xl px-4 py-3 transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus motion-reduce:transition-none lg:items-center',
+                  cols,
+                  off ? 'opacity-75' : 'bg-white/[0.02]',
+                )}
+              >
+                <span className="min-w-0 pr-6 lg:pr-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-label font-semibold break-words text-text-primary">
+                      {name}
+                    </span>
+                    {m.isSelf && <Pill tone="muted">{c.users.you}</Pill>}
+                  </span>
+                  <span className="block text-caption break-all text-text-secondary">
+                    {m.email}
+                  </span>
+                  {m.jobTitle && (
+                    <span className="block text-caption text-text-muted">{m.jobTitle}</span>
+                  )}
+                </span>
+                <span>
+                  <Pill tone={m.isOwner ? 'teal' : 'neutral'}>
+                    {m.isOwner && <ShieldCheck aria-hidden className="size-3.5" />}
+                    {auth.roles[m.role]}
+                  </Pill>
+                </span>
+                <span className="flex min-w-0 flex-wrap gap-1">
+                  {m.isOwner ? (
+                    <span className="text-caption text-text-muted">{c.users.allDepartments}</span>
+                  ) : m.departments.length ? (
+                    m.departments.map((d) => (
+                      <Pill key={d.code} tone="muted" className={d.active ? '' : 'line-through'}>
+                        {deptName(d.code)}
+                        {!d.active && <span className="sr-only">({c.users.disabledDept})</span>}
+                      </Pill>
+                    ))
+                  ) : (
+                    <span className="text-caption text-text-muted">{c.users.departmentsNone}</span>
+                  )}
+                </span>
+                <span className="min-w-0" data-branch-scope={m.branchAccess.scope}>
+                  <ScopeSummary access={m.branchAccess} compact />
+                </span>
+                <span>
+                  <Pill tone={off ? 'warning' : 'teal'}>{a.people.statuses[m.status]}</Pill>
+                </span>
+                <span className="text-caption text-text-muted">
+                  <span className="lg:hidden">{a.people.columns.lastSignIn}: </span>
+                  {m.lastLoginAt ? date(m.lastLoginAt) : a.people.never}
+                </span>
+                <ChevronRight
+                  aria-hidden
+                  className="absolute top-3.5 right-3 size-4 text-text-muted lg:static"
+                />
+                <span className="sr-only">{a.people.open(name)}</span>
+              </AreaLink>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
-function ManagePanel({
-  member: m,
-  data,
-  onUpdated,
-  onError,
+/** Branch access editor: all branches, or a checklist of active branches (Head Office first). */
+export function BranchScopeEditor({
+  name,
+  scope,
+  selected,
+  branches,
+  onScope,
+  onToggle,
+  error,
+  disabled,
 }: {
-  member: Member;
-  data: MemberList;
-  onUpdated: (next: MemberList, text: string) => void;
-  onError: (text: string) => void;
+  name: string;
+  scope: BranchScope;
+  selected: string[];
+  branches: BranchRef[];
+  onScope: (s: BranchScope) => void;
+  onToggle: (id: string) => void;
+  error?: string | null;
+  disabled?: boolean;
 }) {
+  const a = useCopy(ADMIN_COPY);
   const c = useCopy(CONTROL_COPY);
-  const a = useCopy(AUTH_COPY);
-  const deptName = useDepartmentName();
-  const base = useId();
-  const [role, setRole] = useState<CompanyRole>(m.role);
-  const [jobTitle, setJobTitle] = useState(m.jobTitle ?? '');
-  const assignedActive = m.departments.filter((d) => d.active).map((d) => d.code);
-  const [departments, setDepartments] = useState<DepartmentCode[]>(assignedActive);
-  const [primary, setPrimary] = useState<DepartmentCode | null>(
-    m.departments.find((d) => d.primary && d.active)?.code ?? null,
-  );
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
-  const roles = data.assignableRoles.includes(m.role)
-    ? data.assignableRoles
-    : [m.role, ...data.assignableRoles];
-  const name = m.fullName ?? m.email;
-
-  const toggle = (code: DepartmentCode) => {
-    setDepartments((list) => {
-      const next = list.includes(code) ? list.filter((d) => d !== code) : [...list, code];
-      if (!next.includes(primary as DepartmentCode))
-        setPrimary(next.length === 1 ? next[0]! : null);
-      return next;
-    });
-  };
-
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setResult(null);
-    try {
-      let next: MemberList | null = null;
-      const patch: { role?: CompanyRole; jobTitle?: string | null } = {};
-      if (role !== m.role) patch.role = role;
-      if (jobTitle.trim() !== (m.jobTitle ?? '')) patch.jobTitle = jobTitle.trim() || null;
-      if (Object.keys(patch).length) next = await controlApi.updateMember(m.id, patch);
-      const before = [...assignedActive].sort().join();
-      const beforePrimary = m.departments.find((d) => d.primary && d.active)?.code ?? null;
-      if ([...departments].sort().join() !== before || primary !== beforePrimary) {
-        next = await controlApi.setMemberDepartments(m.id, departments, primary);
-      }
-      if (next) onUpdated(next, c.users.accessSaved);
-      else setResult({ tone: 'success', text: c.profile.nothing });
-    } catch (err) {
-      setResult({ tone: 'error', text: errorText(err, c) });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const setActive = async (activeNow: boolean) => {
-    setBusy(true);
-    try {
-      onUpdated(await controlApi.setMemberActive(m.id, activeNow), c.users.accessSaved);
-    } catch (err) {
-      onError(errorText(err, c));
-    } finally {
-      setBusy(false);
-      setConfirming(false);
-    }
-  };
-
+  const errorId = `${name}-error`;
   return (
-    <form
-      noValidate
-      onSubmit={(e) => void save(e)}
-      aria-label={c.users.manageTitle(name)}
-      className="grid gap-5 border-t border-white/[0.07] pt-4"
-      data-manage-panel={m.email}
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField
-          id={`${base}-role`}
-          label={c.users.role}
-          value={role}
-          onChange={(e) => setRole(e.target.value as CompanyRole)}
-        >
-          {roles.map((r) => (
-            <option key={r} value={r}>
-              {a.roles[r]}
-            </option>
-          ))}
-        </SelectField>
-        <TextField
-          id={`${base}-title`}
-          label={`${c.users.jobTitle} (${c.common.optional})`}
-          value={jobTitle}
-          maxLength={120}
-          onChange={(e) => setJobTitle(e.target.value)}
-        />
-      </div>
-      <fieldset className="grid gap-3">
-        <legend className="mb-1 text-label font-medium text-text-primary">
-          {c.users.departments}
-        </legend>
-        {role === 'EXECUTIVE' && (
-          <p className="text-caption text-text-muted">{c.users.executiveNote}</p>
-        )}
-        {data.enabledDepartments.length === 0 ? (
-          <p className="text-caption text-text-muted">{c.users.noDepartmentsEnabled}</p>
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {data.enabledDepartments.map((code) => {
-              const on = departments.includes(code);
-              return (
-                <li
-                  key={code}
-                  className={cn(
-                    'flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]',
-                    on && 'bg-brand-primary/[0.06] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.25)]',
-                  )}
-                >
-                  <label className="flex min-h-9 cursor-pointer items-center gap-2.5 text-label text-text-primary">
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={() => toggle(code)}
-                      className="size-4 accent-[var(--color-brand-primary)]"
-                      data-assign={code}
-                    />
-                    {deptName(code)}
-                  </label>
-                  {on && departments.length > 1 && (
-                    <label className="flex min-h-9 cursor-pointer items-center gap-1.5 text-caption text-text-secondary">
-                      <input
-                        type="radio"
-                        name={`${base}-primary`}
-                        checked={primary === code}
-                        onChange={() => setPrimary(code)}
-                        className="size-3.5 accent-[var(--color-brand-primary)]"
-                      />
-                      {c.users.primary}
-                    </label>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </fieldset>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={busy} className={buttonClasses('primary', 'md')}>
-          {busy ? c.common.saving : c.users.saveAccess}
-        </button>
-        {m.status === 'ACTIVE' ? (
-          !confirming && (
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className={buttonClasses('ghost', 'md')}
-            >
-              {c.users.deactivate}
-            </button>
-          )
-        ) : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void setActive(true)}
-            className={buttonClasses('ghost', 'md')}
+    <div className="grid gap-3" data-branch-scope-editor>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(['ALL_BRANCHES', 'SELECTED_BRANCHES'] as const).map((s) => (
+          <label
+            key={s}
+            className={cn(
+              'flex min-h-11 cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus',
+              scope === s && 'bg-brand-primary/[0.06] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.3)]',
+            )}
           >
-            {c.users.reactivate}
-          </button>
-        )}
+            <input
+              type="radio"
+              name={`${name}-scope`}
+              checked={scope === s}
+              disabled={disabled}
+              onChange={() => onScope(s)}
+              className="mt-1 size-4 accent-[var(--color-brand-primary)]"
+              data-scope={s}
+            />
+            <span>
+              <span className="block text-label text-text-primary">{a.scope[s]}</span>
+              {s === 'ALL_BRANCHES' && (
+                <span className="block text-caption text-text-muted">{a.scope.allLong}</span>
+              )}
+            </span>
+          </label>
+        ))}
       </div>
-      {confirming && (
-        <div
-          role="group"
-          aria-label={c.users.deactivate}
-          className="grid gap-3 rounded-xl bg-warning/[0.06] p-4 shadow-[inset_0_0_0_1px_rgb(245_184_75/0.25)]"
+      {scope === 'SELECTED_BRANCHES' && (
+        <fieldset
+          className="grid gap-1.5"
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
         >
-          <p className="text-label text-text-primary">{c.users.confirmDeactivate(name)}</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void setActive(false)}
-              className={buttonClasses('secondary', 'md')}
-              data-confirm-deactivate
-            >
-              {c.common.confirm}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              className={buttonClasses('ghost', 'md')}
-            >
-              {c.common.cancel}
-            </button>
-          </div>
-        </div>
+          <legend className="sr-only">{a.member.branchesTitle}</legend>
+          <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+            {branches.map((b) => (
+              <li key={b.id}>
+                <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)] has-[:checked]:bg-brand-primary/[0.06] has-[:checked]:shadow-[inset_0_0_0_1px_rgb(62_240_192/0.25)]">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(b.id)}
+                    disabled={disabled}
+                    onChange={() => onToggle(b.id)}
+                    className="size-4 accent-[var(--color-brand-primary)]"
+                    data-branch-option={b.code}
+                  />
+                  <BranchCode code={b.code} head={b.type === 'HEAD_OFFICE'} />
+                  <span className="min-w-0 break-words">
+                    {b.type === 'HEAD_OFFICE' ? a.member.headOffice : b.name}
+                    {b.status !== 'ACTIVE' && (
+                      <span className="text-caption text-text-muted"> · {c.common.inactive}</span>
+                    )}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          {error && (
+            <p id={errorId} role="alert" className="text-caption text-danger">
+              {error}
+            </p>
+          )}
+        </fieldset>
       )}
-      <Result result={result} />
-    </form>
+    </div>
   );
 }
 
 function InviteForm({
   roles,
   defaultLocale,
+  departments: enabled,
+  branches,
   onCancel,
   onSent,
 }: {
   roles: CompanyRole[];
   defaultLocale: Locale;
+  departments: DepartmentCode[];
+  branches: BranchRef[];
   onCancel: () => void;
-  onSent: (email: string) => Promise<void>;
+  onSent: (email: string) => void;
 }) {
   const c = useCopy(CONTROL_COPY);
-  const a = useCopy(AUTH_COPY);
+  const a = useCopy(ADMIN_COPY);
+  const auth = useCopy(AUTH_COPY);
+  const deptName = useDepartmentName();
   const base = useId();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CompanyRole>(
     roles.includes('DEPARTMENT_STAFF') ? 'DEPARTMENT_STAFF' : roles[0]!,
   );
   const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [departments, setDepartments] = useState<DepartmentCode[]>([]);
+  const [scope, setScope] = useState<BranchScope>('ALL_BRANCHES');
+  const [branchIds, setBranchIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -478,16 +517,26 @@ function InviteForm({
     e.preventDefault();
     setResult(null);
     const value = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      setError(c.profile.invalid.email);
+    const badEmail = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    const noBranch = scope === 'SELECTED_BRANCHES' && branchIds.length === 0;
+    setError(badEmail ? c.profile.invalid.email : null);
+    setBranchError(noBranch ? a.invite.chooseBranch : null);
+    if (badEmail) {
       document.getElementById(`${base}-email`)?.focus();
       return;
     }
-    setError(null);
+    if (noBranch) return;
     setBusy(true);
     try {
-      await controlApi.invite({ email: value, role, locale });
-      await onSent(value);
+      await controlApi.invite({
+        email: value,
+        role,
+        locale,
+        departments,
+        branchScope: scope,
+        ...(scope === 'SELECTED_BRANCHES' ? { branchIds } : {}),
+      });
+      onSent(value);
     } catch (err) {
       setResult({ tone: 'error', text: errorText(err, c) });
     } finally {
@@ -496,7 +545,7 @@ function InviteForm({
   };
 
   return (
-    <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-4" data-invite-form>
+    <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-6" data-invite-form>
       <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <TextField
           id={`${base}-email`}
@@ -516,7 +565,7 @@ function InviteForm({
         >
           {roles.map((r) => (
             <option key={r} value={r}>
-              {a.roles[r]}
+              {auth.roles[r]}
             </option>
           ))}
         </SelectField>
@@ -533,7 +582,49 @@ function InviteForm({
           ))}
         </SelectField>
       </div>
-      <p className="text-caption text-text-muted">{c.users.inviteNote}</p>
+      {enabled.length > 0 && (
+        <FieldGroup legend={a.invite.departments}>
+          <p className="-mt-2 text-caption text-text-muted">{a.invite.departmentsHint}</p>
+          <ul className="flex flex-wrap gap-2">
+            {enabled.map((d) => (
+              <li key={d}>
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] has-[:checked]:bg-brand-primary/[0.06] has-[:checked]:shadow-[inset_0_0_0_1px_rgb(62_240_192/0.25)]">
+                  <input
+                    type="checkbox"
+                    checked={departments.includes(d)}
+                    onChange={() =>
+                      setDepartments((list) =>
+                        list.includes(d) ? list.filter((x) => x !== d) : [...list, d],
+                      )
+                    }
+                    className="size-4 accent-[var(--color-brand-primary)]"
+                    data-invite-department={d}
+                  />
+                  {deptName(d)}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </FieldGroup>
+      )}
+      <FieldGroup legend={a.invite.branches}>
+        <BranchScopeEditor
+          name={`${base}-branches`}
+          scope={scope}
+          selected={branchIds}
+          branches={branches}
+          onScope={setScope}
+          onToggle={(id) =>
+            setBranchIds((list) =>
+              list.includes(id) ? list.filter((x) => x !== id) : [...list, id],
+            )
+          }
+          error={branchError}
+        />
+      </FieldGroup>
+      <p className="text-caption text-text-muted">
+        {c.users.inviteNote} {a.invite.intentNote}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={busy} className={buttonClasses('primary', 'md')}>
           <MailPlus aria-hidden className="size-4" />
@@ -545,76 +636,5 @@ function InviteForm({
       </div>
       <Result result={result} />
     </form>
-  );
-}
-
-function Invitations({
-  data,
-  onChanged,
-  onError,
-}: {
-  data: MemberList;
-  onChanged: (next: MemberList, text: string) => void;
-  onError: (text: string) => void;
-}) {
-  const c = useCopy(CONTROL_COPY);
-  const a = useCopy(AUTH_COPY);
-  const { date } = useDateFormat();
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const revoke = async (id: string) => {
-    setBusy(id);
-    try {
-      await controlApi.revokeInvitation(id);
-      onChanged(await controlApi.members(), c.users.revoked);
-    } catch (err) {
-      onError(errorText(err, c));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return (
-    <Section id="invitations-title" title={c.users.invitations}>
-      {data.invitations.length === 0 ? (
-        <p className="text-label text-text-secondary">{c.users.invitationsNone}</p>
-      ) : (
-        <ul className="grid gap-2" data-invitation-list>
-          {data.invitations.map((i) => (
-            <li
-              key={i.id}
-              data-invitation={i.email}
-              data-state={i.state}
-              className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)]"
-            >
-              <UserRound aria-hidden className="size-4 shrink-0 text-text-muted" />
-              <div className="min-w-0 flex-1">
-                <p className="text-label break-all text-text-primary">{i.email}</p>
-                <p className="text-caption text-text-muted">
-                  {a.roles[i.role]} · {c.users.invitedBy(i.invitedBy.fullName ?? i.invitedBy.email)}
-                </p>
-              </div>
-              {i.state === 'EXPIRED' ? (
-                <Pill tone="warning">{c.users.expired}</Pill>
-              ) : (
-                <span className="text-caption text-text-secondary">
-                  {c.users.expires(date(i.expiresAt))}
-                </span>
-              )}
-              {data.canManage && (
-                <button
-                  type="button"
-                  disabled={busy === i.id}
-                  onClick={() => void revoke(i.id)}
-                  className={buttonClasses('ghost', 'md')}
-                >
-                  {c.users.revoke}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
   );
 }

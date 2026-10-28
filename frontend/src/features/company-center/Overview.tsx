@@ -79,9 +79,19 @@ export function Overview() {
           to: '/company/users',
         };
       case 'INVITATIONS_PENDING':
-        return { text: c.overview.items.INVITATIONS_PENDING(item.count), to: '/company/users' };
+        return {
+          text: c.overview.items.INVITATIONS_PENDING(item.count),
+          to: '/company/users/invitations',
+        };
       case 'INVITATIONS_EXPIRED':
-        return { text: c.overview.items.INVITATIONS_EXPIRED(item.count), to: '/company/users' };
+        return {
+          text: c.overview.items.INVITATIONS_EXPIRED(item.count),
+          to: '/company/users/invitations?state=EXPIRED',
+        };
+      case 'MEMBERS_WITHOUT_BRANCH':
+        return { text: c.overview.items.MEMBERS_WITHOUT_BRANCH(item.count), to: '/company/users' };
+      case 'BRANCHES_INACTIVE':
+        return { text: c.overview.items.BRANCHES_INACTIVE(item.count), to: '/company/branches' };
       case 'PERIOD_ENDING':
         return {
           text: c.overview.items.PERIOD_ENDING(date(item.endsAt)),

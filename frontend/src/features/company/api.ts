@@ -90,6 +90,9 @@ export interface BranchInfo {
   phone: string | null;
   /** EP25: set while the branch is deactivated. */
   deactivatedAt?: string | null;
+  /** EP26: when the branch was created / last changed. */
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SubscriptionInfo {

@@ -266,15 +266,93 @@ const AssignableRole = z.enum([
   'VIEWER',
 ]);
 
+/** A company-scoped record id (cuid) — shape only; existence is checked inside the company. */
+const RecordId = z.string().trim().min(1).max(64);
+
+const uniqueList = <T>(list: readonly T[]) => new Set(list).size === list.length;
+
+/**
+ * Branch access (EP26): every active branch, or a list of branches. The
+ * server checks that every id is an active branch of the caller's company.
+ */
+const BranchAccessFields = {
+  branchScope: z.enum(['ALL_BRANCHES', 'SELECTED_BRANCHES']),
+  branchIds: z.array(RecordId).max(500).optional(),
+};
+const branchAccessRefine = (
+  v: { branchScope?: 'ALL_BRANCHES' | 'SELECTED_BRANCHES'; branchIds?: string[] },
+  ctx: z.RefinementCtx,
+) => {
+  const ids = v.branchIds ?? [];
+  if (!uniqueList(ids))
+    ctx.addIssue({ code: 'custom', path: ['branchIds'], message: 'duplicate branch' });
+  if (v.branchScope === 'SELECTED_BRANCHES' && ids.length === 0)
+    ctx.addIssue({ code: 'custom', path: ['branchIds'], message: 'choose at least one branch' });
+  if (v.branchScope !== 'SELECTED_BRANCHES' && ids.length > 0)
+    ctx.addIssue({ code: 'custom', path: ['branchIds'], message: 'only for selected branches' });
+};
+
 export const InvitationBody = z
   .object({
     email: z.string().trim().max(254).pipe(z.email()),
     role: AssignableRole,
     /** Language of the email; the company default when left out. */
     locale: z.enum(API_LOCALES).optional(),
+    /** EP26 intent — re-validated when the invitation is accepted. */
+    departments: z.array(z.enum(DEPARTMENT_CODES)).max(DEPARTMENT_CODES.length).optional(),
+    branchScope: BranchAccessFields.branchScope.default('ALL_BRANCHES'),
+    branchIds: BranchAccessFields.branchIds,
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (v.departments && !uniqueList(v.departments))
+      ctx.addIssue({ code: 'custom', path: ['departments'], message: 'duplicate department' });
+    branchAccessRefine(v, ctx);
+  });
+export type InvitationInput = z.output<typeof InvitationBody>;
+
+export const MemberBranchesBody = z
+  .object({
+    branchScope: BranchAccessFields.branchScope,
+    branchIds: BranchAccessFields.branchIds,
+  })
+  .strict()
+  .superRefine(branchAccessRefine);
+export type MemberBranchesInput = z.output<typeof MemberBranchesBody>;
+
+const COMPANY_ROLES = [
+  'COMPANY_OWNER',
+  'SYSTEM_ADMIN',
+  'EXECUTIVE',
+  'DEPARTMENT_MANAGER',
+  'DEPARTMENT_STAFF',
+  'VIEWER',
+] as const;
+
+/** People list (EP26): server-side search, a few filters, pages of at most 100. */
+export const MemberListQuery = z
+  .object({
+    q: optionalParam(z.string().trim().max(120)),
+    role: optionalParam(z.enum(COMPANY_ROLES)),
+    status: optionalParam(z.enum(['ACTIVE', 'DEACTIVATED'])),
+    department: optionalParam(z.enum(DEPARTMENT_CODES)),
+    branch: optionalParam(RecordId),
+    page: z.coerce.number().int().min(1).max(10_000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(25),
   })
   .strict();
-export type InvitationInput = z.output<typeof InvitationBody>;
+export type MemberListInput = z.output<typeof MemberListQuery>;
+
+export const INVITATION_STATES = ['PENDING', 'EXPIRED', 'ACCEPTED', 'REVOKED'] as const;
+
+export const InvitationListQuery = z
+  .object({
+    state: z.enum([...INVITATION_STATES, 'ALL']).default('PENDING'),
+    page: z.coerce.number().int().min(1).max(10_000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  })
+  .strict();
+export type InvitationListInput = z.output<typeof InvitationListQuery>;
 
 export const MemberUpdateBody = z
   .object({

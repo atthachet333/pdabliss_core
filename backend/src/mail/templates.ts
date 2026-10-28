@@ -431,6 +431,40 @@ export interface InvitationFacts {
   /** The company's time zone, so the expiry reads as local time. */
   timeZone: string;
   url: string;
+  /**
+   * EP26: the intended access, at a high level — department codes and either
+   * all branches or how many. Omitted for invitations without departments.
+   */
+  access?: { departments: readonly string[]; branches: 'ALL' | number };
+}
+
+const DEPARTMENT_NAMES: Record<string, Record<MailLocale, string>> = {
+  SALES: { th: 'ฝ่ายขาย', en: 'Sales', 'zh-CN': '销售' },
+  OPERATIONS: { th: 'ปฏิบัติการ', en: 'Operations', 'zh-CN': '运营' },
+  WAREHOUSE: { th: 'คลังสินค้า', en: 'Warehouse', 'zh-CN': '仓库' },
+  PURCHASING: { th: 'จัดซื้อ', en: 'Purchasing', 'zh-CN': '采购' },
+  ACCOUNTING: { th: 'บัญชีและการเงิน', en: 'Accounting & Finance', 'zh-CN': '会计与财务' },
+  EXECUTIVE: { th: 'ผู้บริหาร', en: 'Executive', 'zh-CN': '管理层' },
+};
+
+/** One short line: "Departments: Warehouse · Branches: all" (EP26). */
+function accessLine(locale: MailLocale, access: InvitationFacts['access']): string | null {
+  if (!access || access.departments.length === 0) return null;
+  const sep = locale === 'zh-CN' ? '、' : ', ';
+  const names = access.departments.map((d) => DEPARTMENT_NAMES[d]?.[locale] ?? d).join(sep);
+  const branches =
+    access.branches === 'ALL'
+      ? { th: 'ทุกสาขา', en: 'all branches', 'zh-CN': '所有分支' }[locale]
+      : {
+          th: `${access.branches} สาขา`,
+          en: `${access.branches} ${access.branches === 1 ? 'branch' : 'branches'}`,
+          'zh-CN': `${access.branches} 个分支`,
+        }[locale];
+  return {
+    th: `แผนก: ${names} · สาขา: ${branches}`,
+    en: `Departments: ${names} · Branches: ${branches}`,
+    'zh-CN': `部门：${names} · 分支：${branches}`,
+  }[locale];
 }
 
 export function invitationMail(locale: MailLocale, f: InvitationFacts): Rendered {
@@ -488,9 +522,11 @@ export function invitationMail(locale: MailLocale, f: InvitationFacts): Rendered
       label: '查看邀请',
     },
   }[locale];
+  const access = accessLine(locale, f.access);
   return render(
     {
       ...copy,
+      facts: access ? [access, ...copy.facts] : copy.facts,
       kind: 'invitation',
       action: { label: copy.label, url: f.url },
       footer: FOOTER[locale],

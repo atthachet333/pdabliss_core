@@ -80,6 +80,8 @@ export const AUTH_RATE_LIMITS = {
   companyCreate: { max: 10, timeWindow: '15 minutes' },
   // EP25 Company Control Center: invitations send email; logos are the largest bodies.
   invitationCreate: { max: 30, timeWindow: '15 minutes' },
+  // EP26: resending mails a fresh link (a per-invitation cooldown applies as well).
+  invitationResend: { max: 20, timeWindow: '15 minutes' },
   logoUpload: { max: 20, timeWindow: '15 minutes' },
 } as const;
 

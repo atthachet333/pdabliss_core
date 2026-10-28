@@ -82,3 +82,49 @@ export const oneLineAddress = (b: BranchInfo) =>
   ]
     .filter(Boolean)
     .join(' ');
+
+/** "Bang Kapi, Bangkok" — district and province, the part people scan for. */
+export const locationSummary = (b: Pick<BranchInfo, 'address'>) =>
+  [b.address.district, b.address.province].filter(Boolean).join(', ');
+
+/* EP26 branch form fields (shared by the branch list and the branch detail). */
+
+export type BranchFields = Record<
+  | 'code'
+  | 'name'
+  | 'addressLine1'
+  | 'addressLine2'
+  | 'subdistrict'
+  | 'district'
+  | 'province'
+  | 'postalCode'
+  | 'countryCode'
+  | 'phone',
+  string
+>;
+
+export const emptyBranch: BranchFields = {
+  code: '',
+  name: '',
+  addressLine1: '',
+  addressLine2: '',
+  subdistrict: '',
+  district: '',
+  province: '',
+  postalCode: '',
+  countryCode: 'TH',
+  phone: '',
+};
+
+export const branchFields = (b: BranchInfo): BranchFields => ({
+  code: b.code,
+  name: b.name,
+  addressLine1: b.address.line1,
+  addressLine2: b.address.line2 ?? '',
+  subdistrict: b.address.subdistrict ?? '',
+  district: b.address.district ?? '',
+  province: b.address.province,
+  postalCode: b.address.postalCode,
+  countryCode: b.address.countryCode,
+  phone: b.phone ?? '',
+});

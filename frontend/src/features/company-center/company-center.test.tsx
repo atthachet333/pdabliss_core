@@ -140,6 +140,7 @@ const MEMBERS: MemberList = {
       deactivatedAt: null,
       lastLoginAt: '2026-10-28T03:00:00.000Z',
       departments: [],
+      branchAccess: { scope: 'ALL_BRANCHES', branches: [] },
       isOwner: true,
       isSelf: false,
       canManage: false,
@@ -157,10 +158,23 @@ const MEMBERS: MemberList = {
       deactivatedAt: null,
       lastLoginAt: null,
       departments: [{ code: 'WAREHOUSE', primary: true, active: true }],
+      branchAccess: {
+        scope: 'SELECTED_BRANCHES',
+        branches: [{ id: 'b1', code: '00001', name: 'Chiang Mai', type: 'BRANCH', status: 'ACTIVE' }],
+      },
       isOwner: false,
       isSelf: false,
       canManage: true,
     },
+  ],
+  total: 2,
+  page: 1,
+  pageSize: 25,
+  hasMore: false,
+  summary: { active: 2, deactivated: 0 },
+  branches: [
+    { id: 'b0', code: '00000', name: 'Head Office', type: 'HEAD_OFFICE', status: 'ACTIVE' },
+    { id: 'b1', code: '00001', name: 'Chiang Mai', type: 'BRANCH', status: 'ACTIVE' },
   ],
   invitations: [
     {
@@ -315,8 +329,8 @@ describe('Company Control Center overview (EP25)', () => {
   });
 });
 
-describe('Company Control Center people (EP25)', () => {
-  it('lists members and invitations; the owner is protected; invitations carry the chosen language', async () => {
+describe('Company Control Center people (EP25 / EP26)', () => {
+  it('lists people with role, departments and branches; invitations carry the chosen language', async () => {
     const api = fakeApi({
       ...signedIn(member('SYSTEM_ADMIN')),
       'GET /api/v1/company/control': ok(overview()),
@@ -330,22 +344,21 @@ describe('Company Control Center people (EP25)', () => {
     });
     const user = userEvent.setup();
     renderRoute('/company/users?lang=en');
-    const owner = await screen.findByRole('article', { name: 'Owner Person' });
-    expect(within(owner).queryByRole('button', { name: 'Manage' })).toBeNull();
-    expect(within(owner).getByText('Company Owner — protected')).toBeInTheDocument();
-    const staff = screen.getByRole('article', { name: 'Staff Person' });
-    await user.click(within(staff).getByRole('button', { name: 'Manage' }));
-    const panel = within(staff).getByRole('form', { name: 'Manage Staff Person' });
-    // Only the roles the server says this admin may give.
-    const roles = within(panel).getByLabelText('Company role');
-    expect([...(roles as HTMLSelectElement).options].map((o) => o.value)).not.toContain(
-      'SYSTEM_ADMIN',
-    );
+    const owner = await screen.findByRole('link', { name: /Owner Person/ });
+    expect(owner).toHaveAttribute('href', '/company/users/m_owner');
+    expect(within(owner).getByText('All branches')).toBeInTheDocument();
+    const staff = screen.getByRole('link', { name: /Staff Person/ });
+    expect(within(staff).getByText('00001')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Invite user' }));
     const form = within(document.querySelector<HTMLElement>('[data-invite-form]')!);
+    // Only the roles the server says this admin may give.
+    const roles = form.getByLabelText('Company role');
+    expect([...(roles as HTMLSelectElement).options].map((o) => o.value)).not.toContain(
+      'SYSTEM_ADMIN',
+    );
     await user.type(form.getByLabelText('Email'), 'x@alpha.example');
-    await user.selectOptions(form.getByLabelText('Company role'), 'VIEWER');
+    await user.selectOptions(roles, 'VIEWER');
     await user.selectOptions(form.getByLabelText('Invitation email language'), 'en');
     await user.click(screen.getByRole('button', { name: 'Send invitation' }));
     await waitFor(() => expect(api.called('POST /api/v1/company/invitations')).toHaveLength(1));
@@ -354,6 +367,8 @@ describe('Company Control Center people (EP25)', () => {
       email: 'x@alpha.example',
       role: 'VIEWER',
       locale: 'en',
+      departments: [],
+      branchScope: 'ALL_BRANCHES',
     });
     expect(await screen.findByText(/Invitation sent to x@alpha.example/)).toBeInTheDocument();
   });
@@ -362,17 +377,30 @@ describe('Company Control Center people (EP25)', () => {
     fakeApi({
       ...signedIn(member('SYSTEM_ADMIN')),
       'GET /api/v1/company/control': ok(overview()),
-      'GET /api/v1/company/current/members': ok(MEMBERS),
+      'GET /api/v1/company/current/members/m_staff': ok({
+        member: MEMBERS.members[1]!,
+        protection: null,
+        assignableRoles: MEMBERS.assignableRoles,
+        enabledDepartments: MEMBERS.enabledDepartments,
+        branches: MEMBERS.branches,
+        history: [],
+        canManage: true,
+      }),
       'PATCH /api/v1/company/current/members/m_staff': fail(403, 'PEER_ADMIN'),
     });
     const user = userEvent.setup();
-    renderRoute('/company/users?lang=en');
-    const staff = await screen.findByRole('article', { name: 'Staff Person' });
-    await user.click(within(staff).getByRole('button', { name: 'Manage' }));
-    await user.selectOptions(within(staff).getByLabelText('Company role'), 'VIEWER');
-    await user.click(within(staff).getByRole('button', { name: 'Save role and departments' }));
+    renderRoute('/company/users/m_staff?lang=en');
+    const editor = within(
+      await waitFor(() => {
+        const el = document.querySelector<HTMLElement>('[data-editor="role"]');
+        if (!el) throw new Error('role editor not rendered yet');
+        return el;
+      }),
+    );
+    await user.selectOptions(editor.getByLabelText('Company role'), 'VIEWER');
+    await user.click(editor.getByRole('button', { name: 'Save role and title' }));
     expect(
-      await within(staff).findByText('Only the Company Owner can change a System Admin'),
+      await editor.findByText('Only the Company Owner can change a System Admin'),
     ).toBeInTheDocument();
   });
 

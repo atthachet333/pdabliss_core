@@ -13,8 +13,11 @@ import {
   DepartmentsBody,
   IdParams,
   InvitationBody,
+  InvitationListQuery,
   LogoBody,
+  MemberBranchesBody,
   MemberDepartmentsBody,
+  MemberListQuery,
   MemberUpdateBody,
   ProfileBody,
   SettingsBody,
@@ -28,7 +31,9 @@ import { parseInput } from '../../lib/validation.js';
  *
  * EP23: invitations. EP24: onboarding and the current-company context.
  * EP25: the Company Control Center (profile, logo, branches, people,
- * departments, settings, activity) and the branch context.
+ * departments, settings, activity) and the branch context. EP26: branch
+ * detail, branch access, the people list with search / filters / pages, one
+ * member's detail, and the invitation lifecycle (list, resend).
  *
  * There is no endpoint that takes a company id: the company is resolved from
  * the caller's membership, and every id in a path (branch, member, invitation,
@@ -117,9 +122,25 @@ export const companyRoutes: FastifyPluginAsync<{
     const { id } = parseInput(IdParams, request.params);
     return control.setBranchStatus(auth(request), id, 'ACTIVE', meta(request));
   });
+  // EP26: one branch with its access configuration.
+  app.get('/current/branches/:id/detail', async (request) => {
+    const { id } = parseInput(IdParams, request.params);
+    return control.branchDetail(auth(request), id);
+  });
 
-  // People.
-  app.get('/current/members', async (request) => control.members(auth(request)));
+  // People (EP26: ?q, ?role, ?status, ?department, ?branch, ?page, ?pageSize).
+  app.get('/current/members', async (request) =>
+    control.members(auth(request), parseInput(MemberListQuery, request.query)),
+  );
+  app.get('/current/members/:id', async (request) => {
+    const { id } = parseInput(IdParams, request.params);
+    return control.member(auth(request), id);
+  });
+  app.put('/current/members/:id/branches', { bodyLimit: 32 * 1024 }, async (request) => {
+    const { id } = parseInput(IdParams, request.params);
+    const body = parseInput(MemberBranchesBody, request.body);
+    return control.setMemberBranches(auth(request), id, body, meta(request));
+  });
   app.patch('/current/members/:id', { bodyLimit: 4 * 1024 }, async (request) => {
     const { id } = parseInput(IdParams, request.params);
     const body = parseInput(MemberUpdateBody, request.body);
@@ -170,6 +191,19 @@ export const companyRoutes: FastifyPluginAsync<{
       const body = parseInput(InvitationBody, request.body);
       const created = await invitations.create(auth(request), body, meta(request));
       return reply.status(201).send(created);
+    },
+  );
+
+  // EP26: the lifecycle (?state=PENDING|EXPIRED|ACCEPTED|REVOKED|ALL) and resend.
+  app.get('/current/invitations', async (request) =>
+    control.invitations(auth(request), parseInput(InvitationListQuery, request.query)),
+  );
+  app.post(
+    '/invitations/:id/resend',
+    { config: { rateLimit: AUTH_RATE_LIMITS.invitationResend } },
+    async (request, reply) => {
+      const { id } = parseInput(IdParams, request.params);
+      return reply.status(201).send(await invitations.resend(auth(request), id, meta(request)));
     },
   );
 

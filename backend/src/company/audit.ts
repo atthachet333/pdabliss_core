@@ -5,7 +5,8 @@ import type { DbClient, RequestMeta } from '../auth/audit.js';
  * action, target, time and small non-secret details. `actorScope` tells a
  * customer's own action apart from a platform operator's or the seed's.
  *
- * EP25 adds the Company Control Center actions. Details name what changed
+ * EP25 adds the Company Control Center actions, EP26 branch access and
+ * invitation resends. Details name what changed
  * (field names, codes, roles) — never a token, a password, a file's bytes or
  * anything secret.
  */
@@ -38,7 +39,12 @@ export type CompanyAuditAction =
   | 'MEMBER_JOB_TITLE_CHANGED'
   | 'MEMBER_DEPARTMENTS_CHANGED'
   | 'DEPARTMENT_ENABLED'
-  | 'DEPARTMENT_DISABLED';
+  | 'DEPARTMENT_DISABLED'
+  // ---- EP26: branch & user administration
+  /** Branch access changed: from / to scope and branch codes. */
+  | 'MEMBER_BRANCH_ACCESS_CHANGED'
+  /** A pending invitation was replaced by a fresh one (new token, new expiry). */
+  | 'INVITATION_RESENT';
 
 export type ActorScope = 'customer' | 'platform_owner' | 'platform_admin' | 'seed';
 

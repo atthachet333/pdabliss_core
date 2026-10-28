@@ -4,9 +4,11 @@ import { toApiLocale, toDbLocale } from '../auth/locale.js';
 import type { AuthContext } from '../auth/sessions.js';
 import { DEPARTMENT_CODES, type DepartmentCode } from '../billing/catalog.js';
 import type { Db, Prisma } from '../db/client.js';
+import type { AuditLog, CompanyMember } from '../generated/prisma/client.js';
 import type { AuthEventType } from '../generated/prisma/enums.js';
 import { AppError, ValidationError } from '../lib/errors.js';
 import { recordCompanyEvent, type CompanyAuditAction, type AuditEntityType } from './audit.js';
+import { clearStaleBranchSessions, effectiveScope, worksInBranch } from './branch-access.js';
 import {
   allowedDepartments,
   enabledDepartments,
@@ -15,20 +17,24 @@ import {
 } from './context.js';
 import { assertDepartments, readSnapshot } from './entitlements.js';
 import {
+  INVITATION_STATES,
   isThaiTaxId,
   LOGO_MAX_BYTES,
   postalCodeValid,
   type BranchCreateInput,
   type BranchUpdateInput,
   type LogoType,
+  type InvitationListInput,
+  type MemberBranchesInput,
   type MemberDepartmentsInput,
+  type MemberListInput,
   type MemberUpdateInput,
   type ProfileInput,
   type SettingsInput,
 } from './input.js';
 import { ASSIGNABLE_ROLES, can, memberChangeProblem } from './policy.js';
 import { DEPARTMENT_NAMES } from './service.js';
-import { branchView, companyFields } from './views.js';
+import { branchRef, branchView, companyFields, departmentView } from './views.js';
 
 /*
  * Company Control Center (EP25) — the customer side of company administration.
@@ -69,6 +75,12 @@ const PERIOD_ENDING_MS = 14 * 24 * 60 * 60_000;
 
 const notFound = (what: 'Branch' | 'Member') =>
   new AppError(404, `${what.toUpperCase()}_NOT_FOUND`, `${what} not found.`);
+
+/** EP26: the defaults of the people list (the EP25 call has no query). */
+const MEMBER_LIST_DEFAULTS: MemberListInput = { page: 1, pageSize: 25 };
+
+const byDepartmentOrder = (a: DepartmentCode, b: DepartmentCode) =>
+  DEPARTMENT_CODES.indexOf(a) - DEPARTMENT_CODES.indexOf(b);
 
 /** The next free 5-digit branch code after the highest one (00000 is the Head Office). */
 export function nextBranchCode(codes: readonly string[]): string | null {
@@ -139,7 +151,7 @@ export class CompanyControlService {
     const companyId = access.company.id;
     const admin = can(access.member.role, 'members.manage');
     const now = new Date();
-    const [branches, members, invitations, logo, departments, assignments, mine] =
+    const [branches, members, invitations, logo, departments, assignments, mine, withoutBranch] =
       await Promise.all([
         this.db.branch.findMany({ where: { companyId }, orderBy: { code: 'asc' } }),
         this.db.companyMember.groupBy({ by: ['status'], where: { companyId }, _count: true }),
@@ -160,6 +172,16 @@ export class CompanyControlService {
           select: { department: { select: { code: true } } },
         }),
         allowedDepartments(this.db, access),
+        // EP26: active people restricted to branches of which none is active — they cannot work.
+        this.db.companyMember.count({
+          where: {
+            companyId,
+            status: 'ACTIVE',
+            ownerSlot: null,
+            branchScope: 'SELECTED_BRANCHES',
+            branchAccess: { none: { branch: { status: 'ACTIVE' } } },
+          },
+        }),
       ]);
     const sub = access.subscription;
     const snapshot = sub ? readSnapshot(sub.entitlements, sub.plan) : null;
@@ -190,6 +212,9 @@ export class CompanyControlService {
       if (openInvitations) attention.push({ code: 'INVITATIONS_PENDING', count: openInvitations });
       if (expiredInvitations)
         attention.push({ code: 'INVITATIONS_EXPIRED', count: expiredInvitations });
+      if (withoutBranch) attention.push({ code: 'MEMBERS_WITHOUT_BRANCH', count: withoutBranch });
+      const inactiveBranches = branches.filter((b) => b.status === 'INACTIVE').length;
+      if (inactiveBranches) attention.push({ code: 'BRANCHES_INACTIVE', count: inactiveBranches });
       if (
         sub?.currentPeriodEnd &&
         sub.currentPeriodEnd.getTime() - now.getTime() < PERIOD_ENDING_MS
@@ -381,18 +406,132 @@ export class CompanyControlService {
 
   // ---------------------------------------------------------------- branches
 
-  /** Every branch of the caller's company (readable by any active member). */
+  /**
+   * Who may work where (EP26): for each branch, the active people who may work
+   * in it (owner, all-branch access, or a grant) and the departments those
+   * people are assigned to. Counts and codes only — no names on the list.
+   */
+  private async branchStats(companyId: string) {
+    const [people, assignments] = await Promise.all([
+      this.db.companyMember.findMany({
+        where: { companyId, status: 'ACTIVE' },
+        select: {
+          userId: true,
+          role: true,
+          branchScope: true,
+          branchAccess: { select: { branchId: true } },
+        },
+      }),
+      this.db.membership.findMany({
+        where: { department: { companyId, isActive: true } },
+        select: { userId: true, department: { select: { code: true } } },
+      }),
+    ]);
+    const departmentsOf = new Map<string, DepartmentCode[]>();
+    for (const a of assignments) {
+      departmentsOf.set(a.userId, [...(departmentsOf.get(a.userId) ?? []), a.department.code]);
+    }
+    return (branchId: string) => {
+      const here = people.filter(
+        (p) =>
+          effectiveScope(p) === 'ALL_BRANCHES' ||
+          p.branchAccess.some((g) => g.branchId === branchId),
+      );
+      const departments = new Set(here.flatMap((p) => departmentsOf.get(p.userId) ?? []));
+      return { people: here.length, departments: [...departments].sort(byDepartmentOrder) };
+    };
+  }
+
+  /** Every branch of the caller's company (readable by any active member), with who works there (EP26). */
   async branches(ctx: AuthContext) {
     const access = await requireCompanyAccess(this.db, ctx, { eligible: false });
-    const rows = await this.db.branch.findMany({
-      where: { companyId: access.company.id },
-      orderBy: { code: 'asc' },
-    });
+    const companyId = access.company.id;
+    const [rows, stats] = await Promise.all([
+      this.db.branch.findMany({ where: { companyId }, orderBy: { code: 'asc' } }),
+      this.branchStats(companyId),
+    ]);
     return {
-      branches: rows.map(branchView),
+      branches: rows.map((b) => ({ ...branchView(b), access: stats(b.id) })),
       suggestedCode: nextBranchCode(rows.map((b) => b.code)),
       canManage: access.canEnterCore && can(access.member.role, 'branches.manage'),
     };
+  }
+
+  /**
+   * One branch (EP26): identity, status, address, contact and its access
+   * configuration — how many people work there through all-branch access and
+   * how many by a specific grant, the departments present and (for those who
+   * may see people) who they are. Another company's branch is not found.
+   */
+  async branchDetail(ctx: AuthContext, id: string) {
+    const access = await requireCompanyAccess(this.db, ctx);
+    const companyId = access.company.id;
+    const branch = await this.db.branch.findFirst({ where: { id, companyId } });
+    if (!branch) throw notFound('Branch');
+    const seePeople = can(access.member.role, 'members.view');
+    const [stats, all, granted, people, enabled] = await Promise.all([
+      this.branchStats(companyId),
+      this.db.companyMember.count({
+        where: {
+          companyId,
+          status: 'ACTIVE',
+          OR: [{ role: 'COMPANY_OWNER' }, { branchScope: 'ALL_BRANCHES' }],
+        },
+      }),
+      this.db.companyMember.count({
+        where: {
+          companyId,
+          status: 'ACTIVE',
+          role: { not: 'COMPANY_OWNER' },
+          branchScope: 'SELECTED_BRANCHES',
+          branchAccess: { some: { branchId: branch.id } },
+        },
+      }),
+      seePeople
+        ? this.db.companyMember.findMany({
+            where: { companyId, status: 'ACTIVE', ...worksInBranch(branch.id) },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            take: 100,
+            include: { user: { select: { fullName: true, email: true } } },
+          })
+        : Promise.resolve([]),
+      enabledDepartments(this.db, companyId),
+    ]);
+    const departmentsOf = await this.departmentsByUser(
+      companyId,
+      people.map((p) => p.userId),
+    );
+    return {
+      branch: branchView(branch),
+      access: { ...stats(branch.id), allBranches: all, selected: granted },
+      people: seePeople
+        ? people.map((p) => ({
+            id: p.id,
+            fullName: p.user.fullName,
+            email: p.user.email,
+            role: p.role,
+            scope: effectiveScope(p),
+            departments: departmentsOf.get(p.userId) ?? [],
+          }))
+        : null,
+      peopleTotal: seePeople ? all + granted : null,
+      enabledDepartments: enabled,
+      canManage: access.canEnterCore && can(access.member.role, 'branches.manage'),
+      canManagePeople: can(access.member.role, 'members.manage'),
+    };
+  }
+
+  /** Department assignments per user inside one company (code order). */
+  private async departmentsByUser(companyId: string, userIds: string[]) {
+    const out = new Map<string, ReturnType<typeof departmentView>[]>();
+    if (!userIds.length) return out;
+    const rows = await this.db.membership.findMany({
+      where: { userId: { in: userIds }, department: { companyId } },
+      include: { department: { select: { code: true, isActive: true } } },
+    });
+    for (const r of rows) out.set(r.userId, [...(out.get(r.userId) ?? []), departmentView(r)]);
+    for (const list of out.values()) list.sort((a, b) => byDepartmentOrder(a.code, b.code));
+    return out;
   }
 
   async createBranch(ctx: AuthContext, input: BranchCreateInput, meta: RequestMeta) {
@@ -514,63 +653,75 @@ export class CompanyControlService {
 
   // ----------------------------------------------------------------- members
 
-  /** People and open invitations. Never credentials, sessions or sign-up lead data. */
-  async members(ctx: AuthContext) {
+  /**
+   * People (EP25; EP26: server-side search, filters, pages, branch access).
+   * Search covers name, email and job title; filters are role, membership
+   * status, department and branch (who may work there). Never credentials,
+   * sessions or sign-up lead data. `invitations` keeps the EP25 meaning (open
+   * and expired-but-pending); the full lifecycle is GET /current/invitations.
+   */
+  async members(ctx: AuthContext, query: MemberListInput = MEMBER_LIST_DEFAULTS) {
     const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.view' });
     const companyId = access.company.id;
-    const [rows, invitations, assignments] = await Promise.all([
+    const where: Prisma.CompanyMemberWhereInput = { companyId };
+    const and: Prisma.CompanyMemberWhereInput[] = [];
+    if (query.q) {
+      const q = { contains: query.q, mode: 'insensitive' as const };
+      and.push({ OR: [{ user: { fullName: q } }, { user: { email: q } }, { jobTitle: q }] });
+    }
+    if (query.role) where.role = query.role;
+    if (query.status) where.status = query.status;
+    if (query.department) {
+      and.push({
+        user: { memberships: { some: { department: { companyId, code: query.department } } } },
+      });
+    }
+    if (query.branch) and.push(worksInBranch(query.branch));
+    if (and.length) where.AND = and;
+
+    const skip = (query.page - 1) * query.pageSize;
+    const [rows, total, summary, invitations, branches] = await Promise.all([
       this.db.companyMember.findMany({
-        where: { companyId },
-        orderBy: [{ createdAt: 'asc' }],
+        where,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip,
+        take: query.pageSize,
         include: {
           user: {
             select: { email: true, fullName: true, phone: true, lastLoginAt: true, status: true },
           },
+          branchAccess: { select: { branchId: true } },
         },
       }),
+      this.db.companyMember.count({ where }),
+      this.db.companyMember.groupBy({ by: ['status'], where: { companyId }, _count: true }),
       this.db.invitation.findMany({
         where: { companyId, status: 'PENDING' },
         orderBy: { createdAt: 'desc' },
+        take: 100,
         include: { invitedBy: { select: { email: true, fullName: true } } },
       }),
-      this.db.membership.findMany({
-        where: { department: { companyId } },
-        include: { department: { select: { code: true, isActive: true } } },
-      }),
+      this.db.branch.findMany({ where: { companyId }, orderBy: { code: 'asc' } }),
     ]);
+    const departmentsOf = await this.departmentsByUser(
+      companyId,
+      rows.map((m) => m.userId),
+    );
     const manage = can(access.member.role, 'members.manage');
     const now = new Date();
-    const order = (a: DepartmentCode, b: DepartmentCode) =>
-      DEPARTMENT_CODES.indexOf(a) - DEPARTMENT_CODES.indexOf(b);
+    const byId = new Map(branches.map((b) => [b.id, b]));
     return {
-      members: rows.map((m) => {
-        const mine = assignments
-          .filter((a) => a.userId === m.userId)
-          .map((a) => ({
-            code: a.department.code,
-            primary: a.isPrimary,
-            active: a.department.isActive,
-          }))
-          .sort((a, b) => order(a.code, b.code));
-        return {
-          id: m.id,
-          fullName: m.user.fullName,
-          email: m.user.email,
-          phone: m.user.phone,
-          jobTitle: m.jobTitle,
-          role: m.role,
-          status: m.status,
-          accountStatus: m.user.status,
-          joinedAt: m.createdAt.toISOString(),
-          deactivatedAt: m.deactivatedAt?.toISOString() ?? null,
-          lastLoginAt: m.user.lastLoginAt?.toISOString() ?? null,
-          departments: mine,
-          isOwner: m.role === 'COMPANY_OWNER',
-          isSelf: m.id === access.member.id,
-          // What the caller may change on this person — decided here, shown by the UI.
-          canManage: manage && memberChangeProblem(access.actor, m) === null,
-        };
-      }),
+      members: rows.map((m) =>
+        this.memberView(m, access, manage, departmentsOf.get(m.userId) ?? [], byId),
+      ),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      hasMore: skip + rows.length < total,
+      summary: {
+        active: summary.find((s) => s.status === 'ACTIVE')?._count ?? 0,
+        deactivated: summary.find((s) => s.status === 'DEACTIVATED')?._count ?? 0,
+      },
       invitations: invitations.map((i) => ({
         id: i.id,
         email: i.email,
@@ -581,10 +732,103 @@ export class CompanyControlService {
         createdAt: i.createdAt.toISOString(),
         expiresAt: i.expiresAt.toISOString(),
       })),
+      branches: branches.map(branchRef),
       assignableRoles: manage ? ASSIGNABLE_ROLES[access.member.role] : [],
       canManage: manage,
       enabledDepartments: await enabledDepartments(this.db, companyId),
       defaultLocale: toApiLocale(access.company.defaultLocale),
+    };
+  }
+
+  /** One person as the people screens show them. */
+  private memberView(
+    m: CompanyMember & {
+      user: {
+        email: string;
+        fullName: string | null;
+        phone: string | null;
+        lastLoginAt: Date | null;
+        status: string;
+      };
+      branchAccess: { branchId: string }[];
+    },
+    access: CompanyAccess,
+    manage: boolean,
+    departments: ReturnType<typeof departmentView>[],
+    branches: Map<string, Parameters<typeof branchRef>[0]>,
+  ) {
+    const scope = effectiveScope(m);
+    return {
+      id: m.id,
+      fullName: m.user.fullName,
+      email: m.user.email,
+      phone: m.user.phone,
+      jobTitle: m.jobTitle,
+      role: m.role,
+      status: m.status,
+      accountStatus: m.user.status,
+      joinedAt: m.createdAt.toISOString(),
+      deactivatedAt: m.deactivatedAt?.toISOString() ?? null,
+      lastLoginAt: m.user.lastLoginAt?.toISOString() ?? null,
+      departments,
+      branchAccess: {
+        scope,
+        branches:
+          scope === 'ALL_BRANCHES'
+            ? []
+            : m.branchAccess
+                .map((g) => branches.get(g.branchId))
+                .filter((b) => !!b)
+                .map(branchRef)
+                .sort((a, b) => a.code.localeCompare(b.code)),
+      },
+      isOwner: m.role === 'COMPANY_OWNER',
+      isSelf: m.id === access.member.id,
+      // What the caller may change on this person — decided here, shown by the UI.
+      canManage: manage && memberChangeProblem(access.actor, m) === null,
+    };
+  }
+
+  /**
+   * One person (EP26): the member, what the caller may change and why not,
+   * the choices for the editors (roles, enabled departments, branches) and
+   * this person's administration history. Another company's member is not found.
+   */
+  async member(ctx: AuthContext, memberId: string) {
+    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.view' });
+    const companyId = access.company.id;
+    const m = await this.db.companyMember.findFirst({
+      where: { id: memberId, companyId },
+      include: {
+        user: {
+          select: { email: true, fullName: true, phone: true, lastLoginAt: true, status: true },
+        },
+        branchAccess: { select: { branchId: true } },
+      },
+    });
+    if (!m) throw notFound('Member');
+    const manage = can(access.member.role, 'members.manage');
+    const [branches, departmentsOf, enabled, history] = await Promise.all([
+      this.db.branch.findMany({ where: { companyId }, orderBy: { code: 'asc' } }),
+      this.departmentsByUser(companyId, [m.userId]),
+      enabledDepartments(this.db, companyId),
+      this.db.auditLog.findMany({
+        where: { companyId, entityType: 'CompanyMember', entityId: m.id },
+        orderBy: { occurredAt: 'desc' },
+        take: 20,
+        include: { actor: { select: { email: true, fullName: true } } },
+      }),
+    ]);
+    const byId = new Map(branches.map((b) => [b.id, b]));
+    return {
+      member: this.memberView(m, access, manage, departmentsOf.get(m.userId) ?? [], byId),
+      /** Why the caller may not change this person (null when they may, or only read). */
+      protection: manage ? memberChangeProblem(access.actor, m) : null,
+      assignableRoles: manage ? ASSIGNABLE_ROLES[access.member.role] : [],
+      enabledDepartments: enabled,
+      branches: branches.map(branchRef),
+      history: history.map((a) => auditItem(a)),
+      canManage: manage,
     };
   }
 
@@ -720,6 +964,174 @@ export class CompanyControlService {
     return this.members(ctx);
   }
 
+  /**
+   * Branch access (EP26): every active branch, or a list of branches of this
+   * company. The owner is never restricted (OWNER_PROTECTED here, a database
+   * CHECK below); nobody changes their own access; a System Admin leaves other
+   * System Admins to the owner. Any session of this person that points at a
+   * branch they may no longer use loses that context in the same transaction.
+   */
+  async setMemberBranches(
+    ctx: AuthContext,
+    memberId: string,
+    input: MemberBranchesInput,
+    meta: RequestMeta,
+  ) {
+    const { access, target } = await this.manageable(ctx, memberId);
+    const companyId = access.company.id;
+    const ids = input.branchScope === 'SELECTED_BRANCHES' ? (input.branchIds ?? []) : [];
+    const chosen = ids.length
+      ? await this.db.branch.findMany({ where: { id: { in: ids }, companyId, status: 'ACTIVE' } })
+      : [];
+    if (chosen.length !== ids.length) {
+      // Unknown, foreign or inactive ids are all "not available" — no existence leak.
+      throw new AppError(
+        422,
+        'BRANCH_NOT_AVAILABLE',
+        'Grant access only to active branches of this company.',
+      );
+    }
+    const before = await this.db.memberBranchAccess.findMany({
+      where: { memberId: target.id, companyId },
+      include: { branch: { select: { code: true } } },
+    });
+    const beforeCodes = before.map((g) => g.branch.code).sort();
+    const afterCodes = chosen.map((b) => b.code).sort();
+    const unchanged =
+      target.branchScope === input.branchScope &&
+      (input.branchScope === 'ALL_BRANCHES' || beforeCodes.join() === afterCodes.join());
+    if (!unchanged) {
+      await this.db.$transaction(async (tx) => {
+        // Only a non-owner row of this company, as it was read (no lost update).
+        const { count } = await tx.companyMember.updateMany({
+          where: { id: target.id, companyId, ownerSlot: null, role: { not: 'COMPANY_OWNER' } },
+          data: { branchScope: input.branchScope },
+        });
+        if (count === 0)
+          throw new AppError(409, 'MEMBER_CHANGED', 'This member changed meanwhile.');
+        await tx.memberBranchAccess.deleteMany({
+          where: { memberId: target.id, branchId: { notIn: chosen.map((b) => b.id) } },
+        });
+        if (chosen.length) {
+          await tx.memberBranchAccess.createMany({
+            data: chosen.map((b) => ({
+              companyId,
+              memberId: target.id,
+              branchId: b.id,
+              grantedById: access.actor.userId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+        await clearStaleBranchSessions(tx, { ...target, branchScope: input.branchScope });
+        await this.event(
+          tx,
+          meta,
+          access,
+          'MEMBER_BRANCH_ACCESS_CHANGED',
+          'CompanyMember',
+          target.id,
+          {
+            fromScope: target.branchScope,
+            fromBranches: target.branchScope === 'ALL_BRANCHES' ? [] : beforeCodes,
+            toScope: input.branchScope,
+            toBranches: afterCodes,
+          },
+        );
+      });
+    }
+    return this.member(ctx, memberId);
+  }
+
+  // ------------------------------------------------------------- invitations
+
+  /**
+   * Invitations with their whole lifecycle (EP26): PENDING (open), EXPIRED
+   * (pending, past its time), ACCEPTED, REVOKED — with the intended role,
+   * departments and branch access, the inviter and the dates. Never a token.
+   */
+  async invitations(ctx: AuthContext, q: InvitationListInput) {
+    const access = await requireCompanyAccess(this.db, ctx, { capability: 'members.view' });
+    const companyId = access.company.id;
+    const now = new Date();
+    const stateWhere: Record<(typeof INVITATION_STATES)[number], Prisma.InvitationWhereInput> = {
+      PENDING: { status: 'PENDING', expiresAt: { gt: now } },
+      EXPIRED: { status: 'PENDING', expiresAt: { lte: now } },
+      ACCEPTED: { status: 'ACCEPTED' },
+      REVOKED: { status: 'REVOKED' },
+    };
+    const where: Prisma.InvitationWhereInput = {
+      companyId,
+      ...(q.state === 'ALL' ? {} : stateWhere[q.state]),
+    };
+    const skip = (q.page - 1) * q.pageSize;
+    const [rows, total, counts, branches] = await Promise.all([
+      this.db.invitation.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take: q.pageSize,
+        include: {
+          invitedBy: { select: { email: true, fullName: true } },
+          acceptedBy: { select: { email: true, fullName: true } },
+        },
+      }),
+      this.db.invitation.count({ where }),
+      Promise.all(
+        INVITATION_STATES.map((s) =>
+          this.db.invitation.count({ where: { companyId, ...stateWhere[s] } }),
+        ),
+      ),
+      this.db.branch.findMany({ where: { companyId } }),
+    ]);
+    const manage = can(access.member.role, 'members.manage');
+    const byId = new Map(branches.map((b) => [b.id, b]));
+    return {
+      invitations: rows.map((i) => {
+        const state =
+          i.status === 'PENDING' ? (i.expiresAt > now ? 'PENDING' : 'EXPIRED') : i.status;
+        return {
+          id: i.id,
+          email: i.email,
+          role: i.role,
+          locale: i.locale ? toApiLocale(i.locale) : null,
+          state,
+          departments: [...i.departments].sort(byDepartmentOrder),
+          branchAccess: {
+            scope: i.branchScope,
+            // Ids that are no longer branches of this company are simply left out.
+            branches: i.branchIds
+              .map((id) => byId.get(id))
+              .filter((b) => !!b)
+              .map(branchRef)
+              .sort((a, b) => a.code.localeCompare(b.code)),
+          },
+          invitedBy: { email: i.invitedBy.email, fullName: i.invitedBy.fullName },
+          acceptedBy: i.acceptedBy
+            ? { email: i.acceptedBy.email, fullName: i.acceptedBy.fullName }
+            : null,
+          resent: i.resentFromId !== null,
+          createdAt: i.createdAt.toISOString(),
+          expiresAt: i.expiresAt.toISOString(),
+          acceptedAt: i.acceptedAt?.toISOString() ?? null,
+          revokedAt: i.revokedAt?.toISOString() ?? null,
+          // A System Admin leaves invitations for System Admins to the owner.
+          canManage:
+            manage &&
+            state !== 'ACCEPTED' &&
+            state !== 'REVOKED' &&
+            ASSIGNABLE_ROLES[access.member.role].includes(i.role),
+        };
+      }),
+      total,
+      page: q.page,
+      pageSize: q.pageSize,
+      hasMore: skip + rows.length < total,
+      counts: Object.fromEntries(INVITATION_STATES.map((s, n) => [s, counts[n]!])),
+      canManage: manage,
+    };
+  }
+
   // ------------------------------------------------------------- departments
 
   /**
@@ -830,23 +1242,7 @@ export class CompanyControlService {
           }),
     ]);
     const items = [
-      ...admin.map((a) => {
-        const { actorScope, ...details } = (a.changes ?? {}) as Record<string, unknown>;
-        const platform = actorScope === 'platform_owner' || actorScope === 'platform_admin';
-        return {
-          id: a.id,
-          kind: 'admin' as const,
-          type: a.action,
-          actor: platform
-            ? { kind: 'platform' as const }
-            : a.actor
-              ? { kind: 'member' as const, email: a.actor.email, fullName: a.actor.fullName }
-              : { kind: 'system' as const },
-          entityType: a.entityType,
-          details,
-          occurredAt: a.occurredAt.toISOString(),
-        };
-      }),
+      ...admin.map((a) => auditItem(a)),
       ...security.map((e) => ({
         id: e.id,
         kind: 'security' as const,
@@ -869,3 +1265,25 @@ const branchCodeTaken = (code: string | null) =>
   new AppError(409, 'BRANCH_CODE_TAKEN', 'This branch code is already used in this company.', {
     code,
   });
+
+/**
+ * One administration event as the company sees it: action, actor, entity and
+ * small details. Platform operators appear as "PDA BLISS", never by name.
+ */
+function auditItem(a: AuditLog & { actor: { email: string; fullName: string | null } | null }) {
+  const { actorScope, ...details } = (a.changes ?? {}) as Record<string, unknown>;
+  const platform = actorScope === 'platform_owner' || actorScope === 'platform_admin';
+  return {
+    id: a.id,
+    kind: 'admin' as const,
+    type: a.action,
+    actor: platform
+      ? { kind: 'platform' as const }
+      : a.actor
+        ? { kind: 'member' as const, email: a.actor.email, fullName: a.actor.fullName }
+        : { kind: 'system' as const },
+    entityType: a.entityType,
+    details,
+    occurredAt: a.occurredAt.toISOString(),
+  };
+}

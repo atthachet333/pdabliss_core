@@ -5,6 +5,7 @@ import {
   LogOut,
   MapPin,
   Repeat2,
+  ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
@@ -23,9 +24,12 @@ import { useLocale } from '@/i18n/useLocale';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
+import type { BranchInfo } from '@/features/company/api';
+import { ADMIN_COPY } from './adminCopy';
+import { BranchCode } from './adminParts';
 import { controlApi, type BranchContext } from './api';
 import { CONTROL_COPY } from './copy';
-import { errorText, oneLineAddress, useLoad } from './model';
+import { errorText, locationSummary, oneLineAddress, useLoad } from './model';
 import { AreaLink, Loading, Pill } from './parts';
 
 /*
@@ -37,7 +41,19 @@ import { AreaLink, Loading, Pill } from './parts';
  * — enabled for the company AND permitted for them. Department workspaces
  * themselves arrive in later episodes; nothing here pretends otherwise, and
  * no business figure is shown.
+ *
+ * EP26: the server lists only the branches this person may work in (branch
+ * access). One → selected automatically; several → chosen here, Head Office
+ * apart from the other branches; none → a plain blocked state. Choosing a
+ * branch outside the person's access is refused by the server regardless.
  */
+
+/** "Head Office · 00000" or "Chiang Mai · 00001" — how the working branch is named. */
+function useBranchLabel() {
+  const a = useCopy(ADMIN_COPY);
+  return (b: Pick<BranchInfo, 'type' | 'name' | 'code'>) =>
+    `${b.type === 'HEAD_OFFICE' ? a.selector.headOffice : b.name} · ${b.code}`;
+}
 export function CoreArea({ identity }: { identity: Identity }) {
   const c = useCopy(CONTROL_COPY);
   const { state, set, reload } = useLoad(controlApi.context);
@@ -79,14 +95,21 @@ export function CoreArea({ identity }: { identity: Identity }) {
         <Route
           index
           element={
-            ctx.needsSelection ? (
+            ctx.blocked ? (
+              <Blocked />
+            ) : ctx.needsSelection ? (
               <Navigate to="/core/branch" replace {...withLocale(locale)} />
             ) : (
               <OperationsHome context={ctx} />
             )
           }
         />
-        <Route path="branch" element={<BranchSelector context={ctx} onSelected={set} />} />
+        <Route
+          path="branch"
+          element={
+            ctx.blocked ? <Blocked /> : <BranchSelector context={ctx} onSelected={set} />
+          }
+        />
         <Route path="*" element={<Navigate to="/core" replace {...withLocale(locale)} />} />
       </Routes>
     </CoreFrame>
@@ -106,6 +129,7 @@ function CoreFrame({
   const a = useCopy(AUTH_COPY);
   const { t, locale } = useLocale();
   const navigate = useNavigate();
+  const branchLabel = useBranchLabel();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -158,14 +182,13 @@ function CoreFrame({
           </div>
           {context?.selected && (
             <p
-              className="flex min-w-0 items-center gap-2 text-caption text-text-secondary max-md:hidden"
+              className="flex min-w-0 items-center gap-2 text-caption text-text-secondary max-md:order-last max-md:w-full"
               data-selected-branch={context.selected.code}
             >
               <Building aria-hidden className="size-4 shrink-0 text-brand-soft" />
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 <span className="sr-only">{c.core.branch}: </span>
-                {context.selected.name} ·{' '}
-                <span className="font-mono tabular-nums">{context.selected.code}</span>
+                {branchLabel(context.selected)}
               </span>
             </p>
           )}
@@ -215,6 +238,15 @@ function BranchSelector({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const legendId = useId();
+  const a = useCopy(ADMIN_COPY);
+  const head = context.branches.filter((b) => b.type === 'HEAD_OFFICE');
+  const others = context.branches.filter((b) => b.type !== 'HEAD_OFFICE');
+  const groups = (
+    [
+      ['head', head],
+      ['branches', others],
+    ] as const
+  ).filter(([, list]) => list.length > 0);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -241,46 +273,59 @@ function BranchSelector({
       {context.branches.length === 0 ? (
         <Notice tone="info">{c.enter.none}</Notice>
       ) : (
-        <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-5">
-          <fieldset aria-labelledby={legendId} className="grid gap-3">
-            <legend id={legendId} className="sr-only">
-              {c.enter.choose}
-            </legend>
-            {context.branches.map((b) => (
-              <label
-                key={b.id}
-                data-branch-option={b.code}
-                className={cn(
-                  'flex cursor-pointer items-start gap-4 rounded-2xl p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-glow motion-reduce:transition-none sm:p-5',
-                  choice === b.id
-                    ? 'bg-brand-primary/[0.08] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.4)]'
-                    : 'hover:bg-white/[0.03]',
-                )}
+        <form noValidate onSubmit={(e) => void submit(e)} className="grid gap-6">
+          {context.scope === 'SELECTED_BRANCHES' && (
+            <p className="text-caption text-text-muted">{a.selector.scope(context.branches.length)}</p>
+          )}
+          {groups.map(([group, branches]) => (
+            <fieldset key={group} aria-labelledby={`${legendId}-${group}`} className="grid gap-2.5">
+              <legend
+                id={`${legendId}-${group}`}
+                className="mb-1 flex w-full items-center gap-3 text-caption font-semibold tracking-wide text-text-muted uppercase"
               >
-                <input
-                  type="radio"
-                  name="branch"
-                  value={b.id}
-                  checked={choice === b.id}
-                  onChange={() => setChoice(b.id)}
-                  className="mt-1 size-4 shrink-0 accent-[var(--color-brand-primary)]"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-label font-semibold text-text-primary">{b.name}</span>
-                    <span className="font-mono text-caption text-text-muted tabular-nums">
-                      {b.code}
-                    </span>
-                    {b.type === 'HEAD_OFFICE' && <Pill tone="teal">{c.branches.headOffice}</Pill>}
-                  </span>
-                  <span className="mt-1 flex items-start gap-1.5 text-caption text-text-secondary">
-                    <MapPin aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                    <span className="min-w-0 break-words">{oneLineAddress(b)}</span>
-                  </span>
+                <span className="shrink-0">
+                  {group === 'head' ? a.selector.headOffice : a.selector.branches}
                 </span>
-              </label>
-            ))}
-          </fieldset>
+                <span aria-hidden className="h-px flex-1 bg-white/[0.07]" />
+              </legend>
+              {branches.map((b) => (
+                <label
+                  key={b.id}
+                  data-branch-option={b.code}
+                  className={cn(
+                    'flex cursor-pointer items-start gap-4 rounded-xl p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-glow motion-reduce:transition-none',
+                    choice === b.id
+                      ? 'bg-brand-primary/[0.08] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.4)]'
+                      : 'hover:bg-white/[0.03]',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="branch"
+                    value={b.id}
+                    checked={choice === b.id}
+                    onChange={() => setChoice(b.id)}
+                    className="mt-1 size-4 shrink-0 accent-[var(--color-brand-primary)]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <BranchCode code={b.code} head={b.type === 'HEAD_OFFICE'} />
+                      <span className="text-label font-semibold break-words text-text-primary">
+                        {b.name}
+                      </span>
+                      {b.type === 'HEAD_OFFICE' && <Pill tone="teal">{c.branches.headOffice}</Pill>}
+                    </span>
+                    <span className="mt-1 flex items-start gap-1.5 text-caption text-text-secondary">
+                      <MapPin aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                      <span className="min-w-0 break-words">
+                        {locationSummary(b) || oneLineAddress(b)}
+                      </span>
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          ))}
           {error && <Notice tone="error">{error}</Notice>}
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -302,10 +347,29 @@ function BranchSelector({
   );
 }
 
+/** No active branch is open to this person: say so plainly; nothing to choose. */
+function Blocked() {
+  const c = useCopy(CONTROL_COPY);
+  const a = useCopy(ADMIN_COPY);
+  return (
+    <div className="mx-auto grid max-w-2xl gap-5 py-6" data-core-blocked>
+      <ShieldAlert aria-hidden className="size-8 text-warning" />
+      <h1 className="text-[clamp(1.5rem,1.2rem+1vw,2.125rem)] font-semibold tracking-tight text-text-primary">
+        {a.selector.blockedTitle}
+      </h1>
+      <p className="text-label leading-relaxed text-text-secondary">{a.selector.blockedBody}</p>
+      <AreaLink to="/company" className={buttonClasses('secondary', 'md', 'w-fit')}>
+        {c.enter.back}
+      </AreaLink>
+    </div>
+  );
+}
+
 function OperationsHome({ context }: { context: BranchContext }) {
   const c = useCopy(CONTROL_COPY);
   const a = useCopy(AUTH_COPY);
   const { locale } = useLocale();
+  const branchLabel = useBranchLabel();
   const branch = context.selected!;
   return (
     <div className="grid gap-8" data-core-home>
@@ -317,7 +381,7 @@ function OperationsHome({ context }: { context: BranchContext }) {
           <p className="mt-2 text-label text-text-secondary">{c.core.lead}</p>
           <p className="mt-3 flex flex-wrap gap-2">
             <Pill tone="teal" wrap>
-              {c.core.branch}: {branch.name} · {branch.code}
+              {c.core.branch}: {branchLabel(branch)}
             </Pill>
             <Pill tone="muted">{a.roles[context.role]}</Pill>
           </p>

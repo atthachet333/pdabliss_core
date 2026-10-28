@@ -1,5 +1,5 @@
-import { Building, MapPin, Phone, Plus } from 'lucide-react';
-import { useId, useState, type FormEvent } from 'react';
+import { ChevronRight, Plus, Search } from 'lucide-react';
+import { useId, useMemo, useState, type FormEvent } from 'react';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { TextField } from '@/features/auth/fields';
@@ -7,79 +7,64 @@ import type { BranchInfo } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { ADMIN_COPY } from './adminCopy';
+import { BranchCode, BranchStatusPill, FieldGroup, StatusRail } from './adminParts';
 import { controlApi, type BranchInput, type BranchList } from './api';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
-import { errorText, fieldGrid, oneLineAddress, useLoad } from './model';
-import { Loading, PageTitle, Pill, Result, Section } from './parts';
+import {
+  branchFields,
+  emptyBranch,
+  errorText,
+  fieldGrid,
+  useDateFormat,
+  useDepartmentName,
+  locationSummary,
+  useLoad,
+  type BranchFields,
+} from './model';
+import { AreaLink, Loading, PageTitle, Pill, Result, Section } from './parts';
 
 /*
- * /company/branches — every branch of the company. Owner and System Admin
- * create, edit, deactivate and reactivate; everyone else reads. The Head
- * Office (00000) is always there: its details can change, it can never be
- * deactivated or removed (the server and the database refuse it too). Branch
- * codes are 5 digits, unique in the company, and fixed once created.
+ * /company/branches (EP25; EP26: an operational list). Every branch of the
+ * company, Head Office first: code, name, status, where it is, how many
+ * people can work there and which departments they bring, and when it last
+ * changed. Each row opens the branch detail (/company/branches/:id), where it
+ * is edited, deactivated or reactivated. Owner and System Admin add branches;
+ * everyone else reads. The Head Office (00000) is never deactivated or removed
+ * (the server and the database refuse it too); codes are fixed once created.
  */
 
-type Fields = Record<
-  | 'code'
-  | 'name'
-  | 'addressLine1'
-  | 'addressLine2'
-  | 'subdistrict'
-  | 'district'
-  | 'province'
-  | 'postalCode'
-  | 'countryCode'
-  | 'phone',
-  string
->;
-
-const empty: Fields = {
-  code: '',
-  name: '',
-  addressLine1: '',
-  addressLine2: '',
-  subdistrict: '',
-  district: '',
-  province: '',
-  postalCode: '',
-  countryCode: 'TH',
-  phone: '',
-};
-
-const fromBranch = (b: BranchInfo): Fields => ({
-  code: b.code,
-  name: b.name,
-  addressLine1: b.address.line1,
-  addressLine2: b.address.line2 ?? '',
-  subdistrict: b.address.subdistrict ?? '',
-  district: b.address.district ?? '',
-  province: b.address.province,
-  postalCode: b.address.postalCode,
-  countryCode: b.address.countryCode,
-  phone: b.phone ?? '',
-});
+/** Rows shown before "Show more" — branch lists stay light even for large companies. */
+const PAGE = 50;
 
 export function BranchesPage() {
   const c = useCopy(CONTROL_COPY);
+  const a = useCopy(ADMIN_COPY);
   const { reload: reloadOverview } = useControl();
   const { state, reload } = useLoad(controlApi.branches);
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [search, setSearch] = useState('');
+  const [limit, setLimit] = useState(PAGE);
+  const searchId = useId();
+
+  const rows = useMemo(() => {
+    if (state.status !== 'ready') return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return state.data.branches;
+    return state.data.branches.filter((b) =>
+      [b.code, b.name, b.address.province, b.address.district ?? '']
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [state, search]);
 
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
   if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
   const list: BranchList = state.data;
   const active = list.branches.filter((b) => b.status === 'ACTIVE').length;
-
-  const done = async (text: string) => {
-    setNotice({ tone: 'success', text });
-    setCreating(false);
-    setEditing(null);
-    await Promise.all([reload(), reloadOverview()]).catch(() => undefined);
-  };
 
   return (
     <div className="grid gap-8">
@@ -92,7 +77,6 @@ export function BranchesPage() {
               type="button"
               onClick={() => {
                 setCreating(true);
-                setEditing(null);
                 setNotice(null);
               }}
               className={buttonClasses('primary', 'md')}
@@ -110,10 +94,14 @@ export function BranchesPage() {
       {creating && (
         <Section id="new-branch-title" title={c.branches.newTitle}>
           <BranchForm
-            initial={empty}
+            initial={emptyBranch}
             suggestedCode={list.suggestedCode}
             onCancel={() => setCreating(false)}
-            onSaved={(b) => void done(c.branches.created(b.code))}
+            onSaved={(b) => {
+              setCreating(false);
+              setNotice({ tone: 'success', text: c.branches.created(b.code) });
+              void Promise.all([reload(), reloadOverview()]).catch(() => undefined);
+            }}
           />
         </Section>
       )}
@@ -127,228 +115,196 @@ export function BranchesPage() {
           </span>
         }
       >
-        <ul className="grid gap-3" data-branch-list>
-          {list.branches.map((b) => (
-            <li
-              key={b.id}
-              data-branch={b.code}
-              data-status={b.status}
-              className={cn(
-                'rounded-2xl p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)] sm:p-5',
-                b.status === 'ACTIVE' ? 'bg-white/[0.025]' : 'bg-transparent opacity-80',
-              )}
-            >
-              <BranchRow
-                branch={b}
-                canManage={list.canManage}
-                editing={editing === b.id}
-                onEdit={() => {
-                  setEditing(editing === b.id ? null : b.id);
-                  setCreating(false);
-                  setNotice(null);
-                }}
-                onDone={(text) => void done(text)}
-                onError={(text) => setNotice({ tone: 'error', text })}
+        {list.branches.length > 8 && (
+          <div className="mb-4 max-w-sm">
+            <label htmlFor={searchId} className="sr-only">
+              {a.branchList.search}
+            </label>
+            <div className="relative">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
               />
-            </li>
-          ))}
-        </ul>
+              <input
+                id={searchId}
+                type="search"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setLimit(PAGE);
+                }}
+                placeholder={a.branchList.search}
+                className="min-h-11 w-full rounded-xl bg-white/[0.04] py-2 pr-3 pl-9 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.12)] placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                data-branch-search
+              />
+            </div>
+          </div>
+        )}
+        <BranchRows rows={rows.slice(0, limit)} />
+        {rows.length === 0 && (
+          <p className="py-4 text-label text-text-secondary">{a.branchList.none}</p>
+        )}
+        {rows.length > limit && (
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n + PAGE)}
+            className={buttonClasses('secondary', 'md', 'mt-4')}
+          >
+            {a.branchList.showMore}
+          </button>
+        )}
         <p className="mt-4 text-caption text-text-muted">{c.branches.headOfficeNote}</p>
       </Section>
     </div>
   );
 }
 
-function BranchRow({
-  branch: b,
-  canManage,
-  editing,
-  onEdit,
-  onDone,
-  onError,
-}: {
-  branch: BranchInfo;
-  canManage: boolean;
-  editing: boolean;
-  onEdit: () => void;
-  onDone: (text: string) => void;
-  onError: (text: string) => void;
-}) {
+function BranchRows({ rows }: { rows: BranchList['branches'] }) {
   const c = useCopy(CONTROL_COPY);
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const head = b.type === 'HEAD_OFFICE';
-  const panelId = useId();
-
-  const setActive = async (activeNow: boolean) => {
-    setBusy(true);
-    try {
-      await controlApi.setBranchActive(b.id, activeNow);
-      setConfirming(false);
-      onDone(activeNow ? c.branches.reactivated : c.branches.deactivated);
-    } catch (e) {
-      onError(errorText(e, c));
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const a = useCopy(ADMIN_COPY);
+  const deptName = useDepartmentName();
+  const { date } = useDateFormat();
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
-        <span
-          aria-hidden
-          className={cn(
-            'grid size-10 shrink-0 place-items-center rounded-xl',
-            head
-              ? 'bg-brand-primary/[0.12] text-brand-soft'
-              : 'bg-white/[0.05] text-text-secondary',
-          )}
-        >
-          <Building className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-caption text-text-muted tabular-nums">{b.code}</span>
-            <span className="text-label font-semibold break-words text-text-primary">{b.name}</span>
-            {head && <Pill tone="teal">{c.branches.headOffice}</Pill>}
-            {b.status !== 'ACTIVE' && (
-              <Pill tone="muted">
-                {b.status === 'CLOSED' ? c.common.closed : c.common.inactive}
-              </Pill>
-            )}
-          </p>
-          <p className="mt-1 flex items-start gap-1.5 text-caption text-text-secondary">
-            <MapPin aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            <span className="min-w-0 break-words">{oneLineAddress(b)}</span>
-          </p>
-          {b.phone && (
-            <p className="mt-0.5 flex items-center gap-1.5 text-caption text-text-secondary">
-              <Phone aria-hidden className="size-3.5 shrink-0" />
-              <span className="tabular-nums">{b.phone}</span>
-            </p>
-          )}
-        </div>
-        {canManage && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-expanded={editing}
-              aria-controls={panelId}
-              className={buttonClasses('secondary', 'md')}
-            >
-              {c.common.edit}
-            </button>
-            {!head && b.status === 'ACTIVE' && !confirming && (
-              <button
-                type="button"
-                onClick={() => setConfirming(true)}
-                className={buttonClasses('ghost', 'md')}
-              >
-                {c.branches.deactivate}
-              </button>
-            )}
-            {!head && b.status === 'INACTIVE' && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void setActive(true)}
-                className={buttonClasses('ghost', 'md')}
-              >
-                {c.branches.reactivate}
-              </button>
-            )}
-          </div>
-        )}
+    <div className="grid gap-1.5">
+      {/* Column heads for the dense desktop rows (the rows read on their own too). */}
+      <div
+        aria-hidden
+        className="hidden grid-cols-[4.5rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,0.8fr)_1.25rem] gap-4 px-4 pb-1 text-caption text-text-muted lg:grid"
+      >
+        <span />
+        <span>{a.branchList.columns.branch}</span>
+        <span>{a.branchList.columns.status}</span>
+        <span>{a.branchList.columns.people}</span>
+        <span>{a.branchList.columns.departments}</span>
+        <span>{a.branchList.columns.updated}</span>
+        <span />
       </div>
-      {confirming && (
-        <div
-          role="group"
-          aria-label={c.branches.deactivate}
-          className="grid gap-3 rounded-xl bg-warning/[0.06] p-4 shadow-[inset_0_0_0_1px_rgb(245_184_75/0.25)]"
-        >
-          <p className="text-label text-text-primary">{c.branches.confirmDeactivate(b.name)}</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void setActive(false)}
-              className={buttonClasses('secondary', 'md')}
-              data-confirm-deactivate
-            >
-              {c.common.confirm}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              className={buttonClasses('ghost', 'md')}
-            >
-              {c.common.cancel}
-            </button>
-          </div>
-        </div>
-      )}
-      <div id={panelId} hidden={!editing}>
-        {editing && (
-          <BranchForm
-            initial={fromBranch(b)}
-            branch={b}
-            suggestedCode={null}
-            onCancel={onEdit}
-            onSaved={() => onDone(c.branches.updated)}
-          />
-        )}
-      </div>
+      <ul className="grid gap-1.5" data-branch-list>
+        {rows.map((b) => {
+          const head = b.type === 'HEAD_OFFICE';
+          return (
+            <li key={b.id} data-branch={b.code} data-status={b.status}>
+              <AreaLink
+                to={`/company/branches/${encodeURIComponent(b.id)}`}
+                className={cn(
+                  'relative grid gap-x-4 gap-y-1.5 rounded-xl py-3 pr-3 pl-4 transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus motion-reduce:transition-none lg:grid-cols-[4.5rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,0.8fr)_1.25rem] lg:items-center',
+                  b.status === 'ACTIVE' ? 'bg-white/[0.02]' : 'opacity-80',
+                )}
+              >
+                <StatusRail active={b.status === 'ACTIVE'} />
+                <span className="flex items-center gap-2 lg:block">
+                  <BranchCode code={b.code} head={head} />
+                  <span className="lg:hidden">
+                    <BranchStatusPill status={b.status} />
+                  </span>
+                </span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-label font-semibold break-words text-text-primary">
+                      {b.name}
+                    </span>
+                    {head && <Pill tone="teal">{c.branches.headOffice}</Pill>}
+                  </span>
+                  <span className="block text-caption break-words text-text-muted">
+                    {locationSummary(b)}
+                  </span>
+                </span>
+                <span className="max-lg:hidden">
+                  <BranchStatusPill status={b.status} />
+                </span>
+                <span className="text-caption text-text-secondary">
+                  <span className="text-text-muted lg:hidden">
+                    {a.branchList.columns.people}:{' '}
+                  </span>
+                  {a.branchList.people(b.access.people)}
+                </span>
+                <span className="flex min-w-0 flex-wrap gap-1">
+                  {b.access.departments.length ? (
+                    b.access.departments.map((d) => (
+                      <Pill key={d} tone="muted">
+                        {deptName(d)}
+                      </Pill>
+                    ))
+                  ) : (
+                    <span className="text-caption text-text-muted">
+                      {a.branchList.noDepartments}
+                    </span>
+                  )}
+                </span>
+                <span className="text-caption text-text-muted">
+                  {b.updatedAt && (
+                    <>
+                      <span className="lg:hidden">{a.branchList.columns.updated}: </span>
+                      {date(b.updatedAt)}
+                    </>
+                  )}
+                </span>
+                <ChevronRight
+                  aria-hidden
+                  className="absolute top-3.5 right-3 size-4 text-text-muted lg:static"
+                />
+                <span className="sr-only">{a.branchList.open(b.name)}</span>
+              </AreaLink>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
 
-function BranchForm({
+/**
+ * Create or edit a branch, in three groups: Identity, Address, Contact.
+ * Status is managed on the branch detail. Thai address order: house number /
+ * street, sub-district (แขวง / ตำบล), district (เขต / อำเภอ), province,
+ * postcode. The server validates again (postcode by country, phone format).
+ */
+export function BranchForm({
   initial,
   branch,
   suggestedCode,
   onCancel,
   onSaved,
 }: {
-  initial: Fields;
+  initial: BranchFields;
   branch?: BranchInfo;
   suggestedCode: string | null;
   onCancel: () => void;
   onSaved: (b: BranchInfo) => void;
 }) {
   const c = useCopy(CONTROL_COPY);
+  const a = useCopy(ADMIN_COPY);
   const pc = c.profile;
-  const [form, setForm] = useState<Fields>(initial);
-  const [errors, setErrors] = useState<Partial<Record<keyof Fields, string>>>({});
+  const [form, setForm] = useState<BranchFields>(initial);
+  const [errors, setErrors] = useState<Partial<Record<keyof BranchFields, string>>>({});
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const base = useId();
-  const f = (k: keyof Fields) => `${base}-${k}`;
+  const f = (k: keyof BranchFields) => `${base}-${k}`;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setResult(null);
-    const missing: Partial<Record<keyof Fields, string>> = {};
+    const missing: Partial<Record<keyof BranchFields, string>> = {};
     for (const k of ['name', 'addressLine1', 'province', 'postalCode'] as const)
       if (!form[k].trim()) missing[k] = pc.invalid.required;
     if (!branch && form.code.trim() && !/^\d{5}$/.test(form.code.trim()))
       missing.code = c.branches.codeHint(suggestedCode ?? '00001');
     setErrors(missing);
     if (Object.keys(missing).length) {
-      document.getElementById(f(Object.keys(missing)[0] as keyof Fields))?.focus();
+      document.getElementById(f(Object.keys(missing)[0] as keyof BranchFields))?.focus();
       return;
     }
     const trimmed = Object.fromEntries(
       Object.entries(form).map(([k, v]) => [k, v.trim()]),
-    ) as Fields;
+    ) as BranchFields;
     setBusy(true);
     try {
       let saved: BranchInfo;
       if (branch) {
         const body: Partial<BranchInput> = {};
-        const before = fromBranch(branch);
-        for (const k of Object.keys(trimmed) as (keyof Fields)[]) {
+        const before = branchFields(branch);
+        for (const k of Object.keys(trimmed) as (keyof BranchFields)[]) {
           if (k === 'code' || trimmed[k] === before[k]) continue;
           (body as Record<string, string | null>)[k] =
             trimmed[k] ||
@@ -381,9 +337,9 @@ function BranchForm({
         setErrors({ code: c.errors.BRANCH_CODE_TAKEN });
         document.getElementById(f('code'))?.focus();
       } else if (err instanceof ApiError && Array.isArray(err.details)) {
-        const next: Partial<Record<keyof Fields, string>> = {};
+        const next: Partial<Record<keyof BranchFields, string>> = {};
         for (const d of err.details as { path: string }[]) {
-          const k = d.path as keyof Fields;
+          const k = d.path as keyof BranchFields;
           next[k] =
             k === 'phone'
               ? pc.invalid.phone
@@ -400,7 +356,7 @@ function BranchForm({
   };
 
   const input = (
-    k: keyof Fields,
+    k: keyof BranchFields,
     label: string,
     extra: Partial<Parameters<typeof TextField>[0]> = {},
   ) => (
@@ -418,50 +374,60 @@ function BranchForm({
     <form
       noValidate
       onSubmit={(e) => void submit(e)}
-      className="grid gap-4"
+      className="grid gap-7"
       data-branch-form={branch ? 'edit' : 'new'}
     >
-      <div className={fieldGrid}>
-        {branch ? (
-          <TextField
-            id={f('code')}
-            label={c.branches.code}
-            value={branch.code}
-            readOnly
-            hint={c.branches.codeFixed}
-          />
-        ) : (
-          input('code', `${c.branches.code} (${c.common.optional})`, {
+      <FieldGroup legend={a.branchForm.identity}>
+        <div className={fieldGrid}>
+          {branch ? (
+            <TextField
+              id={f('code')}
+              label={c.branches.code}
+              value={branch.code}
+              readOnly
+              hint={c.branches.codeFixed}
+            />
+          ) : (
+            input('code', `${c.branches.code} (${c.common.optional})`, {
+              inputMode: 'numeric',
+              maxLength: 5,
+              placeholder: suggestedCode ?? undefined,
+              hint: c.branches.codeHint(suggestedCode ?? '—'),
+            })
+          )}
+          {input('name', c.branches.name, { required: true, maxLength: 120 })}
+        </div>
+      </FieldGroup>
+      <FieldGroup legend={a.branchForm.address}>
+        <div className={fieldGrid}>
+          {input('addressLine1', pc.addressLine1, {
+            required: true,
+            maxLength: 200,
+            className: 'sm:col-span-2',
+          })}
+          {input('addressLine2', `${pc.addressLine2} (${c.common.optional})`, {
+            maxLength: 200,
+            className: 'sm:col-span-2',
+          })}
+          {input('subdistrict', `${pc.subdistrict} (${c.common.optional})`, { maxLength: 100 })}
+          {input('district', `${pc.district} (${c.common.optional})`, { maxLength: 100 })}
+          {input('province', pc.province, { required: true, maxLength: 100 })}
+          {input('postalCode', pc.postalCode, {
+            required: true,
             inputMode: 'numeric',
-            maxLength: 5,
-            placeholder: suggestedCode ?? undefined,
-            hint: c.branches.codeHint(suggestedCode ?? '—'),
-          })
-        )}
-        {input('name', c.branches.name, { required: true, maxLength: 120 })}
-        {input('addressLine1', pc.addressLine1, {
-          required: true,
-          maxLength: 200,
-          className: 'sm:col-span-2',
-        })}
-        {input('addressLine2', `${pc.addressLine2} (${c.common.optional})`, {
-          maxLength: 200,
-          className: 'sm:col-span-2',
-        })}
-        {input('subdistrict', `${pc.subdistrict} (${c.common.optional})`, { maxLength: 100 })}
-        {input('district', `${pc.district} (${c.common.optional})`, { maxLength: 100 })}
-        {input('province', pc.province, { required: true, maxLength: 100 })}
-        {input('postalCode', pc.postalCode, {
-          required: true,
-          inputMode: 'numeric',
-          maxLength: 12,
-        })}
-        {input('countryCode', pc.country, { maxLength: 2 })}
-        {input('phone', `${c.branches.phone} (${c.common.optional})`, {
-          type: 'tel',
-          maxLength: 32,
-        })}
-      </div>
+            maxLength: 12,
+          })}
+          {input('countryCode', pc.country, { maxLength: 2 })}
+        </div>
+      </FieldGroup>
+      <FieldGroup legend={a.branchForm.contact}>
+        <div className={fieldGrid}>
+          {input('phone', `${c.branches.phone} (${c.common.optional})`, {
+            type: 'tel',
+            maxLength: 32,
+          })}
+        </div>
+      </FieldGroup>
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={busy} className={buttonClasses('primary', 'md')}>
           {busy ? c.common.saving : branch ? c.common.save : c.branches.create}

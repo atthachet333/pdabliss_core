@@ -29,7 +29,7 @@ async function main() {
     if (process.argv.includes('--demo')) {
       const demo = await seedDemo(db, env);
       out(
-        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, branch 00001 ${demo.branch}, subscription ${demo.subscription}, staff assignment ${demo.assignments} (${Object.entries(
+        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, branch 00001 ${demo.branch}, subscription ${demo.subscription}, staff assignment ${demo.assignments}, staff branch access ${demo.staffBranchAccess} (${Object.entries(
           demo.identities,
         )
           .map(([r, o]) => `${r} ${o}`)

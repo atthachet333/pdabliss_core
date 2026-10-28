@@ -1,4 +1,5 @@
 import { toApiLocale } from '../auth/locale.js';
+import type { DepartmentCode } from '../billing/catalog.js';
 import type { Branch, Company, Subscription } from '../generated/prisma/client.js';
 
 /*
@@ -24,7 +25,35 @@ export interface BranchView {
   };
   phone: string | null;
   deactivatedAt: string | null;
+  /** EP26: when the branch was created / last changed. */
+  createdAt: string;
+  updatedAt: string;
 }
+
+/** A branch named inside another record (access lists, invitations) — EP26. */
+export interface BranchRef {
+  id: string;
+  code: string;
+  name: string;
+  type: 'HEAD_OFFICE' | 'BRANCH';
+  status: string;
+}
+
+export const branchRef = (
+  b: Pick<Branch, 'id' | 'code' | 'name' | 'type' | 'status'>,
+): BranchRef => ({
+  id: b.id,
+  code: b.code,
+  name: b.name,
+  type: b.type,
+  status: b.status,
+});
+
+/** A department assignment as the Control Center shows it. */
+export const departmentView = (a: {
+  isPrimary: boolean;
+  department: { code: DepartmentCode; isActive: boolean };
+}) => ({ code: a.department.code, primary: a.isPrimary, active: a.department.isActive });
 
 export interface SubscriptionView {
   id: string;
@@ -58,6 +87,8 @@ export const branchView = (b: Branch): BranchView => ({
   },
   phone: b.phone,
   deactivatedAt: b.deactivatedAt?.toISOString() ?? null,
+  createdAt: b.createdAt.toISOString(),
+  updatedAt: b.updatedAt.toISOString(),
 });
 
 export const subscriptionView = (s: Subscription, showPrice = true): SubscriptionView => ({

@@ -61,14 +61,20 @@ export function fakeApi(handlers: Record<string, Handler>) {
 export function identity(
   overrides: {
     platformRole?: Identity['platformRole'];
-    company?: Identity['company'];
+    /** EP25 fields default to an active member of a company that is not active yet. */
+    company?:
+      | (Omit<NonNullable<Identity['company']>, 'memberStatus' | 'canEnterCore'> &
+          Partial<Pick<NonNullable<Identity['company']>, 'memberStatus' | 'canEnterCore'>>)
+      | null;
     planIntent?: string | null;
     email?: string;
     fullName?: string | null;
   } = {},
 ): Identity {
   const platformRole = overrides.platformRole ?? null;
-  const company = overrides.company ?? null;
+  const company = overrides.company
+    ? { memberStatus: 'ACTIVE' as const, canEnterCore: false, ...overrides.company }
+    : null;
   return {
     user: {
       id: 'u_1',

@@ -15,7 +15,7 @@ export class ApiError extends Error {
 /** The request never reached the API (offline, server down, blocked). */
 export const NETWORK_ERROR = 'NETWORK_ERROR';
 
-type Method = 'GET' | 'POST' | 'DELETE';
+type Method = 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT';
 
 /**
  * Minimal JSON client. Credentials are included so the HttpOnly session

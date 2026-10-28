@@ -411,38 +411,90 @@ export function existingAccountMail(locale: MailLocale, loginUrl: string): Rende
   );
 }
 
-export function invitationMail(locale: MailLocale, companyName: string, url: string): Rendered {
+/** Company roles as an invitee reads them (EP25). */
+const ROLE_NAMES: Record<string, Record<MailLocale, string>> = {
+  SYSTEM_ADMIN: { th: 'ผู้ดูแลระบบของบริษัท', en: 'System Admin', 'zh-CN': '系统管理员' },
+  EXECUTIVE: { th: 'ผู้บริหาร', en: 'Executive', 'zh-CN': '高管' },
+  DEPARTMENT_MANAGER: { th: 'หัวหน้าแผนก', en: 'Department Manager', 'zh-CN': '部门经理' },
+  DEPARTMENT_STAFF: { th: 'พนักงานแผนก', en: 'Department Staff', 'zh-CN': '部门员工' },
+  VIEWER: { th: 'ผู้ดูข้อมูล', en: 'Viewer', 'zh-CN': '只读成员' },
+};
+
+const DATE_LOCALE: Record<MailLocale, string> = { th: 'th-TH', en: 'en-GB', 'zh-CN': 'zh-CN' };
+
+export interface InvitationFacts {
+  companyName: string;
+  /** Who sent it (full name, or email for older accounts). */
+  inviterName: string;
+  role: string;
+  expiresAt: Date;
+  /** The company's time zone, so the expiry reads as local time. */
+  timeZone: string;
+  url: string;
+}
+
+export function invitationMail(locale: MailLocale, f: InvitationFacts): Rendered {
+  const { companyName, inviterName } = f;
+  const role = ROLE_NAMES[f.role]?.[locale] ?? f.role;
+  const until = new Intl.DateTimeFormat(DATE_LOCALE[locale], {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: f.timeZone,
+  }).format(f.expiresAt);
   const copy = {
     th: {
       subject: `คำเชิญเข้าร่วม ${companyName} บน PDA BLISS CORE`,
       heading: `คุณได้รับเชิญเข้าร่วม ${companyName}`,
-      preheader: `คำเชิญเข้าร่วม ${companyName} — ใช้ได้ 7 วัน`,
-      paragraphs: ['เข้าสู่ระบบหรือสมัครด้วยอีเมลนี้ แล้วกดยอมรับคำเชิญ'],
-      facts: ['ลิงก์ใช้ได้ครั้งเดียว และหมดอายุใน 7 วัน', 'ต้องใช้บัญชีที่ใช้อีเมลนี้เท่านั้น'],
+      preheader: `${inviterName} เชิญคุณเข้าร่วม ${companyName} — ใช้ได้ 7 วัน`,
+      paragraphs: [
+        `${inviterName} เชิญคุณเข้าร่วม ${companyName} บน PDA BLISS CORE ในบทบาท ${role}`,
+        'เข้าสู่ระบบหรือสมัครด้วยอีเมลนี้ แล้วกดยอมรับคำเชิญ',
+      ],
+      facts: [
+        `ใช้ได้ถึง ${until} และใช้ได้ครั้งเดียว`,
+        'ต้องใช้บัญชีที่ใช้อีเมลนี้เท่านั้น',
+        'หากคุณไม่รู้จักบริษัทหรือผู้เชิญ ไม่ต้องดำเนินการใด ๆ — คำเชิญจะหมดอายุเอง',
+      ],
       label: 'ดูคำเชิญ',
     },
     en: {
       subject: `Invitation to join ${companyName} on PDA BLISS CORE`,
       heading: `You are invited to join ${companyName}`,
-      preheader: `Invitation to join ${companyName} — valid for 7 days`,
-      paragraphs: ['Sign in or register with this email address, then accept the invitation.'],
+      preheader: `${inviterName} invited you to ${companyName} — valid for 7 days`,
+      paragraphs: [
+        `${inviterName} invited you to join ${companyName} on PDA BLISS CORE as ${role}.`,
+        'Sign in or register with this email address, then accept the invitation.',
+      ],
       facts: [
-        'The link works once and expires in 7 days.',
+        `Valid until ${until}, and it works once.`,
         'Only an account with this email address can accept it.',
+        'If you do not know this company or the sender, do nothing — the invitation expires on its own.',
       ],
       label: 'View invitation',
     },
     'zh-CN': {
       subject: `邀请您加入 PDA BLISS CORE 上的 ${companyName}`,
       heading: `您受邀加入 ${companyName}`,
-      preheader: `邀请您加入 ${companyName} — 7 天内有效`,
-      paragraphs: ['请使用此邮箱登录或注册，然后接受邀请。'],
-      facts: ['链接仅可使用一次，7 天后失效。', '只有使用此邮箱的账户才能接受邀请。'],
+      preheader: `${inviterName} 邀请您加入 ${companyName} — 7 天内有效`,
+      paragraphs: [
+        `${inviterName} 邀请您以「${role}」身份加入 PDA BLISS CORE 上的 ${companyName}。`,
+        '请使用此邮箱登录或注册，然后接受邀请。',
+      ],
+      facts: [
+        `有效期至 ${until}，仅可使用一次。`,
+        '只有使用此邮箱的账户才能接受邀请。',
+        '如果您不认识该公司或邀请人，无需任何操作——邀请会自动失效。',
+      ],
       label: '查看邀请',
     },
   }[locale];
   return render(
-    { ...copy, kind: 'invitation', action: { label: copy.label, url }, footer: FOOTER[locale] },
+    {
+      ...copy,
+      kind: 'invitation',
+      action: { label: copy.label, url: f.url },
+      footer: FOOTER[locale],
+    },
     locale,
   );
 }

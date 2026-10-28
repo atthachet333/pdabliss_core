@@ -200,6 +200,10 @@ export const routes: RouteObject[] = [
         path: 'platform/operators',
         ...pageRoute(() => import('@/pages/account/PlatformOperatorsPage')),
       },
+      // EP25: the customer Company Control Center and the CORE Operations entry
+      // (one lazy chunk each; nested pages are routed inside).
+      { path: 'company/*', ...pageRoute(() => import('@/pages/company/CompanyArea')) },
+      { path: 'core/*', ...pageRoute(() => import('@/pages/core/CorePage')) },
       // English and Simplified Chinese.
       localeRoutes('en', 'en'),
       localeRoutes('zh', 'zh-CN'),

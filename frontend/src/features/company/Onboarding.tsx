@@ -97,6 +97,19 @@ export function CompanyOnboarding({ identity }: { identity: Identity }) {
   const { onboarding } = state;
   const stage = onboarding.stage;
   if (stage === 'PLATFORM_OPERATOR') return null;
+  // EP25: the company removed this person's access — no company details, just where they stand.
+  if (stage === 'MEMBERSHIP_INACTIVE') {
+    return (
+      <Panel id="company-title" title={c.summary.title} className="lg:col-span-2">
+        <p className="text-body font-semibold text-text-primary">
+          {onboarding.company?.displayName}
+        </p>
+        <div className="mt-3" data-membership-inactive>
+          <Notice tone="info">{c.summary.inactive}</Notice>
+        </div>
+      </Panel>
+    );
+  }
 
   return (
     <div className="grid gap-5 lg:col-span-2" data-onboarding-stage={stage}>
@@ -891,11 +904,14 @@ function CompanySummary({ c }: { c: CompanyCopy }) {
               data-subscription-plan={subscription.plan}
             >
               {facts(subscription.plan).name}
-              <span className="ml-2 text-label font-normal text-text-secondary">
-                {subscription.monthlyPriceThb === null
-                  ? c.package.quotation
-                  : c.package.perMonth(formatNumber(subscription.monthlyPriceThb))}
-              </span>
+              {/* EP25: department roles do not see what the company pays. */}
+              {info.priceVisible !== false && (
+                <span className="ml-2 text-label font-normal text-text-secondary">
+                  {subscription.monthlyPriceThb === null
+                    ? c.package.quotation
+                    : c.package.perMonth(formatNumber(subscription.monthlyPriceThb))}
+                </span>
+              )}
             </p>
             <dl className="mt-4 grid gap-2 text-label sm:grid-cols-[max-content_minmax(0,1fr)] sm:gap-x-6">
               <Row term={s.subscription}>
@@ -927,9 +943,13 @@ function CompanySummary({ c }: { c: CompanyCopy }) {
           {message}
         </p>
         {info.access.canEnterCore && (
-          <p className="mt-3 text-caption text-text-muted" data-control-center="next-phase">
-            {s.controlCenterSoon}
-          </p>
+          <Link
+            to="/company"
+            className={`${buttonClasses('primary', 'md')} mt-4`}
+            data-control-center="open"
+          >
+            {s.openControlCenter}
+          </Link>
         )}
       </Panel>
     </div>

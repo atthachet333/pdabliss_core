@@ -33,6 +33,15 @@ describe('email links', () => {
 
 describe.each(LOCALES)('templates (%s)', (locale) => {
   const resetUrl = appLink(BASE, '/reset-password', locale, TOKEN);
+  /** EP25: who invites, as what, until when — with markup-looking names. */
+  const invite = () => ({
+    companyName: 'บริษัท <ตัวอย่าง> & Co',
+    inviterName: 'Somchai <b>',
+    role: 'DEPARTMENT_STAFF',
+    expiresAt: new Date('2026-11-04T09:30:00Z'),
+    timeZone: 'Asia/Bangkok',
+    url: appLink(BASE, '/account/invitation', locale, TOKEN),
+  });
   const verifyUrl = appLink(BASE, '/verify-email', locale, TOKEN);
   const all = [
     passwordResetMail(locale, resetUrl),
@@ -41,11 +50,7 @@ describe.each(LOCALES)('templates (%s)', (locale) => {
     otpMail(locale, '042917', 'step_up'),
     passwordChangedMail(locale, appLink(BASE, '/login', locale)),
     existingAccountMail(locale, appLink(BASE, '/login', locale)),
-    invitationMail(
-      locale,
-      'บริษัท <ตัวอย่าง> & Co',
-      appLink(BASE, '/account/invitation', locale, TOKEN),
-    ),
+    invitationMail(locale, invite()),
   ];
 
   it('use conservative markup: no images, scripts, web fonts or remote styles', () => {
@@ -122,12 +127,24 @@ describe.each(LOCALES)('templates (%s)', (locale) => {
   });
 
   it('escapes names that look like markup', () => {
-    const m = invitationMail(
-      locale,
-      'บริษัท <ตัวอย่าง> & Co',
-      appLink(BASE, '/account/invitation', locale, TOKEN),
-    );
+    const m = invitationMail(locale, invite());
     expect(m.html).not.toContain('<ตัวอย่าง>');
     expect(m.html).toContain('&#60;ตัวอย่าง&#62; &#38; Co');
+    expect(m.html).not.toContain('Somchai <b>');
+  });
+
+  it('the invitation names the inviter, the role and the real expiry, and says what to do if unexpected (EP25)', () => {
+    const m = invitationMail(locale, invite());
+    const role = { th: 'พนักงานแผนก', en: 'Department Staff', 'zh-CN': '部门员工' }[locale];
+    const ignore = { th: 'ไม่ต้องดำเนินการใด ๆ', en: 'do nothing', 'zh-CN': '无需任何操作' }[
+      locale
+    ];
+    expect(m.text).toContain('Somchai <b>');
+    expect(m.text).toContain(role);
+    expect(m.text).toContain(ignore);
+    // 09:30 UTC is 16:30 in Bangkok.
+    expect(m.text).toMatch(/16:30/);
+    expect(m.text).toContain('#token=');
+    expect(m.text).not.toMatch(/DEPARTMENT_STAFF/);
   });
 });

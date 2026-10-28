@@ -4,6 +4,7 @@ import {
   Browser,
   codeFrom,
   createHarness,
+  createActiveCompany,
   createUser,
   describeDb,
   PASSWORD,
@@ -92,7 +93,8 @@ describeDb('invitations (EP23 foundation)', () => {
   beforeEach(async () => {
     await resetDb(h.db);
     h.mailer.clear();
-    companyId = (await h.db.company.create({ data: { name: 'Invite Co', isDemo: true } })).id;
+    // EP25: invitations are sent from the Company Control Center of an ACTIVE company.
+    ({ companyId } = await createActiveCompany(h.db, { name: 'Invite Co' }));
     await createUser(h.db, 'boss@example.com', { companyRole: 'COMPANY_OWNER', companyId });
     await createUser(h.db, 'staff@example.com', { companyRole: 'DEPARTMENT_STAFF', companyId });
   });
@@ -187,11 +189,23 @@ describeDb('invitations (EP23 foundation)', () => {
   });
 
   it('an account already in a company cannot join a second one (no company switching)', async () => {
-    const { token } = await invite('staff@example.com', 'VIEWER');
-    const staff = await signIn(h, 'staff@example.com');
-    expect((await staff.post('/api/v1/auth/invitations/accept', { token })).json().error.code).toBe(
-      'ALREADY_IN_COMPANY',
-    );
+    const other = await createActiveCompany(h.db, { name: 'Other Co' });
+    await createUser(h.db, 'elsewhere@example.com', {
+      companyRole: 'VIEWER',
+      companyId: other.companyId,
+    });
+    // Creating the invitation does not reveal that the address belongs to another company …
+    const { res, token } = await invite('elsewhere@example.com', 'VIEWER');
+    expect(res.statusCode).toBe(201);
+    // … accepting it is refused clearly.
+    const elsewhere = await signIn(h, 'elsewhere@example.com');
+    expect(
+      (await elsewhere.post('/api/v1/auth/invitations/accept', { token })).json().error.code,
+    ).toBe('ALREADY_IN_COMPANY');
+    // Someone already in THIS company is not invited again (EP25).
+    const again = await invite('staff@example.com', 'VIEWER');
+    expect(again.res.statusCode).toBe(409);
+    expect(again.res.json().error.code).toBe('ALREADY_MEMBER');
   });
 });
 

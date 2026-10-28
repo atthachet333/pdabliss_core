@@ -44,7 +44,9 @@ export type OnboardingStage =
   | 'PENDING_ACTIVATION'
   | 'ACTIVE'
   | 'SUSPENDED'
-  | 'CLOSED';
+  | 'CLOSED'
+  /** EP25: the company deactivated this person's membership. */
+  | 'MEMBERSHIP_INACTIVE';
 
 export interface Onboarding {
   stage: OnboardingStage;
@@ -57,6 +59,7 @@ export type CompanyStatus = 'PENDING_SUBSCRIPTION' | 'ACTIVE' | 'SUSPENDED' | 'C
 export type SubscriptionStatus =
   'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED' | 'EXPIRED';
 export type ApiEntitlement = 'NONE' | 'ADD_ON' | 'INCLUDED' | 'CUSTOM';
+export type BillingCycleCode = 'MONTHLY' | 'ANNUAL';
 
 export interface Entitlements {
   plan: PlanCode;
@@ -85,13 +88,16 @@ export interface BranchInfo {
     countryCode: string;
   };
   phone: string | null;
+  /** EP25: set while the branch is deactivated. */
+  deactivatedAt?: string | null;
 }
 
 export interface SubscriptionInfo {
   id: string;
   plan: PlanCode;
   status: SubscriptionStatus;
-  billingCycle: 'MONTHLY' | 'ANNUAL';
+  billingCycle: BillingCycleCode;
+  /** `null` for a quotation plan — or when this person may not see prices (EP25). */
   monthlyPriceThb: number | null;
   catalogVersion: number;
   createdAt: string;
@@ -120,6 +126,8 @@ export interface CompanyInfo {
   subscription: SubscriptionInfo | null;
   entitlements: Entitlements | null;
   access: { canEnterCore: boolean };
+  /** EP25: department roles never see what the company pays. */
+  priceVisible?: boolean;
 }
 
 export interface CreateCompanyRequest {

@@ -151,9 +151,21 @@ describeDb('demo seed (EP23)', () => {
       'WAREHOUSE',
     ]);
     // EP24: one Head Office, one Professional subscription — even after a second run.
-    const branches = await h.db.branch.findMany({ where: { companyId: company.id } });
-    expect(branches).toHaveLength(1);
-    expect(branches[0]).toMatchObject({ code: '00000', type: 'HEAD_OFFICE' });
+    // EP25: plus one demo branch (00001) for the branch selector.
+    const branches = await h.db.branch.findMany({
+      where: { companyId: company.id },
+      orderBy: { code: 'asc' },
+    });
+    expect(branches.map((b) => [b.code, b.type, b.status])).toEqual([
+      ['00000', 'HEAD_OFFICE', 'ACTIVE'],
+      ['00001', 'BRANCH', 'ACTIVE'],
+    ]);
+    // EP25: the demo staff works in Warehouse — one assignment, still one account.
+    const assignments = await h.db.membership.findMany({
+      where: { user: { emailNormalized: 'staff.demo@pdabliss.com' } },
+      include: { department: true },
+    });
+    expect(assignments.map((a) => [a.department.code, a.isPrimary])).toEqual([['WAREHOUSE', true]]);
     const subscriptions = await h.db.subscription.findMany({ where: { companyId: company.id } });
     expect(subscriptions).toHaveLength(1);
     expect(subscriptions[0]).toMatchObject({

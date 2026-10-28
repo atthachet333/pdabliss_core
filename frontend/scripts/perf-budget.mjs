@@ -38,7 +38,9 @@ const BUDGET = {
   coreWorldGzip: 265, // three.js + react-three-fiber scene beyond the homepage [≈236]
   criticalFontsKb: 100, // Thai + Latin woff2, weights 400/500/600 [88.4]
   heroAssetsKb: 45, // hero atmosphere + six department thumbnails [36.9]
-  totalJsKb: 4100, // every JS chunk, raw [≈3,680]
+  // EP25: +200 for the lazy, signed-in-only Company Control Center / CORE entry
+  // (≈100 kB raw, never loaded by a public page) — reason in docs/PERFORMANCE.md.
+  totalJsKb: 4300, // every JS chunk, raw [≈3,680 at EP20; 4,103 after EP25]
   htmlTotalKb: 540, // all prerendered HTML, incl. per-route preloads [≈490; EP19 384]
   htmlFiles: 108, // 105 indexable pages + 3 shells (exact)
 };

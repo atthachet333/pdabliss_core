@@ -138,11 +138,13 @@ const th = {
       'สร้างบริษัทเรียบร้อย สมาชิกภาพรอเปิดใช้งาน — ยังไม่มีการชำระเงิน ระบบชำระเงินจะเปิดในขั้นถัดไป และทีม PDA BLISS จะแจ้งเมื่อเปิดใช้งาน',
     pendingEnterprise:
       'สร้างบริษัทแล้ว ทีม PDA BLISS จะติดต่อเพื่อทำใบเสนอราคาและตกลงขอบเขต ก่อนเปิดใช้งาน',
-    active: 'บริษัทพร้อมใช้งาน ขั้นต่อไปคือ Company Control Center ซึ่งจะเปิดในเฟสถัดไป',
+    active: 'บริษัทพร้อมใช้งาน — ดูแลข้อมูลบริษัท สาขา ผู้ใช้ และแผนกได้ที่ Company Control Center',
     demoActive: 'บริษัทสาธิตเปิดใช้งานไว้สำหรับการพัฒนาและการสาธิต — ไม่มีประวัติการชำระเงิน',
     suspended: 'บริษัทนี้ถูกระงับการใช้งาน ติดต่อทีม PDA BLISS',
     closed: 'บริษัทนี้ปิดแล้ว',
-    controlCenterSoon: 'Company Control Center — เปิดในเฟสถัดไป',
+    openControlCenter: 'เปิด Company Control Center',
+    inactive:
+      'บริษัทได้ปิดการเข้าถึงของบัญชีนี้แล้ว บัญชีของคุณยังใช้งานได้ หากคิดว่าไม่ถูกต้อง ติดต่อเจ้าของบริษัทหรือผู้ดูแลระบบของบริษัท',
     loading: 'กำลังโหลดข้อมูลบริษัท…',
     error: 'โหลดข้อมูลบริษัทไม่สำเร็จ',
     retry: 'ลองอีกครั้ง',
@@ -307,12 +309,14 @@ export const COMPANY_COPY: Localized<CompanyCopy> = {
       pendingEnterprise:
         'Your company is created. The PDA BLISS team will contact you to prepare the quotation and agree the scope before activation.',
       active:
-        'Your company is ready. Next comes the Company Control Center, which opens in the next phase.',
+        'Your company is ready — manage its details, branches, people and departments in the Company Control Center.',
       demoActive:
         'The demo company is activated for development and demonstration — there is no payment history.',
       suspended: 'This company is suspended. Contact the PDA BLISS team.',
       closed: 'This company is closed.',
-      controlCenterSoon: 'Company Control Center — opens in the next phase',
+      openControlCenter: 'Open the Company Control Center',
+      inactive:
+        'The company has removed this account’s access. Your account itself still works. If this is a mistake, contact the Company Owner or a System Admin.',
       loading: 'Loading company…',
       error: 'The company could not be loaded',
       retry: 'Try again',
@@ -465,11 +469,13 @@ export const COMPANY_COPY: Localized<CompanyCopy> = {
       pending:
         '公司已创建，订阅等待开通 — 尚未付款。付款功能将在后续步骤开放，开通后 PDA BLISS 团队会通知您。',
       pendingEnterprise: '公司已创建。开通前 PDA BLISS 团队会联系您准备报价并确认范围。',
-      active: '公司已就绪。下一步是 Company Control Center，将在下一阶段开放。',
+      active: '公司已就绪——请在 Company Control Center 中管理公司信息、分支、人员和部门。',
       demoActive: '演示公司为开发与演示而开通 — 没有付款记录。',
       suspended: '此公司已被暂停，请联系 PDA BLISS 团队。',
       closed: '此公司已关闭。',
-      controlCenterSoon: 'Company Control Center — 下一阶段开放',
+      openControlCenter: '打开 Company Control Center',
+      inactive:
+        '公司已移除此账户的访问权限。您的账户本身仍可使用。如有疑问，请联系公司所有者或系统管理员。',
       loading: '正在加载公司信息…',
       error: '公司信息未能加载',
       retry: '重试',

@@ -27,6 +27,7 @@ import {
   tokenInvalid,
   tokenUsed,
 } from './errors.js';
+import { canEnterCore } from '../company/entitlements.js';
 import { mailLocale, toApiLocale, toDbLocale, type ApiLocale } from './locale.js';
 import {
   createChallenge,
@@ -101,7 +102,16 @@ export interface IdentityView {
     createdAt: string;
   };
   platformRole: 'PLATFORM_OWNER' | 'PLATFORM_ADMIN' | null;
-  company: { id: string; name: string; isDemo: boolean; role: string } | null;
+  company: {
+    id: string;
+    name: string;
+    isDemo: boolean;
+    role: string;
+    /** EP25: ACTIVE, or DEACTIVATED by the company (then no company access). */
+    memberStatus: 'ACTIVE' | 'DEACTIVATED';
+    /** EP25: the company and its subscription are active — the Company Control Center is open. */
+    canEnterCore: boolean;
+  } | null;
   onboarding: {
     state: 'platform_operator' | 'company_ready' | 'onboarding_required';
     planIntent: string | null;
@@ -715,7 +725,9 @@ export class AuthService {
     const [member, signup] = await Promise.all([
       this.db.companyMember.findUnique({
         where: { userId: ctx.user.id },
-        include: { company: true },
+        include: {
+          company: { include: { subscriptions: { where: { currentSlot: true }, take: 1 } } },
+        },
       }),
       this.db.accountSignupContext.findUnique({ where: { userId: ctx.user.id } }),
     ]);
@@ -751,6 +763,10 @@ export class AuthService {
             name: member.company.name,
             isDemo: member.company.isDemo,
             role: member.role,
+            memberStatus: member.status,
+            canEnterCore:
+              member.status === 'ACTIVE' &&
+              canEnterCore(member.company, member.company.subscriptions[0] ?? null),
           }
         : null,
       onboarding: {

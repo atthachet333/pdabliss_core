@@ -194,7 +194,7 @@ does not.
 | CORE World beyond the homepage, gzip | 235.5 | 265 |
 | Critical fonts (Thai + Latin woff2, 400/500/600) | 88.4 | 100 |
 | Hero + department thumbnails | 36.9 | 45 |
-| All JS, raw | ≈ 3,677 | 4,100 |
+| All JS, raw | ≈ 3,677 | 4,300 (EP25; was 4,100) |
 | Static HTML, raw | ≈ 503 | 540 |
 | Static HTML files | 108 | exactly 108 |
 
@@ -207,6 +207,13 @@ behaviour). `scripts/verify-prerender.mjs` checks every page preloads its own ch
 right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
+
+- **EP25 — All JS, raw: 4,100 → 4,300 KiB.** What grew: the signed-in areas built since EP20
+  (Account Portal, Platform Control Center, and now the customer Company Control Center and the
+  CORE Operations entry, ≈ 100 KiB raw / ≈ 30 KiB gzip in two lazy chunks plus their copy). None
+  of it is loaded by a public page: the initial bundle grew by 0.5 KiB gzip (two route entries and
+  the sign-in destination rules), every public-page budget is unchanged, and the cap still catches
+  an accidental heavy dependency. Total after EP25: 4,103 KiB. *Owner review requested.*
 
 ## 4. Route splitting and loading
 

@@ -9,7 +9,14 @@ import { AUTH_COPY } from '@/features/auth/copy';
 import { commonError } from '@/features/auth/errors';
 import { AuthLocale } from '@/features/auth/locale';
 import { withLocale } from '@/features/auth/localeState';
-import { clearIdentity, homeFor, refreshIdentity, useIdentity } from '@/features/auth/session';
+import {
+  areasFor,
+  clearIdentity,
+  homeFor,
+  refreshIdentity,
+  useIdentity,
+  type SignedInAreaId,
+} from '@/features/auth/session';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { ApiError } from '@/lib/api';
@@ -17,12 +24,13 @@ import { cn } from '@/lib/cn';
 
 /*
  * Signed-in areas (EP23): the Account Portal (/account) and the Platform
- * Control Center (/platform). The guard here decides what to RENDER from the
+ * Control Center (/platform); EP25 adds the Company Control Center (/company)
+ * and CORE Operations (/core). The guard here decides what to RENDER from the
  * server's own answer to GET /auth/me; it is not the security boundary —
  * every API behind these screens checks the session and role again.
  */
 
-type Area = 'account' | 'platform';
+type Area = SignedInAreaId;
 
 /** Loads the identity and the language, then renders the area — or sends the visitor where they belong. */
 export function SignedInArea({
@@ -85,9 +93,10 @@ function Guard({ area, children }: { area: Area; children: (identity: Identity) 
       </Centered>
     );
   }
-  const home = homeFor(identity.identity);
-  if (home !== `/${area}` && !pathname.startsWith('/account/invitation')) {
-    return <Navigate to={home} replace {...withLocale(locale)} />;
+  // EP25: an active company member may open the Company Control Center, CORE
+  // Operations and the Account Portal; anything else goes to the identity's home.
+  if (!areasFor(identity.identity).includes(area) && !pathname.startsWith('/account/invitation')) {
+    return <Navigate to={homeFor(identity.identity)} replace {...withLocale(locale)} />;
   }
   return <>{children(identity.identity)}</>;
 }

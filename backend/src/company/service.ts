@@ -9,10 +9,19 @@ import {
   type PlanCode,
 } from '../billing/catalog.js';
 import type { Db } from '../db/client.js';
-import type { Branch, Company, Prisma, Subscription } from '../generated/prisma/client.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import type { AppLocale, CompanyRole } from '../generated/prisma/enums.js';
 import { AppError, NotFoundError } from '../lib/errors.js';
 import { recordCompanyEvent, type ActorScope } from './audit.js';
+import { membershipInactive, noCompany } from './context.js';
+import { can } from './policy.js';
+import {
+  branchView,
+  companyFields,
+  subscriptionView,
+  type BranchView,
+  type SubscriptionView,
+} from './views.js';
 import {
   assertDepartments,
   assertSubscriptionTransition,
@@ -50,7 +59,7 @@ export const INSPECTION_AUDIT_WINDOW_MS = 15 * 60_000;
 const sortDepartments = (codes: DepartmentCode[]) =>
   DEPARTMENT_CODES.filter((code) => codes.includes(code));
 
-const DEPARTMENT_NAMES: Record<DepartmentCode, string> = {
+export const DEPARTMENT_NAMES: Record<DepartmentCode, string> = {
   SALES: 'Sales',
   OPERATIONS: 'Operations',
   WAREHOUSE: 'Warehouse',
@@ -59,7 +68,7 @@ const DEPARTMENT_NAMES: Record<DepartmentCode, string> = {
   EXECUTIVE: 'Executive',
 };
 
-const HEAD_OFFICE_NAMES: Record<AppLocale, string> = {
+export const HEAD_OFFICE_NAMES: Record<AppLocale, string> = {
   th: 'สำนักงานใหญ่',
   en: 'Head Office',
   zh_CN: '总部',
@@ -72,7 +81,9 @@ export type OnboardingStage =
   | 'PENDING_ACTIVATION'
   | 'ACTIVE'
   | 'SUSPENDED'
-  | 'CLOSED';
+  | 'CLOSED'
+  /** EP25: the company deactivated this person's membership. */
+  | 'MEMBERSHIP_INACTIVE';
 
 export interface OnboardingView {
   stage: OnboardingStage;
@@ -82,95 +93,25 @@ export interface OnboardingView {
   canEnterCore: boolean;
 }
 
-export interface BranchView {
-  id: string;
-  code: string;
-  name: string;
-  type: 'HEAD_OFFICE' | 'BRANCH';
-  status: string;
-  address: {
-    line1: string;
-    line2: string | null;
-    subdistrict: string | null;
-    district: string | null;
-    province: string;
-    postalCode: string;
-    countryCode: string;
-  };
-  phone: string | null;
-}
-
-export interface SubscriptionView {
-  id: string;
-  plan: PlanCode;
-  status: string;
-  billingCycle: string;
-  monthlyPriceThb: number | null;
-  catalogVersion: number;
-  createdAt: string;
-  activatedAt: string | null;
-  currentPeriodStart: string | null;
-  currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
-}
+export type { BranchView, SubscriptionView };
 
 export interface CompanyView {
-  company: {
-    id: string;
-    displayName: string;
-    legalName: string | null;
-    taxId: string | null;
-    registrationNumber: string | null;
-    status: string;
-    onboardingStatus: string;
-    isDemo: boolean;
-    createdAt: string;
-    activatedAt: string | null;
-  };
+  company: ReturnType<typeof companyFields>;
   role: CompanyRole;
   headOffice: BranchView | null;
   departments: DepartmentCode[];
   subscription: SubscriptionView | null;
   entitlements: EntitlementView | null;
   access: { canEnterCore: boolean };
+  /**
+   * EP25: whether this member may see what the company pays. Department roles
+   * do not (warehouse users never see payment information).
+   */
+  priceVisible: boolean;
 }
-
-const branchView = (b: Branch): BranchView => ({
-  id: b.id,
-  code: b.code,
-  name: b.name,
-  type: b.type,
-  status: b.status,
-  address: {
-    line1: b.addressLine1,
-    line2: b.addressLine2,
-    subdistrict: b.subdistrict,
-    district: b.district,
-    province: b.province,
-    postalCode: b.postalCode,
-    countryCode: b.countryCode,
-  },
-  phone: b.phone,
-});
-
-const subscriptionView = (s: Subscription): SubscriptionView => ({
-  id: s.id,
-  plan: s.plan,
-  status: s.status,
-  billingCycle: s.billingCycle,
-  monthlyPriceThb: s.monthlyPriceThb,
-  catalogVersion: s.catalogVersion,
-  createdAt: s.createdAt.toISOString(),
-  activatedAt: s.activatedAt?.toISOString() ?? null,
-  currentPeriodStart: s.currentPeriodStart?.toISOString() ?? null,
-  currentPeriodEnd: s.currentPeriodEnd?.toISOString() ?? null,
-  cancelAtPeriodEnd: s.cancelAtPeriodEnd,
-});
 
 const companyExists = (companyId: string) =>
   new AppError(409, 'COMPANY_EXISTS', 'This account already has a CORE company.', { companyId });
-
-const noCompany = () => new NotFoundError('This account has no CORE company yet.');
 
 /** The account's chosen package (stored as the lower-case public plan id). */
 export function selectedPlan(planIntent: string | null): PlanCode | null {
@@ -232,10 +173,12 @@ export class CompanyService {
     }
     const company = member.company;
     const sub = await this.currentSubscription(company.id);
-    const enter = canEnterCore(company, sub);
+    const active = member.status === 'ACTIVE';
+    const enter = active && canEnterCore(company, sub);
     return {
-      stage:
-        company.status === 'SUSPENDED'
+      stage: !active
+        ? 'MEMBERSHIP_INACTIVE'
+        : company.status === 'SUSPENDED'
           ? 'SUSPENDED'
           : company.status === 'CLOSED'
             ? 'CLOSED'
@@ -404,13 +347,16 @@ export class CompanyService {
 
   // --------------------------------------------------------- company context
 
+  /** An ACTIVE membership (EP25: a deactivated member keeps no company access). */
   private async requireMember(ctx: AuthContext) {
     const member = await this.membership(ctx.user.id);
     if (!member) throw noCompany();
+    if (member.status !== 'ACTIVE') throw membershipInactive();
     return member;
   }
 
   private async viewFor(companyId: string, role: CompanyRole): Promise<CompanyView> {
+    const priceVisible = can(role, 'subscription.view');
     const company = await this.db.company.findUniqueOrThrow({
       where: { id: companyId },
       include: {
@@ -425,9 +371,10 @@ export class CompanyService {
       role,
       headOffice: company.branches[0] ? branchView(company.branches[0]) : null,
       departments: company.departments.map((d) => d.code),
-      subscription: sub ? subscriptionView(sub) : null,
+      subscription: sub ? subscriptionView(sub, priceVisible) : null,
       entitlements: sub ? entitlementView(readSnapshot(sub.entitlements, sub.plan)) : null,
       access: { canEnterCore: canEnterCore(company, sub) },
+      priceVisible,
     };
   }
 
@@ -453,30 +400,75 @@ export class CompanyService {
     return branchView(row);
   }
 
+  /**
+   * The subscription summary (EP25: Owner, System Admin and Executive only —
+   * department roles never see what the company pays). Facts only: no
+   * invoices, receipts or payment history exist yet, so none are shown.
+   */
   async subscription(ctx: AuthContext, id?: string) {
-    const { companyId } = await this.requireMember(ctx);
+    const { companyId, role } = await this.requireMember(ctx);
+    if (!can(role, 'subscription.view')) throw forbidden();
     const row = id
       ? await this.db.subscription.findFirst({ where: { id, companyId } })
       : await this.currentSubscription(companyId);
     if (!row) throw new NotFoundError('Subscription not found.');
+    const [enabled, branches] = await Promise.all([
+      this.db.department.findMany({
+        where: { companyId, isActive: true },
+        select: { code: true },
+      }),
+      this.db.branch.groupBy({ by: ['status'], where: { companyId }, _count: true }),
+    ]);
+    const total = branches.reduce((n, b) => n + b._count, 0);
     return {
       subscription: subscriptionView(row),
       entitlements: entitlementView(readSnapshot(row.entitlements, row.plan)),
+      departments: { enabled: sortDepartments(enabled.map((d) => d.code)) },
+      branches: {
+        active: branches.find((b) => b.status === 'ACTIVE')?._count ?? 0,
+        total,
+      },
+      priceVisible: true,
     };
   }
 
+  /**
+   * Enabled departments and, per department, its state in the package and
+   * how many people are assigned (EP25). Readable by every active member.
+   */
   async departments(ctx: AuthContext) {
-    const { companyId } = await this.requireMember(ctx);
-    const [rows, sub] = await Promise.all([
-      this.db.department.findMany({
-        where: { companyId, isActive: true },
-        orderBy: { createdAt: 'asc' },
-      }),
+    const { companyId, role } = await this.requireMember(ctx);
+    const [rows, sub, assignments] = await Promise.all([
+      this.db.department.findMany({ where: { companyId }, orderBy: { createdAt: 'asc' } }),
       this.currentSubscription(companyId),
+      this.db.membership.groupBy({
+        by: ['departmentId'],
+        where: {
+          department: { companyId },
+          user: { companyMember: { companyId, status: 'ACTIVE' } },
+        },
+        _count: true,
+      }),
     ]);
+    const entitlements = sub ? entitlementView(readSnapshot(sub.entitlements, sub.plan)) : null;
+    const enabled = sortDepartments(rows.filter((d) => d.isActive).map((d) => d.code));
+    const counts = new Map(assignments.map((a) => [a.departmentId, a._count]));
     return {
-      enabled: rows.map((d) => d.code),
-      entitlements: sub ? entitlementView(readSnapshot(sub.entitlements, sub.plan)) : null,
+      enabled,
+      entitlements,
+      departments: DEPARTMENT_CODES.map((code) => {
+        const row = rows.find((d) => d.code === code);
+        return {
+          code,
+          state: enabled.includes(code)
+            ? ('ENABLED' as const)
+            : code === 'EXECUTIVE' && entitlements && !entitlements.executiveAllowed
+              ? ('NOT_IN_PACKAGE' as const)
+              : ('AVAILABLE' as const),
+          assigned: row ? (counts.get(row.id) ?? 0) : 0,
+        };
+      }),
+      canManage: can(role, 'departments.manage'),
     };
   }
 
@@ -680,7 +672,7 @@ export class CompanyService {
             ? ('NOT_IN_PACKAGE' as const)
             : ('NOT_ENABLED' as const),
       })),
-      subscriptions: c.subscriptions.map(subscriptionView),
+      subscriptions: c.subscriptions.map((s) => subscriptionView(s)),
       entitlements,
       members: c.members.map((m) => ({
         email: m.user.email,
@@ -688,6 +680,9 @@ export class CompanyService {
         jobFunction: m.user.jobFunction,
         status: m.user.status,
         role: m.role,
+        // EP25: the membership itself (soft-deactivated by the company) and its job title.
+        membershipStatus: m.status,
+        jobTitle: m.jobTitle,
         joinedAt: m.createdAt.toISOString(),
         lastLoginAt: m.user.lastLoginAt?.toISOString() ?? null,
       })),
@@ -799,19 +794,4 @@ export class CompanyService {
     });
     return this.detailForPlatform(companyId);
   }
-}
-
-function companyFields(c: Company) {
-  return {
-    id: c.id,
-    displayName: c.name,
-    legalName: c.legalName,
-    taxId: c.taxId,
-    registrationNumber: c.registrationNumber,
-    status: c.status,
-    onboardingStatus: c.onboardingStatus,
-    isDemo: c.isDemo,
-    createdAt: c.createdAt.toISOString(),
-    activatedAt: c.activatedAt?.toISOString() ?? null,
-  };
 }

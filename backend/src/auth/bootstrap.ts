@@ -450,11 +450,52 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     }
     results[identity.role] = user.outcome;
   }
+
+  // EP25: a second branch, so the branch selector has something to choose.
+  const extraBranch = await db.branch.findUnique({
+    where: { companyId_code: { companyId: company.id, code: DEMO_BRANCH.code } },
+  });
+  if (!extraBranch) {
+    const created = await db.branch.create({ data: { companyId: company.id, ...DEMO_BRANCH } });
+    await seedEvent(company.id, 'BRANCH_CREATED', 'Branch', created.id, { code: DEMO_BRANCH.code });
+  }
+
+  // EP25: the demo staff works in Warehouse (a department assignment, not a
+  // second account). Only when they have none — the seed never undoes an admin's change.
+  const staff = await db.user.findUnique({
+    where: { emailNormalized: normalizeEmail(env.DEMO_STAFF_EMAIL) },
+  });
+  let assignments: 'created' | 'unchanged' = 'unchanged';
+  if (staff && !(await db.membership.count({ where: { userId: staff.id } }))) {
+    const warehouse = await db.department.findUniqueOrThrow({
+      where: { companyId_code: { companyId: company.id, code: 'WAREHOUSE' } },
+    });
+    await db.membership.create({
+      data: { userId: staff.id, departmentId: warehouse.id, isPrimary: true },
+    });
+    assignments = 'created';
+  }
+
   return {
     companyId: company.id,
     company: companyOutcome,
     headOffice: headOffice ? 'unchanged' : 'created',
+    branch: extraBranch ? 'unchanged' : 'created',
     subscription: subscription ? 'unchanged' : 'created',
     identities: results,
+    assignments,
   };
 }
+
+/** EP25 demo branch — an illustrative address, not a real business. */
+const DEMO_BRANCH = {
+  code: '00001',
+  name: 'สาขาตัวอย่าง (ข้อมูลสาธิต)',
+  type: 'BRANCH' as const,
+  addressLine1: '1 ถนนสาธิต (ข้อมูลสาธิต)',
+  subdistrict: 'ลาดยาว',
+  district: 'จตุจักร',
+  province: 'กรุงเทพมหานคร',
+  postalCode: '10900',
+  countryCode: 'TH',
+};

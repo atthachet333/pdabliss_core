@@ -80,9 +80,27 @@ export function useIdentity(): IdentityState {
   return current;
 }
 
+/** The signed-in areas (EP23 account / platform; EP25 company / core). */
+export type SignedInAreaId = 'account' | 'platform' | 'company' | 'core';
+
+/**
+ * The areas an identity may open, its home first (EP25):
+ * - platform operators: the Platform Control Center only;
+ * - an active member of an active company: the Company Control Center, CORE
+ *   Operations and their Account Portal (profile, devices);
+ * - everyone else (no company yet, pending activation, deactivated): the
+ *   Account Portal, which shows where they stand.
+ * Rendering only — the API checks the same facts on every request.
+ */
+export function areasFor(identity: Identity): SignedInAreaId[] {
+  if (identity.platformRole) return ['platform'];
+  if (identity.company?.canEnterCore) return ['company', 'core', 'account'];
+  return ['account'];
+}
+
 /** Where a signed-in identity belongs by default. */
-export function homeFor(identity: Identity): '/platform' | '/account' {
-  return identity.platformRole ? '/platform' : '/account';
+export function homeFor(identity: Identity): `/${SignedInAreaId}` {
+  return `/${areasFor(identity)[0]!}`;
 }
 
 /**
@@ -91,7 +109,7 @@ export function homeFor(identity: Identity): '/platform' | '/account' {
  */
 export function safeNext(next: string | null): string | null {
   if (!next) return null;
-  return /^\/(account|platform|app)(\/[a-z0-9-]+){0,3}$/.test(next) ? next : null;
+  return /^\/(account|platform|company|core|app)(\/[a-z0-9-]+){0,3}$/.test(next) ? next : null;
 }
 
 /**
@@ -108,8 +126,7 @@ export function withPlan(destination: string, plan: string | null): string {
 export function destinationFor(identity: Identity, next: string | null): string {
   const safe = safeNext(next);
   if (!safe) return homeFor(identity);
-  const platformPath = safe === '/platform' || safe.startsWith('/platform/');
-  if (platformPath !== !!identity.platformRole && !safe.startsWith('/app'))
-    return homeFor(identity);
+  const area = safe.split('/')[1] as SignedInAreaId | 'app';
+  if (area !== 'app' && !areasFor(identity).includes(area)) return homeFor(identity);
   return safe;
 }

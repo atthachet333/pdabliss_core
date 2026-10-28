@@ -4,13 +4,16 @@ import type { InvitationService } from '../../auth/invitations.js';
 import type { PlatformService } from '../../auth/platform.js';
 import type { AuthService } from '../../auth/service.js';
 import { ANNUAL_TERMS, DEPARTMENT_CODES, PLAN_CATALOG, PLAN_CODES } from '../../billing/catalog.js';
+import type { CompanyControlService } from '../../company/control.js';
 import type { CompanyService } from '../../company/service.js';
+import type { Db } from '../../db/client.js';
 import type { Env } from '../../config/env.js';
 import { API_VERSION, SERVICE_NAME } from '../../meta.js';
 import { accountRoutes } from './account.js';
 import { authRoutes } from './auth.js';
 import { companyRoutes } from './company.js';
 import { demoRoutes } from './demo.js';
+import { operationsRoutes } from './operations.js';
 import { platformRoutes } from './platform.js';
 
 export interface AccountServices {
@@ -18,6 +21,8 @@ export interface AccountServices {
   platform: PlatformService;
   invitations: InvitationService;
   companies: CompanyService;
+  control: CompanyControlService;
+  db: Db;
 }
 
 export const v1Routes: FastifyPluginAsync<{
@@ -53,13 +58,16 @@ export const v1Routes: FastifyPluginAsync<{
     });
     await app.register(companyRoutes, {
       prefix: '/company',
+      db: services.db,
       invitations: services.invitations,
       companies: services.companies,
+      control: services.control,
     });
+    await app.register(operationsRoutes, { prefix: '/operations', db: services.db });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });
   } else {
     // No DATABASE_URL (development only — production refuses to start without it).
-    for (const prefix of ['/auth', '/platform', '/company', '/account']) {
+    for (const prefix of ['/auth', '/platform', '/company', '/account', '/operations']) {
       app.all(`${prefix}/*`, () => {
         throw authUnavailable();
       });

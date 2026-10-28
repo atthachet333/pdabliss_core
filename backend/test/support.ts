@@ -5,6 +5,8 @@ import { describe, expect } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { normalizeEmail } from '../src/auth/crypto.js';
 import { hashPassword } from '../src/auth/password.js';
+import type { DepartmentCode, PlanCode } from '../src/billing/catalog.js';
+import { snapshotFor } from '../src/company/entitlements.js';
 import { createDb, type Db } from '../src/db/client.js';
 import type { CompanyRole, PlatformRole, UserStatus } from '../src/generated/prisma/enums.js';
 import type { IdentityView } from '../src/auth/service.js';
@@ -86,7 +88,7 @@ export class Browser {
   constructor(private readonly app: FastifyInstance) {}
 
   async request(
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT',
     url: string,
     body?: unknown,
     headers: Record<string, string> = {},
@@ -119,6 +121,12 @@ export class Browser {
   }
   delete(url: string) {
     return this.request('DELETE', url);
+  }
+  patch(url: string, body: unknown = {}) {
+    return this.request('PATCH', url, body);
+  }
+  put(url: string, body: unknown = {}) {
+    return this.request('PUT', url, body);
   }
 }
 
@@ -205,4 +213,58 @@ export async function signIn(
     expect(res.statusCode, res.body).toBe(200);
   }
   return browser;
+}
+
+/**
+ * EP25: an ACTIVE company with an ACTIVE subscription, its Head Office (00000)
+ * and departments — what the Company Control Center needs. Written directly
+ * (onboarding and activation have their own suites).
+ */
+export async function createActiveCompany(
+  db: Db,
+  opts: { name?: string; plan?: PlanCode; departments?: DepartmentCode[] } = {},
+) {
+  const plan = opts.plan ?? 'PROFESSIONAL';
+  const departments = opts.departments ?? ['SALES', 'WAREHOUSE'];
+  const snapshot = snapshotFor(plan);
+  const now = new Date();
+  const company = await db.company.create({
+    data: {
+      name: opts.name ?? 'Active Co',
+      legalName: `${opts.name ?? 'Active Co'} Co., Ltd.`,
+      status: 'ACTIVE',
+      onboardingStatus: 'COMPLETED',
+      activatedAt: now,
+    },
+  });
+  const headOffice = await db.branch.create({
+    data: {
+      companyId: company.id,
+      code: '00000',
+      name: 'Head Office',
+      type: 'HEAD_OFFICE',
+      headOfficeSlot: true,
+      addressLine1: '1 Test Road',
+      province: 'Bangkok',
+      postalCode: '10110',
+    },
+  });
+  await db.department.createMany({
+    data: departments.map((code) => ({ companyId: company.id, code, name: code })),
+  });
+  await db.subscription.create({
+    data: {
+      companyId: company.id,
+      plan,
+      status: 'ACTIVE',
+      catalogVersion: snapshot.catalogVersion,
+      monthlyPriceThb: snapshot.monthlyPriceThb,
+      entitlements: { ...snapshot },
+      currentSlot: true,
+      activatedAt: now,
+      currentPeriodStart: now,
+      currentPeriodEnd: new Date(now.getTime() + 30 * 86_400_000),
+    },
+  });
+  return { companyId: company.id, headOfficeId: headOffice.id };
 }

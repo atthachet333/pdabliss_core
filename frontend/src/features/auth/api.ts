@@ -48,7 +48,16 @@ export interface Identity {
     createdAt: string;
   };
   platformRole: PlatformRole | null;
-  company: { id: string; name: string; isDemo: boolean; role: CompanyRole } | null;
+  company: {
+    id: string;
+    name: string;
+    isDemo: boolean;
+    role: CompanyRole;
+    /** EP25: DEACTIVATED when the company removed this person's access. */
+    memberStatus: 'ACTIVE' | 'DEACTIVATED';
+    /** EP25: the company and its subscription are active — the Company Control Center is open. */
+    canEnterCore: boolean;
+  } | null;
   onboarding: {
     state: 'platform_operator' | 'company_ready' | 'onboarding_required';
     planIntent: string | null;

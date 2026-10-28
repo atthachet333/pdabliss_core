@@ -78,6 +78,9 @@ export const AUTH_RATE_LIMITS = {
   // EP24 onboarding (signed-in only; the one-company rule stops repeats anyway).
   packageSelection: { max: 30, timeWindow: '15 minutes' },
   companyCreate: { max: 10, timeWindow: '15 minutes' },
+  // EP25 Company Control Center: invitations send email; logos are the largest bodies.
+  invitationCreate: { max: 30, timeWindow: '15 minutes' },
+  logoUpload: { max: 20, timeWindow: '15 minutes' },
 } as const;
 
 export const PLAN_INTENTS = ['starter', 'business', 'professional', 'enterprise'] as const;

@@ -55,7 +55,13 @@ away ([docs/EP24_1_2_REPORT.md](docs/EP24_1_2_REPORT.md)).
 the orbital CORE mark, a vector wordmark, a micro mark for favicons, light / dark / monochrome
 variants, favicons and app icons, and a new social card — all generated from one vector source
 ([docs/BRAND_IDENTITY.md](docs/BRAND_IDENTITY.md)).
-Next: EP25 RBAC / Information boundaries (not started).
+**EP25** (completed locally, awaiting owner review) establishes the customer **Company Control
+Center** (`/company`): overview from real data, company profile and logo, Head Office and branches,
+users and invitations, owner protection, department configuration and assignment within the
+package, a factual subscription page, company activity, settings, and the server-side branch
+context leading into a neutral CORE Operations entry (`/core`)
+([docs/COMPANY_CONTROL_CENTER.md](docs/COMPANY_CONTROL_CENTER.md), [docs/EP25_REPORT.md](docs/EP25_REPORT.md)).
+Next: EP26 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -73,7 +79,7 @@ Roadmap:
 1. EP20 Performance → EP21 Release-candidate audit → **EP22 Public Frontend Freeze**
 2. EP23 Account & Real Authentication → EP24 Company & Subscription Foundation → EP24.1 Platform
    Control Center, Company Explorer & Account Profile → **EP24.1.2 Operator-first Platform Control
-   Center** → EP25 RBAC / Information boundaries →
+   Center** → EP24.1.3 Brand identity → **EP25 Company Control Center foundation** →
    EP26 Organization / Users / Departments → EP27 Audit / Notifications / Activity → EP28 Master Data
 3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
    EP34 Executive
@@ -148,6 +154,11 @@ keeps the two in sync). Since EP17 every page also sets a self-referencing canon
 alternates and Open Graph URL / locale from one route-aware source (`lib/seo.ts` +
 `lib/usePageMeta.ts`); `/login` and the 404 are `noindex`. See
 [docs/SEO_LOCALIZATION.md](docs/SEO_LOCALIZATION.md).
+
+Signed-in (noindex, never locale-prefixed, lazy): `/account`, `/platform/*` and, since EP25, the
+Company Control Center `/company` (`/profile`, `/branches`, `/users`, `/departments`,
+`/subscription`, `/security`, `/settings`) and the CORE Operations entry `/core` (`/core/branch`).
+See [docs/COMPANY_CONTROL_CENTER.md](docs/COMPANY_CONTROL_CENTER.md).
 
 Pricing (EP07): `/pricing` is the package & subscription experience — four packages, annual
 relationship, configurator, comparison, add-ons and FAQ; `?plan=<id>` selects a plan. See

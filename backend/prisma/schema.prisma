@@ -60,7 +60,19 @@ model Company {
   taxId              String?
   /// Company registration number, when it differs from the tax ID.
   registrationNumber String?
+  /// English name, when the company uses one (EP25).
+  englishName        String?
+  /// Main company phone, E.164 (EP25).
+  phone              String?
+  /// Public website, https:// or http:// only (EP25).
+  website            String?
+  /// Company contact address, when separate from the owner's account (EP25).
+  contactEmail       String?
+  /// Business type (EP25) — the same categories as sign-up; descriptive only, never authorization.
+  industry           SignupIndustry?
   timezone           String                  @default("Asia/Bangkok")
+  /// Company default language (EP25): invitation emails default to it.
+  defaultLocale      AppLocale               @default(th)
   status             CompanyStatus           @default(PENDING_SUBSCRIPTION)
   onboardingStatus   CompanyOnboardingStatus @default(IN_PROGRESS)
   /// The account that created the company through onboarding (null for seeded data).
@@ -80,11 +92,29 @@ model Company {
   branches           Branch[]
   subscriptions      Subscription[]
   auditLogs          AuditLog[]
+  logo               CompanyLogo?
 
   @@index([status])
   @@index([onboardingStatus])
   /// Platform Company Explorer: newest first, cursor by id (EP24.1).
   @@index([createdAt(sort: Desc), id(sort: Desc)])
+}
+
+/// Company logo (EP25). Stored in the database, not on disk: no file paths, no
+/// public bucket, nothing executable. Raster images only (PNG / JPEG / WebP),
+/// checked by their leading bytes, at most 256 KB. Served by the API with its
+/// stored content type and nosniff. A future object store replaces `data`.
+model CompanyLogo {
+  companyId    String   @id
+  company      Company  @relation(fields: [companyId], references: [id])
+  contentType  String
+  byteSize     Int
+  /// SHA-256 of the bytes (base64url) — cache key / ETag.
+  sha256       String
+  data         Bytes
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 /// The six standard CORE departments (EP24 canonical codes).
@@ -98,7 +128,8 @@ enum DepartmentCode {
 }
 
 /// A department the company has enabled (entitlement / configuration only — no
-/// operational tables yet). The plan limits how many may be enabled.
+/// operational tables yet). The plan limits how many may be enabled. EP25:
+/// disabling is soft (`isActive = false`): the row and its assignments stay.
 model Department {
   id          String         @id @default(cuid())
   companyId   String
@@ -125,19 +156,30 @@ enum CompanyRole {
   VIEWER
 }
 
-/// A user's place in a company. Department access (Membership) comes on top in EP26.
+/// Membership in a company (EP25). Deactivation is soft: the record and its
+/// history stay; the person simply loses access to the company.
+enum CompanyMemberStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+/// A user's place in a company. Department access (Membership) comes on top (EP25 foundation).
 model CompanyMember {
-  id        String      @id @default(cuid())
-  companyId String
-  company   Company     @relation(fields: [companyId], references: [id])
-  userId    String
-  user      User        @relation(fields: [userId], references: [id])
-  role      CompanyRole
+  id            String              @id @default(cuid())
+  companyId     String
+  company       Company             @relation(fields: [companyId], references: [id])
+  userId        String
+  user          User                @relation(fields: [userId], references: [id])
+  role          CompanyRole
   /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
-  /// enforced by the database (unique + CHECK, EP24).
-  ownerSlot Boolean?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  /// enforced by the database (unique + CHECK, EP24). The owner is always ACTIVE (CHECK, EP25).
+  ownerSlot     Boolean?
+  status        CompanyMemberStatus @default(ACTIVE)
+  /// Job title inside this company (set by company administration; not a permission).
+  jobTitle      String?
+  deactivatedAt DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -157,7 +199,10 @@ enum BranchType {
 
 enum BranchStatus {
   ACTIVE
+  /// Closed permanently (platform-controlled; not used by customers in EP25).
   CLOSED
+  /// Deactivated by the company (EP25); can be reactivated. Never the Head Office.
+  INACTIVE
 }
 
 model Branch {
@@ -184,8 +229,11 @@ model Branch {
   /// ISO 3166-1 alpha-2.
   countryCode    String       @default("TH")
   phone          String?
+  deactivatedAt  DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  /// Sessions working in this branch (EP25 branch context).
+  sessions       Session[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -453,6 +501,11 @@ model Session {
   revokeReason       SessionRevokeReason?
   ipAddress          String?
   userAgent          String?
+  /// EP25 branch context: the branch this session works in, chosen through
+  /// /company/context/branch and re-validated on every operational request.
+  branchId           String?
+  branch             Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branchSelectedAt   DateTime?
 
   @@index([userId, revokedAt])
   @@index([absoluteExpiresAt])
@@ -564,6 +617,8 @@ model Invitation {
   email           String
   emailNormalized String
   role            CompanyRole
+  /// Language of the invitation email (EP25; NULL for older invitations).
+  locale          AppLocale?
   tokenHash       String           @unique
   status          InvitationStatus @default(PENDING)
   invitedById     String
@@ -642,19 +697,23 @@ model AuthAuditEvent {
 // Department access (EP00 foundation; used from EP26)
 // ---------------------------------------------------------------------------
 
-/// A user's access inside a department, through a role.
+/// A user's access inside a department (EP25: the department assignment).
+/// One human = one User; working in several departments means several rows,
+/// never several accounts. The optional department Role (fine-grained
+/// permissions) arrives with EP27.
 model Membership {
   id           String     @id @default(cuid())
   userId       String
   user         User       @relation(fields: [userId], references: [id])
   departmentId String
   department   Department @relation(fields: [departmentId], references: [id])
-  roleId       String
-  role         Role       @relation(fields: [roleId], references: [id])
+  roleId       String?
+  role         Role?      @relation(fields: [roleId], references: [id])
   isPrimary    Boolean    @default(false)
   createdAt    DateTime   @default(now())
 
   @@unique([userId, departmentId])
+  @@index([departmentId])
 }
 
 model Role {

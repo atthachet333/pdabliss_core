@@ -129,6 +129,17 @@ noindex, served by the existing `/platform/*` shell rewrite).
 - **EP24:** these entitlements now exist (`backend/src/company/entitlements.ts`, from the
   subscription snapshot); department limits are enforced at company creation. EP25 enforces data
   boundaries per role on top of them.
+- **EP25 (Company Control Center foundation):** see [COMPANY_CONTROL_CENTER.md](COMPANY_CONTROL_CENTER.md)
+  and [EP25_REPORT.md](EP25_REPORT.md). Customer company roles are now enforced for company
+  administration (`backend/src/company/policy.ts`: Owner / System Admin administer, Executive
+  reads, department roles get the overview and CORE entry; the Company Owner cannot be demoted,
+  deactivated or replaced). Every customer request resolves the company from the session
+  (`requireCompanyAccess()`); ids in paths are looked up inside it. Department access =
+  enabled ∩ permitted (`departmentAccess()`), the branch context lives on the server-side session,
+  and **every operational API of EP29+ must start with `requireOperationsContext()`** and scope its
+  queries by `companyId` + `branch.id`, then call `assertDepartmentAccess()`. Data-class
+  clearance per department (Warehouse: operational only) is still applied per response by the
+  module episodes; EP25 already withholds the subscription price from department roles.
 
 ## 7. Warehouse boundary
 
@@ -150,7 +161,9 @@ show the pattern; demo routes are disabled in production (`ENABLE_DEMO_ROUTES` d
 
 ## 9. Departments and modules
 
-Six departments: Executive, Sales, Operations, Warehouse, Purchasing, Accounting
+Six departments: Executive, Sales, Operations, Warehouse, Purchasing, Accounting. EP25: the
+company enables them (soft) within its package, and people are assigned through `Membership`
+(one account, several departments)
 (`backend/src/domain/access/workspaces.ts` adds `admin`). Module episodes EP29–EP34 build the real
 department modules behind the existing `/app` routes; the public department pages stay frozen.
 Lot / Expiry / FEFO is core whenever Warehouse is enabled. Accounting is operational finance and

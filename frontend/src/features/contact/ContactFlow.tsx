@@ -13,7 +13,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type Dispatch, type ReactNode } from 'react';
-import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Field } from '@/components/ui/Field';
 import { controlClass } from '@/components/ui/fieldStyles';
 import { CONTACT, mailtoHref, telHref } from '@/config/contact';
@@ -23,6 +22,7 @@ import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { EASE_CORE } from '@/motion/tokens';
+import { controlArrow, coreControl, metaText } from './coreControls';
 import { CONTACT_COPY } from './copy';
 import { getInquiryDelivery } from './delivery';
 import {
@@ -36,6 +36,7 @@ import {
   STEPS,
   type ContactFields,
   type ContactMethod,
+  type InquiryType,
 } from './model';
 import type { FlowAction, FlowState } from './state';
 import { Summary } from './Summary';
@@ -56,7 +57,26 @@ const METHOD_ICON: Record<ContactMethod, LucideIcon> = {
   email: Mail,
 };
 
-/** A selectable row or chip backed by a native input (radio / checkbox). */
+/**
+ * Short codes for the topics (EP24.1.4.4): the same technical tag in every
+ * language, shown above the label like the department codes on the homepage.
+ * Decorative — the label carries the meaning.
+ */
+const TYPE_CODE: Record<InquiryType, string> = {
+  demo: 'DEMO',
+  general: 'GENERAL',
+  consulting: 'CONSULTING',
+  implementation: 'IMPLEMENTATION',
+  integration: 'INTEGRATION',
+  plans: 'PACKAGES',
+  enterprise: 'ENTERPRISE',
+};
+
+/**
+ * A selectable path (row) or chip backed by a native input (radio / checkbox).
+ * EP24.1.4.4: precise 10 px / 8 px corners, a hairline edge, a teal edge and a
+ * soft fill when chosen; the indicator sits at the end of a row.
+ */
 function Choice({
   type,
   name,
@@ -64,6 +84,7 @@ function Choice({
   onChange,
   children,
   hint,
+  code,
   chip = false,
   data,
 }: {
@@ -73,9 +94,31 @@ function Choice({
   onChange: () => void;
   children: ReactNode;
   hint?: string;
+  code?: string;
   chip?: boolean;
   data?: string;
 }) {
+  const indicator = (
+    <span
+      aria-hidden
+      className={cn(
+        'flex size-4 shrink-0 items-center justify-center border transition-colors',
+        type === 'radio' ? 'rounded-full' : 'rounded-[4px]',
+        checked
+          ? type === 'radio'
+            ? 'border-brand-glow'
+            : 'border-brand-glow bg-brand-glow text-text-inverse'
+          : 'border-white/25',
+      )}
+    >
+      {checked &&
+        (type === 'radio' ? (
+          <span className="size-2 rounded-full bg-brand-glow" />
+        ) : (
+          <Check className="size-3" strokeWidth={3} />
+        ))}
+    </span>
+  );
   return (
     <label
       className={cn('relative block cursor-pointer', chip && 'inline-block')}
@@ -90,29 +133,40 @@ function Choice({
       />
       <span
         className={cn(
-          'flex min-h-11 items-center gap-3 transition-[background-color,box-shadow] peer-focus-visible:ring-2 peer-focus-visible:ring-brand-glow',
-          chip ? 'rounded-full px-4 py-2 text-label' : 'rounded-2xl px-4 py-3',
+          'flex min-h-11 transition-[background-color,box-shadow,color] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus motion-reduce:transition-none',
+          chip
+            ? 'items-center gap-2.5 rounded-[8px] px-3.5 py-2 text-label'
+            : 'h-full items-start gap-4 rounded-[10px] px-4 py-3.5',
           checked
-            ? 'bg-brand-primary/12 text-text-primary shadow-[inset_0_0_0_1px_rgb(62_240_192/0.55)]'
-            : 'bg-white/[0.035] text-text-secondary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)] hover:bg-white/[0.06]',
+            ? 'bg-[linear-gradient(90deg,rgb(62_240_192/0.11),rgb(62_240_192/0.03))] text-text-primary shadow-[inset_0_0_0_1px_rgb(62_240_192/0.5),inset_2px_0_0_rgb(62_240_192/0.9)]'
+            : 'text-text-secondary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] hover:bg-white/[0.03] hover:shadow-[inset_0_0_0_1px_rgb(190_235_222/0.22)]',
         )}
       >
-        <span
-          aria-hidden
-          className={cn(
-            'flex size-4 shrink-0 items-center justify-center border',
-            type === 'radio' ? 'rounded-full' : 'rounded',
-            checked ? 'border-brand-glow bg-brand-glow text-text-inverse' : 'border-border-strong',
+        {chip && indicator}
+        <span className="min-w-0 flex-1">
+          {code && (
+            <span
+              aria-hidden
+              lang="en"
+              className={cn(
+                metaText,
+                'mb-2 block text-[0.625rem]',
+                checked ? 'text-brand-soft' : 'text-text-muted',
+              )}
+            >
+              {code}
+            </span>
           )}
-        >
-          {checked && <Check className="size-3" strokeWidth={3} />}
-        </span>
-        <span className="min-w-0">
           <span className={cn('block', !chip && 'text-label font-semibold text-text-primary')}>
             {children}
           </span>
-          {hint && <span className="mt-0.5 block text-caption text-text-secondary">{hint}</span>}
+          {hint && (
+            <span className="mt-1 block text-caption leading-relaxed text-text-secondary">
+              {hint}
+            </span>
+          )}
         </span>
+        {!chip && <span className="pt-0.5">{indicator}</span>}
       </span>
     </label>
   );
@@ -131,7 +185,12 @@ function Group({
 }) {
   return (
     <fieldset className={className}>
-      <legend className="text-caption font-semibold text-text-muted">{legend}</legend>
+      <legend className="w-full">
+        <span className="flex items-center gap-3">
+          <span className={cn(metaText, 'text-text-muted')}>{legend}</span>
+          <span aria-hidden className="h-px flex-1 bg-white/[0.06]" />
+        </span>
+      </legend>
       {hint && <p className="mt-1 text-caption text-text-muted">{hint}</p>}
       <div className="mt-3">{children}</div>
     </fieldset>
@@ -158,6 +217,7 @@ function TopicStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowActio
                 checked={s.inquiry.type === t}
                 onChange={() => dispatch({ kind: 'type', value: t })}
                 hint={c.types[t].hint}
+                code={TYPE_CODE[t]}
               >
                 {c.types[t].label}
               </Choice>
@@ -365,7 +425,7 @@ function DetailsStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowAct
           ref={summaryRef}
           role="alert"
           data-error-summary
-          className="mb-6 flex items-center gap-2 rounded-xl bg-danger/10 px-4 py-3 text-label text-danger"
+          className="mb-6 flex items-center gap-2 rounded-[8px] bg-danger/10 px-4 py-3 text-label text-danger shadow-[inset_2px_0_0_rgb(255_107_107/0.7)]"
         >
           <CircleAlert aria-hidden className="size-4" />
           {c.errorSummary(count)}
@@ -445,11 +505,7 @@ function ReviewStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowActi
         </p>
         <p className="mt-3 max-w-xl text-label text-text-secondary">{c.prepared.body}</p>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <a
-            href={mail}
-            data-handoff="email"
-            className={buttonClasses('primary', 'lg', 'whitespace-normal')}
-          >
+          <a href={mail} data-handoff="email" className={coreControl('primary', 'min-h-12')}>
             <Mail aria-hidden className="size-4" />
             {c.prepared.email}
           </a>
@@ -458,7 +514,7 @@ function ReviewStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowActi
             target="_blank"
             rel="noopener noreferrer"
             data-handoff="line"
-            className={buttonClasses('secondary', 'lg', 'whitespace-normal')}
+            className={coreControl('line', 'min-h-12')}
           >
             <MessageCircle aria-hidden className="size-4" />
             {c.prepared.line} {CONTACT.lineId}
@@ -468,16 +524,12 @@ function ReviewStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowActi
             type="button"
             onClick={copy}
             data-handoff="copy"
-            className={buttonClasses('secondary', 'lg', 'whitespace-normal')}
+            className={coreControl('line', 'min-h-12')}
           >
             <ClipboardCopy aria-hidden className="size-4" />
             {c.prepared.copy}
           </button>
-          <a
-            href={telHref()}
-            data-handoff="phone"
-            className={buttonClasses('secondary', 'lg', 'whitespace-normal')}
-          >
+          <a href={telHref()} data-handoff="phone" className={coreControl('line', 'min-h-12')}>
             <Phone aria-hidden className="size-4" />
             {c.prepared.call} {CONTACT.phone.display}
           </a>
@@ -488,7 +540,7 @@ function ReviewStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowActi
         <button
           type="button"
           onClick={() => dispatch({ kind: 'edit' })}
-          className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-label text-text-secondary underline-offset-4 hover:underline"
+          className={coreControl('quiet', 'mt-4 -ml-3')}
         >
           <ArrowLeft aria-hidden className="size-4" />
           {c.prepared.back}
@@ -502,7 +554,7 @@ function ReviewStep({ s, dispatch }: { s: FlowState; dispatch: Dispatch<FlowActi
       <Summary inquiry={s.inquiry} />
       <p
         data-delivery-notice
-        className="mt-6 flex items-start gap-2.5 rounded-2xl bg-warning/[0.07] px-4 py-3 text-label text-text-secondary shadow-[inset_0_0_0_1px_rgb(245_184_75/0.2)]"
+        className="mt-6 flex items-start gap-2.5 rounded-[8px] bg-warning/[0.06] px-4 py-3 text-label text-text-secondary shadow-[inset_0_0_0_1px_rgb(245_184_75/0.18)]"
       >
         <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
         {c.review.notice}
@@ -548,41 +600,50 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
 
   return (
     <section aria-labelledby="consult-question" data-flow data-step={step} className="@container">
-      {/* EP24.1.4.3: labels only where all six fit (a container query on the wizard
-          itself, wrapping rather than truncating); narrower, the segments plus the
-          current step name below. Every step keeps its accessible name. */}
+      {/* EP24.1.4.4: a numbered technical rail. Numbers come from a CSS counter,
+          so each step's accessible name stays its plain label. Labels appear only
+          where all six fit (container query, wrapping rather than truncating);
+          narrower, the numbers plus the current step name below. Active: strong
+          teal; done: muted teal; ahead: graphite. */}
       <nav aria-label={c.stepsLabel}>
-        <ol className="flex gap-1.5 pb-1 sm:gap-2">
+        <ol className="grid grid-cols-6 border-b border-white/[0.08] [counter-reset:step]">
           {STEPS.map((st, i) => {
             const current = i === s.step;
             const open = i <= s.reached;
             return (
-              <li key={st} className="min-w-0 flex-1">
+              <li key={st} className="relative min-w-0 [counter-increment:step]">
+                <span
+                  aria-hidden
+                  className={cn(
+                    'absolute inset-x-0 -bottom-px transition-colors',
+                    current
+                      ? 'h-[2px] bg-brand-glow shadow-[0_0_14px_rgb(62_240_192/0.45)]'
+                      : open
+                        ? 'h-px bg-brand-primary/45'
+                        : 'h-px bg-transparent',
+                  )}
+                />
                 <button
                   type="button"
                   disabled={!open}
                   aria-current={current ? 'step' : undefined}
                   onClick={() => dispatch({ kind: 'go', step: i })}
-                  className="group flex min-h-11 w-full flex-col items-start gap-1.5 text-left disabled:cursor-default"
+                  className={cn(
+                    'group flex min-h-11 w-full flex-col items-start gap-1.5 pt-1 pr-3 pb-3 text-left before:font-mono before:text-[0.6875rem] before:tracking-[0.14em] before:content-[counter(step,decimal-leading-zero)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus disabled:cursor-default',
+                    current
+                      ? 'before:text-brand-glow'
+                      : open
+                        ? 'before:text-brand-soft/70'
+                        : 'before:text-text-muted/60',
+                  )}
                 >
                   <span
-                    aria-hidden
                     className={cn(
-                      'h-1 w-full rounded-full transition-colors',
+                      'sr-only text-caption leading-snug break-words transition-colors @2xl:not-sr-only @2xl:block',
                       current
-                        ? 'bg-brand-glow'
-                        : i < s.reached || (open && !current)
-                          ? 'bg-brand-primary/50'
-                          : 'bg-white/10',
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'sr-only text-caption leading-snug break-words @2xl:not-sr-only @2xl:block',
-                      current
-                        ? 'text-text-primary'
+                        ? 'font-semibold text-text-primary'
                         : open
-                          ? 'text-text-secondary'
+                          ? 'text-text-secondary group-hover:text-text-primary'
                           : 'text-text-muted',
                     )}
                   >
@@ -600,37 +661,40 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
         initial={reduce ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE_CORE }}
-        className="mt-8"
+        className="mt-8 lg:mt-10"
       >
-        <p className="text-caption text-text-muted tabular">
-          {c.stepOf(s.step + 1, STEPS.length)}
-          {/* The step name, where the progress bar shows no labels. */}
-          <span data-step-name className="@2xl:hidden">
-            {' · '}
-            {c.steps[step]}
+        <p className="flex items-center gap-2.5 text-caption text-text-muted tabular">
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-brand-glow" />
+          <span>
+            {c.stepOf(s.step + 1, STEPS.length)}
+            {/* The step name, where the progress rail shows no labels. */}
+            <span data-step-name className="@2xl:hidden">
+              {' · '}
+              {c.steps[step]}
+            </span>
           </span>
         </p>
         <h2
           id="consult-question"
           ref={headingRef}
           tabIndex={-1}
-          className="mt-1 text-[clamp(1.5rem,1.2rem+1.1vw,2.125rem)] leading-[1.3] font-semibold text-text-primary outline-none"
+          className="mt-3 text-[clamp(1.375rem,1.15rem+0.8vw,1.875rem)] leading-[1.3] font-semibold tracking-[-0.01em] text-text-primary outline-none"
         >
           {c.questions[step]}
         </h2>
         {optional && <p className="mt-2 text-caption text-text-muted">{c.hints[step]}</p>}
-        <div className="mt-6">
+        <div className="mt-7">
           <Body s={s} dispatch={dispatch} />
         </div>
       </motion.div>
 
       {!(last && s.prepared) && (
-        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border-soft pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-10 flex flex-col-reverse gap-3 border-t border-white/[0.08] pt-6 sm:flex-row sm:items-center sm:justify-between">
           {s.step > 0 ? (
             <button
               type="button"
               onClick={() => dispatch({ kind: 'back' })}
-              className={buttonClasses('ghost', 'lg')}
+              className={coreControl('quiet', 'sm:-ml-3')}
             >
               <ArrowLeft aria-hidden className="size-4" />
               {c.nav.back}
@@ -638,13 +702,13 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
           ) : (
             <span />
           )}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
             {optional && (
               <button
                 type="button"
                 onClick={() => dispatch({ kind: 'next' })}
                 data-skip
-                className={buttonClasses('ghost', 'lg')}
+                className={coreControl('quiet')}
               >
                 {c.nav.skip}
               </button>
@@ -654,20 +718,20 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
                 type="button"
                 data-prepare
                 onClick={() => dispatch({ kind: 'prepare' })}
-                className={buttonClasses('primary', 'lg', 'whitespace-normal')}
+                className={coreControl('primary', 'min-h-12 px-6')}
               >
                 {c.review.prepare}
-                <ArrowRight aria-hidden className="size-4" />
+                <ArrowRight aria-hidden className={controlArrow} />
               </button>
             ) : (
               <button
                 type="button"
                 data-next
                 onClick={() => dispatch({ kind: 'next' })}
-                className={buttonClasses('primary', 'lg')}
+                className={coreControl('primary', 'min-h-12 px-6')}
               >
                 {c.nav.next}
-                <ArrowRight aria-hidden className="size-4" />
+                <ArrowRight aria-hidden className={controlArrow} />
               </button>
             )}
           </div>

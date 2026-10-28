@@ -74,6 +74,10 @@ company contact page (channels once, address, large live map, one directions act
 invitation to consult) and `/consultation` is the guided six-step consultation on its own indexable
 route; enquiry CTAs now go to `/consultation?topic=…`
 ([docs/EP24_1_4_3_REPORT.md](docs/EP24_1_4_3_REPORT.md)).
+**EP24.1.4.4** (completed locally, awaiting owner review) recomposes both pages in the CORE visual
+language — Contact as a company endpoint (endpoint rail, editorial map composition, consultation
+gateway) and Consultation as a guided discovery (numbered progress rail, coded option paths, light
+context rail); logic, routes and SEO unchanged ([docs/EP24_1_4_4_REPORT.md](docs/EP24_1_4_4_REPORT.md)).
 Next: EP26 (not started).
 
 ### Auth & Transactional Email Polish (EP24)

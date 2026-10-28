@@ -183,6 +183,7 @@ const th = {
   },
   panel: {
     summaryTitle: 'สิ่งที่คุณเลือกตอนนี้',
+    progress: 'ความคืบหน้า',
   },
 };
 
@@ -370,6 +371,7 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
     },
     panel: {
       summaryTitle: 'What you have chosen so far',
+      progress: 'Progress',
     },
   },
   'zh-CN': {
@@ -531,6 +533,7 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
     },
     panel: {
       summaryTitle: '您目前的选择',
+      progress: '进度',
     },
   },
 };

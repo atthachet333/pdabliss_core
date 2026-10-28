@@ -15,13 +15,14 @@ const th = {
       'ติดต่อ PDA BLISS COMPANY LIMITED ทางโทรศัพท์ LINE OA หรืออีเมล ดูที่ตั้งบริษัทบนแผนที่ และเริ่มปรึกษาเมื่อยังไม่แน่ใจว่าควรเริ่มจากตรงไหน',
   },
   hero: {
-    eyebrow: 'ติดต่อเรา',
+    eyebrow: 'ติดต่อ',
     title: 'คุยกับ PDA BLISS',
     lead: 'มีคำถามเกี่ยวกับ CORE การนำระบบไปใช้ ความร่วมมือ หรือเรื่องทั่วไป ยินดีรับฟังทุกเรื่อง — เลือกช่องทางที่สะดวกได้เลย',
+    signpost: 'ยังไม่แน่ใจว่าควรเริ่มตรงไหน? ปรึกษาแบบมีขั้นตอน',
   },
   direct: {
     title: 'ช่องทางติดต่อ',
-    call: 'โทร',
+    call: 'โทรศัพท์',
     line: 'LINE OA',
     email: 'อีเมล',
   },
@@ -29,7 +30,9 @@ const th = {
     title: 'ยังไม่แน่ใจว่าควรเริ่มจากตรงไหน?',
     body: 'ไม่จำเป็นต้องรู้ชื่อฟีเจอร์หรือระบบก่อน บอกเราว่าองค์กรของคุณทำงานอย่างไร และจุดไหนกำลังติดขัด แล้วเราจะช่วยดูจุดเริ่มต้นที่เหมาะสม',
     cta: 'เริ่มปรึกษาเรา',
+    path: 'หกขั้นสั้น ๆ — เริ่มจากเรื่องที่อยากคุย',
   },
+  sections: { location: 'ที่ตั้งบริษัท', consult: 'ปรึกษา' },
 };
 
 export type ContactPageCopy = typeof th;
@@ -46,10 +49,11 @@ export const CONTACT_PAGE_COPY: Localized<ContactPageCopy> = {
       eyebrow: 'Contact',
       title: 'Talk to PDA BLISS',
       lead: 'Questions about CORE, implementation, partnership or anything else are welcome — use whichever channel suits you.',
+      signpost: 'Not sure where to start? Guided consultation',
     },
     direct: {
       title: 'Ways to reach us',
-      call: 'Call',
+      call: 'Phone',
       line: 'LINE OA',
       email: 'Email',
     },
@@ -57,7 +61,9 @@ export const CONTACT_PAGE_COPY: Localized<ContactPageCopy> = {
       title: 'Not sure where to start?',
       body: 'You don’t need to know feature or system names first. Tell us how your organization works and where things get stuck, and we will help you look for a sensible starting point.',
       cta: 'Start a consultation',
+      path: 'Six short steps — starting with what you want to talk about',
     },
+    sections: { location: 'Location', consult: 'Consultation' },
   },
   'zh-CN': {
     meta: {
@@ -69,10 +75,11 @@ export const CONTACT_PAGE_COPY: Localized<ContactPageCopy> = {
       eyebrow: '联系我们',
       title: '与 PDA BLISS 沟通',
       lead: '无论是关于 CORE、系统实施、合作，还是一般问题，都欢迎与我们联系——选择方便的渠道即可。',
+      signpost: '不确定从哪里入手？查看引导式咨询',
     },
     direct: {
       title: '联系方式',
-      call: '致电',
+      call: '电话',
       line: 'LINE OA',
       email: '电子邮件',
     },
@@ -80,6 +87,8 @@ export const CONTACT_PAGE_COPY: Localized<ContactPageCopy> = {
       title: '还不确定从哪里开始？',
       body: '无需先了解功能或系统名称。告诉我们贵组织如何运作、哪里遇到了阻碍，我们会帮助您找到合适的起点。',
       cta: '开始咨询',
+      path: '六个简短步骤——从您想沟通的话题开始',
     },
+    sections: { location: '公司位置', consult: '咨询' },
   },
 };

@@ -16,8 +16,12 @@ Since EP24.1.4.3 there are two routes, each answering one question:
 
 ## Layout
 
-`/contact` (`pages/public/ContactPage.tsx`): intro + direct channels (`ContactOverview.tsx`) →
-location (`Location.tsx`) → consultation invitation. The map is Contact-only.
+`/contact` (`pages/public/ContactPage.tsx`): compact intro with a consultation signpost → the
+endpoint rail (phone · LINE OA · email) (`ContactOverview.tsx`) → location: company, address, a
+dark-rendered live map and one directions link (`Location.tsx`) → the consultation gateway (six
+numbered nodes running into *เริ่มปรึกษาเรา*). The map is Contact-only. Visual language since
+EP24.1.4.4: see [EP24_1_4_4_REPORT.md](EP24_1_4_4_REPORT.md); page-local controls and metadata
+type live in `features/contact/coreControls.ts`.
 
 `/consultation` (`pages/public/ConsultationPage.tsx`):
 
@@ -25,12 +29,13 @@ location (`Location.tsx`) → consultation invitation. The map is Contact-only.
   problem-first supporting copy.
 - **Context banner** — what the page already knows from where the visitor came from
   (*คุณกำลังสอบถาม Enterprise · คุณกำลังสนใจ คลังสินค้า · คุณกำลังดู การผลิต*).
-- **Guided flow** — one question at a time, six short steps. The step bar shows all six labels
-  when the flow is wide enough (container query, `@2xl`); narrower, it shows segments plus the
-  current step's name, so labels are never clipped.
-- **Side column** (sticky on wide screens; below the flow on phones) — the live summary and a
-  compact *prefer to talk now?* fallback with phone, LINE and email. No address, no map, no
-  Google request.
+- **Guided flow** — one question at a time, six short steps on a numbered progress rail
+  (`01 … 06`, CSS counters, so accessible names stay the plain labels). All six labels show when
+  the flow is wide enough (container query, `@2xl`); narrower, the numbers plus the current step's
+  name, so labels are never clipped. Topics are selectable paths with a technical code.
+- **Context rail** (sticky on wide screens; below the flow on phones, as a disclosure) — progress
+  (`01 / 06`), the choices so far, and a compact *prefer to talk now?* fallback with phone, LINE
+  and email. No address, no map, no Google request.
 
 ## Inquiry model (`features/contact/model.ts`)
 

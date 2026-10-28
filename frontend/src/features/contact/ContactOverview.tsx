@@ -1,56 +1,115 @@
-import { ArrowRight, Mail, MessageCircle, Phone, type LucideIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Mail,
+  MessageCircle,
+  Phone,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Frame } from '@/components/editorial/Layout';
 import { CONTACT, mailtoHref, telHref } from '@/config/contact';
+import { STEPS } from '@/features/contact/model';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
+import { cn } from '@/lib/cn';
 import { CONTACT_PAGE_COPY } from './contactPageCopy';
+import { controlArrow, coreControl, metaText } from './coreControls';
 
 /*
- * /contact (EP24.1.4.3): a company contact page, not an intake form. The
- * intro says who you are talking to; the three direct channels sit in one
- * restrained rail right under it (the only place on the page with them); the
- * invitation at the end leads people who are not sure where to start into
- * /consultation. Nothing here imports the consultation wizard.
+ * /contact (EP24.1.4.3 split; EP24.1.4.4 recomposition): where the outside
+ * world connects to PDA BLISS. A company endpoint, not a landing page — a
+ * compact intro, the three direct channels as one rail of endpoints, the
+ * location as the page's main visual, and a bridge into /consultation for
+ * people who are not sure where to start. Nothing here imports the wizard.
  */
+
+/** Section metadata: a short teal rule, an index, a label. */
+export function SectionMark({
+  index,
+  children,
+  className,
+}: {
+  index: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <p className={cn('flex items-center gap-3 text-text-muted', className)}>
+      <span aria-hidden className="h-px w-5 bg-brand-primary/70" />
+      <span aria-hidden lang="en" className={cn(metaText, 'text-brand-soft')}>
+        {index}
+      </span>
+      <span className={metaText}>{children}</span>
+    </p>
+  );
+}
 
 export function ContactIntro() {
   const c = useCopy(CONTACT_PAGE_COPY);
+  const { href } = useLocale();
   return (
-    <section aria-labelledby="contact-title" className="relative isolate overflow-hidden">
+    <section aria-labelledby="contact-title" className="relative isolate">
+      {/* A faint teal falloff behind the endpoint, top right. */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_50%_70%_at_88%_0%,rgb(62_224_180/0.09),transparent_70%)]"
+        className="absolute inset-x-0 top-0 -z-10 h-[34rem] bg-[radial-gradient(ellipse_45%_60%_at_92%_0%,rgb(62_224_180/0.07),transparent_72%)]"
       />
-      <Frame width="wide" className="pt-28 pb-12 sm:pt-32 lg:pb-16">
-        <p className="flex items-center gap-3 text-caption font-semibold text-brand-soft">
-          <span aria-hidden className="h-px w-6 bg-current opacity-70" />
-          {c.hero.eyebrow}
-        </p>
-        <h1
-          id="contact-title"
-          className="mt-5 text-[clamp(2.25rem,1.3rem+3.4vw,4.25rem)] leading-[1.1] font-semibold tracking-tight text-text-primary"
-        >
-          {c.hero.title}
-        </h1>
-        <p className="mt-6 max-w-2xl text-body-lg text-text-secondary">{c.hero.lead}</p>
+      <Frame width="wide" className="pt-24 sm:pt-28 lg:pt-32">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-end lg:gap-16">
+          <div>
+            <p className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="size-1.5 rounded-full bg-brand-glow shadow-[0_0_0_3px_rgb(62_240_192/0.14)]"
+              />
+              <span className={cn(metaText, 'text-brand-soft')}>{c.hero.eyebrow}</span>
+              <span aria-hidden className="h-px w-6 bg-white/15" />
+              <span lang="en" className={cn(metaText, 'text-text-muted')}>
+                PDA BLISS
+              </span>
+            </p>
+            <h1
+              id="contact-title"
+              className="mt-5 text-[clamp(2.125rem,1.55rem+2.1vw,3.5rem)] leading-[1.12] font-semibold tracking-[-0.015em] text-text-primary"
+            >
+              {c.hero.title}
+            </h1>
+          </div>
+          <div className="max-w-xl lg:pb-1.5">
+            <p className="text-body leading-relaxed text-text-secondary">{c.hero.lead}</p>
+            {/* The consultation path, signposted from the first screen. */}
+            <Link
+              to={href('/consultation')}
+              data-consultation-signpost
+              className="group/ctl mt-3 inline-flex min-h-11 items-center gap-2 text-label font-semibold text-brand-soft transition-colors hover:text-brand-glow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus motion-reduce:transition-none"
+            >
+              {c.hero.signpost}
+              <ArrowRight aria-hidden className={controlArrow} />
+            </Link>
+          </div>
+        </div>
         <DirectContact />
       </Frame>
     </section>
   );
 }
 
-/** Phone · LINE OA · email — once on the page, as one quiet rail (stacked on phones). */
+/** Phone · LINE OA · email — once on the page, as one rail of endpoints (stacked on phones). */
 function DirectContact() {
   const c = useCopy(CONTACT_PAGE_COPY).direct;
   const { t } = useLocale();
   return (
-    <div data-direct-contact className="mt-10 lg:mt-12">
+    <div data-direct-contact className="relative mt-10 sm:mt-12">
       <h2 className="sr-only">{c.title}</h2>
-      <ul className="grid divide-y divide-white/[0.08] border-y border-white/[0.08] md:grid-cols-3 md:divide-x md:divide-y-0">
-        <Channel
+      {/* The rail: a hairline with a teal segment where the endpoints begin. */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,rgb(62_240_192/0.55),rgb(62_240_192/0.12)_28%,rgb(255_255_255/0.08)_60%)]"
+      />
+      <ul className="grid border-b border-white/[0.08] md:grid-cols-[1.05fr_0.75fr_1.2fr] lg:grid-cols-3">
+        <Endpoint
           icon={Phone}
           label={c.call}
           href={telHref()}
@@ -62,7 +121,7 @@ function DirectContact() {
             </>
           }
         />
-        <Channel
+        <Endpoint
           icon={MessageCircle}
           label={c.line}
           href={CONTACT.lineUrl}
@@ -70,7 +129,7 @@ function DirectContact() {
           external={t.contact.opensInNewTab}
           value={CONTACT.lineId}
         />
-        <Channel
+        <Endpoint
           icon={Mail}
           label={c.email}
           href={mailtoHref()}
@@ -82,7 +141,7 @@ function DirectContact() {
   );
 }
 
-function Channel({
+function Endpoint({
   icon: Icon,
   label,
   href,
@@ -99,79 +158,120 @@ function Channel({
   external?: string;
 }) {
   return (
-    <li className="min-w-0">
+    <li className="relative min-w-0 border-t border-white/[0.06] first:border-t-0 md:border-t-0 md:border-l md:first:border-l-0">
+      {/* The node where this endpoint meets the rail. */}
+      <span
+        aria-hidden
+        className="absolute top-0 left-0 hidden size-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-glow/80 md:block md:[li:first-child>&]:hidden"
+      />
       <a
         href={href}
         data-direct-link={kind}
         {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-        className="group flex min-h-16 items-center gap-4 py-4 transition-colors hover:text-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus motion-reduce:transition-none md:px-6 md:first:pl-0"
+        className="group relative flex min-h-[4.75rem] items-center gap-4 py-4 transition-colors hover:bg-[linear-gradient(180deg,rgb(62_240_192/0.05),transparent)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus motion-reduce:transition-none md:px-5 lg:px-6 md:[li:first-child>&]:pl-0"
       >
         <span
           aria-hidden
-          className="grid size-10 shrink-0 place-items-center rounded-full text-brand-soft shadow-[inset_0_0_0_1px_rgb(62_240_192/0.3)] transition-colors group-hover:bg-brand-primary/[0.08]"
+          className="grid size-9 shrink-0 place-items-center rounded-[8px] text-brand-soft shadow-[inset_0_0_0_1px_rgb(62_240_192/0.28)] transition-[background-color,box-shadow] group-hover:bg-brand-primary/[0.08] group-hover:shadow-[inset_0_0_0_1px_rgb(62_240_192/0.55)] md:hidden lg:grid"
         >
           <Icon className="size-4" />
         </span>
-        <span className="min-w-0">
-          <span className="block text-caption text-text-muted">{label}</span>
-          <span className="block text-label font-semibold text-text-primary">{value}</span>
+        <span className="min-w-0 flex-1">
+          <span className={cn(metaText, 'block text-text-muted')}>{label}</span>
+          <span className="mt-2 block text-body font-semibold text-text-primary transition-colors group-hover:text-brand-soft">
+            {value}
+          </span>
         </span>
+        <ArrowUpRight
+          aria-hidden
+          className="hidden size-4 shrink-0 text-text-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none lg:block"
+        />
         {external && <span className="sr-only"> {external}</span>}
       </a>
     </li>
   );
 }
 
-/** For people who don't yet know what they need: the way into /consultation. */
+/**
+ * For people who don't yet know what they need: a bridge into /consultation.
+ * Not another card — a section between hairlines whose rail previews the six
+ * short steps and ends at the one action.
+ */
 export function ConsultationInvite() {
-  const c = useCopy(CONTACT_PAGE_COPY).invite;
+  const c = useCopy(CONTACT_PAGE_COPY);
   const { href } = useLocale();
   return (
     <section
       aria-labelledby="invite-title"
       data-consultation-invite
-      className="relative isolate overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,rgb(11_30_36/0.95),rgb(6_14_21/0.98))] px-6 py-10 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.18)] sm:px-10 lg:px-14 lg:py-14"
+      className="relative isolate border-y border-white/[0.08] py-12 sm:py-14 lg:py-16"
     >
-      {/* Two faint lines meeting at one point — a conversation finding its start. */}
-      <svg
+      <div
         aria-hidden
-        className="absolute inset-y-0 right-0 -z-10 hidden h-full w-1/2 opacity-70 md:block"
-        viewBox="0 0 400 200"
-        preserveAspectRatio="none"
-        fill="none"
-      >
-        <path
-          d="M0 40 C 160 40, 220 100, 400 100"
-          stroke="#3ef0c0"
-          strokeOpacity="0.14"
-          vectorEffect="non-scaling-stroke"
-        />
-        <path
-          d="M0 160 C 160 160, 220 100, 400 100"
-          stroke="#d6e2e6"
-          strokeOpacity="0.12"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-16">
-        <div className="max-w-2xl">
+        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_40%_80%_at_85%_50%,rgb(62_224_180/0.07),transparent_72%)]"
+      />
+      {/* A technical grid behind the path, fading out at its edges. */}
+      <div
+        aria-hidden
+        className="absolute inset-y-0 right-0 -z-10 hidden w-3/5 bg-grid [mask-image:radial-gradient(ellipse_70%_75%_at_60%_50%,black,transparent_75%)] opacity-50 lg:block"
+      />
+      <span
+        aria-hidden
+        className="absolute -top-px left-0 h-px w-40 bg-[linear-gradient(90deg,rgb(62_240_192/0.7),transparent)]"
+      />
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
+        <div className="max-w-xl">
+          <SectionMark index="03">{c.sections.consult}</SectionMark>
           <h2
             id="invite-title"
-            className="text-[clamp(1.5rem,1.15rem+1.4vw,2.375rem)] leading-tight font-semibold tracking-tight text-text-primary"
+            className="mt-6 text-[clamp(1.5rem,1.25rem+0.9vw,2.125rem)] leading-[1.25] font-semibold tracking-[-0.01em] text-text-primary"
           >
-            {c.title}
+            {c.invite.title}
           </h2>
-          <p className="mt-4 text-body leading-relaxed text-text-secondary">{c.body}</p>
+          <p className="mt-4 text-body leading-relaxed text-text-secondary">{c.invite.body}</p>
         </div>
-        <Link
-          to={href('/consultation')}
-          data-consultation-cta
-          className={buttonClasses('primary', 'lg', 'w-full sm:w-auto')}
-        >
-          {c.cta}
-          <ArrowRight aria-hidden className="size-5" />
-        </Link>
+        <div>
+          <p className="text-caption text-text-muted">{c.invite.path}</p>
+          <div className="mt-4 flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-5">
+            <StepRail />
+            <Link
+              to={href('/consultation')}
+              data-consultation-cta
+              className={coreControl('primary', 'w-full shrink-0 sm:w-auto')}
+            >
+              {c.invite.cta}
+              <ArrowRight aria-hidden className={controlArrow} />
+            </Link>
+          </div>
+        </div>
       </div>
     </section>
+  );
+}
+
+/** The six consultation steps as nodes on a line that runs into the action. */
+function StepRail() {
+  return (
+    <ol aria-hidden className="relative flex min-w-0 flex-1 items-center justify-between">
+      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[linear-gradient(90deg,rgb(62_240_192/0.15),rgb(62_240_192/0.6))]" />
+      {STEPS.map((step, i) => (
+        <li key={step} className="relative flex flex-col items-center">
+          <span
+            className={cn(
+              'block size-2 rounded-full ring-4 ring-surface-dark',
+              i === 0
+                ? 'bg-brand-glow'
+                : 'bg-[#0d1b24] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.5)]',
+            )}
+          />
+          <span
+            lang="en"
+            className="absolute top-4 font-mono text-[0.625rem] tracking-[0.12em] text-text-muted"
+          >
+            {String(i + 1).padStart(2, '0')}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }

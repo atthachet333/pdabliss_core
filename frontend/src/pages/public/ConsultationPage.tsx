@@ -34,19 +34,22 @@ export default function ConsultationPage() {
   return (
     <>
       <ConsultationHero />
-      <Frame width="wide" className="pb-20 sm:pb-28">
+      <Frame width="wide" className="pb-20 sm:pb-24">
+        {/* EP24.1.4.4: one workspace (≈ three quarters) and a light context rail
+            beside it, divided by a hairline — no card around the conversation. */}
         <div
           data-consultation
-          className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-12"
+          className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_16.5rem] lg:gap-0 xl:grid-cols-[minmax(0,1fr)_18rem]"
         >
-          <div data-conversation className="min-w-0">
+          <div data-conversation className="min-w-0 lg:pr-12 xl:pr-16">
             <ContextBanner prefill={state.inquiry.source} />
-            <div className="rounded-[2rem] bg-[linear-gradient(180deg,rgb(13_25_36/0.85),rgb(6_13_20/0.9))] p-5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08),0_50px_140px_-70px_rgb(0_0_0/0.9)] sm:p-8 lg:p-12">
-              <ContactFlow s={state} dispatch={dispatch} />
-            </div>
+            <ContactFlow s={state} dispatch={dispatch} />
           </div>
-          <div data-consultation-side className="grid gap-8 xl:sticky xl:top-24">
-            <LiveSummary inquiry={state.inquiry} />
+          <div
+            data-consultation-side
+            className="grid gap-6 lg:sticky lg:top-24 lg:border-l lg:border-white/[0.07] lg:pl-8"
+          >
+            <LiveSummary inquiry={state.inquiry} step={state.step} />
             <ConsultationFallback />
           </div>
         </div>

@@ -195,7 +195,7 @@ does not.
 | Critical fonts (Thai + Latin woff2, 400/500/600) | 88.4 | 100 |
 | Hero + department thumbnails | 36.9 | 45 |
 | All JS, raw | ≈ 3,677 | 4,300 (EP25; was 4,100) |
-| Static HTML, raw | ≈ 543 | 560 (EP24.1.4.3; was 540) |
+| Static HTML, raw | ≈ 543 | 560 (EP24.1.4.3, owner-approved in EP24.1.4.4; was 540) |
 | Static HTML files | 108 | exactly 111 (EP24.1.4.3; was 108) |
 
 It also fails when heavy code becomes eager: CORE World / three.js, the Demo, the homepage
@@ -218,7 +218,8 @@ right fonts), never another route's.
   became its own public, indexable route (the guided consultation split from /contact), so the
   prerender writes three more pages (th / en / zh, ≈ 4.4 KiB of head each): 543 KiB in total. The
   per-page weight is unchanged; the cap still catches bloated heads. The JS cap (4,300 KiB) is not
-  touched. *Owner review requested.*
+  touched. **Approved by the owner (EP24.1.4.4).** The cap is not to be raised again without
+  owner review.
 
 ## 4. Route splitting and loading
 

@@ -42,7 +42,7 @@ const BUDGET = {
   // (≈100 kB raw, never loaded by a public page) — reason in docs/PERFORMANCE.md.
   totalJsKb: 4300, // every JS chunk, raw [≈3,680 at EP20; 4,103 after EP25]
   // EP24.1.4.3: +20 for /consultation in three locales (three new indexable pages).
-  htmlTotalKb: 560, // all prerendered HTML, incl. per-route preloads [≈490; 543 after EP24.1.4.3]
+  htmlTotalKb: 560, // all prerendered HTML, incl. per-route preloads [≈490; 543 after EP24.1.4.3; 560 owner-approved EP24.1.4.4 — do not raise without owner review]
   htmlFiles: 111, // 108 indexable pages (36 routes × 3, EP24.1.4.3) + 3 shells (exact)
 };
 

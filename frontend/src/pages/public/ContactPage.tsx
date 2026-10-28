@@ -40,7 +40,7 @@ export default function ContactPage() {
     <>
       <OrganizationSchema />
       <ContactIntro />
-      <Frame width="wide" className="grid gap-16 pb-20 sm:gap-20 sm:pb-24 lg:gap-24">
+      <Frame width="wide" className="grid gap-16 pt-14 pb-16 sm:gap-20 sm:pt-16 sm:pb-20 lg:gap-24 lg:pt-20">
         <CoreLocation />
         <ConsultationInvite />
       </Frame>

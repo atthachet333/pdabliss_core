@@ -76,7 +76,7 @@ not repeat the schema.
 The map and wizard never load together: `/contact` does not import the flow, and
 `/consultation` does not import the location or make any Google request.
 
-## 6. HTML budget raise — owner review requested
+## 6. HTML budget raise — approved by the owner in EP24.1.4.4
 
 The static-HTML cap was raised **540 → 560 KiB raw** and the file count **108 → 111**: three
 prerendered `/consultation` pages (≈ 4.4 KiB of head each) take the total to 543 KiB. Per-page

@@ -638,3 +638,30 @@ describe('/consultation — its own route (EP24.1.4.3)', () => {
     expect(router.state.location.search).toBe('?topic=demo');
   });
 });
+
+describe('Contact & Consultation recomposition (EP24.1.4.4)', () => {
+  it('signposts the consultation from the first screen of /contact, with its own name', async () => {
+    await open('/contact');
+    const signpost = document.querySelector<HTMLAnchorElement>('[data-consultation-signpost]')!;
+    expect(signpost).toHaveAttribute('href', '/consultation');
+    expect(signpost).toHaveTextContent('ปรึกษาแบบมีขั้นตอน');
+    // Still exactly one "เริ่มปรึกษาเรา" action — the gateway's.
+    expect(screen.getAllByRole('link', { name: /เริ่มปรึกษาเรา/ })).toHaveLength(1);
+  });
+
+  it('says where the map comes from, next to the map', async () => {
+    await open('/en/contact');
+    expect(document.querySelector('[data-location] [data-map-caption]')).toHaveTextContent(
+      'Map by Google Maps — a third-party service',
+    );
+  });
+
+  it('the context rail shows the step reached and follows the conversation', async () => {
+    await open('/consultation?topic=demo');
+    const progress = () => document.querySelector('[data-live-summary] [data-progress]')!;
+    expect(progress()).toHaveTextContent('ความคืบหน้า');
+    expect(progress()).toHaveTextContent('01 / 06');
+    await next();
+    expect(progress()).toHaveTextContent('02 / 06');
+  });
+});

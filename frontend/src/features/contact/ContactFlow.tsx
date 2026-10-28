@@ -575,7 +575,8 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
                   />
                   <span
                     className={cn(
-                      'hidden truncate text-caption sm:block',
+                      // max-w-full: truncate inside the step instead of running into the next one.
+                      'hidden max-w-full truncate text-caption sm:block',
                       current
                         ? 'text-text-primary'
                         : open

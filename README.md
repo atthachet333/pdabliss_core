@@ -65,6 +65,10 @@ context leading into a neutral CORE Operations entry (`/core`)
 PDA BLISS × S2 chapter on /about rebuilt as one symmetric composition (equal sides, CORE centred on
 the logos' axis, matched actions), and a consent-aware Google map on /contact that loads only when
 the visitor asks ([docs/EP24_1_4_REPORT.md](docs/EP24_1_4_REPORT.md)).
+**EP24.1.4.1 – EP24.1.4.2** (completed locally, awaiting owner review) turns /contact into one
+workspace — the consultation beside a location column with only the company name, address, a
+large live Google map (loaded with the page, disclosed in the cookie banner and Privacy Policy) and
+one Open in Google Maps action ([docs/EP24_1_4_2_REPORT.md](docs/EP24_1_4_2_REPORT.md)).
 Next: EP26 (not started).
 
 ### Auth & Transactional Email Polish (EP24)

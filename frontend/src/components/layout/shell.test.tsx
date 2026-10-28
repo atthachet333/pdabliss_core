@@ -146,8 +146,8 @@ describe('public footer', () => {
     await screen.findByRole('heading', { level: 1 });
     await userEvent.click(screen.getByRole('button', { name: 'เปิดช่องทางติดต่อ' }));
     const lines = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href*="line.me"]'));
-    // footer shortcut + footer details + contact page + floating panel
-    expect(lines.length).toBeGreaterThanOrEqual(4);
+    // footer details + floating panel (the contact page repeats none since EP24.1.4.2)
+    expect(lines.length).toBeGreaterThanOrEqual(2);
     for (const a of lines) expect(a.getAttribute('href')).toBe(LINE_URL);
   });
 });

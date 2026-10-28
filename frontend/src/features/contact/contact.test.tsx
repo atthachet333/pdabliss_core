@@ -244,7 +244,7 @@ describe('/contact page', () => {
     expect(document.querySelector('[data-context]')).toHaveTextContent('คุณกำลังสอบถาม Enterprise');
     expect(within(flow()).getByRole('radio', { name: /ขอใบเสนอราคา Enterprise/ })).toBeChecked();
     expect(
-      document.querySelector('[data-direct-panel] [data-summary-row="plan"]'),
+      document.querySelector('[data-live-summary] [data-summary-row="plan"]'),
     ).toHaveTextContent('Enterprise');
   });
 
@@ -271,7 +271,7 @@ describe('/contact page', () => {
     ).toHaveFocus();
     await userEvent.click(within(flow()).getByRole('checkbox', { name: 'ต้องตามถามสถานะ' }));
     await userEvent.click(within(flow()).getByRole('checkbox', { name: 'Supplier' }));
-    const panel = document.querySelector('[data-direct-panel]')!;
+    const panel = document.querySelector('[data-live-summary]')!;
     expect(panel.querySelector('[data-summary-row="industry"]')).toHaveTextContent(
       'กระจายสินค้า / ค้าส่ง',
     );
@@ -293,7 +293,7 @@ describe('/contact page', () => {
     expect(within(flow()).getByRole('radio', { name: /LINE/ })).toBeChecked();
     await userEvent.click(within(flow()).getByRole('radio', { name: /อีเมล/ }));
     expect(
-      document.querySelector('[data-direct-panel] [data-summary-row="method"]'),
+      document.querySelector('[data-live-summary] [data-summary-row="method"]'),
     ).toHaveTextContent('อีเมล');
   });
 
@@ -364,25 +364,22 @@ describe('/contact page', () => {
     expect(document.querySelector('[data-prepared]')).toBeNull();
   }, 20000);
 
-  it('always shows direct phone, LINE and email links from the central config', async () => {
+  it('keeps phone, LINE and email reachable from the central config — outside the map side', async () => {
     await open();
-    const panel = document.querySelector<HTMLElement>('[data-direct-panel]')!;
-    expect(panel.querySelector('[data-direct-link="phone"]')).toHaveAttribute(
-      'href',
-      `tel:${CONTACT.phone.e164}`,
-    );
-    expect(panel).toHaveTextContent(`${CONTACT.phone.display} (คุณวิน)`);
-    const line = panel.querySelector('[data-direct-link="line"]')!;
-    expect(line).toHaveAttribute('href', CONTACT.lineUrl);
+    // EP24.1.4.2: the page itself no longer repeats direct-contact cards; the
+    // consultation's hand-off, the site footer and the floating panel offer them.
+    const footer = document.querySelector<HTMLElement>('footer')!;
+    expect(footer.querySelector(`a[href="tel:${CONTACT.phone.e164}"]`)).not.toBeNull();
+    expect(footer.querySelector(`a[href="mailto:${CONTACT.email}"]`)).not.toBeNull();
+    const line = footer.querySelector(`a[href="${CONTACT.lineUrl}"]`)!;
     expect(line).toHaveAttribute('target', '_blank');
     expect(line).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(line).toHaveTextContent('คุยผ่าน LINE OA');
-    expect(panel.querySelector('[data-direct-link="email"]')).toHaveAttribute(
-      'href',
-      `mailto:${CONTACT.email}`,
-    );
-    expect(panel).toHaveTextContent('บริษัท พีดีเอ บลิส จำกัด');
-    expect(panel).toHaveTextContent(CONTACT.address);
+    const location = document.querySelector<HTMLElement>('[data-location]')!;
+    expect(location).toHaveTextContent(CONTACT.company);
+    expect(location).toHaveTextContent(CONTACT.address);
+    expect(
+      location.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="line.me"]'),
+    ).toBeNull();
   });
 
   it('asks for no sensitive data and offers no file upload', async () => {
@@ -441,96 +438,133 @@ describe('localization', () => {
   });
 });
 
-describe('/contact — location and map (EP24.1.4, owner-approved)', () => {
+describe('/contact — one workspace, location only beside the form (EP24.1.4.1–EP24.1.4.2)', () => {
   afterEach(() => clearConsent());
   const location = () => document.querySelector<HTMLElement>('[data-location]')!;
+  const iframe = () => location().querySelector<HTMLIFrameElement>('[data-map-frame]');
 
-  it('shows who and where without loading Google; the map loads only when asked', async () => {
+  it('shows the Google map with the page — no "Show map" gate, keyless and lazy', async () => {
     await open();
-    const loc = location();
-    expect(within(loc).getByRole('heading', { level: 2 })).toHaveTextContent('ที่ตั้งบริษัท');
-    expect(loc).toHaveTextContent(CONTACT.address);
-    expect(loc).toHaveTextContent(CONTACT.phone.display);
-    expect(loc).toHaveTextContent(CONTACT.email);
-    expect(loc.querySelector('[data-map-placeholder]')).not.toBeNull();
-    expect(document.querySelector('iframe')).toBeNull();
-    expect(document.body.innerHTML).not.toMatch(/maps\.google\.com\/maps\?/);
-
-    await userEvent.click(within(loc).getByRole('button', { name: 'แสดงแผนที่' }));
-    const frame = loc.querySelector<HTMLIFrameElement>('[data-map-frame]')!;
+    const frame = iframe()!;
+    expect(frame).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /แสดงแผนที่|Show map|显示地图/ })).toBeNull();
+    expect(document.querySelector('[data-map-placeholder], [data-show-map]')).toBeNull();
     expect(frame).toHaveAttribute('title', 'แผนที่ Google แสดงที่ตั้ง PDA BLISS COMPANY LIMITED');
     expect(frame).toHaveAttribute('loading', 'lazy');
     const src = new URL(frame.src);
     expect(src.hostname).toBe('maps.google.com');
     expect(src.searchParams.get('q')).toBe(`${OFFICE_LOCATION.lat},${OFFICE_LOCATION.lng}`);
     expect(src.searchParams.get('output')).toBe('embed');
-    expect(src.searchParams.get('hl')).toBe('th');
     expect(src.searchParams.has('key')).toBe(false);
-    expect(frame).toHaveFocus();
   });
 
-  it('opens the owner-provided listing safely, in a new tab, with a clear name', async () => {
+  it('the location side shows only the company, the address, the map and one Google Maps action', async () => {
     await open();
-    const links = within(location()).getAllByRole('link', { name: /เปิดใน Google Maps/ });
-    expect(links.length).toBeGreaterThan(0);
-    for (const link of links) {
-      expect(link).toHaveAttribute('href', OFFICE_LOCATION.listingUrl);
-      expect(link).toHaveAttribute('target', '_blank');
-      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    }
-    expect(OFFICE_LOCATION.listingUrl).toContain('!3d13.956774!4d100.3378182');
-    // The long URL is behind the button, never printed.
-    expect(location().textContent).not.toContain('google.com/maps/place');
-    // The direct panel points to the location section.
-    expect(document.querySelector('[data-see-map]')).toHaveAttribute('href', '#location');
+    const loc = location();
+    expect(within(loc).getByRole('heading', { level: 2 })).toHaveTextContent(CONTACT.company);
+    expect(loc.querySelector('address')).toHaveTextContent(CONTACT.address);
+    // In this order: name → address → map → action.
+    const order = [...loc.querySelectorAll('h2, address, iframe, a')].map((el) => el.tagName);
+    expect(order).toEqual(['H2', 'ADDRESS', 'IFRAME', 'A']);
+    // No coordinates, technical labels, contact cards or long notes.
+    expect(loc.textContent).not.toMatch(/13\.95|100\.33|°|CORE/);
+    expect(
+      loc.querySelector('[data-coordinates], [data-map-disclosure], [data-direct-rail]'),
+    ).toBeNull();
+    expect(loc.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="line.me"]')).toBeNull();
+    expect(loc.querySelectorAll('a')).toHaveLength(1);
   });
 
-  it('never loads the map by itself — not even after "Accept all"', async () => {
-    saveConsent(ALL_ACCEPTED);
+  it('is one workspace: the form, then the location — no second contact section', async () => {
     await open();
-    expect(location().querySelector('[data-map-placeholder]')).not.toBeNull();
-    expect(document.querySelector('iframe')).toBeNull();
+    const main = document.getElementById('main')!;
+    const workspace = main.querySelector('[data-contact-workspace]')!;
+    const parts = [...workspace.children].map((el) =>
+      el.hasAttribute('data-conversation')
+        ? 'form'
+        : el.hasAttribute('data-location')
+          ? 'location'
+          : '?',
+    );
+    // Mobile order follows the DOM: form → location (address → map → action).
+    expect(parts).toEqual(['form', 'location']);
+    expect(main.querySelectorAll('iframe')).toHaveLength(1);
+    expect(main.querySelectorAll(`a[href="${OFFICE_LOCATION.listingUrl}"]`)).toHaveLength(1);
+    expect(main.textContent!.split(CONTACT.address)).toHaveLength(2);
+    expect(main.querySelectorAll(`a[href="tel:${CONTACT.phone.e164}"]`).length).toBeLessThanOrEqual(
+      1,
+    );
+    expect(
+      main.querySelector('[data-direct-rail], [data-direct-panel], [data-hero-direct]'),
+    ).toBeNull();
   });
 
-  it('labels the map in English and Chinese, without Thai beyond the address', async () => {
-    for (const [path, show, open_, title, hl] of [
+  it('opens the owner-provided listing safely, in TH / EN / ZH', async () => {
+    for (const [path, open_, title, hl] of [
       [
-        '/en/contact',
-        'Show map',
-        'Open in Google Maps',
-        'Google map showing PDA BLISS COMPANY LIMITED',
-        'en',
+        '/contact',
+        'เปิดใน Google Maps',
+        'แผนที่ Google แสดงที่ตั้ง PDA BLISS COMPANY LIMITED',
+        'th',
       ],
+      ['/en/contact', 'Open in Google Maps', 'Google map showing PDA BLISS COMPANY LIMITED', 'en'],
       [
         '/zh/contact',
-        '显示地图',
         '在 Google 地图中打开',
         '显示 PDA BLISS COMPANY LIMITED 位置的 Google 地图',
         'zh-CN',
       ],
     ] as const) {
       const { unmount } = await open(path);
-      const loc = location();
-      expect(within(loc).getAllByRole('link', { name: new RegExp(open_) }).length).toBeGreaterThan(
-        0,
-      );
-      expect(loc.textContent!.replaceAll(CONTACT.address, '')).not.toMatch(THAI);
-      await userEvent.click(within(loc).getByRole('button', { name: show }));
-      const frame = loc.querySelector<HTMLIFrameElement>('[data-map-frame]')!;
-      expect(frame).toHaveAttribute('title', title);
-      expect(new URL(frame.src).searchParams.get('hl')).toBe(hl);
+      const link = within(location()).getByRole('link', { name: new RegExp(open_) });
+      expect(link).toHaveAttribute('href', OFFICE_LOCATION.listingUrl);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(iframe()).toHaveAttribute('title', title);
+      expect(new URL(iframe()!.src).searchParams.get('hl')).toBe(hl);
+      if (hl !== 'th') expect(visibleText()).not.toMatch(THAI);
       unmount();
     }
+    expect(OFFICE_LOCATION.listingUrl).toContain('!3d13.956774!4d100.3378182');
+  });
+
+  it('loads the map whatever the cookie choice — and the banner discloses it', async () => {
+    saveConsent(ALL_ACCEPTED);
+    const first = await open();
+    expect(iframe()).not.toBeNull();
+    first.unmount();
+    clearConsent();
+    await open('/en/contact');
+    const banner = await screen.findByRole('region', { name: 'Cookies and your privacy' });
+    expect(banner).toHaveTextContent('Google Maps');
+    expect(banner).toHaveTextContent('third-party');
   });
 
   it('is only on /contact: no map or Google location anywhere else', async () => {
     for (const path of ['/', '/about', '/en/pricing']) {
       const { unmount } = renderRoute(path);
       await screen.findAllByRole('heading', { level: 1 });
-      expect(document.querySelector('[data-location], [data-map]')).toBeNull();
+      expect(document.querySelector('[data-location], [data-map-frame], iframe')).toBeNull();
       expect(document.body.innerHTML).not.toContain(OFFICE_LOCATION.listingUrl);
       expect(document.body.innerHTML).not.toMatch(/maps\.google\.com/);
       unmount();
     }
+  });
+
+  it('the Privacy Policy discloses the Google Maps embed (TH / EN / ZH)', async () => {
+    for (const [path, text] of [
+      ['/privacy', 'Google Maps ซึ่งเป็นบริการของบุคคลที่สาม'],
+      ['/en/privacy', 'Google Maps map, a third-party service'],
+      ['/zh/privacy', '第三方服务 Google 地图'],
+    ] as const) {
+      const { unmount } = renderRoute(path);
+      await screen.findByRole('heading', { level: 1 });
+      expect(document.querySelector('[data-maps-disclosure]')).toHaveTextContent(text);
+      unmount();
+    }
+    const { unmount } = renderRoute('/terms');
+    await screen.findByRole('heading', { level: 1 });
+    expect(document.querySelector('[data-maps-disclosure]')).toBeNull();
+    unmount();
   });
 });

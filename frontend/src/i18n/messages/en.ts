@@ -213,8 +213,8 @@ export const en: ShellMessages = {
   cookie: {
     region: 'Cookie consent',
     title: 'Cookies and your privacy',
-    body: 'We use only the cookies this website needs to work; any others only with your permission.',
-    note: 'This website does not currently use analytics or marketing cookies.',
+    body: 'Our website uses only the cookies it needs to work; any others of ours only with your permission.',
+    note: 'This website does not currently use analytics or marketing cookies. The Contact page shows a Google Maps map, a third-party service that may use Google’s own cookies.',
     acceptAll: 'Accept all',
     rejectNonEssential: 'Reject non-essential',
     settings: 'Cookie settings',

@@ -175,8 +175,8 @@ export const zhCN: ShellMessages = {
   cookie: {
     region: 'Cookie 使用同意',
     title: 'Cookie 与您的隐私',
-    body: '本网站只使用运行所必需的 Cookie；其他类型的 Cookie 只在您允许后才会使用。',
-    note: '本网站目前未使用分析类或营销类 Cookie。',
+    body: '本网站自身只使用运行所必需的 Cookie；我们的其他类型 Cookie 只在您允许后才会使用。',
+    note: '本网站目前未使用分析类或营销类 Cookie。“联系我们”页面显示 Google 地图，这是第三方服务，可能会使用 Google 自身的 Cookie。',
     acceptAll: '全部接受',
     rejectNonEssential: '拒绝非必要 Cookie',
     settings: 'Cookie 设置',

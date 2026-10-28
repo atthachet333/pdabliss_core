@@ -14,6 +14,11 @@ export default function LegalPage({ kind }: { kind: LegalKind }) {
       <PageHero eyebrow={kind === 'privacy' ? 'Privacy' : 'Terms'} title={title} lead={c.lead(title)} />
       <Container className="pb-24">
         <p className="max-w-2xl text-body text-text-secondary">{c.body}</p>
+        {kind === 'privacy' && (
+          <p data-maps-disclosure className="mt-5 max-w-2xl text-body text-text-secondary">
+            {c.maps}
+          </p>
+        )}
       </Container>
     </>
   );

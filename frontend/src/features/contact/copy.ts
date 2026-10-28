@@ -18,8 +18,6 @@ const th = {
     eyebrow: 'Contact · ปรึกษา',
     title: 'เริ่มจากปัญหา\nไม่จำเป็นต้องเริ่ม|จากชื่อฟีเจอร์',
     lead: 'บอกเราว่าองค์กรกำลังทำงานแบบไหน มีจุดไหนที่ติด หรืออยากให้ CORE ช่วยเชื่อมอะไร แล้วค่อยคุยกันว่ารูปแบบไหนเหมาะ',
-    flow: ['เรื่องที่อยากคุย', 'บริบทขององค์กร', 'บทสนทนา'],
-    direct: 'หรือคุยกับเราโดยตรง',
   },
   context: {
     label: 'บริบทที่เรารู้แล้วจากหน้าที่คุณมา',
@@ -174,22 +172,7 @@ const th = {
     subject: (topic: string) => `ปรึกษา PDA BLISS CORE: ${topic}`,
   },
   panel: {
-    title: 'คุยกับเราโดยตรง',
-    lead: 'ไม่ต้องกรอกแบบฟอร์มก็ได้ — เลือกช่องทางที่สะดวก',
-    call: 'โทร',
-    line: 'คุยผ่าน LINE OA',
-    email: 'อีเมล',
-    company: 'ข้อมูลบริษัท',
     summaryTitle: 'สิ่งที่คุณเลือกตอนนี้',
-    toggle: 'ดูสรุปที่เลือก',
-    needsTitle: 'ข้อมูลที่ช่วยให้คุยได้ตรงจุด',
-    needs: [
-      'เรื่องที่อยากคุย',
-      'ประเภทธุรกิจและขนาดโดยประมาณ',
-      'แผนกที่เกี่ยวข้อง',
-      'จุดที่งานติด',
-      'ช่องทางติดต่อกลับ',
-    ],
   },
 };
 
@@ -207,8 +190,6 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
       eyebrow: 'Contact · Consultation',
       title: 'Start from the problem —\nnot from a feature name',
       lead: 'Tell us how your organization works today, where things get stuck, or what you would like CORE to connect. Then we can talk about which approach fits.',
-      flow: ['What to talk about', 'Your context', 'The conversation'],
-      direct: 'Or talk to us directly',
     },
     context: {
       label: 'Context we already have from the page you came from',
@@ -370,22 +351,7 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
       subject: (topic) => `PDA BLISS CORE consultation: ${topic}`,
     },
     panel: {
-      title: 'Talk to us directly',
-      lead: 'No form needed — use whichever channel suits you',
-      call: 'Call',
-      line: 'Chat on LINE OA',
-      email: 'Email',
-      company: 'Company details',
       summaryTitle: 'What you have chosen so far',
-      toggle: 'Show my selections',
-      needsTitle: 'What helps us talk to the point',
-      needs: [
-        'What you would like to talk about',
-        'Type of business and approximate size',
-        'Departments involved',
-        'Where work gets stuck',
-        'How to reach you',
-      ],
     },
   },
   'zh-CN': {
@@ -398,8 +364,6 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
       eyebrow: 'Contact · 咨询',
       title: '从问题开始\n不必从功能名称开始',
       lead: '告诉我们贵组织目前如何运作、哪里卡住了，或者希望 CORE 帮忙连接什么。然后我们再一起看哪种方式合适。',
-      flow: ['想沟通的主题', '组织背景', '对话'],
-      direct: '或直接联系我们',
     },
     context: {
       label: '根据您来自的页面，我们已经了解的背景',
@@ -540,16 +504,7 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
       subject: (topic) => `PDA BLISS CORE 咨询：${topic}`,
     },
     panel: {
-      title: '直接联系我们',
-      lead: '无需填写表单——选择方便的渠道即可',
-      call: '致电',
-      line: '通过 LINE OA 沟通',
-      email: '电子邮件',
-      company: '公司信息',
       summaryTitle: '您目前的选择',
-      toggle: '查看已选内容',
-      needsTitle: '有助于高效沟通的信息',
-      needs: ['想沟通的主题', '业务类型与大致规模', '相关部门', '工作卡住的环节', '联系方式'],
     },
   },
 };

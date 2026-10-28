@@ -594,8 +594,8 @@ export function DeptCta({ id = 'dept-cta', dept }: { id?: string; dept?: DeptKey
           <Link
             to={href(
               dept
-                ? `/contact?interest=consulting&department=${dept}`
-                : '/contact?interest=consulting',
+                ? `/consultation?topic=consulting&department=${dept}`
+                : '/consultation?topic=consulting',
             )}
             className={buttonClasses('primary', 'lg')}
           >

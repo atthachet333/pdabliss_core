@@ -393,8 +393,8 @@ export function Configurator() {
               <Link
                 to={href(
                   quote
-                    ? '/contact?interest=enterprise&plan=enterprise'
-                    : `/contact?interest=plans&plan=${planId}`,
+                    ? '/consultation?topic=enterprise&plan=enterprise'
+                    : `/consultation?topic=plans&plan=${planId}`,
                 )}
                 className={buttonClasses('primary', 'md')}
               >
@@ -403,7 +403,9 @@ export function Configurator() {
               </Link>
               <Link
                 to={href(
-                  quote ? '/contact?interest=consulting' : `/contact?interest=demo&plan=${planId}`,
+                  quote
+                    ? '/consultation?topic=consulting'
+                    : `/consultation?topic=demo&plan=${planId}`,
                 )}
                 className={buttonClasses('secondary', 'md')}
               >

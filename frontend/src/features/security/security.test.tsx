@@ -264,7 +264,7 @@ describe('/security page', () => {
     await open();
     expect(document.querySelector('[data-cta="consult"]')).toHaveAttribute(
       'href',
-      '/contact?interest=implementation',
+      '/consultation?topic=implementation',
     );
     expect(document.querySelector('[data-cta="enterprise"]')).toHaveAttribute(
       'href',
@@ -284,7 +284,7 @@ describe('/security page', () => {
     );
     expect(document.querySelector('[data-cta="consult"]')).toHaveAttribute(
       'href',
-      '/en/contact?interest=implementation',
+      '/en/consultation?topic=implementation',
     );
     expect(document.getElementById('main')!.textContent).not.toMatch(THAI);
     await waitFor(() => expect(document.title).toContain('Security & Trust'));

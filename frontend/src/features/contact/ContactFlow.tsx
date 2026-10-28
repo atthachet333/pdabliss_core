@@ -547,9 +547,12 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
   const last = step === 'review';
 
   return (
-    <section aria-labelledby="consult-question" data-flow data-step={step}>
+    <section aria-labelledby="consult-question" data-flow data-step={step} className="@container">
+      {/* EP24.1.4.3: labels only where all six fit (a container query on the wizard
+          itself, wrapping rather than truncating); narrower, the segments plus the
+          current step name below. Every step keeps its accessible name. */}
       <nav aria-label={c.stepsLabel}>
-        <ol className="flex gap-1.5 overflow-x-auto pb-1 sm:gap-2">
+        <ol className="flex gap-1.5 pb-1 sm:gap-2">
           {STEPS.map((st, i) => {
             const current = i === s.step;
             const open = i <= s.reached;
@@ -575,8 +578,7 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
                   />
                   <span
                     className={cn(
-                      // max-w-full: truncate inside the step instead of running into the next one.
-                      'hidden max-w-full truncate text-caption sm:block',
+                      'sr-only text-caption leading-snug break-words @2xl:not-sr-only @2xl:block',
                       current
                         ? 'text-text-primary'
                         : open
@@ -586,7 +588,6 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
                   >
                     {c.steps[st]}
                   </span>
-                  <span className="sr-only sm:hidden">{c.steps[st]}</span>
                 </button>
               </li>
             );
@@ -601,7 +602,14 @@ export function ContactFlow({ s, dispatch }: { s: FlowState; dispatch: Dispatch<
         transition={{ duration: 0.4, ease: EASE_CORE }}
         className="mt-8"
       >
-        <p className="text-caption text-text-muted tabular">{c.stepOf(s.step + 1, STEPS.length)}</p>
+        <p className="text-caption text-text-muted tabular">
+          {c.stepOf(s.step + 1, STEPS.length)}
+          {/* The step name, where the progress bar shows no labels. */}
+          <span data-step-name className="@2xl:hidden">
+            {' · '}
+            {c.steps[step]}
+          </span>
+        </p>
         <h2
           id="consult-question"
           ref={headingRef}

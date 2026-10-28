@@ -287,7 +287,7 @@ describe('/solutions page', () => {
     const main = document.getElementById('main')!;
     const cta = main.querySelector('#solutions-cta')!.closest('section')!;
     const links = [...cta.querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['/how-core-works', '/departments', '/contact']);
+    expect(links).toEqual(['/how-core-works', '/departments', '/consultation?topic=demo']);
   });
 });
 

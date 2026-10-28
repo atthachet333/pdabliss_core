@@ -183,7 +183,7 @@ export function PackageExplorer() {
               {quote ? (
                 <>
                   <Link
-                    to={href('/contact?interest=enterprise&plan=enterprise')}
+                    to={href('/consultation?topic=enterprise&plan=enterprise')}
                     className={buttonClasses('primary', 'lg')}
                   >
                     {c.explorer.quote}
@@ -203,7 +203,7 @@ export function PackageExplorer() {
               ) : (
                 <>
                   <Link
-                    to={href(`/contact?interest=demo&plan=${plan.id}`)}
+                    to={href(`/consultation?topic=demo&plan=${plan.id}`)}
                     className={buttonClasses('primary', 'lg')}
                   >
                     {c.explorer.demo}

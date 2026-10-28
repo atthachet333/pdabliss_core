@@ -3,21 +3,31 @@ import type { Localized } from '@/i18n/useCopy';
 import type { FieldError } from './validation';
 
 /*
- * /contact words (EP13). Thai is the source. Honesty rules: no response
+ * /consultation words (EP13 wizard; its own page since EP24.1.4.3 — /contact has
+ * contactPageCopy.ts). Thai is the source. Honesty rules: no response
  * times, no outcomes, no "sent" message unless a delivery actually succeeds,
  * and no request for sensitive data. Contact values come from CONTACT.
  */
 
 const th = {
   meta: {
-    title: 'ปรึกษา PDA BLISS — เริ่มจากสิ่งที่องค์กรของคุณกำลังเจอ',
+    title: 'ปรึกษา PDA BLISS — เล่าให้เราฟังว่าองค์กรของคุณทำงานอย่างไร',
     description:
-      'ขอ Demo ปรึกษาการวางระบบ ขอใบเสนอราคา Enterprise สอบถาม Package, API / Integration หรือ Training — เลือกเรื่องที่อยากคุย เล่าบริบทสั้น ๆ หรือคุยกับ PDA BLISS โดยตรงทางโทรศัพท์ LINE OA และอีเมล',
+      'ขอ Demo ปรึกษาการวางระบบ ขอใบเสนอราคา Enterprise สอบถาม Package, API / Integration หรือ Training — เลือกเรื่องที่อยากคุย เล่าว่าองค์กรทำงานอย่างไรและติดตรงไหน แล้วส่งให้ทีม PDA BLISS ทางช่องทางที่สะดวก',
   },
   hero: {
-    eyebrow: 'Contact · ปรึกษา',
-    title: 'เริ่มจากปัญหา\nไม่จำเป็นต้องเริ่ม|จากชื่อฟีเจอร์',
-    lead: 'บอกเราว่าองค์กรกำลังทำงานแบบไหน มีจุดไหนที่ติด หรืออยากให้ CORE ช่วยเชื่อมอะไร แล้วค่อยคุยกันว่ารูปแบบไหนเหมาะ',
+    eyebrow: 'ปรึกษา',
+    title: 'เล่าให้เราฟังว่า\nองค์กรของคุณ|ทำงานอย่างไร',
+    lead: 'ไม่ต้องเริ่มจากชื่อโมดูลหรือฟีเจอร์ เราจะเริ่มจากปัญหา กระบวนการ และสิ่งที่ทีมของคุณกำลังเจอ',
+  },
+  /** EP24.1.4.3: the way back, and a quiet fallback for people who would rather just talk. */
+  consultation: {
+    back: 'กลับหน้าติดต่อเรา',
+    fallbackTitle: 'ไม่สะดวกกรอกตอนนี้?',
+    fallbackLead: 'คุยกับเราโดยตรงได้เลย',
+    call: 'โทร',
+    line: 'LINE OA',
+    email: 'อีเมล',
   },
   context: {
     label: 'บริบทที่เรารู้แล้วจากหน้าที่คุณมา',
@@ -182,14 +192,22 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
   th,
   en: {
     meta: {
-      title: 'Talk to PDA BLISS — start from what your organization is facing',
+      title: 'Consultation with PDA BLISS — tell us how your organization works',
       description:
-        'Request a demo, discuss implementation, ask for an Enterprise quotation, packages, API / integration or training — choose what to talk about, add a little context, or reach PDA BLISS directly by phone, LINE OA or email.',
+        'Request a demo, discuss implementation, ask for an Enterprise quotation, packages, API / integration or training — choose what to talk about, describe how your organization works and where it gets stuck, then send it to the PDA BLISS team by the channel that suits you.',
     },
     hero: {
-      eyebrow: 'Contact · Consultation',
-      title: 'Start from the problem —\nnot from a feature name',
-      lead: 'Tell us how your organization works today, where things get stuck, or what you would like CORE to connect. Then we can talk about which approach fits.',
+      eyebrow: 'Consultation',
+      title: 'Tell us how your\norganization works',
+      lead: 'You don’t need to start from a module or feature name. We start from the problem, the process and what your team is facing.',
+    },
+    consultation: {
+      back: 'Back to Contact',
+      fallbackTitle: 'Rather not fill this in now?',
+      fallbackLead: 'Talk to us directly',
+      call: 'Call',
+      line: 'LINE OA',
+      email: 'Email',
     },
     context: {
       label: 'Context we already have from the page you came from',
@@ -356,14 +374,22 @@ export const CONTACT_COPY: Localized<ContactCopy> = {
   },
   'zh-CN': {
     meta: {
-      title: '咨询 PDA BLISS——从贵组织正在面对的问题开始',
+      title: '咨询 PDA BLISS——告诉我们贵组织如何运作',
       description:
-        '申请演示、咨询系统实施、索取 Enterprise 报价、咨询方案、API / 集成或培训——选择想沟通的主题，补充一些背景，或通过电话、LINE OA 和电子邮件直接联系 PDA BLISS。',
+        '申请演示、咨询系统实施、索取 Enterprise 报价、咨询方案、API / 集成或培训——选择想沟通的主题，说明贵组织如何运作、哪里卡住，然后通过方便的渠道发给 PDA BLISS 团队。',
     },
     hero: {
-      eyebrow: 'Contact · 咨询',
-      title: '从问题开始\n不必从功能名称开始',
-      lead: '告诉我们贵组织目前如何运作、哪里卡住了，或者希望 CORE 帮忙连接什么。然后我们再一起看哪种方式合适。',
+      eyebrow: '咨询',
+      title: '告诉我们\n贵组织如何运作',
+      lead: '无需从模块或功能名称开始。我们会从问题、流程以及团队正在面对的情况入手。',
+    },
+    consultation: {
+      back: '返回联系我们',
+      fallbackTitle: '现在不方便填写？',
+      fallbackLead: '直接与我们联系',
+      call: '致电',
+      line: 'LINE OA',
+      email: '电子邮件',
     },
     context: {
       label: '根据您来自的页面，我们已经了解的背景',

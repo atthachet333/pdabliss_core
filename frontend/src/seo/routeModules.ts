@@ -36,6 +36,7 @@ export const ROUTE_MODULES: Record<PublicRoute | '/login', string> = {
   '/about': 'src/pages/public/AboutPage.tsx',
   '/why-core': 'src/pages/public/WhyCorePage.tsx',
   '/contact': 'src/pages/public/ContactPage.tsx',
+  '/consultation': 'src/pages/public/ConsultationPage.tsx',
   '/demo': 'src/pages/public/DemoPage.tsx',
   '/security': 'src/pages/public/SecurityPage.tsx',
   '/resources': 'src/pages/public/ResourcesPage.tsx',

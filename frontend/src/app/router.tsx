@@ -51,6 +51,8 @@ const PAGES: Record<string, () => Promise<PageModule>> = {
   '/about': () => import('@/pages/public/AboutPage'),
   '/why-core': () => import('@/pages/public/WhyCorePage'),
   '/contact': () => import('@/pages/public/ContactPage'),
+  // EP24.1.4.3: the guided consultation, split from /contact (its own chunk).
+  '/consultation': () => import('@/pages/public/ConsultationPage'),
   // EP14: the public interactive demo.
   '/demo': () => import('@/pages/public/DemoPage'),
   // EP15: the public Security / Trust Center.

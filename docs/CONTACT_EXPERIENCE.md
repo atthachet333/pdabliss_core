@@ -1,23 +1,36 @@
-# Contact / Consultation — `/contact` (EP13)
+# Contact & Consultation — `/contact` and `/consultation` (EP13 · split in EP24.1.4.3)
 
-`/contact` is the conversion destination for demos, package questions, Enterprise quotations,
-implementation, integration and general contact. It is **a consultation, not a support
-ticket**: the visitor starts from what they want to talk about, adds as much context as they
-like, reviews a summary — and can always talk to PDA BLISS directly instead.
+Since EP24.1.4.3 there are two routes, each answering one question:
+
+- **`/contact` — "How do I reach PDA BLISS, and where are you?"** A short intro with phone, LINE
+  and email (once each), the company name and address, a large live Google map and one
+  *Open directions in Google Maps* action, then an invitation — *ยังไม่แน่ใจว่าควรเริ่มจากตรงไหน?*
+  → **เริ่มปรึกษาเรา** → `/consultation`. No form, no wizard.
+- **`/consultation` — "Help me work out what my organization needs."** The guided consultation:
+  **a consultation, not a support ticket**. The visitor starts from what they want to talk about,
+  adds as much context as they like, reviews a summary — and can always talk to PDA BLISS
+  directly instead. Demos, package questions, Enterprise quotations, implementation, integration
+  and general enquiries land here.
 
 > **เริ่มจากปัญหา — ไม่จำเป็นต้องเริ่มจากชื่อฟีเจอร์**
 
 ## Layout
 
-- **Hero** — the problem-first statement, the supporting copy and a quiet
-  *inquiry → context → conversation* chain. On phones and tablets the direct channels sit right
-  under it; on wide screens they live in the panel.
+`/contact` (`pages/public/ContactPage.tsx`): intro + direct channels (`ContactOverview.tsx`) →
+location (`Location.tsx`) → consultation invitation. The map is Contact-only.
+
+`/consultation` (`pages/public/ConsultationPage.tsx`):
+
+- **Hero** — a quiet *back to Contact* link, *เล่าให้เราฟังว่าองค์กรของคุณทำงานอย่างไร* and the
+  problem-first supporting copy.
 - **Context banner** — what the page already knows from where the visitor came from
   (*คุณกำลังสอบถาม Enterprise · คุณกำลังสนใจ คลังสินค้า · คุณกำลังดู การผลิต*).
-- **Guided flow** (left, wide screens) — one question at a time, six short steps.
-- **Talk directly panel** (right, sticky on wide screens; below the flow on phones, never
-  sticky there) — phone, LINE OA, email, the live summary of what has been chosen (collapsible
-  on phones), *what helps us talk to the point*, and the company name and office address.
+- **Guided flow** — one question at a time, six short steps. The step bar shows all six labels
+  when the flow is wide enough (container query, `@2xl`); narrower, it shows segments plus the
+  current step's name, so labels are never clipped.
+- **Side column** (sticky on wide screens; below the flow on phones) — the live summary and a
+  compact *prefer to talk now?* fallback with phone, LINE and email. No address, no map, no
+  Google request.
 
 ## Inquiry model (`features/contact/model.ts`)
 
@@ -64,27 +77,34 @@ details is never reachable while the details are invalid.
 
 | Parameter | Values | Effect |
 | --- | --- | --- |
-| `interest` | `demo` `consulting` `enterprise` `plans` `integration` `implementation` `general` (aliases: `quote`, `packages`, `pricing`, `api`, `training`, `consult`, `other`) | selects the topic |
-| `plan` | `starter` `business` `professional` `enterprise` | shows the plan context; without `interest` implies `plans` (`enterprise` → `enterprise`) |
+| `topic` (older alias: `interest`) | `demo` `consulting` `enterprise` `plans` `integration` `implementation` `general` (aliases: `quote`, `packages`, `pricing`, `api`, `training`, `consult`, `other`) | selects the topic |
+| `plan` | `starter` `business` `professional` `enterprise` | shows the plan context; without `topic` implies `plans` (`enterprise` → `enterprise`) |
 | `industry` | `distribution` `services` `projects` `retail` `property` `manufacturing` | preselects the industry and shows the context |
 | `department` | `executive` `sales` `operations` `warehouse` `purchasing` `accounting` | preselects the department and shows the context |
 
-Unknown values are ignored. The browser referrer is never used. `contactPath()` builds links
-that follow the contract. Site CTAs that now use it:
+Unknown values are ignored (the flow starts at step 1 with nothing selected; nothing is ever
+submitted automatically). The browser referrer is never used, and what the visitor types never
+enters the URL. `consultationPath()` builds links that follow the contract. Older
+`/consultation?topic=…` links are forwarded to `/consultation?topic=…` with the same context.
+Site CTAs that use it:
 
 | From | Link |
 | --- | --- |
-| Pricing hero / closing demo | `/contact?interest=demo` |
-| Package explorer (non-Enterprise) | `/contact?interest=demo&plan=<plan>` |
-| Configurator summary | `?interest=plans&plan=<plan>` · Enterprise: `?interest=enterprise&plan=enterprise` |
-| Pricing Enterprise block | `?interest=enterprise&plan=enterprise` · talk: `?interest=consulting` |
-| `/enterprise` hero + closing | quote: `?interest=enterprise` · talk: `?interest=consulting` |
-| Department pages | `?interest=consulting&department=<id>` |
-| Industry pages / overview | `?interest=consulting&industry=<id>` / `?interest=consulting` |
-| `/about` hero + ending | `?interest=consulting` |
-| `/why-core` *ขอ Demo* | `?interest=demo` |
+| Pricing hero / closing demo | `/consultation?topic=demo` |
+| Package explorer (non-Enterprise) | `/consultation?topic=demo&plan=<plan>` |
+| Configurator summary | `?topic=plans&plan=<plan>` · Enterprise: `?topic=enterprise&plan=enterprise` |
+| Pricing Enterprise block | `?topic=enterprise&plan=enterprise` · talk: `?topic=consulting` |
+| `/enterprise` hero + closing | quote: `?topic=enterprise` · talk: `?topic=consulting` |
+| Department pages | `?topic=consulting&department=<id>` |
+| Industry pages / overview | `?topic=consulting&industry=<id>` / `?topic=consulting` |
+| `/about` hero + ending | `?topic=consulting` |
+| `/why-core` *ขอ Demo* | `?topic=demo` |
 
-Header, footer, floating panel and homepage links still go to `/contact` (topic chosen there).
+| Homepage closing *ขอคำปรึกษา* · floating panel *ขอรับคำปรึกษา* | `/consultation` |
+| `/solutions` closing · `/how-core-works` hero *ขอ Demo* | `/consultation?topic=demo` |
+
+Header *ติดต่อเรา*, mobile menu, footer, the homepage trust links, About and sign-in help still
+go to `/contact`. There is no Consultation item in the navigation.
 
 ## Delivery — the honest limitation
 
@@ -125,7 +145,9 @@ No "sent successfully" text exists anywhere; tests check that no request is made
 
 Always visible: phone **063-869-3614 (คุณวิน)**, **LINE OA @593oiwec**
 (`https://line.me/R/ti/p/@593oiwec`), email **pdablissoffice@gmail.com** — all from
-`config/contact.ts`. *คุยผ่าน LINE OA* is the highlighted channel. No response times are promised.
+`config/contact.ts`. On `/contact` they appear once, in the intro; on `/consultation` as the
+compact fallback beside the flow (and in the review step's hand-off). No response times are
+promised.
 
 ## Privacy boundaries
 
@@ -135,7 +157,7 @@ The review step repeats this. Nothing is stored or sent by the website.
 
 ## Structured data
 
-`/contact` and `/about` add an Organization JSON-LD built by `organizationSchema()`
+`/contact` and `/about` add an Organization JSON-LD (not `/consultation`) built by `organizationSchema()`
 (`config/company.ts`): legal name, the Thai name and brand as alternate names, the configured
 site URL, the office address as printed (country TH), phone, email and the LINE OA as `sameAs`.
 No logo, coordinates, founding date, headcount or other profiles.
@@ -152,8 +174,13 @@ frontend/src/features/contact/
 ├── summaryText.ts  summary rows + plain-text hand-off
 ├── Summary.tsx     summary list
 ├── ContactFlow.tsx the six steps + review / prepared
-├── Panels.tsx      hero, context banner, direct panel
+├── Panels.tsx      consultation hero, context banner, live summary, fallback channels
+├── ContactOverview.tsx  /contact intro, direct channels, consultation invitation
+├── contactPageCopy.ts   /contact copy (th / en / zh-CN)
+├── Location.tsx    /contact location + live map
+├── locationCopy.ts
 └── contact.test.tsx
 frontend/src/components/seo/OrganizationSchema.tsx
 frontend/src/pages/public/ContactPage.tsx
+frontend/src/pages/public/ConsultationPage.tsx
 ```

@@ -448,7 +448,7 @@ describe('/demo page', () => {
     ]).toEqual(['7', '4', '1', '1', '13']);
     expect(done.querySelector('[data-cta="contact"]')).toHaveAttribute(
       'href',
-      '/contact?interest=demo',
+      '/consultation?topic=demo',
     );
     expect(done.querySelector('[data-cta="pricing"]')).toHaveAttribute('href', '/pricing');
     expect(main().textContent).not.toMatch(/🎉|confetti/i);

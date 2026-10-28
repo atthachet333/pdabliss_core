@@ -553,6 +553,30 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://core.pdabliss.com/consultation</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/consultation" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/consultation" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/consultation" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/consultation" />
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/en/consultation</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/consultation" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/consultation" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/consultation" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/consultation" />
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://core.pdabliss.com/zh/consultation</loc>
+    <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/consultation" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/consultation" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://core.pdabliss.com/zh/consultation" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://core.pdabliss.com/consultation" />
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://core.pdabliss.com/demo</loc>
     <xhtml:link rel="alternate" hreflang="th" href="https://core.pdabliss.com/demo" />
     <xhtml:link rel="alternate" hreflang="en" href="https://core.pdabliss.com/en/demo" />

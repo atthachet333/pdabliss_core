@@ -9,7 +9,7 @@ import { renderRoute } from '@/test/render';
 import { CONTACT_COPY, type ContactCopy } from './copy';
 import { getInquiryDelivery } from './delivery';
 import {
-  contactPath,
+  consultationPath,
   emptyInquiry,
   INQUIRY_GROUPS,
   INQUIRY_TYPES,
@@ -51,7 +51,7 @@ const strings = (v: unknown): string[] =>
         ? Object.values(v).flatMap(strings)
         : [];
 
-async function open(path = '/contact') {
+async function open(path = '/consultation') {
   const utils = renderRoute(path);
   await screen.findByRole('heading', { level: 1 });
   return utils;
@@ -105,8 +105,8 @@ describe('inquiry model', () => {
       department: 'warehouse',
     });
     expect(p('interest=hack&plan=gold&industry=x&department=hr')).toEqual({});
-    expect(contactPath({ type: 'consulting', department: 'sales' })).toBe(
-      '/contact?interest=consulting&department=sales',
+    expect(consultationPath({ type: 'consulting', department: 'sales' })).toBe(
+      '/consultation?topic=consulting&department=sales',
     );
   });
 
@@ -185,12 +185,12 @@ describe('copy', () => {
 
 /* ------------------------------------------------------------------ */
 
-describe('/contact page', () => {
-  it('opens on the problem-first statement with a guided selector, not a form', async () => {
+describe('/consultation page (the EP13 wizard, on its own route since EP24.1.4.3)', () => {
+  it('opens on the conversation hero with a guided selector, not a form', async () => {
     await open();
     const h1 = screen.getByRole('heading', { level: 1 });
-    expect(h1).toHaveTextContent('เริ่มจากปัญหา');
-    expect(h1).toHaveTextContent('ไม่จำเป็นต้องเริ่มจากชื่อฟีเจอร์');
+    expect(h1).toHaveTextContent('เล่าให้เราฟังว่า');
+    expect(h1).toHaveTextContent('องค์กรของคุณทำงานอย่างไร');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(
       screen.getByRole('heading', { level: 2, name: 'คุณอยากคุยเรื่องอะไร?' }),
@@ -225,13 +225,13 @@ describe('/contact page', () => {
   });
 
   it.each([
-    ['/contact?interest=demo', 'ขอ Demo'],
-    ['/contact?interest=consulting', 'ปรึกษาการวางระบบ'],
-    ['/contact?interest=enterprise', 'ขอใบเสนอราคา Enterprise'],
-    ['/contact?interest=plans', 'ปรึกษา Package'],
-    ['/contact?interest=integration', 'API / Integration'],
-    ['/contact?interest=implementation', 'Training / Implementation'],
-    ['/contact?interest=general', 'ติดต่อทั่วไป'],
+    ['/consultation?topic=demo', 'ขอ Demo'],
+    ['/consultation?topic=consulting', 'ปรึกษาการวางระบบ'],
+    ['/consultation?topic=enterprise', 'ขอใบเสนอราคา Enterprise'],
+    ['/consultation?topic=plans', 'ปรึกษา Package'],
+    ['/consultation?topic=integration', 'API / Integration'],
+    ['/consultation?topic=implementation', 'Training / Implementation'],
+    ['/consultation?topic=general', 'ติดต่อทั่วไป'],
   ])('prefills %s', async (path, label) => {
     await open(path);
     expect(
@@ -240,7 +240,7 @@ describe('/contact page', () => {
   });
 
   it('shows the plan context from pricing and keeps it in the summary', async () => {
-    await open('/contact?plan=enterprise');
+    await open('/consultation?plan=enterprise');
     expect(document.querySelector('[data-context]')).toHaveTextContent('คุณกำลังสอบถาม Enterprise');
     expect(within(flow()).getByRole('radio', { name: /ขอใบเสนอราคา Enterprise/ })).toBeChecked();
     expect(
@@ -249,7 +249,7 @@ describe('/contact page', () => {
   });
 
   it('shows department and industry context and preselects them', async () => {
-    await open('/contact?interest=consulting&department=warehouse&industry=manufacturing');
+    await open('/consultation?topic=consulting&department=warehouse&industry=manufacturing');
     const ctx = document.querySelector('[data-context]')!;
     expect(ctx).toHaveTextContent('คุณกำลังสนใจ คลังสินค้า');
     expect(ctx).toHaveTextContent('คุณกำลังดู การผลิต');
@@ -259,7 +259,7 @@ describe('/contact page', () => {
   });
 
   it('collects industry, size, departments and problems, and the live summary follows', async () => {
-    await open('/contact?interest=demo');
+    await open('/consultation?topic=demo');
     await next();
     await userEvent.click(within(flow()).getByRole('radio', { name: 'กระจายสินค้า / ค้าส่ง' }));
     await userEvent.click(within(flow()).getByRole('radio', { name: '51–100 คน' }));
@@ -285,7 +285,7 @@ describe('/contact page', () => {
   }, 20000);
 
   it('optional steps can be skipped and the reply method chosen', async () => {
-    await open('/contact?interest=general');
+    await open('/consultation?topic=general');
     await next();
     await userEvent.click(within(flow()).getByRole('button', { name: 'ข้าม' }));
     await userEvent.click(within(flow()).getByRole('button', { name: 'ข้าม' }));
@@ -298,7 +298,7 @@ describe('/contact page', () => {
   });
 
   it('validates contact details inline and moves focus to the first problem', async () => {
-    await open('/contact?interest=demo');
+    await open('/consultation?topic=demo');
     await toDetails();
     await next();
     expect(await screen.findByText('กรุณากรอกชื่อผู้ติดต่อ')).toBeInTheDocument();
@@ -316,7 +316,7 @@ describe('/contact page', () => {
 
   it('reviews a summary, prepares the message and never pretends it was sent', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    await open('/contact?interest=enterprise&plan=enterprise&industry=distribution');
+    await open('/consultation?topic=enterprise&plan=enterprise&industry=distribution');
     await toDetails();
     await userEvent.type(screen.getByLabelText('ชื่อผู้ติดต่อ'), 'คุณทดสอบ');
     await userEvent.type(screen.getByLabelText('ชื่อบริษัท'), 'บริษัท ทดสอบ จำกัด');
@@ -364,26 +364,8 @@ describe('/contact page', () => {
     expect(document.querySelector('[data-prepared]')).toBeNull();
   }, 20000);
 
-  it('keeps phone, LINE and email reachable from the central config — outside the map side', async () => {
-    await open();
-    // EP24.1.4.2: the page itself no longer repeats direct-contact cards; the
-    // consultation's hand-off, the site footer and the floating panel offer them.
-    const footer = document.querySelector<HTMLElement>('footer')!;
-    expect(footer.querySelector(`a[href="tel:${CONTACT.phone.e164}"]`)).not.toBeNull();
-    expect(footer.querySelector(`a[href="mailto:${CONTACT.email}"]`)).not.toBeNull();
-    const line = footer.querySelector(`a[href="${CONTACT.lineUrl}"]`)!;
-    expect(line).toHaveAttribute('target', '_blank');
-    expect(line).toHaveAttribute('rel', 'noopener noreferrer');
-    const location = document.querySelector<HTMLElement>('[data-location]')!;
-    expect(location).toHaveTextContent(CONTACT.company);
-    expect(location).toHaveTextContent(CONTACT.address);
-    expect(
-      location.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="line.me"]'),
-    ).toBeNull();
-  });
-
   it('asks for no sensitive data and offers no file upload', async () => {
-    await open('/contact?interest=demo');
+    await open('/consultation?topic=demo');
     await toDetails();
     expect(main().querySelector('input[type="file"], input[type="password"]')).toBeNull();
     const names = [...main().querySelectorAll('input, textarea')].map((i) =>
@@ -393,20 +375,12 @@ describe('/contact page', () => {
       names.filter((n) => n && /id_card|national|passport|bank|card|tax|password/i.test(n)),
     ).toEqual([]);
   });
-
-  it('adds factual Organization structured data', async () => {
-    await open();
-    // Added by an effect after the page commits.
-    await waitFor(() =>
-      expect(document.head.querySelector('script[data-schema="organization"]')).not.toBeNull(),
-    );
-  });
 });
 
 describe('localization', () => {
   it('renders English without Thai, with English validation', async () => {
-    await open('/en/contact?interest=integration');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Start from the problem');
+    await open('/en/consultation?topic=integration');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Tell us how your');
     expect(within(flow()).getByRole('radio', { name: /API \/ Integration/ })).toBeChecked();
     expect(visibleText()).not.toMatch(THAI);
     for (let i = 0; i < 5; i++)
@@ -416,8 +390,8 @@ describe('localization', () => {
   }, 20000);
 
   it('renders Simplified Chinese without Thai or Traditional characters', async () => {
-    await open('/zh/contact?interest=implementation');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('从问题开始');
+    await open('/zh/consultation?topic=implementation');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('告诉我们');
     expect(visibleText()).not.toMatch(THAI);
     expect(visibleText()).not.toMatch(TRADITIONAL);
     for (let i = 0; i < 5; i++)
@@ -427,110 +401,141 @@ describe('localization', () => {
 
   it('gives each locale a unique title and description', async () => {
     const seen = new Set<string>();
-    for (const path of ['/contact', '/en/contact', '/zh/contact']) {
+    for (const path of [
+      '/consultation',
+      '/en/consultation',
+      '/zh/consultation',
+      '/contact',
+      '/en/contact',
+      '/zh/contact',
+    ]) {
       const { unmount } = await open(path);
       await waitFor(() => expect(document.title).toContain('|'));
       seen.add(document.title);
       seen.add(document.querySelector('meta[name="description"]')!.getAttribute('content')!);
       unmount();
     }
-    expect(seen.size).toBe(6);
+    expect(seen.size).toBe(12);
   });
 });
 
-describe('/contact — one workspace, location only beside the form (EP24.1.4.1–EP24.1.4.2)', () => {
+describe('/contact — company contact and location (EP24.1.4.3)', () => {
   afterEach(() => clearConsent());
   const location = () => document.querySelector<HTMLElement>('[data-location]')!;
   const iframe = () => location().querySelector<HTMLIFrameElement>('[data-map-frame]');
 
-  it('shows the Google map with the page — no "Show map" gate, keyless and lazy', async () => {
-    await open();
+  it('answers how to reach PDA BLISS and where it is — without the wizard', async () => {
+    await open('/contact');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('คุยกับ PDA BLISS');
+    expect(document.querySelector('[data-flow]')).toBeNull();
+    expect(main().querySelectorAll('input, textarea, select')).toHaveLength(0);
+    expect(screen.queryByRole('navigation', { name: 'ขั้นตอนการปรึกษา' })).toBeNull();
+    // Structure: intro (with channels) → location → consultation invitation.
+    const order = [
+      ...main().querySelectorAll(
+        '[data-direct-contact], [data-location], [data-consultation-invite]',
+      ),
+    ].map((el) =>
+      el.hasAttribute('data-direct-contact')
+        ? 'direct'
+        : el.hasAttribute('data-location')
+          ? 'location'
+          : 'invite',
+    );
+    expect(order).toEqual(['direct', 'location', 'invite']);
+  });
+
+  it('shows phone, LINE and email once, from the central config', async () => {
+    await open('/contact');
+    expect(main().querySelectorAll(`a[href="tel:${CONTACT.phone.e164}"]`)).toHaveLength(1);
+    expect(main().querySelectorAll(`a[href="mailto:${CONTACT.email}"]`)).toHaveLength(1);
+    const line = main().querySelectorAll<HTMLAnchorElement>(`a[href="${CONTACT.lineUrl}"]`);
+    expect(line).toHaveLength(1);
+    expect(line[0]).toHaveAttribute('target', '_blank');
+    expect(line[0]).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(main().querySelector('[data-direct-link="phone"]')).toHaveTextContent(
+      `${CONTACT.phone.display} (คุณวิน)`,
+    );
+  });
+
+  it('shows the company, the address once, the live map and exactly one directions action', async () => {
+    await open('/contact');
+    const loc = location();
+    expect(within(loc).getByRole('heading', { level: 2 })).toHaveTextContent(CONTACT.company);
+    expect(loc.querySelector('address')).toHaveTextContent(CONTACT.address);
+    expect(main().textContent!.split(CONTACT.address)).toHaveLength(2);
     const frame = iframe()!;
-    expect(frame).not.toBeNull();
-    expect(screen.queryByRole('button', { name: /แสดงแผนที่|Show map|显示地图/ })).toBeNull();
-    expect(document.querySelector('[data-map-placeholder], [data-show-map]')).toBeNull();
     expect(frame).toHaveAttribute('title', 'แผนที่ Google แสดงที่ตั้ง PDA BLISS COMPANY LIMITED');
     expect(frame).toHaveAttribute('loading', 'lazy');
     const src = new URL(frame.src);
     expect(src.hostname).toBe('maps.google.com');
     expect(src.searchParams.get('q')).toBe(`${OFFICE_LOCATION.lat},${OFFICE_LOCATION.lng}`);
-    expect(src.searchParams.get('output')).toBe('embed');
     expect(src.searchParams.has('key')).toBe(false);
+    expect(document.querySelector('[data-show-map], [data-map-placeholder]')).toBeNull();
+    expect(loc.textContent).not.toMatch(/13\.95|100\.33|°/);
+    expect(main().querySelectorAll(`a[href="${OFFICE_LOCATION.listingUrl}"]`)).toHaveLength(1);
+    const directions = within(loc).getByRole('link', { name: /เปิดเส้นทางใน Google Maps/ });
+    expect(directions).toHaveAttribute('href', OFFICE_LOCATION.listingUrl);
+    expect(directions).toHaveAttribute('target', '_blank');
+    expect(directions).toHaveAttribute('rel', 'noopener noreferrer');
+    // Mobile reading order: name and address → map → action.
+    expect([...loc.querySelectorAll('h2, address, iframe, a')].map((el) => el.tagName)).toEqual([
+      'H2',
+      'ADDRESS',
+      'IFRAME',
+      'A',
+    ]);
   });
 
-  it('the location side shows only the company, the address, the map and one Google Maps action', async () => {
-    await open();
-    const loc = location();
-    expect(within(loc).getByRole('heading', { level: 2 })).toHaveTextContent(CONTACT.company);
-    expect(loc.querySelector('address')).toHaveTextContent(CONTACT.address);
-    // In this order: name → address → map → action.
-    const order = [...loc.querySelectorAll('h2, address, iframe, a')].map((el) => el.tagName);
-    expect(order).toEqual(['H2', 'ADDRESS', 'IFRAME', 'A']);
-    // No coordinates, technical labels, contact cards or long notes.
-    expect(loc.textContent).not.toMatch(/13\.95|100\.33|°|CORE/);
-    expect(
-      loc.querySelector('[data-coordinates], [data-map-disclosure], [data-direct-rail]'),
-    ).toBeNull();
-    expect(loc.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="line.me"]')).toBeNull();
-    expect(loc.querySelectorAll('a')).toHaveLength(1);
-  });
-
-  it('is one workspace: the form, then the location — no second contact section', async () => {
-    await open();
-    const main = document.getElementById('main')!;
-    const workspace = main.querySelector('[data-contact-workspace]')!;
-    const parts = [...workspace.children].map((el) =>
-      el.hasAttribute('data-conversation')
-        ? 'form'
-        : el.hasAttribute('data-location')
-          ? 'location'
-          : '?',
+  it('invites people who are not sure where to start into /consultation', async () => {
+    await open('/contact');
+    const invite = document.querySelector<HTMLElement>('[data-consultation-invite]')!;
+    expect(within(invite).getByRole('heading', { level: 2 })).toHaveTextContent(
+      'ยังไม่แน่ใจว่าควรเริ่มจากตรงไหน?',
     );
-    // Mobile order follows the DOM: form → location (address → map → action).
-    expect(parts).toEqual(['form', 'location']);
-    expect(main.querySelectorAll('iframe')).toHaveLength(1);
-    expect(main.querySelectorAll(`a[href="${OFFICE_LOCATION.listingUrl}"]`)).toHaveLength(1);
-    expect(main.textContent!.split(CONTACT.address)).toHaveLength(2);
-    expect(main.querySelectorAll(`a[href="tel:${CONTACT.phone.e164}"]`).length).toBeLessThanOrEqual(
-      1,
+    expect(within(invite).getByRole('link', { name: /เริ่มปรึกษาเรา/ })).toHaveAttribute(
+      'href',
+      '/consultation',
     );
-    expect(
-      main.querySelector('[data-direct-rail], [data-direct-panel], [data-hero-direct]'),
-    ).toBeNull();
   });
 
-  it('opens the owner-provided listing safely, in TH / EN / ZH', async () => {
-    for (const [path, open_, title, hl] of [
+  it('speaks English and Chinese without Thai beyond the address', async () => {
+    const cases = [
       [
-        '/contact',
-        'เปิดใน Google Maps',
-        'แผนที่ Google แสดงที่ตั้ง PDA BLISS COMPANY LIMITED',
-        'th',
+        '/en/contact',
+        'Talk to PDA BLISS',
+        'Open directions in Google Maps',
+        'Start a consultation',
+        'en',
       ],
-      ['/en/contact', 'Open in Google Maps', 'Google map showing PDA BLISS COMPANY LIMITED', 'en'],
-      [
-        '/zh/contact',
-        '在 Google 地图中打开',
-        '显示 PDA BLISS COMPANY LIMITED 位置的 Google 地图',
-        'zh-CN',
-      ],
-    ] as const) {
+      ['/zh/contact', '与 PDA BLISS 沟通', '在 Google 地图中查看路线', '开始咨询', 'zh-CN'],
+    ] as const;
+    for (const [path, h1, directions, cta, hl] of cases) {
       const { unmount } = await open(path);
-      const link = within(location()).getByRole('link', { name: new RegExp(open_) });
-      expect(link).toHaveAttribute('href', OFFICE_LOCATION.listingUrl);
-      expect(link).toHaveAttribute('target', '_blank');
-      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-      expect(iframe()).toHaveAttribute('title', title);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(h1);
+      expect(
+        within(location()).getByRole('link', { name: new RegExp(directions) }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: new RegExp(cta) })).toHaveAttribute(
+        'href',
+        `${path.slice(0, 3)}/consultation`,
+      );
       expect(new URL(iframe()!.src).searchParams.get('hl')).toBe(hl);
-      if (hl !== 'th') expect(visibleText()).not.toMatch(THAI);
+      expect(visibleText()).not.toMatch(THAI);
       unmount();
     }
-    expect(OFFICE_LOCATION.listingUrl).toContain('!3d13.956774!4d100.3378182');
+  });
+
+  it('adds factual Organization structured data', async () => {
+    await open('/contact');
+    await waitFor(() =>
+      expect(document.head.querySelector('script[data-schema="organization"]')).not.toBeNull(),
+    );
   });
 
   it('loads the map whatever the cookie choice — and the banner discloses it', async () => {
     saveConsent(ALL_ACCEPTED);
-    const first = await open();
+    const first = await open('/contact');
     expect(iframe()).not.toBeNull();
     first.unmount();
     clearConsent();
@@ -540,8 +545,15 @@ describe('/contact — one workspace, location only beside the form (EP24.1.4.1�
     expect(banner).toHaveTextContent('third-party');
   });
 
-  it('is only on /contact: no map or Google location anywhere else', async () => {
-    for (const path of ['/', '/about', '/en/pricing']) {
+  it('forwards older enquiry links to /consultation with their context', async () => {
+    const { router } = await open('/contact?interest=enterprise&plan=enterprise');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/consultation'));
+    expect(router.state.location.search).toBe('?topic=enterprise&plan=enterprise');
+    expect(within(flow()).getByRole('radio', { name: /ขอใบเสนอราคา Enterprise/ })).toBeChecked();
+  });
+
+  it('the map exists only on /contact', async () => {
+    for (const path of ['/', '/about', '/en/pricing', '/consultation', '/en/consultation']) {
       const { unmount } = renderRoute(path);
       await screen.findAllByRole('heading', { level: 1 });
       expect(document.querySelector('[data-location], [data-map-frame], iframe')).toBeNull();
@@ -552,19 +564,77 @@ describe('/contact — one workspace, location only beside the form (EP24.1.4.1�
   });
 
   it('the Privacy Policy discloses the Google Maps embed (TH / EN / ZH)', async () => {
-    for (const [path, text] of [
+    const cases = [
       ['/privacy', 'Google Maps ซึ่งเป็นบริการของบุคคลที่สาม'],
       ['/en/privacy', 'Google Maps map, a third-party service'],
       ['/zh/privacy', '第三方服务 Google 地图'],
-    ] as const) {
+    ] as const;
+    for (const [path, text] of cases) {
       const { unmount } = renderRoute(path);
       await screen.findByRole('heading', { level: 1 });
       expect(document.querySelector('[data-maps-disclosure]')).toHaveTextContent(text);
       unmount();
     }
-    const { unmount } = renderRoute('/terms');
-    await screen.findByRole('heading', { level: 1 });
-    expect(document.querySelector('[data-maps-disclosure]')).toBeNull();
-    unmount();
+  });
+});
+
+describe('/consultation — its own route (EP24.1.4.3)', () => {
+  it('keeps the six steps in order', async () => {
+    await open();
+    const nav = screen.getByRole('navigation', { name: 'ขั้นตอนการปรึกษา' });
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([
+      'เรื่องที่อยากคุย',
+      'องค์กรของคุณ',
+      'สิ่งที่กำลังเจอ',
+      'ช่องทางติดต่อกลับ',
+      'ข้อมูลติดต่อ',
+      'ตรวจทาน',
+    ]);
+    // The current step's name is also shown where the bar has no room for labels.
+    expect(document.querySelector('[data-step-name]')).toHaveTextContent('เรื่องที่อยากคุย');
+  });
+
+  it('preselects a known topic and starts normally for an unknown one', async () => {
+    const first = await open('/consultation?topic=implementation');
+    expect(within(flow()).getByRole('radio', { name: /Training \/ Implementation/ })).toBeChecked();
+    expect(flow()).toHaveAttribute('data-step', 'topic');
+    first.unmount();
+    await open('/consultation?topic=unknown-value');
+    expect(within(flow()).queryAllByRole('radio', { checked: true })).toHaveLength(0);
+    expect(flow()).toHaveAttribute('data-step', 'topic');
+  });
+
+  it('leads back to Contact and offers the channels quietly', async () => {
+    await open();
+    expect(screen.getByRole('link', { name: /กลับหน้าติดต่อเรา/ })).toHaveAttribute(
+      'href',
+      '/contact',
+    );
+    const fallback = document.querySelector<HTMLElement>('[data-fallback]')!;
+    expect(fallback.querySelector('[data-fallback-link="phone"]')).toHaveAttribute(
+      'href',
+      `tel:${CONTACT.phone.e164}`,
+    );
+    expect(fallback.querySelector('[data-fallback-link="line"]')).toHaveAttribute(
+      'href',
+      CONTACT.lineUrl,
+    );
+    expect(fallback.querySelector('[data-fallback-link="email"]')).toHaveAttribute(
+      'href',
+      `mailto:${CONTACT.email}`,
+    );
+    // Not a second Contact page: no address, no map.
+    expect(main().textContent).not.toContain(CONTACT.address);
+  });
+
+  it('keeps what the visitor types out of the URL', async () => {
+    const { router } = await open('/consultation?topic=demo');
+    await next();
+    await userEvent.click(within(flow()).getByRole('radio', { name: 'กระจายสินค้า / ค้าส่ง' }));
+    expect(router.state.location.search).toBe('?topic=demo');
   });
 });

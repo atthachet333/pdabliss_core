@@ -4,7 +4,7 @@ import { isPlanId, type PlanId } from '@/features/pricing/plans';
 import type { Solution } from '@/features/solutions/model';
 
 /*
- * /contact inquiry model (EP13). Structure only — every visible word lives
+ * Consultation inquiry model (EP13; /consultation since EP24.1.4.3). Structure only — every visible word lives
  * in copy.ts. The model is what a future delivery backend receives; it holds
  * no sensitive data (no ID numbers, financial data, passwords or files).
  */
@@ -30,8 +30,10 @@ export const INQUIRY_GROUPS = [
 export type InquiryGroup = (typeof INQUIRY_GROUPS)[number]['id'];
 
 /**
- * The stable `?interest=` contract. Each public CTA links with one of the
- * canonical values; a few aliases are accepted so older links still land.
+ * The stable topic contract: `/consultation?topic=` (EP24.1.4.3; `?interest=`
+ * before, still accepted). Each enquiry CTA links with one of the canonical
+ * values; a few aliases are accepted so older links still land. Unknown
+ * values are ignored — the first step simply starts unselected.
  */
 export const INTEREST_PARAM: Record<string, InquiryType> = {
   demo: 'demo',
@@ -140,13 +142,13 @@ export function emptyInquiry(prefill: Prefill = {}): Inquiry {
 }
 
 /**
- * Reads the stable query contract: `?interest=`, `?plan=`, `?industry=`,
- * `?department=`. Unknown values are ignored. A plan without an interest
+ * Reads the stable query contract: `?topic=` (or the older `?interest=`),
+ * `?plan=`, `?industry=`, `?department=`. Unknown values are ignored. A plan without an interest
  * implies a package question (Enterprise → a quotation).
  */
 export function parsePrefill(params: URLSearchParams): Prefill {
   const out: Prefill = {};
-  const interest = params.get('interest')?.toLowerCase();
+  const interest = (params.get('topic') ?? params.get('interest'))?.toLowerCase();
   if (interest && interest in INTEREST_PARAM) out.type = INTEREST_PARAM[interest];
   const plan = params.get('plan')?.toLowerCase();
   if (isPlanId(plan)) {
@@ -162,13 +164,13 @@ export function parsePrefill(params: URLSearchParams): Prefill {
   return out;
 }
 
-/** Builds a `/contact` link that follows the query contract. */
-export function contactPath(p: Prefill & { type?: InquiryType }) {
+/** Builds a `/consultation` link that follows the query contract. */
+export function consultationPath(p: Prefill & { type?: InquiryType }) {
   const q = new URLSearchParams();
-  if (p.type) q.set('interest', p.type);
+  if (p.type) q.set('topic', p.type);
   if (p.plan) q.set('plan', p.plan);
   if (p.industry) q.set('industry', p.industry);
   if (p.department) q.set('department', p.department);
   const s = q.toString();
-  return s ? `/contact?${s}` : '/contact';
+  return s ? `/consultation?${s}` : '/consultation';
 }

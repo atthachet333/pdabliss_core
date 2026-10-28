@@ -120,7 +120,7 @@ export const ABOUT_LINKS = {
   industries: '/industries',
   contact: '/contact',
   /** EP13: About conversations open the consultation path. */
-  consult: '/contact?interest=consulting',
+  consult: '/consultation?topic=consulting',
 } as const;
 
 /* ------------------------------------------------------------------ */

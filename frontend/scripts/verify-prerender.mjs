@@ -197,7 +197,7 @@ for (const { file } of SHELLS) {
   eq(file, 'alternate count', all(page.doc, 'link[rel="alternate"]').length, 0);
 }
 
-// Exactly the expected HTML files: 105 pages + the shells, nothing else.
+// Exactly the expected HTML files: 108 pages (EP24.1.4.3) + the shells, nothing else.
 const htmlFiles = [];
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
@@ -213,7 +213,7 @@ eq(
   htmlFiles.sort(),
   [...PAGES.map((p) => p.file), ...SHELLS.map((s) => s.file)].sort(),
 );
-eq('dist', 'indexable pages', PAGES.length, 105);
+eq('dist', 'indexable pages', PAGES.length, 108); // 36 routes × 3 locales (EP24.1.4.3)
 if (!existsSync(join(dist, '_redirects'))) fail('dist', '_redirects missing');
 
 if (failures.length) {

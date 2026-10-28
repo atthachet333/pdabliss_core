@@ -234,8 +234,8 @@ export type Stage = keyof typeof STAGES;
 
 /** Links into the rest of the site (locale preserved at render). */
 export const RESOURCE_LINKS = {
-  consult: '/contact?interest=consulting',
-  implementation: '/contact?interest=implementation',
+  consult: '/consultation?topic=consulting',
+  implementation: '/consultation?topic=implementation',
   demo: '/demo',
   industries: '/industries',
   security: '/security',

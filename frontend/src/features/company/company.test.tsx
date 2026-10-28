@@ -168,7 +168,7 @@ describe('package selection', () => {
     expect(document.querySelector('[data-enterprise-note]')).toHaveTextContent('ใบเสนอราคา');
     expect(within(step).getByRole('link', { name: 'คุยกับทีม PDA BLISS' })).toHaveAttribute(
       'href',
-      '/contact?interest=enterprise&plan=enterprise',
+      '/consultation?topic=enterprise&plan=enterprise',
     );
   });
 

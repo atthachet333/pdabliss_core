@@ -174,7 +174,7 @@ export type FaqId = (typeof FAQ)[number];
 
 /** Links into the rest of the site (locale preserved at render). */
 export const SECURITY_LINKS = {
-  consult: '/contact?interest=implementation',
+  consult: '/consultation?topic=implementation',
   enterprise: '/enterprise',
   demo: '/demo',
   warehouseDemo: '/demo?role=warehouse',

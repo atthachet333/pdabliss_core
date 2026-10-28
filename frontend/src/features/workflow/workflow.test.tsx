@@ -447,7 +447,7 @@ describe('localization and links', () => {
     expect(main.querySelector('a[href="/zh/departments/warehouse"]')).not.toBeNull();
     expect(main.querySelector('a[href="/zh/departments/sales"]')).not.toBeNull();
     expect(main.querySelector('a[href="/zh/pricing"]')).not.toBeNull();
-    expect(main.querySelector('a[href="/zh/contact"]')).not.toBeNull();
+    expect(main.querySelector('a[href="/zh/consultation?topic=demo"]')).not.toBeNull();
   });
 
   it('links How CORE works and its guide from the menus (EP18)', async () => {

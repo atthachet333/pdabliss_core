@@ -253,7 +253,7 @@ describe('/why-core page', () => {
     );
     expect(within(see).getByRole('link', { name: /ขอ Demo/ })).toHaveAttribute(
       'href',
-      '/contact?interest=demo',
+      '/consultation?topic=demo',
     );
   });
 
@@ -322,7 +322,7 @@ describe('localization and links', () => {
       '/en/solutions#human-error',
       '/en/departments',
       '/en/departments/executive',
-      '/en/contact?interest=demo',
+      '/en/consultation?topic=demo',
       '/en/about',
     ]) {
       expect(main().querySelector(`a[href="${href}"]`), href).not.toBeNull();

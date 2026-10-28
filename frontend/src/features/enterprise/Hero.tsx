@@ -188,7 +188,7 @@ export function EnterpriseHero() {
             </ul>
             <div className="mt-10 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <Link
-                to={href('/contact?interest=enterprise')}
+                to={href('/consultation?topic=enterprise')}
                 data-cta="quote"
                 className={buttonClasses('primary', 'lg')}
               >
@@ -196,7 +196,7 @@ export function EnterpriseHero() {
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
               <Link
-                to={href('/contact?interest=consulting')}
+                to={href('/consultation?topic=consulting')}
                 data-cta="talk"
                 className={buttonClasses('secondary', 'lg')}
               >

@@ -238,7 +238,10 @@ export function HowHero() {
                 {c.hero.watch}
                 <ArrowDown className="size-4" aria-hidden />
               </a>
-              <Link to={href('/contact')} className={buttonClasses('secondary', 'lg')}>
+              <Link
+                to={href('/consultation?topic=demo')}
+                className={buttonClasses('secondary', 'lg')}
+              >
                 {c.hero.demo}
                 <ArrowRight className="size-4" aria-hidden />
               </Link>

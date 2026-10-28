@@ -500,7 +500,7 @@ export function Ending({ id, children }: { id: IndustryId | null; children?: Rea
       <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
         <Link
           to={href(
-            id ? `/contact?interest=consulting&industry=${id}` : '/contact?interest=consulting',
+            id ? `/consultation?topic=consulting&industry=${id}` : '/consultation?topic=consulting',
           )}
           data-cta="consult"
           className={buttonClasses('primary', 'lg')}

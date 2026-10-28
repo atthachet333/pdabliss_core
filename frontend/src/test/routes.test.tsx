@@ -18,7 +18,10 @@ describe('public website', () => {
     expect(
       screen.getByRole('link', { name: 'ดูว่า CORE เหมาะกับองค์กรของคุณหรือไม่' }),
     ).toHaveAttribute('href', '#fit');
-    expect(screen.getByRole('link', { name: /ขอคำปรึกษา/ })).toHaveAttribute('href', '/contact');
+    expect(screen.getByRole('link', { name: /ขอคำปรึกษา/ })).toHaveAttribute(
+      'href',
+      '/consultation',
+    );
   });
 
   it('offers every orbiting department as an accessible control in the CORE Universe', async () => {
@@ -57,9 +60,9 @@ describe('public website', () => {
     },
   );
 
-  it('asks what to talk about before anything else on /contact (EP13)', async () => {
+  it('asks what to talk about before anything else on /consultation (EP13; EP24.1.4.3)', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
-    renderRoute('/contact');
+    renderRoute('/consultation');
     await userEvent.click(await screen.findByRole('button', { name: /ถัดไป/ }));
     expect(await screen.findByText('กรุณาเลือกเรื่องที่อยากคุย')).toBeInTheDocument();
   });

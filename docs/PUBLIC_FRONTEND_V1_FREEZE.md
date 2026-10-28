@@ -62,6 +62,11 @@ ZH (Simplified) `/zh`. Every family exists in all three locales and is indexable
 indexable URLs**, each with canonical, hreflang (th / en / zh-CN / x-default), OG and sitemap
 entries.
 
+> **Amendment — EP24.1.4.3 (owner-approved):** `/consultation` (`/en/consultation`,
+> `/zh/consultation`) was added as a 36th indexable family when the guided consultation was split
+> from `/contact`. The build now writes 108 indexable pages + 3 shells = 111 HTML files. See
+> [EP24_1_4_3_REPORT.md](EP24_1_4_3_REPORT.md).
+
 | # | Canonical (TH) | EN | ZH | Index | Family |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `/` | `/en` | `/zh` | index | Overview |

@@ -58,7 +58,7 @@ export function PricingHero() {
                 <ArrowDown className="size-4" aria-hidden />
               </a>
               <Link
-                to={href('/contact?interest=demo')}
+                to={href('/consultation?topic=demo')}
                 className={buttonClasses('secondary', 'lg')}
               >
                 {c.hero.demo}

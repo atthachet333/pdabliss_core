@@ -54,7 +54,7 @@ describe('whole-site language switching', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Request a consultation/ })).toHaveAttribute(
       'href',
-      '/en/contact',
+      '/en/consultation',
     );
   });
 
@@ -63,7 +63,10 @@ describe('whole-site language switching', () => {
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
       '每个部门都能发挥所长',
     );
-    expect(screen.getByRole('link', { name: /申请咨询/ })).toHaveAttribute('href', '/zh/contact');
+    expect(screen.getByRole('link', { name: /申请咨询/ })).toHaveAttribute(
+      'href',
+      '/zh/consultation',
+    );
   });
 
   it('keeps Thai as the default for every page', async () => {
@@ -92,7 +95,7 @@ describe('whole-site language switching', () => {
   });
 
   it('validates the contact flow in the visitor’s language', async () => {
-    renderRoute('/en/contact?interest=demo');
+    renderRoute('/en/consultation?topic=demo');
     for (let i = 0; i < 4; i++) {
       await userEvent.click(await screen.findByRole('button', { name: /^Next/ }));
     }

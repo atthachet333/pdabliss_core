@@ -297,7 +297,7 @@ describe('/about page', () => {
     expect(talk).toHaveTextContent('อยากให้เราช่วยดู Process ขององค์กรคุณ?');
     expect(within(talk).getByRole('link', { name: /พูดคุยกับ PDA BLISS/ })).toHaveAttribute(
       'href',
-      '/contact?interest=consulting',
+      '/consultation?topic=consulting',
     );
     expect(talk.querySelector('[data-cta="line"]')).toHaveAttribute('href', CONTACT.lineUrl);
     expect(talk.querySelector('a[href="/industries"]')).not.toBeNull();
@@ -376,7 +376,7 @@ describe('localization and links', () => {
   it('keeps the locale in every page link', async () => {
     await open('/zh/about');
     for (const href of [
-      '/zh/contact?interest=consulting',
+      '/zh/consultation?topic=consulting',
       '/zh/why-core',
       '/zh/solutions',
       '/zh/how-core-works',

@@ -13,9 +13,10 @@ import { LOCALE_PREFIXES, PUBLIC_ROUTES } from './publicRoutes';
  */
 
 describe('Public Frontend v1 freeze', () => {
-  it('keeps 35 route families in three locales', () => {
-    expect(PUBLIC_ROUTES).toHaveLength(35);
-    expect(new Set(PUBLIC_ROUTES).size).toBe(35);
+  // EP24.1.4.3 (owner-approved): /consultation split from /contact — 35 → 36.
+  it('keeps 36 route families in three locales', () => {
+    expect(PUBLIC_ROUTES).toHaveLength(36);
+    expect(new Set(PUBLIC_ROUTES).size).toBe(36);
     expect(LOCALE_PREFIXES).toEqual({ th: '', en: '/en', 'zh-CN': '/zh' });
   });
 

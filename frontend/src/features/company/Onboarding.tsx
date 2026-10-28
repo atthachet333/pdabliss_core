@@ -347,7 +347,7 @@ function PackageStep({
           <p className="mt-4 text-caption text-text-secondary" data-enterprise-note>
             {c.package.enterpriseNote}{' '}
             <Link
-              to={href('/contact?interest=enterprise&plan=enterprise')}
+              to={href('/consultation?topic=enterprise&plan=enterprise')}
               className="inline-flex min-h-11 items-center text-brand-soft underline underline-offset-4"
             >
               {c.package.contact}

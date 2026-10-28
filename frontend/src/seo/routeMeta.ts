@@ -2,6 +2,7 @@ import { organizationSchema } from '@/config/company';
 import { PUBLIC_ROUTES, type PublicRoute } from '@/config/publicRoutes';
 import { ABOUT } from '@/features/about/copy';
 import { CONTACT_COPY } from '@/features/contact/copy';
+import { CONTACT_PAGE_COPY } from '@/features/contact/contactPageCopy';
 import { DEMO_COPY } from '@/features/demo/copy';
 import { ACCOUNTING } from '@/features/departments/accounting/copy';
 import { EXECUTIVE } from '@/features/departments/executive/copy';
@@ -36,7 +37,7 @@ import { LEGAL_COPY } from '@/pages/public/legal.copy';
  * Build-time route metadata (EP17). For every public route, the title and
  * description its page passes to usePageMeta — read from the SAME copy
  * objects the page renders, never retyped here. The prerender turns these
- * into static <head> markup for all 105 URLs; seo.test.tsx proves the
+ * into static <head> markup for all 108 URLs (EP24.1.4.3); seo.test.tsx proves the
  * rendered pages produce exactly the same head.
  *
  * This module imports copy data only (no components), so it stays out of
@@ -87,7 +88,8 @@ export const ROUTE_TEXT: Record<PublicRoute, (l: Locale) => PageText> = {
   '/pricing': meta(PRICING),
   '/about': meta(ABOUT),
   '/why-core': meta(WHY_CORE),
-  '/contact': meta(CONTACT_COPY),
+  '/contact': meta(CONTACT_PAGE_COPY),
+  '/consultation': meta(CONTACT_COPY),
   '/demo': meta(DEMO_COPY),
   '/security': meta(SECURITY_COPY),
   '/resources': meta(RESOURCES_COPY),

@@ -1,6 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
-import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { Link } from 'react-router';
 import { useBodyScrollLock, useFocusTrap } from '@/components/core/hooks';
 import { keepFocusInPage } from '@/components/layout/focus';
@@ -54,6 +63,34 @@ function EdgeLight() {
   );
 }
 
+/**
+ * EP24.1.4.3: while the banner is open, reserve its height as the page's
+ * bottom scroll padding, so a link reached by keyboard (or scrolled to with
+ * scrollIntoView) settles above the banner instead of underneath it
+ * (WCAG 2.4.11 Focus Not Obscured).
+ */
+function useReserveBottom(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const reserve = () => {
+      // Layout values, not the rect, so the entrance transform is ignored.
+      const covered = el.offsetHeight + (parseFloat(getComputedStyle(el).bottom) || 0);
+      root.style.scrollPaddingBottom = `${Math.ceil(covered) + 12}px`;
+    };
+    reserve();
+    const observer = new ResizeObserver(reserve);
+    observer.observe(el);
+    window.addEventListener('resize', reserve);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', reserve);
+      root.style.removeProperty('scroll-padding-bottom');
+    };
+  }, [ref]);
+}
+
 function CookieBanner({
   onAcceptAll,
   onReject,
@@ -65,8 +102,11 @@ function CookieBanner({
 }) {
   const { t, href } = useLocale();
   const titleId = useId();
+  const ref = useRef<HTMLElement>(null);
+  useReserveBottom(ref);
   return (
     <motion.section
+      ref={ref}
       aria-labelledby={titleId}
       initial={{ opacity: 0, y: 16 }}
       animate={{

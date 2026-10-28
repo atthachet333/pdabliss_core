@@ -41,8 +41,9 @@ const BUDGET = {
   // EP25: +200 for the lazy, signed-in-only Company Control Center / CORE entry
   // (≈100 kB raw, never loaded by a public page) — reason in docs/PERFORMANCE.md.
   totalJsKb: 4300, // every JS chunk, raw [≈3,680 at EP20; 4,103 after EP25]
-  htmlTotalKb: 540, // all prerendered HTML, incl. per-route preloads [≈490; EP19 384]
-  htmlFiles: 108, // 105 indexable pages + 3 shells (exact)
+  // EP24.1.4.3: +20 for /consultation in three locales (three new indexable pages).
+  htmlTotalKb: 560, // all prerendered HTML, incl. per-route preloads [≈490; 543 after EP24.1.4.3]
+  htmlFiles: 111, // 108 indexable pages (36 routes × 3, EP24.1.4.3) + 3 shells (exact)
 };
 
 const failures = [];

@@ -195,7 +195,7 @@ describe('navigation between departments', () => {
     }
     // Quiet CTA: back to the overview and to a consultation about this department (EP13).
     expect(
-      main.querySelector(`a[href="/zh/contact?interest=consulting&department=${id}"]`),
+      main.querySelector(`a[href="/zh/consultation?topic=consulting&department=${id}"]`),
     ).not.toBeNull();
     expect(main.querySelector('a[href="/zh/departments"]')).not.toBeNull();
   });

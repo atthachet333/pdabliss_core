@@ -202,7 +202,7 @@ export function SolutionsCta() {
           </Link>
         </div>
         <Link
-          to={href('/contact')}
+          to={href('/consultation?topic=demo')}
           className="mt-6 inline-flex min-h-11 items-center gap-1.5 text-label text-text-secondary hover:text-text-primary"
         >
           {c.cta.demo}

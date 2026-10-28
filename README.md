@@ -69,6 +69,11 @@ the visitor asks ([docs/EP24_1_4_REPORT.md](docs/EP24_1_4_REPORT.md)).
 workspace — the consultation beside a location column with only the company name, address, a
 large live Google map (loaded with the page, disclosed in the cookie banner and Privacy Policy) and
 one Open in Google Maps action ([docs/EP24_1_4_2_REPORT.md](docs/EP24_1_4_2_REPORT.md)).
+**EP24.1.4.3** (completed locally, awaiting owner review) splits the two jobs: `/contact` is the
+company contact page (channels once, address, large live map, one directions action, and an
+invitation to consult) and `/consultation` is the guided six-step consultation on its own indexable
+route; enquiry CTAs now go to `/consultation?topic=…`
+([docs/EP24_1_4_3_REPORT.md](docs/EP24_1_4_3_REPORT.md)).
 Next: EP26 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
@@ -155,7 +160,7 @@ is taken (Vite `strictPort`, Fastify `EADDRINUSE` handler) instead of silently m
 ## Routes
 
 Public: `/`, `/departments`, `/features`, `/solutions`, `/how-core-works`, `/enterprise`,
-`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/demo`,
+`/industries` (+ six `/industries/<id>` pages), `/pricing`, `/about`, `/why-core`, `/contact`, `/consultation`, `/demo`,
 `/security`, `/resources` (+ seven `/resources/<slug>` guides), `/login`, `/privacy`, `/terms`. The permanent public route set lives in `frontend/src/test/publicRoutes.ts`;
 `frontend/public/sitemap.xml` lists every route in th / en / zh with hreflang alternates (a test
 keeps the two in sync). Since EP17 every page also sets a self-referencing canonical, hreflang
@@ -307,7 +312,7 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/ABOUT_PDA_BLISS.md](docs/ABOUT_PDA_BLISS.md) — `/about`: company identity, philosophy, methodology, consulting, claim boundaries
 - [docs/WHY_CORE.md](docs/WHY_CORE.md) — `/why-core`: product origin, ONE LARGE SYSTEM → CORE, Human Error, executive view
 - [docs/EP12_REPORT.md](docs/EP12_REPORT.md) — PDA BLISS and CORE story experience
-- [docs/CONTACT_EXPERIENCE.md](docs/CONTACT_EXPERIENCE.md) — `/contact`: inquiry model, prefill contract, delivery limitation, privacy
+- [docs/CONTACT_EXPERIENCE.md](docs/CONTACT_EXPERIENCE.md) — `/contact` and `/consultation`: inquiry model, prefill contract, delivery limitation, privacy
 - [docs/EP13_REPORT.md](docs/EP13_REPORT.md) — consultation experience and About enhancement
 - [docs/INTERACTIVE_DEMO.md](docs/INTERACTIVE_DEMO.md) — `/demo`: scenario, state machine, role boundaries, handoffs, PREVENT, FEFO
 - [docs/EP14_REPORT.md](docs/EP14_REPORT.md) — interactive CORE public demo

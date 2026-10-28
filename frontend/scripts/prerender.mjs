@@ -2,7 +2,7 @@
 //
 // Runs after `vite build` (client) and `vite build --ssr src/seo/prerender.ts`.
 // It reads the built dist/index.html template and writes one HTML file per
-// localized route (105), plus the non-indexable shells (login, 404, app) and
+// localized route (108 since EP24.1.4.3), plus the non-indexable shells (login, 404, app) and
 // the static-hosting rewrites. The <head> of each file comes from
 // src/seo/routeMeta.ts via lib/seo.ts — the same functions the browser uses.
 // The body is the unchanged SPA shell: the app still renders client-side.

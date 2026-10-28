@@ -83,7 +83,7 @@ export function FinalChapter() {
             <p className="mx-auto mt-6 max-w-2xl text-body-lg text-text-secondary">{c.lead}</p>
           </Reveal>
           <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <Link to={href('/contact')} className={buttonClasses('primary', 'lg')}>
+            <Link to={href('/consultation')} className={buttonClasses('primary', 'lg')}>
               {c.consult}
               <ArrowRight className="size-4" aria-hidden />
             </Link>

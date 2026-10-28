@@ -152,10 +152,18 @@ export const DISCOVERY: readonly Discovery[] = [
   },
   {
     route: '/contact',
-    purpose: 'Guided consultation inquiry (EP13)',
+    purpose: 'Company contact: channels, location and map (EP13; contact-only since EP24.1.4.3)',
     primary: { via: 'header', label: 'ติดต่อเรา action (≥ 768 px; mobile menu below)' },
     secondary: { via: 'footer', label: 'ติดต่อเรา → ขอคำปรึกษา' },
     depth: 1,
+    status: 'PASS',
+  },
+  {
+    route: '/consultation',
+    purpose: 'Guided consultation inquiry (EP13 wizard; own route since EP24.1.4.3)',
+    primary: { via: 'page', from: '/contact', label: 'Contact → เริ่มปรึกษาเรา' },
+    secondary: { via: 'page', from: '/pricing', label: 'Pricing → ขอ Demo / ปรึกษา (?topic=)' },
+    depth: 2,
     status: 'PASS',
   },
   {

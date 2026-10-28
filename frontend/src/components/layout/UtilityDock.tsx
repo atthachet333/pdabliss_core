@@ -106,7 +106,7 @@ export function UtilityDock() {
   const location = useLocation();
   const onHome = stripLocale(location.pathname) === '/';
 
-  // Close on navigation (e.g. after choosing "ขอรับคำปรึกษา").
+  // Close on navigation (e.g. after choosing "ขอรับคำปรึกษา" → /consultation).
   const [lastPath, setLastPath] = useState(location.pathname);
   if (lastPath !== location.pathname) {
     setLastPath(location.pathname);
@@ -180,7 +180,7 @@ export function UtilityDock() {
       title: t.utility.consult,
       detail: t.utility.consultDetail,
       render: (body) => (
-        <Link to={href('/contact')} className={actionClass} onClick={() => setOpen(false)}>
+        <Link to={href('/consultation')} className={actionClass} onClick={() => setOpen(false)}>
           {body}
         </Link>
       ),

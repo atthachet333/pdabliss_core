@@ -201,6 +201,15 @@ describe('cookie consent', () => {
     });
   });
 
+  it('reserves the banner height as bottom scroll padding while it is open (EP24.1.4.3)', async () => {
+    renderRoute('/contact');
+    const banner = await screen.findByRole('region', { name: 'คุกกี้และความเป็นส่วนตัว' });
+    // Focused links settle above the banner, not underneath it.
+    expect(document.documentElement.style.scrollPaddingBottom).toMatch(/^\d+px$/);
+    await userEvent.click(within(banner).getByRole('button', { name: 'ปฏิเสธคุกกี้ที่ไม่จำเป็น' }));
+    await waitFor(() => expect(document.documentElement.style.scrollPaddingBottom).toBe(''));
+  });
+
   it('Cookie Settings: essential is locked on, choices save, and the dialog reopens from the footer', async () => {
     renderRoute('/about');
     const banner = await screen.findByRole('region', { name: 'คุกกี้และความเป็นส่วนตัว' });
@@ -352,7 +361,7 @@ describe('floating utilities', () => {
     );
     expect(within(panel).getByRole('link', { name: /ขอรับคำปรึกษา/ })).toHaveAttribute(
       'href',
-      '/contact',
+      '/consultation',
     );
 
     await userEvent.keyboard('{Escape}');
@@ -363,13 +372,13 @@ describe('floating utilities', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('"ขอรับคำปรึกษา" goes to /contact and closes the stack', async () => {
+  it('"ขอรับคำปรึกษา" goes to /consultation and closes the stack', async () => {
     acceptStored();
     const { router } = renderRoute('/about');
     await screen.findByRole('heading', { level: 1 });
     await userEvent.click(screen.getByRole('button', { name: 'เปิดช่องทางติดต่อ' }));
     await userEvent.click(screen.getByRole('link', { name: /ขอรับคำปรึกษา/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/contact'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/consultation'));
     await waitFor(() =>
       expect(screen.queryByRole('region', { name: 'ติดต่อทีม PDA BLISS' })).toBeNull(),
     );

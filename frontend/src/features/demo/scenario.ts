@@ -53,6 +53,6 @@ export type LotChoice = (typeof SCENARIO.lotOptions)[number];
 
 /** Where the demo leads afterwards (unlocalized; pass through `href()`). */
 export const DEMO_LINKS = {
-  contact: '/contact?interest=demo',
+  contact: '/consultation?topic=demo',
   pricing: '/pricing',
 } as const;

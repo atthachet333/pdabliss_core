@@ -28,6 +28,8 @@ export const PUBLIC_ROUTES = [
   '/about',
   '/why-core',
   '/contact',
+  // EP24.1.4.3: the guided consultation, split from /contact (owner-approved).
+  '/consultation',
   '/demo',
   '/security',
   // EP16: the knowledge library and its seven guides.

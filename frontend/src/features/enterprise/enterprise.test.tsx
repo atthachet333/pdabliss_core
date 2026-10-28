@@ -463,12 +463,12 @@ describe('/enterprise page', () => {
     expect(s.querySelectorAll('[data-quote-flow] li')).toHaveLength(6);
     expect(s.querySelector('[data-cta="quote"]')).toHaveAttribute(
       'href',
-      '/contact?interest=enterprise',
+      '/consultation?topic=enterprise',
     );
     expect(s.querySelector('[data-cta="quote"]')).toHaveTextContent('ขอใบเสนอราคา');
     expect(s.querySelector('[data-cta="talk"]')).toHaveAttribute(
       'href',
-      '/contact?interest=consulting',
+      '/consultation?topic=consulting',
     );
     expect(s.querySelector('[data-cta="pricing"]')).toHaveAttribute(
       'href',
@@ -538,7 +538,9 @@ describe('localization and links', () => {
   it('keeps the locale in every page link', async () => {
     await open('/zh/enterprise');
     const main = document.getElementById('main')!;
-    expect(main.querySelector('#consult a[href="/zh/contact?interest=enterprise"]')).not.toBeNull();
+    expect(
+      main.querySelector('#consult a[href="/zh/consultation?topic=enterprise"]'),
+    ).not.toBeNull();
     expect(main.querySelector('#consult a[href="/zh/pricing?plan=enterprise"]')).not.toBeNull();
     expect(main.querySelector('#consult a[href="/zh/solutions#management"]')).not.toBeNull();
     expect(main.querySelector('#consult a[href="/zh/how-core-works#trace"]')).not.toBeNull();

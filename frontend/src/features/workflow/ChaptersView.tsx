@@ -456,7 +456,7 @@ export function HowCta() {
             {c.cta.tryIt}
             <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link to={href('/contact?interest=demo')} className={buttonClasses('secondary', 'lg')}>
+          <Link to={href('/consultation?topic=demo')} className={buttonClasses('secondary', 'lg')}>
             {c.cta.demo}
           </Link>
           <Link to={href('/pricing')} className={buttonClasses('secondary', 'lg')}>

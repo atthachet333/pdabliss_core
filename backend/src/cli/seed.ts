@@ -29,12 +29,12 @@ async function main() {
     if (process.argv.includes('--demo')) {
       const demo = await seedDemo(db, env);
       out(
-        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, branch 00001 ${demo.branch}, subscription ${demo.subscription}, staff assignment ${demo.assignments}, staff branch access ${demo.staffBranchAccess}, master data ${demo.masterData} (${Object.entries(
-          demo.identities,
-        )
-          .map(([r, o]) => `${r} ${o}`)
-          .join(', ')})`,
+        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, branch 00001 ${demo.branch}, subscription ${demo.subscription}, master data ${demo.masterData}`,
       );
+      // EP28.1: one line per persona (src/demo/personas.ts) — outcomes only, never a password.
+      for (const [persona, outcome] of Object.entries(demo.personas)) {
+        out(`  persona ${persona}: ${outcome}`);
+      }
     }
   } finally {
     await db.$disconnect();

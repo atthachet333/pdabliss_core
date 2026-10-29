@@ -11,7 +11,7 @@ import {
   ScanLine,
   ShieldCheck,
 } from 'lucide-react';
-import { useState, type FocusEvent, type KeyboardEvent } from 'react';
+import { lazy, Suspense, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -64,6 +64,13 @@ function statusOf(phase: GatePhase): keyof typeof STATUS_ICON {
   if (phase === 'user' || phase === 'pass') return 'focus';
   return phase;
 }
+
+/**
+ * EP28.1: the demo persona list — development builds only. In a production
+ * build `import.meta.env.DEV` is false, so neither this import nor its chunk
+ * exists; the API also lists personas only where the demo bypass exists.
+ */
+const DevPersonaPicker = import.meta.env.DEV ? lazy(() => import('./DevPersonaPicker')) : null;
 
 export function LoginGateway() {
   const c = useCopy(LOGIN_COPY);
@@ -457,6 +464,16 @@ export function LoginGateway() {
                 {c.register}
               </Link>
             </form>
+          )}
+          {DevPersonaPicker && !otp && (
+            <Suspense fallback={null}>
+              <DevPersonaPicker
+                onPick={(email) => {
+                  setValue('email', email, { shouldValidate: true });
+                  setFocus('password');
+                }}
+              />
+            </Suspense>
           )}
 
           <div className="mt-6 flex flex-col items-start gap-0.5 border-t border-white/[0.06] pt-4">

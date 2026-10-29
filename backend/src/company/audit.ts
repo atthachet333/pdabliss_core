@@ -49,6 +49,8 @@ export type CompanyAuditAction =
   | 'MEMBER_PERMISSION_OVERRIDE_ADDED'
   | 'MEMBER_PERMISSION_OVERRIDE_CHANGED'
   | 'MEMBER_PERMISSION_OVERRIDE_REMOVED'
+  // ---- EP28.1: the demo seed applied a demo persona to a membership (once; seed only)
+  | 'DEMO_PERSONA_APPLIED'
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;

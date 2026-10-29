@@ -318,6 +318,7 @@ const th = {
       structure: (code: string) => `เปลี่ยนหน่วยหรือการติดตามของรายการสินค้า ${code}`,
     },
     events: {
+      DEMO_PERSONA_APPLIED: 'ตั้งค่าบัญชีสาธิตตามบทบาท (ข้อมูลสาธิต)',
       COMPANY_CREATED: 'สร้างบริษัท',
       HEAD_OFFICE_CREATED: 'สร้างสำนักงานใหญ่',
       COMPANY_OWNER_ASSIGNED: 'กำหนดเจ้าของบริษัท',
@@ -709,6 +710,7 @@ const en: Copy = {
       structure: (code) => `Unit or tracking of item ${code} changed`,
     },
     events: {
+      DEMO_PERSONA_APPLIED: 'Demo persona set up (demo data)',
       COMPANY_CREATED: 'Company created',
       HEAD_OFFICE_CREATED: 'Head Office created',
       COMPANY_OWNER_ASSIGNED: 'Company Owner assigned',
@@ -1087,6 +1089,7 @@ const zh: Copy = {
       structure: (code) => `物料 ${code} 的单位或跟踪设置已更改`,
     },
     events: {
+      DEMO_PERSONA_APPLIED: '演示角色已配置（演示数据）',
       COMPANY_CREATED: '创建公司',
       HEAD_OFFICE_CREATED: '创建总部',
       COMPANY_OWNER_ASSIGNED: '指定公司所有者',

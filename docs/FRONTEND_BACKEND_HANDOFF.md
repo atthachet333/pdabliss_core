@@ -214,6 +214,15 @@ The public Demo is a static, deterministic teaching scenario (SO-1042). It must 
 from or write to production data or the production API, now or later. Demo API routes in the
 backend are development fixtures only.
 
+**Demo personas (EP28.1).** The demo company has nine seeded accounts — owner, System Admin,
+Executive, one per department (Sales, Operations, Warehouse, Purchasing, Accounting) and the legacy
+staff account — defined once in `backend/src/demo/personas.ts` and described in
+[DEMO_PERSONAS.md](DEMO_PERSONAS.md). They differ only by role, department assignment and branch
+access; the EP27 resolver decides the rest. They are fixtures: no demo field exists in the domain,
+the sign-in bypass and the development persona list exist only outside production with demo routes
+on, and passwords live only in each developer's `.env`. Use `purchasing.demo@pdabliss.com` for EP29
+purchase requests and `warehouse.demo@pdabliss.com` for Warehouse privacy checks.
+
 ## 12. Localization
 
 TH (primary, unprefixed), EN (`/en`), ZH Simplified (`/zh`, `zh-CN`). The internal `/app`

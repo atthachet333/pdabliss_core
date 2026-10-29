@@ -96,6 +96,11 @@ requirements, domain-aware permissions on the EP27 matrix, Warehouse-safe views 
 area in the Company Control Center
 ([docs/OPERATIONAL_MASTER_DATA.md](docs/OPERATIONAL_MASTER_DATA.md),
 [docs/EP28_REPORT.md](docs/EP28_REPORT.md)).
+**EP28.1** (completed locally, awaiting owner review) expands the demo company to nine
+personas — owner, System Admin, Executive, Sales, Operations, Warehouse, Purchasing, Accounting and
+the legacy staff account — each with only its own department and branch scope, applied once by the
+seed and never undoing an administrator's changes, plus a development-only persona list on the
+sign-in page ([docs/DEMO_PERSONAS.md](docs/DEMO_PERSONAS.md), [docs/EP28_1_REPORT.md](docs/EP28_1_REPORT.md)).
 Next: EP29 Purchasing Request (PR) foundation (not started).
 
 ### Auth & Transactional Email Polish (EP24)
@@ -116,7 +121,7 @@ Roadmap:
    Control Center, Company Explorer & Account Profile → **EP24.1.2 Operator-first Platform Control
    Center** → EP24.1.3 Brand identity → **EP25 Company Control Center foundation** →
    **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** →
-   **EP28 Operational Master Data**
+   **EP28 Operational Master Data** → **EP28.1 Department demo personas**
 3. EP29 Purchasing Request (PR) foundation → purchase orders & receiving → Sales → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
@@ -274,6 +279,17 @@ Workspaces (prototype, sign-in required): `/app/executive`, `/app/sales`, `/app/
 module routes (e.g. `/app/warehouse/expiry`). Design Lab (prototype only): `/app/prototype/ui`
 
 API: `GET /health`, `GET /api/v1`, demo-only `GET /api/v1/demo/{warehouse,purchasing}/stock`
+and (development only, EP28.1) `GET /api/v1/demo/personas`
+
+### Demo personas (development only, EP28.1)
+
+`npm --prefix backend run db:seed:demo` seeds the demo company's accounts:
+`owner.demo`, `admin.demo`, `executive.demo`, `sales.demo`, `operations.demo`, `warehouse.demo`,
+`purchasing.demo`, `accounting.demo` and the legacy `staff.demo` (all `@pdabliss.com`). Their
+passwords come only from your local `backend/.env` (`DEMO_*_PASSWORD`; the five department
+personas are skipped until theirs is set). In development with `ENABLE_DEMO_ROUTES=true`, they sign
+in without the emailed code and the sign-in page lists them to fill the email. Never in production.
+Who sees what: [docs/DEMO_PERSONAS.md](docs/DEMO_PERSONAS.md).
 
 ## Workspace prototype (EP01-PROTOTYPE)
 

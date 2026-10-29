@@ -1,11 +1,16 @@
 import { z } from 'zod';
 import type { Db } from '../db/client.js';
-import type { CompanyRole } from '../generated/prisma/enums.js';
 import { recordAuthEvent, type RequestMeta } from './audit.js';
 import { recordCompanyEvent, type CompanyAuditAction } from '../company/audit.js';
 import { clearStaleBranchSessions } from '../company/branch-access.js';
 import { snapshotFor } from '../company/entitlements.js';
 import { HEAD_OFFICE_CODE } from '../company/service.js';
+import {
+  DEMO_PERSONA_MARKER,
+  DEMO_PERSONAS,
+  type DemoPersona,
+  type DemoPersonaKey,
+} from '../demo/personas.js';
 import { seedDemoMasterData } from '../master-data/demo.js';
 import { normalizeEmail } from './crypto.js';
 import { checkPassword, hashPassword } from './password.js';
@@ -21,7 +26,8 @@ import { checkPassword, hashPassword } from './password.js';
  * password unless BOOTSTRAP_RESET_PASSWORDS=true is set explicitly.
  *
  * Demo seed (development / test only): a clearly labelled demo company and
- * four customer identities whose passwords come from the local environment.
+ * its customer identities (EP28.1: the personas of src/demo/personas.ts),
+ * whose passwords come from the local environment.
  */
 
 export class SeedError extends Error {
@@ -54,6 +60,12 @@ const SeedEnvSchema = z.object({
   DEMO_EXECUTIVE_PASSWORD: optional,
   DEMO_STAFF_EMAIL: z.string().default('staff.demo@pdabliss.com'),
   DEMO_STAFF_PASSWORD: optional,
+  // EP28.1 department personas (src/demo/personas.ts): seeded when set.
+  DEMO_SALES_PASSWORD: optional,
+  DEMO_OPERATIONS_PASSWORD: optional,
+  DEMO_WAREHOUSE_PASSWORD: optional,
+  DEMO_PURCHASING_PASSWORD: optional,
+  DEMO_ACCOUNTING_PASSWORD: optional,
 });
 
 export type SeedEnv = z.output<typeof SeedEnvSchema>;
@@ -300,37 +312,15 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   if (env.NODE_ENV === 'production') {
     throw new SeedError('The demo seed never runs in production.');
   }
-  const identities: { email: string; password: string; role: CompanyRole; name: string }[] = [
-    [
-      'DEMO_COMPANY_OWNER',
-      env.DEMO_COMPANY_OWNER_EMAIL,
-      env.DEMO_COMPANY_OWNER_PASSWORD,
-      'COMPANY_OWNER',
-      'Demo Company Owner',
-    ],
-    [
-      'DEMO_SYSTEM_ADMIN',
-      env.DEMO_SYSTEM_ADMIN_EMAIL,
-      env.DEMO_SYSTEM_ADMIN_PASSWORD,
-      'SYSTEM_ADMIN',
-      'Demo System Admin',
-    ],
-    [
-      'DEMO_EXECUTIVE',
-      env.DEMO_EXECUTIVE_EMAIL,
-      env.DEMO_EXECUTIVE_PASSWORD,
-      'EXECUTIVE',
-      'Demo Executive',
-    ],
-    ['DEMO_STAFF', env.DEMO_STAFF_EMAIL, env.DEMO_STAFF_PASSWORD, 'DEPARTMENT_STAFF', 'Demo Staff'],
-  ].map(([key, email, password, role, name]) => {
-    const address = assertEmail(`${key}_EMAIL`, email);
-    return {
-      email: address,
-      password: assertPassword(`${key}_PASSWORD`, password, address),
-      role: role as CompanyRole,
-      name: name!,
-    };
+  // EP28.1: the personas come from src/demo/personas.ts. The four EP23 accounts
+  // need a password; the department personas are seeded when theirs is set.
+  const personas = DEMO_PERSONAS.map((persona) => {
+    const legacy = LEGACY_EMAIL_ENV[persona.key];
+    const email = assertEmail(`${persona.key} email`, legacy ? env[legacy] : persona.email);
+    const raw = env[persona.passwordEnv as keyof SeedEnv] as string | undefined;
+    const password =
+      !raw && !persona.required ? null : assertPassword(persona.passwordEnv, raw, email);
+    return { persona, email, password };
   });
 
   // EP24: the demo company is a complete, ACTIVE Professional workspace — a
@@ -420,39 +410,6 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     });
   }
 
-  const results: Record<string, string> = {};
-  for (const identity of identities) {
-    const user = await upsertVerifiedUser(
-      db,
-      identity.email,
-      identity.password,
-      false,
-      identity.name,
-    );
-    if (await db.platformRoleAssignment.findUnique({ where: { userId: user.id } })) {
-      throw new SeedError(
-        `${maskForLog(identity.email)} is a platform operator; demo identities must be separate.`,
-      );
-    }
-    const member = await db.companyMember.findUnique({ where: { userId: user.id } });
-    if (member && member.companyId !== company.id) {
-      throw new SeedError(`${maskForLog(identity.email)} already belongs to another company.`);
-    }
-    // The owner slot pairs with COMPANY_OWNER (database CHECK): set it with the role.
-    const ownerSlot = identity.role === 'COMPANY_OWNER' ? true : null;
-    if (!member) {
-      await db.companyMember.create({
-        data: { companyId: company.id, userId: user.id, role: identity.role, ownerSlot },
-      });
-    } else if (member.role !== identity.role) {
-      await db.companyMember.update({
-        where: { id: member.id },
-        data: { role: identity.role, ownerSlot },
-      });
-    }
-    results[identity.role] = user.outcome;
-  }
-
   // EP25: a second branch, so the branch selector has something to choose.
   const extraBranch = await db.branch.findUnique({
     where: { companyId_code: { companyId: company.id, code: DEMO_BRANCH.code } },
@@ -462,70 +419,21 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     await seedEvent(company.id, 'BRANCH_CREATED', 'Branch', created.id, { code: DEMO_BRANCH.code });
   }
 
-  // EP25: the demo staff works in Warehouse (a department assignment, not a
-  // second account). Only when they have none — the seed never undoes an admin's change.
-  const staff = await db.user.findUnique({
-    where: { emailNormalized: normalizeEmail(env.DEMO_STAFF_EMAIL) },
-  });
-  let assignments: 'created' | 'unchanged' = 'unchanged';
-  if (staff && !(await db.membership.count({ where: { userId: staff.id } }))) {
-    const warehouse = await db.department.findUniqueOrThrow({
-      where: { companyId_code: { companyId: company.id, code: 'WAREHOUSE' } },
-    });
-    await db.membership.create({
-      data: { userId: staff.id, departmentId: warehouse.id, isPrimary: true },
-    });
-    assignments = 'created';
-  }
-
-  // EP26: the demo staff works only in the demo branch (00001), so branch
-  // restriction can be exercised: one allowed branch → selected automatically.
-  // Applied once — the seed never overrides a later administrator decision
-  // (any branch-access change, by the seed or an admin, leaves an audit entry).
-  let branchAccess: 'restricted' | 'unchanged' = 'unchanged';
-  const staffMember = staff
-    ? await db.companyMember.findUnique({ where: { userId: staff.id } })
-    : null;
-  const demoBranch = await db.branch.findUnique({
-    where: { companyId_code: { companyId: company.id, code: DEMO_BRANCH.code } },
-  });
-  if (staffMember && demoBranch && staffMember.companyId === company.id) {
-    const decided = await db.auditLog.count({
-      where: {
-        companyId: company.id,
-        action: 'MEMBER_BRANCH_ACCESS_CHANGED',
-        entityId: staffMember.id,
-      },
-    });
-    if (!decided) {
-      await db.$transaction(async (tx) => {
-        const restricted = await tx.companyMember.update({
-          where: { id: staffMember.id },
-          data: { branchScope: 'SELECTED_BRANCHES' },
-        });
-        await tx.memberBranchAccess.createMany({
-          data: [{ companyId: company.id, memberId: staffMember.id, branchId: demoBranch.id }],
-          skipDuplicates: true,
-        });
-        // Like any access change: a session left on another branch is cleared.
-        await clearStaleBranchSessions(tx, restricted);
-        await recordCompanyEvent(tx, SEED_META, {
-          action: 'MEMBER_BRANCH_ACCESS_CHANGED',
-          actorId: null,
-          actorScope: 'seed',
-          companyId: company.id,
-          entityType: 'CompanyMember',
-          entityId: staffMember.id,
-          details: {
-            fromScope: staffMember.branchScope,
-            fromBranches: [],
-            toScope: 'SELECTED_BRANCHES',
-            toBranches: [DEMO_BRANCH.code],
-          },
-        });
-      });
-      branchAccess = 'restricted';
+  const results: Record<string, string> = {};
+  for (const { persona, email, password } of personas) {
+    if (!password) {
+      results[persona.key] = `skipped (${persona.passwordEnv} not set)`;
+      continue;
     }
+    const user = await upsertVerifiedUser(db, email, password, false, persona.fullName);
+    if (await db.platformRoleAssignment.findUnique({ where: { userId: user.id } })) {
+      throw new SeedError(
+        `${maskForLog(email)} is a platform operator; demo identities must be separate.`,
+      );
+    }
+    const applied = await applyPersona(db, company.id, user.id, persona);
+    results[persona.key] =
+      user.outcome === 'unchanged' ? applied : `account ${user.outcome}, persona ${applied}`;
   }
 
   // EP28: a very small, coherent master-data set (units, categories, items, one
@@ -538,11 +446,160 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     headOffice: headOffice ? 'unchanged' : 'created',
     branch: extraBranch ? 'unchanged' : 'created',
     subscription: subscription ? 'unchanged' : 'created',
-    identities: results,
-    assignments,
-    staffBranchAccess: branchAccess,
+    personas: results,
     masterData,
   };
+}
+
+/** The EP23 accounts keep their DEMO_*_EMAIL override (another address is not in the bypass allowlist). */
+const LEGACY_EMAIL_ENV: Partial<
+  Record<
+    DemoPersonaKey,
+    | 'DEMO_COMPANY_OWNER_EMAIL'
+    | 'DEMO_SYSTEM_ADMIN_EMAIL'
+    | 'DEMO_EXECUTIVE_EMAIL'
+    | 'DEMO_STAFF_EMAIL'
+  >
+> = {
+  OWNER: 'DEMO_COMPANY_OWNER_EMAIL',
+  SYSTEM_ADMIN: 'DEMO_SYSTEM_ADMIN_EMAIL',
+  EXECUTIVE: 'DEMO_EXECUTIVE_EMAIL',
+  STAFF: 'DEMO_STAFF_EMAIL',
+};
+
+/**
+ * Applies a persona to its membership ONCE (EP28.1). The marker is a
+ * DEMO_PERSONA_APPLIED audit entry on the membership: one controlled entry
+ * per persona, never repeated.
+ *
+ *   no membership           create it with role, job title, branch scope,
+ *                           departments, branch grants and the exception
+ *   membership, no marker   (an account from an earlier seed) fill only what
+ *                           was never decided: a missing job title, no
+ *                           departments at all, branch access never changed
+ *                           (EP26 audit), no exceptions; then mark it
+ *   marker present          nothing: later administrator changes stand
+ *
+ * The role is never changed after creation; the owner keeps its invariants.
+ */
+async function applyPersona(
+  db: Db,
+  companyId: string,
+  userId: string,
+  persona: DemoPersona,
+): Promise<'created' | 'completed' | 'unchanged'> {
+  const member = await db.companyMember.findUnique({ where: { userId } });
+  if (member && member.companyId !== companyId) {
+    throw new SeedError(`The ${persona.key} demo account already belongs to another company.`);
+  }
+  if (
+    member &&
+    (await db.auditLog.count({
+      where: { companyId, action: DEMO_PERSONA_MARKER, entityId: member.id },
+    }))
+  ) {
+    return 'unchanged';
+  }
+  const departments = await db.department.findMany({
+    where: { companyId, code: { in: [...persona.departments] } },
+  });
+  const restricted = persona.branches !== 'ALL' && persona.role !== 'COMPANY_OWNER';
+  const branchIds = restricted
+    ? (
+        await db.branch.findMany({
+          where: { companyId, code: { in: [...persona.branches] }, status: 'ACTIVE' },
+          orderBy: { code: 'asc' },
+        })
+      ).map((b) => b.id)
+    : [];
+  const primary = persona.departments[0];
+
+  return db.$transaction(async (tx) => {
+    const filled: string[] = [];
+    let target = member;
+    if (!target) {
+      target = await tx.companyMember.create({
+        data: {
+          companyId,
+          userId,
+          role: persona.role,
+          // The owner slot pairs with COMPANY_OWNER (database CHECK).
+          ownerSlot: persona.role === 'COMPANY_OWNER' ? true : null,
+          jobTitle: persona.jobTitle,
+          branchScope: restricted ? 'SELECTED_BRANCHES' : 'ALL_BRANCHES',
+        },
+      });
+      filled.push('membership');
+    } else if (!target.jobTitle) {
+      target = await tx.companyMember.update({
+        where: { id: target.id },
+        data: { jobTitle: persona.jobTitle },
+      });
+      filled.push('jobTitle');
+    }
+    const fresh = filled.includes('membership');
+    const memberId = target.id;
+
+    if (departments.length && (fresh || !(await tx.membership.count({ where: { userId } })))) {
+      await tx.membership.createMany({
+        data: departments.map((d) => ({
+          userId,
+          departmentId: d.id,
+          isPrimary: d.code === primary,
+        })),
+        skipDuplicates: true,
+      });
+      filled.push('departments');
+    }
+
+    const accessDecided =
+      !fresh &&
+      (await tx.auditLog.count({
+        where: { companyId, action: 'MEMBER_BRANCH_ACCESS_CHANGED', entityId: memberId },
+      })) > 0;
+    if (restricted && !accessDecided && (fresh || target.branchScope === 'ALL_BRANCHES')) {
+      target = await tx.companyMember.update({
+        where: { id: memberId },
+        data: { branchScope: 'SELECTED_BRANCHES' },
+      });
+      await tx.memberBranchAccess.createMany({
+        data: branchIds.map((branchId) => ({ companyId, memberId, branchId })),
+        skipDuplicates: true,
+      });
+      // Like any access change: a session left on another branch is cleared.
+      await clearStaleBranchSessions(tx, target);
+      filled.push('branches');
+    }
+
+    if (
+      persona.exception &&
+      persona.role !== 'COMPANY_OWNER' &&
+      (fresh || !(await tx.memberPermissionOverride.count({ where: { memberId } })))
+    ) {
+      await tx.memberPermissionOverride.create({
+        data: { companyId, memberId, ...persona.exception },
+      });
+      filled.push('exception');
+    }
+
+    await recordCompanyEvent(tx, SEED_META, {
+      action: DEMO_PERSONA_MARKER,
+      actorId: null,
+      actorScope: 'seed',
+      companyId,
+      entityType: 'CompanyMember',
+      entityId: memberId,
+      details: {
+        persona: persona.key,
+        role: target.role,
+        departments: [...persona.departments],
+        branchScope: target.branchScope,
+        branches: restricted ? [...persona.branches] : [],
+        applied: filled,
+      },
+    });
+    return fresh ? 'created' : 'completed';
+  });
 }
 
 /** EP25 demo branch — an illustrative address, not a real business. */

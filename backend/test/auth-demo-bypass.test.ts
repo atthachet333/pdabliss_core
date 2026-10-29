@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import { DEMO_BYPASS_EMAILS, demoBypassEnabled } from '../src/auth/demo-bypass.js';
+import { DEMO_PERSONAS } from '../src/demo/personas.js';
 import {
   Browser,
   createHarness,
@@ -11,17 +12,13 @@ import {
 } from './support.js';
 
 /*
- * Development-only demo sign-in bypass: the four seeded demo customers skip the
+ * Development-only demo sign-in bypass: the seeded demo customers (EP28.1: nine personas) skip the
  * emailed login code after a correct password — and nobody else, and never in
  * production. See src/auth/demo-bypass.ts.
  */
 
-const DEMO_ROLES = {
-  'owner.demo@pdabliss.com': 'COMPANY_OWNER',
-  'admin.demo@pdabliss.com': 'SYSTEM_ADMIN',
-  'executive.demo@pdabliss.com': 'EXECUTIVE',
-  'staff.demo@pdabliss.com': 'DEPARTMENT_STAFF',
-} as const;
+// EP28.1: every persona of src/demo/personas.ts (the four EP23 accounts and five department personas).
+const DEMO_ROLES = Object.fromEntries(DEMO_PERSONAS.map((p) => [p.email, p.role]));
 
 async function demoCompany(h: Harness) {
   return (await h.db.company.create({ data: { name: 'Demo', isDemo: true } })).id;
@@ -217,5 +214,7 @@ describeDb('demo sign-in bypass — production', () => {
     }
     expect(await h.db.session.count()).toBe(0);
     expect(await h.db.authAuditEvent.count({ where: { type: 'DEMO_AUTH_BYPASS' } })).toBe(0);
+    // EP28.1: no development persona list either.
+    expect((await new Browser(h.app).get('/api/v1/demo/personas')).statusCode).toBe(404);
   });
 });

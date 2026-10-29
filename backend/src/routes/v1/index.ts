@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { demoBypassEnabled } from '../../auth/demo-bypass.js';
 import { authUnavailable } from '../../auth/errors.js';
 import type { InvitationService } from '../../auth/invitations.js';
 import type { PlatformService } from '../../auth/platform.js';
@@ -8,6 +9,7 @@ import type { CompanyControlService } from '../../company/control.js';
 import type { CompanyService } from '../../company/service.js';
 import type { Db } from '../../db/client.js';
 import type { Env } from '../../config/env.js';
+import { DEMO_PERSONAS } from '../../demo/personas.js';
 import { API_VERSION, SERVICE_NAME } from '../../meta.js';
 import { accountRoutes } from './account.js';
 import { authRoutes } from './auth.js';
@@ -47,6 +49,21 @@ export const v1Routes: FastifyPluginAsync<{
 
   if (opts.enableDemoRoutes) {
     await app.register(demoRoutes, { prefix: '/demo' });
+  }
+
+  // EP28.1: the demo personas for the development-only list on the sign-in
+  // page — addresses and labels, never a password. Exists only where the
+  // demo sign-in bypass does (never production, demo routes on, accounts on).
+  if (opts.services && demoBypassEnabled(opts.env)) {
+    app.get('/demo/personas', () => ({
+      personas: DEMO_PERSONAS.map((p) => ({
+        key: p.key,
+        label: p.label,
+        email: p.email,
+        role: p.role,
+        jobTitle: p.jobTitle,
+      })),
+    }));
   }
 
   const { services } = opts;

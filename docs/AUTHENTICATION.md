@@ -175,14 +175,14 @@ See `backend/.env.example` (placeholders only — never commit `.env`).
 | `PLATFORM_OWNER_EMAIL`, `PLATFORM_OWNER_INITIAL_PASSWORD` | The owner's **real** address, local only. Placeholders are refused. |
 | `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_INITIAL_PASSWORD` | `platform.admin@pdabliss.com` in development. |
 | `BOOTSTRAP_RESET_PASSWORDS` | `false` by default — re-runs never change existing passwords silently. |
-| `DEMO_*_EMAIL`, `DEMO_*_PASSWORD` | Demo identities (dev/test only); each password set locally. |
+| `DEMO_*_EMAIL`, `DEMO_*_PASSWORD` | Demo identities (dev/test only); each password set locally. EP28.1 adds `DEMO_SALES/OPERATIONS/WAREHOUSE/PURCHASING/ACCOUNTING_PASSWORD` ([DEMO_PERSONAS.md](DEMO_PERSONAS.md)). |
 
 ## 8. Bootstrap and demo seed
 
 ```bash
 npm --prefix backend run db:migrate     # prisma migrate deploy
 npm --prefix backend run db:seed        # privileged bootstrap: owner + admin
-npm --prefix backend run db:seed:demo   # + labelled demo company and four customer identities
+npm --prefix backend run db:seed:demo   # + labelled demo company and its demo personas (docs/DEMO_PERSONAS.md)
 npm --prefix backend run auth:cleanup   # remove expired tokens / old sessions
 ```
 

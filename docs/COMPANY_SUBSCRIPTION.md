@@ -136,7 +136,7 @@ non-secret details.
 
 `npm --prefix backend run db:seed:demo` makes `PDA BLISS CORE DEMO COMPANY` (`isDemo`) a complete
 workspace: Professional, `ACTIVE` (a controlled demo state, `mode: demo_seed`, `paid: false`), all
-six departments, Head Office `00000` at an illustrative address, and the four demo identities.
+six departments, Head Office `00000` at an illustrative address, and the demo identities (EP28.1: nine personas — [DEMO_PERSONAS.md](DEMO_PERSONAS.md)).
 Idempotent: the second run reports every item `unchanged` and changes no password. Refused in
 production.
 

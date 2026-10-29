@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
@@ -50,6 +50,13 @@ import { AreaLink, Loading, Pill } from './parts';
  */
 
 /** "Head Office · 00000" or "Chiang Mai · 00001" — how the working branch is named. */
+/** EP29: purchase requests and the Purchasing workspace — their own lazy chunk. */
+const PurchasingArea = lazy(() => import('@/features/purchasing/PurchasingArea'));
+
+/** Codes that open purchase requests for this person (presentation only; the server decides). */
+const REQUESTS =
+  /^(purchasing\.requests\.(view|create|approve)|[a-z]+\.purchase_requests\.(create|approve))$/;
+
 function useBranchLabel() {
   const a = useCopy(ADMIN_COPY);
   return (b: Pick<BranchInfo, 'type' | 'name' | 'code'>) =>
@@ -127,6 +134,20 @@ export function CoreArea({ identity }: { identity: Identity }) {
               <Blocked />
             ) : (
               <BranchSelector context={ctx} onSelected={set} onStale={reload} />
+            )
+          }
+        />
+        <Route
+          path="purchasing/*"
+          element={
+            ctx.blocked ? (
+              <Blocked />
+            ) : ctx.needsSelection ? (
+              <Navigate to="/core/branch" replace {...withLocale(locale)} />
+            ) : (
+              <Suspense fallback={<Loading label={c.shell.loading} />}>
+                <PurchasingArea />
+              </Suspense>
             )
           }
         />
@@ -475,13 +496,32 @@ function OperationsHome({ context }: { context: BranchContext }) {
                       <Pill tone="muted" data-level>
                         {level}
                       </Pill>
-                      {c.core.later}
+                      {code === 'PURCHASING' ? (
+                        <AreaLink
+                          to="/core/purchasing"
+                          className="font-semibold text-brand-soft underline-offset-4 hover:underline"
+                          data-open-workspace
+                        >
+                          {c.core.openPurchasing}
+                        </AreaLink>
+                      ) : (
+                        c.core.later
+                      )}
                     </p>
                   </div>
                 </li>
               );
             })}
           </ul>
+        )}
+        {(context.permissions ?? []).some((x) => REQUESTS.test(x)) && (
+          <AreaLink
+            to="/core/purchasing/requests"
+            className={buttonClasses('secondary', 'md', 'w-fit')}
+            data-purchase-requests
+          >
+            {c.core.requests}
+          </AreaLink>
         )}
         <p className="flex items-start gap-2 text-caption text-text-muted">
           <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-soft" />

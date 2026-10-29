@@ -51,6 +51,8 @@ export type CompanyAuditAction =
   | 'MEMBER_PERMISSION_OVERRIDE_REMOVED'
   // ---- EP28.1: the demo seed applied a demo persona to a membership (once; seed only)
   | 'DEMO_PERSONA_APPLIED'
+  // ---- EP29: purchase requests (details: number, from / to, field names, line no, item code)
+  | PurchaseRequestAuditAction
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;
@@ -80,6 +82,26 @@ export type MasterDataAuditAction =
   /** Base unit or inventory / lot / expiry tracking changed (the structure policy point). */
   | 'ITEM_STRUCTURE_CHANGED';
 
+export type PurchaseRequestAuditAction =
+  | 'PURCHASE_REQUEST_CREATED'
+  | 'PURCHASE_REQUEST_UPDATED'
+  | 'PURCHASE_REQUEST_LINE_ADDED'
+  | 'PURCHASE_REQUEST_LINE_UPDATED'
+  | 'PURCHASE_REQUEST_LINE_REMOVED'
+  | 'PURCHASE_REQUEST_SUBMITTED'
+  | 'PURCHASE_REQUEST_APPROVED'
+  | 'PURCHASE_REQUEST_REJECTED'
+  | 'PURCHASE_REQUEST_CANCELLED';
+
+/**
+ * Entities whose audit details are the customer's business data: Platform
+ * Inspection shows that such an event happened, never its details (EP28, EP29).
+ */
+export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
+  ...MASTER_AUDIT_ENTITIES,
+  'PurchaseRequest',
+];
+
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
   `${MASTER_EVENT_PREFIX[entity]}_${verb}`;
 
@@ -95,7 +117,8 @@ export type AuditEntityType =
   | 'Subscription'
   | 'Department'
   | 'Invitation'
-  | MasterAuditEntity;
+  | MasterAuditEntity
+  | 'PurchaseRequest';
 
 export async function recordCompanyEvent(
   db: DbClient,

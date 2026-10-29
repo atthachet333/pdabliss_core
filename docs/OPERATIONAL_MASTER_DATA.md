@@ -226,7 +226,10 @@ whose `expiryTracking ≠ NONE`, the earliest `expiryDate` first. Receiving requ
 decimals checked against the base unit's precision. Warehouse registers a `STRUCTURE_LOCKS` entry
 (stock or lots exist ⇒ no unit / tracking change). Warehouse views stay operational only.
 
-**Purchasing (EP29 PR → PO).** PR / PO lines reference `itemId`, `unitId` (the base unit in v1)
+**Purchasing (EP29 PR → PO).** *EP29 delivered the purchase request side:* request lines
+reference `itemId` + `unitId` (base unit) with code / name snapshots, accept only ACTIVE items and
+units, and check quantity precision against the unit — [PURCHASING_REQUEST.md](PURCHASING_REQUEST.md).
+PR / PO lines reference `itemId`, `unitId` (the base unit in v1)
 and the PO `supplierId`; they **snapshot** item code / name and supplier code / name for the
 historical document while keeping the canonical ids. Only ACTIVE items / suppliers may be chosen.
 Prices, payment terms and supplier financial terms live in Purchasing records with their own

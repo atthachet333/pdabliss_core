@@ -169,6 +169,14 @@ noindex, served by the existing `/platform/*` shell rewrite).
   Purchasing / Sales register their locks. Master records hold no price, cost, margin or
   financial term — those belong to module records with their own permissions and views.
 
+- **EP29 (Purchase requests):** see [PURCHASING_REQUEST.md](PURCHASING_REQUEST.md) and
+  [EP29_REPORT.md](EP29_REPORT.md). The first operational document: `PurchaseRequest` /
+  `PurchaseRequestLine` under `/api/v1/purchase-requests`, numbered `PR-YYYYMM-NNNNNN` from an
+  atomic per-company sequence, created in the selected branch, raised from a permitted
+  department, decided once (conditional update), never holding price / supplier / cost. Status
+  changes only through explicit actions checked by one policy table — follow the same pattern
+  (`policy.ts` + conditional updates + `DocumentSequence`) for purchase orders in EP30.
+
 ## 7. Warehouse boundary
 
 Warehouse must never receive price, unit cost, total cost, margin, payment amount, supplier

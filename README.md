@@ -101,7 +101,13 @@ personas — owner, System Admin, Executive, Sales, Operations, Warehouse, Purch
 the legacy staff account — each with only its own department and branch scope, applied once by the
 seed and never undoing an administrator's changes, plus a development-only persona list on the
 sign-in page ([docs/DEMO_PERSONAS.md](docs/DEMO_PERSONAS.md), [docs/EP28_1_REPORT.md](docs/EP28_1_REPORT.md)).
-Next: EP29 Purchasing Request (PR) foundation (not started).
+**EP29** (completed locally, awaiting owner review) adds the first operational workflow —
+purchase requests: numbered drafts in the selected branch from a permitted department, item and
+non-item lines with exact quantities and server snapshots, submit / approve / reject / cancel
+through one transition policy (single decision under races), server-side visibility by
+permission and branch, audit and timeline, a Purchasing workspace and four demo requests
+([docs/PURCHASING_REQUEST.md](docs/PURCHASING_REQUEST.md), [docs/EP29_REPORT.md](docs/EP29_REPORT.md)).
+Next: EP30 Purchase Order foundation (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -122,7 +128,8 @@ Roadmap:
    Center** → EP24.1.3 Brand identity → **EP25 Company Control Center foundation** →
    **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** →
    **EP28 Operational Master Data** → **EP28.1 Department demo personas**
-3. EP29 Purchasing Request (PR) foundation → purchase orders & receiving → Sales → Warehouse →
+3. **EP29 Purchasing Request (PR) foundation** → EP30 purchase orders → deposit / payment status
+   → pending receive → Warehouse receiving → Sales → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

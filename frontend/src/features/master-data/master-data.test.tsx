@@ -477,5 +477,22 @@ describe('Master Data (EP28)', () => {
     expect(label('CUSTOMER_CREATED', 'zh-CN')).toBe('客户 CUS-000001 已新建');
     expect(label('ITEM_STRUCTURE_CHANGED', 'zh-CN')).toContain('CUS-000001');
     expect(label('BRANCH_CREATED', 'en')).toBe('Branch created');
+    // EP29: purchase-request events by number.
+    expect(
+      eventLabel(
+        { type: 'PURCHASE_REQUEST_APPROVED', details: { number: 'PR-202610-000001' } },
+        CONTROL_COPY.en,
+        ADMIN_COPY.en,
+        PERMISSION_COPY.en,
+      ),
+    ).toBe('Purchase request PR-202610-000001 approved');
+    expect(
+      eventLabel(
+        { type: 'PURCHASE_REQUEST_LINE_ADDED', details: { number: 'PR-202610-000001' } },
+        CONTROL_COPY.th,
+        ADMIN_COPY.th,
+        PERMISSION_COPY.th,
+      ),
+    ).toBe('ใบขอซื้อ PR-202610-000001 เพิ่มรายการ');
   });
 });

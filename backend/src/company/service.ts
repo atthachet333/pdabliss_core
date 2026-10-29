@@ -12,7 +12,7 @@ import type { Db } from '../db/client.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { AppLocale, CompanyRole } from '../generated/prisma/enums.js';
 import { AppError, NotFoundError } from '../lib/errors.js';
-import { MASTER_AUDIT_ENTITIES, recordCompanyEvent, type ActorScope } from './audit.js';
+import { BUSINESS_AUDIT_ENTITIES, recordCompanyEvent, type ActorScope } from './audit.js';
 import { membershipInactive, noCompany } from './context.js';
 import { can } from './policy.js';
 import {
@@ -687,12 +687,12 @@ export class CompanyService {
         lastLoginAt: m.user.lastLoginAt?.toISOString() ?? null,
       })),
       // Business events of this company (EP24 AuditLog): small, non-secret details only.
-      // EP28: operational master data (customers, suppliers, items, …) is the
-      // customer's business data — the platform sees that such an event
-      // happened, never the record's code, name or fields.
+      // EP28 / EP29: master data and purchase requests are the customer's
+      // business data — the platform sees that such an event happened, never
+      // its code, name, number or fields.
       activity: activity.map((a) => {
         const { actorScope, ...details } = (a.changes ?? {}) as Record<string, unknown>;
-        const masterData = (MASTER_AUDIT_ENTITIES as readonly string[]).includes(a.entityType);
+        const masterData = BUSINESS_AUDIT_ENTITIES.includes(a.entityType);
         return {
           id: a.id,
           action: a.action,

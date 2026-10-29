@@ -100,6 +100,8 @@ model Company {
   units              Unit[]
   itemCategories     ItemCategory[]
   items              Item[]
+  /// EP29 document numbers (PR-YYYYMM-000001, …).
+  documentSequences  DocumentSequence[]
 
   @@index([status])
   @@index([onboardingStatus])
@@ -202,6 +204,11 @@ model CompanyMember {
   branchAccess        MemberBranchAccess[]
   /// Per-member exceptions to the role's operational permissions (EP27).
   permissionOverrides MemberPermissionOverride[]
+  /// EP29 purchase requests raised / decided / cancelled by this member.
+  purchaseRequests    PurchaseRequest[]          @relation("PurchaseRequestRequester")
+  approvedRequests    PurchaseRequest[]          @relation("PurchaseRequestApprover")
+  rejectedRequests    PurchaseRequest[]          @relation("PurchaseRequestRejecter")
+  cancelledRequests   PurchaseRequest[]          @relation("PurchaseRequestCanceller")
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -278,38 +285,40 @@ enum BranchStatus {
 }
 
 model Branch {
-  id             String               @id @default(cuid())
-  companyId      String
-  company        Company              @relation(fields: [companyId], references: [id])
+  id               String               @id @default(cuid())
+  companyId        String
+  company          Company              @relation(fields: [companyId], references: [id])
   /// Stable 5-digit code, unique per company; the Head Office is 00000.
-  code           String
-  name           String
-  type           BranchType
-  status         BranchStatus         @default(ACTIVE)
+  code             String
+  name             String
+  type             BranchType
+  status           BranchStatus         @default(ACTIVE)
   /// TRUE only for the Head Office (NULL otherwise): at most one per company in
   /// the database; onboarding creates it in the same transaction as the company.
-  headOfficeSlot Boolean?
-  addressLine1   String
-  addressLine2   String?
+  headOfficeSlot   Boolean?
+  addressLine1     String
+  addressLine2     String?
   /// Sub-district / tambon (Thailand) or locality.
-  subdistrict    String?
+  subdistrict      String?
   /// District / amphoe / khet, or city.
-  district       String?
+  district         String?
   /// Province / state / region.
-  province       String
-  postalCode     String
+  province         String
+  postalCode       String
   /// ISO 3166-1 alpha-2.
-  countryCode    String               @default("TH")
-  phone          String?
-  deactivatedAt  DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  countryCode      String               @default("TH")
+  phone            String?
+  deactivatedAt    DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   /// Sessions working in this branch (EP25 branch context).
-  sessions       Session[]
+  sessions         Session[]
   /// Memberships granted this branch specifically (EP26).
-  memberAccess   MemberBranchAccess[]
+  memberAccess     MemberBranchAccess[]
   /// Physical locations inside this branch (EP28).
-  locations      WarehouseLocation[]
+  locations        WarehouseLocation[]
+  /// Purchase requests raised in this branch (EP29).
+  purchaseRequests PurchaseRequest[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -972,20 +981,22 @@ model Supplier {
 /// decimal places a quantity in this unit may carry (0 = whole numbers);
 /// future quantities are exact decimals, never floating point.
 model Unit {
-  id            String       @id @default(cuid())
+  id            String                @id @default(cuid())
   companyId     String
-  company       Company      @relation(fields: [companyId], references: [id])
+  company       Company               @relation(fields: [companyId], references: [id])
   code          String
   name          String
   symbol        String?
-  precision     Int          @default(0)
-  status        MasterStatus @default(ACTIVE)
+  precision     Int                   @default(0)
+  status        MasterStatus          @default(ACTIVE)
   deactivatedAt DateTime?
   createdById   String?
   updatedById   String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
   items         Item[]
+  /// EP29: request lines counted in this unit.
+  requestLines  PurchaseRequestLine[]
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -1037,9 +1048,9 @@ enum TrackingRequirement {
 /// Base unit and tracking change only through the structure policy
 /// (src/master-data/policy.ts) — the point future Warehouse locks.
 model Item {
-  id               String              @id @default(cuid())
+  id               String                @id @default(cuid())
   companyId        String
-  company          Company             @relation(fields: [companyId], references: [id])
+  company          Company               @relation(fields: [companyId], references: [id])
   /// Company-unique, immutable (generated FG-000001 … or entered on creation).
   code             String
   /// Fixed at creation (it chose the code prefix).
@@ -1051,18 +1062,20 @@ model Item {
   /// Barcode (GTIN / EAN / internal), company-unique when given. No scanning yet.
   barcode          String?
   baseUnitId       String
-  baseUnit         Unit                @relation(fields: [baseUnitId, companyId], references: [id, companyId])
+  baseUnit         Unit                  @relation(fields: [baseUnitId, companyId], references: [id, companyId])
   categoryId       String?
-  category         ItemCategory?       @relation(fields: [categoryId, companyId], references: [id, companyId])
-  inventoryTracked Boolean             @default(true)
-  lotTracking      TrackingRequirement @default(NONE)
-  expiryTracking   TrackingRequirement @default(NONE)
-  status           MasterStatus        @default(ACTIVE)
+  category         ItemCategory?         @relation(fields: [categoryId, companyId], references: [id, companyId])
+  inventoryTracked Boolean               @default(true)
+  lotTracking      TrackingRequirement   @default(NONE)
+  expiryTracking   TrackingRequirement   @default(NONE)
+  status           MasterStatus          @default(ACTIVE)
   deactivatedAt    DateTime?
   createdById      String?
   updatedById      String?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  /// EP29: request lines that name this item (canonical reference).
+  requestLines     PurchaseRequestLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1105,4 +1118,126 @@ model WarehouseLocation {
   @@unique([id, companyId])
   @@index([companyId, status])
   @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// Purchase requests (EP29) — docs/PURCHASING_REQUEST.md
+//
+// The first operational document: a department asks for goods, materials or
+// services BEFORE any purchase order exists. A request belongs to one company
+// and one branch, is raised from one department by one member, and moves
+// DRAFT → SUBMITTED → APPROVED | REJECTED, or → CANCELLED where allowed — only
+// through the transition policy (src/purchasing/transitions.ts). Lines ask for
+// a quantity of a canonical item (with snapshots of its code, name and unit)
+// or describe a one-off need. No price, cost, supplier or tax: commercial
+// terms belong to the future purchase order.
+// ---------------------------------------------------------------------------
+
+/// Per-company counters behind document numbers (`PR:202610` → PR-202610-000001).
+/// Incremented atomically in the creating transaction, like MasterCodeSequence.
+model DocumentSequence {
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  /// Document type and period, e.g. PR:202610.
+  key       String
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@id([companyId, key])
+}
+
+enum PurchaseRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PurchaseRequestLineType {
+  /// A canonical Item in one of its units (snapshots kept for history).
+  ITEM
+  /// A described one-off need (a service, a repair) — no fake Item required.
+  NON_ITEM
+}
+
+model PurchaseRequest {
+  id                    String                @id @default(cuid())
+  companyId             String
+  /// The branch the request is raised in (the requester's selected branch).
+  branchId              String
+  branch                Branch                @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// PR-YYYYMM-NNNNNN: company-unique, immutable, from DocumentSequence.
+  number                String
+  /// The department the need comes from (canonical code; labels localize at display).
+  department            DepartmentCode
+  requesterMemberId     String
+  requester             CompanyMember         @relation("PurchaseRequestRequester", fields: [requesterMemberId, companyId], references: [id, companyId])
+  status                PurchaseRequestStatus @default(DRAFT)
+  /// The calendar day the request was raised (company time zone).
+  requestDate           DateTime              @db.Date
+  needByDate            DateTime?             @db.Date
+  /// Why it is needed, as written (required to submit).
+  purpose               String?
+  /// Next line number to hand out; numbers are never reused.
+  lineCounter           Int                   @default(0)
+  /// Taken on submit so the document stays readable if the branch or person is renamed.
+  branchCodeSnapshot    String?
+  branchNameSnapshot    String?
+  requesterNameSnapshot String?
+  submittedAt           DateTime?
+  approvedAt            DateTime?
+  approvedByMemberId    String?
+  approvedBy            CompanyMember?        @relation("PurchaseRequestApprover", fields: [approvedByMemberId, companyId], references: [id, companyId])
+  rejectedAt            DateTime?
+  rejectedByMemberId    String?
+  rejectedBy            CompanyMember?        @relation("PurchaseRequestRejecter", fields: [rejectedByMemberId, companyId], references: [id, companyId])
+  rejectionReason       String?
+  cancelledAt           DateTime?
+  cancelledByMemberId   String?
+  cancelledBy           CompanyMember?        @relation("PurchaseRequestCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason    String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  lines                 PurchaseRequestLine[]
+
+  @@unique([companyId, number])
+  /// Target of company-bound foreign keys (lines; future purchase orders).
+  @@unique([id, companyId])
+  @@index([companyId, status, updatedAt])
+  @@index([companyId, branchId, status])
+  @@index([companyId, requesterMemberId])
+  @@index([companyId, department, status])
+}
+
+model PurchaseRequestLine {
+  id                String                  @id @default(cuid())
+  companyId         String
+  purchaseRequestId String
+  request           PurchaseRequest         @relation(fields: [purchaseRequestId, companyId], references: [id, companyId], onDelete: Cascade)
+  /// 1, 2, 3 … within the request; stable (never reused after a removal).
+  lineNo            Int
+  type              PurchaseRequestLineType
+  itemId            String?
+  item              Item?                   @relation(fields: [itemId, companyId], references: [id, companyId])
+  /// Snapshots of the item (server-derived; never from the client).
+  itemCode          String?
+  itemName          String?
+  /// What a NON_ITEM line asks for.
+  description       String?
+  unitId            String?
+  unit              Unit?                   @relation(fields: [unitId, companyId], references: [id, companyId])
+  /// Unit snapshots (or the free unit text of a NON_ITEM line).
+  unitCode          String?
+  unitName          String?
+  /// Exact decimal, > 0, within the unit's precision. Never floating point.
+  quantity          Decimal                 @db.Decimal(18, 6)
+  note              String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([purchaseRequestId, lineNo])
+  /// Target of company-bound foreign keys from future purchase-order lines.
+  @@unique([id, companyId])
+  @@index([itemId])
 }

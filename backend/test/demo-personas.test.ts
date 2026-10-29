@@ -157,6 +157,8 @@ describeDb('Demo personas (EP28.1)', () => {
         h.db.item.count(),
         h.db.customer.count(),
         h.db.warehouseLocation.count(),
+        h.db.purchaseRequest.count(),
+        h.db.purchaseRequestLine.count(),
         h.db.auditLog.count(),
         h.db.masterCodeSequence
           .findMany({ orderBy: { prefix: 'asc' } })
@@ -489,6 +491,34 @@ describeDb('Demo personas (EP28.1)', () => {
     ]).toEqual(['COMPANY_OWNER', true, 'ACTIVE', 'ALL_BRANCHES']);
     // The platform accounts are untouched by the personas.
     expect(await h.db.platformRoleAssignment.count()).toBe(1);
+  });
+
+  it('seeds four demo purchase requests once, visible by persona (EP29)', async () => {
+    const rows = await h.db.purchaseRequest.findMany({ orderBy: { number: 'asc' } });
+    expect(rows.map((r) => [r.department, r.status])).toEqual([
+      ['WAREHOUSE', 'DRAFT'],
+      ['SALES', 'SUBMITTED'],
+      ['OPERATIONS', 'APPROVED'],
+      ['PURCHASING', 'REJECTED'],
+    ]);
+    const PR = '/api/v1/purchase-requests';
+    const buyer = await login('purchasing.demo@pdabliss.com');
+    const queue = j(await buyer.get(`${PR}?view=queue`)).items;
+    expect(queue.map((r: J) => r.department)).toEqual(['SALES']);
+    expect(j(await buyer.get(PR)).total).toBe(3); // others' drafts stay private
+    const wh = await login('warehouse.demo@pdabliss.com');
+    expect(j(await wh.get(PR)).items.map((r: J) => r.status)).toEqual(['DRAFT']);
+    const sales = await login('sales.demo@pdabliss.com');
+    expect(j(await sales.get(PR)).items.map((r: J) => r.department)).toEqual(['SALES']);
+    const exec = await login('executive.demo@pdabliss.com');
+    expect(j(await exec.get(PR)).total).toBe(3);
+    // Decided once: the buyer approves the Sales request; a later seed leaves it approved.
+    expect(j(await buyer.post(`${PR}/${queue[0].id}/approve`)).request.status).toBe('APPROVED');
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await h.db.purchaseRequest.count()).toBe(4);
+    expect(
+      (await h.db.purchaseRequest.findUniqueOrThrow({ where: { id: queue[0].id } })).status,
+    ).toBe('APPROVED');
   });
 
   it('the legacy staff account carries the one exception: receiving is denied', async () => {

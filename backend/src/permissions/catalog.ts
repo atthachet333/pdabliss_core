@@ -33,6 +33,18 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  * default). Warehouse locations are BRANCH-scoped and also need branch
  * access. `company.master_data.manage` is the company administration
  * authority over all of it (Owner and System Admin, every branch).
+ *
+ * EP29 purchase requests. A request is raised FROM a department and decided
+ * by Purchasing or by the originating department's manager:
+ *   purchasing.requests.view     the Purchasing queue (every non-draft request
+ *                                in the member's branches)
+ *   purchasing.requests.create   raise / edit / submit / cancel own requests
+ *                                from Purchasing (submit is part of create)
+ *   purchasing.requests.approve  decide any request: approve OR reject
+ *   purchasing.requests.cancel   cancel an approved request
+ *   <dept>.purchase_requests.create   raise own requests from that department
+ *   <dept>.purchase_requests.approve  decide (and see) that department's requests
+ * No `submit` / `reject` actions: they are the create and approve tiers.
  */
 
 export const PERMISSION_NAMESPACES = [
@@ -128,6 +140,8 @@ export const PERMISSION_CATALOG = [
   def('sales.customers.view', 'SALES', 'COMPANY'),
   def('sales.customers.manage', 'SALES', 'COMPANY'),
   def('sales.items.view', 'SALES', 'COMPANY'),
+  def('sales.purchase_requests.create', 'SALES', 'BRANCH'),
+  def('sales.purchase_requests.approve', 'SALES', 'BRANCH'),
   // ---- Operations
   def('operations.workspace.view', 'OPERATIONS', 'BRANCH'),
   def('operations.orders.view', 'OPERATIONS', 'BRANCH'),
@@ -136,6 +150,8 @@ export const PERMISSION_CATALOG = [
   def('operations.orders.update_status', 'OPERATIONS', 'BRANCH'),
   def('operations.items.view', 'OPERATIONS', 'COMPANY'),
   def('operations.items.manage', 'OPERATIONS', 'COMPANY'),
+  def('operations.purchase_requests.create', 'OPERATIONS', 'BRANCH'),
+  def('operations.purchase_requests.approve', 'OPERATIONS', 'BRANCH'),
   // ---- Warehouse (operational data only — never financial)
   def('warehouse.workspace.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.inventory.view', 'WAREHOUSE', 'BRANCH'),
@@ -146,6 +162,8 @@ export const PERMISSION_CATALOG = [
   def('warehouse.items.view', 'WAREHOUSE', 'COMPANY'),
   def('warehouse.locations.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.locations.manage', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.purchase_requests.create', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.purchase_requests.approve', 'WAREHOUSE', 'BRANCH'),
   // ---- Purchasing
   def('purchasing.workspace.view', 'PURCHASING', 'BRANCH'),
   def('purchasing.requests.view', 'PURCHASING', 'BRANCH'),
@@ -157,6 +175,7 @@ export const PERMISSION_CATALOG = [
   def('purchasing.suppliers.view', 'PURCHASING', 'COMPANY'),
   def('purchasing.suppliers.manage', 'PURCHASING', 'COMPANY'),
   def('purchasing.items.view', 'PURCHASING', 'COMPANY'),
+  def('purchasing.requests.cancel', 'PURCHASING', 'BRANCH'),
   // ---- Accounting
   def('accounting.workspace.view', 'ACCOUNTING', 'BRANCH'),
   def('accounting.payments.view', 'ACCOUNTING', 'BRANCH'),
@@ -164,6 +183,8 @@ export const PERMISSION_CATALOG = [
   def('accounting.documents.view', 'ACCOUNTING', 'BRANCH'),
   def('accounting.customers.view', 'ACCOUNTING', 'COMPANY'),
   def('accounting.suppliers.view', 'ACCOUNTING', 'COMPANY'),
+  def('accounting.purchase_requests.create', 'ACCOUNTING', 'BRANCH'),
+  def('accounting.purchase_requests.approve', 'ACCOUNTING', 'BRANCH'),
   // ---- Executive
   def('executive.workspace.view', 'EXECUTIVE', 'BRANCH'),
   def('executive.overview.view', 'EXECUTIVE', 'BRANCH'),

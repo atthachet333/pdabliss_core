@@ -1,11 +1,12 @@
-import { ChevronRight, Plus, Search } from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField } from '@/features/auth/fields';
 import { BranchCode } from '@/features/company-center/adminParts';
-import { useLoad } from '@/features/company-center/model';
+import { CELL, useLoad } from '@/features/company-center/model';
+import { SearchBox } from '@/features/company-center/SearchBox';
 import { AreaLink, AreaNavLink, Loading, PageTitle, Pill } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
@@ -239,31 +240,14 @@ function ListPage({ resource: r }: { resource: Resource }) {
         role="search"
         className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] lg:items-end"
       >
-        <div className="sm:col-span-2 lg:col-span-2">
-          <label
-            htmlFor={`${base}-q`}
-            className="mb-2 block text-label font-medium text-text-primary"
-          >
-            {c.filters.search}
-          </label>
-          <div className="relative">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
-            />
-            <input
-              id={`${base}-q`}
-              type="search"
-              value={q}
-              maxLength={100}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={c.res[r].hint}
-              aria-describedby={`${base}-count`}
-              className="min-h-12 w-full rounded-xl bg-white/[0.04] py-2 pr-3 pl-9 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.14)] placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              data-search
-            />
-          </div>
-        </div>
+        <SearchBox
+          id={`${base}-q`}
+          label={c.filters.search}
+          value={q}
+          onChange={setQ}
+          placeholder={c.res[r].hint}
+          describedBy={`${base}-count`}
+        />
         {defs.map(([key, label, options]) => (
           <SelectField
             key={key}
@@ -405,8 +389,7 @@ function columns(r: Resource, c: MasterCopy): [string, (x: MasterRecord) => Reac
 function Rows({ resource: r, items }: { resource: Resource; items: MasterRecord[] }) {
   const c = useCopy(MASTER_COPY);
   const cols = columns(r, c);
-  const cell =
-    'block px-0 py-1 align-top md:table-cell md:px-3 md:py-3 md:first:pl-4 max-md:before:block max-md:before:text-caption max-md:before:text-text-muted max-md:before:content-[attr(data-label)]';
+  const cell = CELL;
   return (
     <table className="w-full text-left text-label max-md:block" data-rows>
       <thead className="max-md:sr-only">

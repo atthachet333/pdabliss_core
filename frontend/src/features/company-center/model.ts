@@ -159,9 +159,14 @@ export function eventLabel(
       : p.events.changed(who, what, effect);
   }
   // EP28: master-data events read "Customer CUS-000001 created" (code only, never the record's fields).
-  const code = typeof e.details.code === 'string' ? e.details.code : '';
+  // EP29: purchase-request events read the same way, by request number.
+  const ref = e.details.code ?? e.details.number;
+  const code = typeof ref === 'string' ? ref : '';
   if (e.type === 'ITEM_STRUCTURE_CHANGED') return c.security.master.structure(code);
-  const m = /^(CUSTOMER|SUPPLIER|ITEM_CATEGORY|ITEM|UNIT|LOCATION)_([A-Z]+)$/.exec(e.type);
+  const m =
+    /^(CUSTOMER|SUPPLIER|ITEM_CATEGORY|ITEM|UNIT|LOCATION|PURCHASE_REQUEST)_([A-Z_]+)$/.exec(
+      e.type,
+    );
   const verb = m && c.security.master.verbs[m[2]!];
   if (m && verb) return c.security.master.line(verb, c.security.master.entities[m[1]!]!, code);
   return c.security.events[e.type] ?? e.type;
@@ -174,3 +179,7 @@ export function permissionLabel(code: string, p: PermissionCopy) {
   const action = p.actions[code.slice(i + 1)];
   return resource && action ? `${resource} — ${action}` : code;
 }
+
+/** Table cell that becomes a labelled row below 768 px (data-label holds the column name). */
+export const CELL =
+  'block px-0 py-1 align-top md:table-cell md:px-3 md:py-3 md:first:pl-4 max-md:before:block max-md:before:text-caption max-md:before:text-text-muted max-md:before:content-[attr(data-label)]';

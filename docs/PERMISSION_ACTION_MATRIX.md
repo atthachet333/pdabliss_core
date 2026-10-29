@@ -56,6 +56,14 @@ branch access or enabled departments takes effect on the next request of every o
 | Accounting | `accounting.workspace.view`, `accounting.payments.view` · `.update_status`, `accounting.documents.view` |
 | Executive | `executive.workspace.view`, `executive.overview.view` |
 | **EP28 master data** | `company.master_data.manage` (administration) · `sales.customers.view` · `.manage`, `sales.items.view`, `operations.items.view` · `.manage`, `warehouse.items.view`, `warehouse.locations.view` · `.manage`, `purchasing.suppliers.view` · `.manage`, `purchasing.items.view`, `accounting.customers.view`, `accounting.suppliers.view` |
+| **EP29 purchase requests** | `purchasing.requests.view` · `.create` · `.approve` (existing) + `purchasing.requests.cancel`; `sales` · `operations` · `warehouse` · `accounting` `.purchase_requests.create` · `.approve` |
+
+**EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
+(OPERATE) and rejecting is the negative side of the `approve` decision (MANAGE). A request is
+raised from a department (`<dept>.purchase_requests.create`, or `purchasing.requests.create`) and
+decided by Purchasing (`purchasing.requests.approve`, any department) or by the originating
+department's manager (`<dept>.purchase_requests.approve`). Who may do what in each status is one
+policy table (`backend/src/purchasing/policy.ts`); see [PURCHASING_REQUEST.md](PURCHASING_REQUEST.md).
 
 **EP28 scope note.** Canonical master records are one per company, so the customer, supplier and
 item codes are **COMPANY-scoped** operational permissions (department, package, assignment and

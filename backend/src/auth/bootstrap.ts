@@ -12,6 +12,7 @@ import {
   type DemoPersonaKey,
 } from '../demo/personas.js';
 import { seedDemoMasterData } from '../master-data/demo.js';
+import { seedDemoPurchaseRequests } from '../purchasing/demo.js';
 import { normalizeEmail } from './crypto.js';
 import { checkPassword, hashPassword } from './password.js';
 
@@ -439,6 +440,8 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   // EP28: a very small, coherent master-data set (units, categories, items, one
   // customer, one supplier, locations). Stable codes; never overwrites.
   const masterData = await seedDemoMasterData(db, company.id, SEED_META);
+  // EP29: four demo purchase requests (one per status), created once each.
+  const purchaseRequests = await seedDemoPurchaseRequests(db, company.id, SEED_META);
 
   return {
     companyId: company.id,
@@ -448,6 +451,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     subscription: subscription ? 'unchanged' : 'created',
     personas: results,
     masterData,
+    purchaseRequests,
   };
 }
 

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { CompanyRole } from '../src/generated/prisma/enums.js';
 import {
@@ -69,7 +69,11 @@ describe('Permission catalog (EP27)', () => {
       expect(PERMISSION_ACTIONS).toContain(p.action);
       const prefix = p.code.split('.')[0]!;
       expect(p.namespace).toBe(prefix === 'company' ? 'COMPANY_ADMIN' : prefix.toUpperCase());
-      expect(p.scope).toBe(p.namespace === 'COMPANY_ADMIN' ? 'COMPANY' : 'BRANCH');
+      // EP28: canonical master records (customers, suppliers, items) are one per
+      // company; everything else operational — locations included — is per branch.
+      const companyWide =
+        p.namespace === 'COMPANY_ADMIN' || /\.(customers|suppliers|items)$/.test(p.resource);
+      expect(p.scope).toBe(companyWide ? 'COMPANY' : 'BRANCH');
     }
     expect(codes.some((c) => c.startsWith('platform.'))).toBe(false);
     // Every operational department has a workspace entry.
@@ -88,9 +92,16 @@ describe('Permission catalog (EP27)', () => {
   });
 
   it('lists exactly the operational codes in the database CHECK', () => {
-    const sql = readFileSync(
-      'prisma/migrations/20261030090000_ep27_permission_action_matrix/migration.sql',
-      'utf8',
+    // The latest migration that (re)defines the CHECK (EP27, widened in EP28).
+    const dir = 'prisma/migrations';
+    const latest = readdirSync(dir)
+      .filter((m) => /^\d{14}_/.test(m))
+      .sort()
+      .map((m) => readFileSync(`${dir}/${m}/migration.sql`, 'utf8'))
+      .filter((sql) => sql.includes('"MemberPermissionOverride_permission_check"'))
+      .at(-1)!;
+    const sql = latest.slice(
+      latest.lastIndexOf('ADD CONSTRAINT "MemberPermissionOverride_permission_check"'),
     );
     const listed = [...sql.matchAll(/^\s+'([a-z_.]+)'/gm)].map((m) => m[1]);
     expect(listed).toEqual(OVERRIDABLE_PERMISSIONS);

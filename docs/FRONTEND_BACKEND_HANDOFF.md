@@ -160,6 +160,15 @@ noindex, served by the existing `/platform/*` shell rewrite).
   codes to the catalog (+ migration CHECK + TH/EN/ZH labels); never check roles or departments by
   hand. The frontend reads `context.permissions` to show / disable / explain only.
 
+- **EP28 (Operational Master Data):** see [OPERATIONAL_MASTER_DATA.md](OPERATIONAL_MASTER_DATA.md)
+  and [EP28_REPORT.md](EP28_REPORT.md). Canonical, company-scoped `Customer`, `Supplier`, `Item`
+  (+ `Unit`, `ItemCategory`) and branch-scoped `WarehouseLocation` under `/api/v1/master-data`.
+  Modules **reference these ids and never copy the identity**; documents snapshot code / name for
+  history. New documents refuse INACTIVE master records. Item base unit and tracking change only
+  through the structure policy point (`backend/src/master-data/policy.ts`), where Warehouse /
+  Purchasing / Sales register their locks. Master records hold no price, cost, margin or
+  financial term — those belong to module records with their own permissions and views.
+
 ## 7. Warehouse boundary
 
 Warehouse must never receive price, unit cost, total cost, margin, payment amount, supplier

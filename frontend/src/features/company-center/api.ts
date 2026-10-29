@@ -41,7 +41,9 @@ export type AdminPermission =
   | 'company.permissions.manage'
   | 'company.subscription.view'
   | 'company.activity.view'
-  | 'company.settings.manage';
+  | 'company.settings.manage'
+  /** EP28: company-wide master-data administration (Owner, System Admin). */
+  | 'company.master_data.manage';
 type DepartmentPrefix =
   'sales' | 'operations' | 'warehouse' | 'purchasing' | 'accounting' | 'executive';
 export type PermissionCode = AdminPermission | `${DepartmentPrefix}.${string}.${string}`;

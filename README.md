@@ -89,7 +89,14 @@ ALLOW / DENY exceptions (DENY first) for operational permissions, one server res
 `requirePermission()` guard, CORE navigation by effective workspace permission, and
 `/company/permissions` ([docs/PERMISSION_ACTION_MATRIX.md](docs/PERMISSION_ACTION_MATRIX.md),
 [docs/EP27_REPORT.md](docs/EP27_REPORT.md)).
-Next: EP28 Master Data (not started).
+**EP28** (completed locally, awaiting owner review) adds the operational master data foundation:
+canonical company-scoped customers, suppliers, items, units and categories and branch-scoped
+warehouse locations, with atomic code generation, reversible lifecycle, lot / expiry tracking
+requirements, domain-aware permissions on the EP27 matrix, Warehouse-safe views and a Master Data
+area in the Company Control Center
+([docs/OPERATIONAL_MASTER_DATA.md](docs/OPERATIONAL_MASTER_DATA.md),
+[docs/EP28_REPORT.md](docs/EP28_REPORT.md)).
+Next: EP29 Purchasing Request (PR) foundation (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -108,9 +115,11 @@ Roadmap:
 2. EP23 Account & Real Authentication → EP24 Company & Subscription Foundation → EP24.1 Platform
    Control Center, Company Explorer & Account Profile → **EP24.1.2 Operator-first Platform Control
    Center** → EP24.1.3 Brand identity → **EP25 Company Control Center foundation** →
-   **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** → EP28 Master Data
-3. EP29 Sales → EP30 Warehouse → EP31 Purchasing → EP32 Operations → EP33 Accounting Operations →
-   EP34 Executive
+   **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** →
+   **EP28 Operational Master Data**
+3. EP29 Purchasing Request (PR) foundation → purchase orders & receiving → Sales → Warehouse →
+   Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
+   scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification
    Engine → EP40 Reports / Custom Reports → EP41 API / Integration
 5. Full-system final QA / security / stress / release readiness → production deployment →

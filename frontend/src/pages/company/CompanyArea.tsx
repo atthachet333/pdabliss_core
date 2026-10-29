@@ -1,8 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { SignedInArea } from '@/features/account/PortalShell';
 import { BranchDetailPage } from '@/features/company-center/BranchDetailPage';
 import { BranchesPage } from '@/features/company-center/BranchesPage';
 import { CompanyShell } from '@/features/company-center/CompanyShell';
+import { Loading } from '@/features/company-center/parts';
 import { DepartmentsPage } from '@/features/company-center/DepartmentsPage';
 import { InvitationsPage } from '@/features/company-center/InvitationsPage';
 import { MemberDetailPage } from '@/features/company-center/MemberDetailPage';
@@ -23,7 +25,11 @@ import { UsersPage } from '@/features/company-center/UsersPage';
  * EP26 adds the branch detail (/company/branches/:id), one member's page
  * (/company/users/:id) and the invitation lifecycle (/company/users/invitations).
  * EP27 adds permission profiles and member exceptions (/company/permissions).
+ * EP28 adds operational master data (/company/master-data/*) — its own lazy
+ * chunk, downloaded only when someone opens Master Data.
  */
+const MasterDataArea = lazy(() => import('@/features/master-data/MasterDataArea'));
+
 export default function CompanyArea() {
   return (
     <SignedInArea area="company">
@@ -41,6 +47,14 @@ export default function CompanyArea() {
             <Route path="subscription" element={<SubscriptionPage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route path="permissions" element={<PermissionsPage />} />
+            <Route
+              path="master-data/*"
+              element={
+                <Suspense fallback={<Loading label="…" />}>
+                  <MasterDataArea />
+                </Suspense>
+              }
+            />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/company" replace />} />
           </Routes>

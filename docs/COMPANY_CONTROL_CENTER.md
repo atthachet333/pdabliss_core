@@ -1,4 +1,4 @@
-# Company Control Center (EP25, deepened in EP26 and EP27)
+# Company Control Center (EP25, deepened in EP26 and EP27; Master Data in EP28)
 
 The customer side of company administration in PDA BLISS CORE. It sits between the Account Portal
 and CORE Operations:
@@ -37,6 +37,7 @@ the landing page.
 | `/company/subscription` | package facts, status, cycle, price, period, entitlements, branches; "Contact PDA BLISS" | Owner, System Admin, Executive |
 | `/company/security` | administration events + members' sign-in / security events (no IPs) | Owner, System Admin |
 | `/company/permissions` (EP27) | role profiles (read only) and per-member permission exceptions | Owner, System Admin |
+| `/company/master-data/*` (EP28) | customers, suppliers, items, units, categories, warehouse locations — lists, records, create / edit / deactivate | anyone holding a master-data view code; manage per [OPERATIONAL_MASTER_DATA.md](OPERATIONAL_MASTER_DATA.md) §7 (Owner / System Admin everything) |
 | `/company/settings` | company time zone, default language; closure note | Owner, System Admin |
 | `/core/branch` | branch selector | active members |
 | `/core` | CORE Operations entry: selected branch, permitted departments | active members |
@@ -176,7 +177,11 @@ not weakened: department staff do not even receive the subscription price (`pric
 `INVITATION_SENT`, `INVITATION_REVOKED`, `INVITATION_ACCEPTED`, `MEMBER_ROLE_CHANGED`,
 `MEMBER_STATUS_CHANGED`, `MEMBER_JOB_TITLE_CHANGED`, `MEMBER_DEPARTMENTS_CHANGED`,
 `DEPARTMENT_ENABLED`, `DEPARTMENT_DISABLED`; EP26 adds `MEMBER_BRANCH_ACCESS_CHANGED` and
-`INVITATION_RESENT`; EP27 adds `MEMBER_PERMISSION_OVERRIDE_ADDED` / `_CHANGED` / `_REMOVED`. Details: field names, codes, roles, from → to, the
+`INVITATION_RESENT`; EP27 adds `MEMBER_PERMISSION_OVERRIDE_ADDED` / `_CHANGED` / `_REMOVED`;
+EP28 adds the master-data events (`CUSTOMER_*`, `SUPPLIER_*`, `ITEM_*`, `UNIT_*`,
+`ITEM_CATEGORY_*`, `LOCATION_*` created / updated / deactivated / reactivated, and
+`ITEM_STRUCTURE_CHANGED`) with code, name and field names only — Platform Inspection shows that
+they happened, never their details. Details: field names, codes, roles, from → to, the
 invitee email — never tokens, passwords or file bytes. EP23 auth events for invitations remain.
 
 ## 11. API summary (`/api/v1`, session required, no company id anywhere)
@@ -206,6 +211,7 @@ invitee email — never tokens, passwords or file bytes. EP23 auth events for in
 | GET · POST | `/company/context` · `/company/context/branch` |
 | GET | `/operations/context` |
 | GET | `/operations/workspaces/:department` · `/operations/authorize?permission=` (EP27) |
+| GET · POST · PATCH · PUT | `/master-data/…` (EP28) — see [OPERATIONAL_MASTER_DATA.md](OPERATIONAL_MASTER_DATA.md) §11 |
 
 ## 12. Known limitations
 

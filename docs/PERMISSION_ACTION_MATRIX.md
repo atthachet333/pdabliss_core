@@ -38,8 +38,9 @@ branch access or enabled departments takes effect on the next request of every o
   two domain actions: `process` (receiving goods) and `update_status` (move a record's status —
   the one status action; there is no `manage_status`, `update`, `modify` or `change`).
   `delete` never means hard delete; business records cancel / void / archive.
-- **Scope** (metadata on every code): `COMPANY` (administration) or `BRANCH` (every operational
-  code — valid only inside the selected, permitted branch). A permission never grants a branch.
+- **Scope** (metadata on every code): `COMPANY` (administration, and since EP28 the canonical
+  company-wide master records: customers, suppliers, items) or `BRANCH` (every other operational
+  code — valid only inside a permitted branch). A permission never grants a branch.
 - **Tier** (metadata, drives role defaults): `READ` = view · `OPERATE` = create, edit, process ·
   `MANAGE` = approve, cancel, delete, export, manage, update_status.
 
@@ -54,6 +55,14 @@ branch access or enabled departments takes effect on the next request of every o
 | Purchasing | `purchasing.workspace.view`, `purchasing.requests.view` · `.create` · `.approve`, `purchasing.orders.view` · `.create` · `.approve` |
 | Accounting | `accounting.workspace.view`, `accounting.payments.view` · `.update_status`, `accounting.documents.view` |
 | Executive | `executive.workspace.view`, `executive.overview.view` |
+| **EP28 master data** | `company.master_data.manage` (administration) · `sales.customers.view` · `.manage`, `sales.items.view`, `operations.items.view` · `.manage`, `warehouse.items.view`, `warehouse.locations.view` · `.manage`, `purchasing.suppliers.view` · `.manage`, `purchasing.items.view`, `accounting.customers.view`, `accounting.suppliers.view` |
+
+**EP28 scope note.** Canonical master records are one per company, so the customer, supplier and
+item codes are **COMPANY-scoped** operational permissions (department, package, assignment and
+exceptions apply as usual; no selected branch is needed). Warehouse locations stay BRANCH-scoped
+and also need branch access to the named branch. Several departments read one record — a check
+can accept any of several codes (`requireAnyPermission`). `.manage` is MANAGE tier: Managers
+only by default; Staff and Viewers read. See [OPERATIONAL_MASTER_DATA.md](OPERATIONAL_MASTER_DATA.md) §7.
 
 **Warehouse holds no financial notion** — no cost, purchase price, margin, payment amount,
 supplier terms or financial reporting (a test enforces it). Those belong to Purchasing,
@@ -64,7 +73,7 @@ Accounting and Executive, and the per-response data-class rules still apply.
 | Role | Company administration | Operational departments |
 | --- | --- | --- |
 | Company Owner | everything (invariant) | every tier, every enabled department, no assignment needed |
-| System Admin | everything (the owner / peer / self protections still apply) | READ + OPERATE in **assigned** departments — administration is not operations |
+| System Admin | everything (the owner / peer / self protections still apply), incl. `company.master_data.manage` (EP28) | READ + OPERATE in **assigned** departments — administration is not operations |
 | Executive | view profile, branches, people, package | READ in every enabled department; no create / edit / approve |
 | Department Manager | view profile, branches | READ + OPERATE + MANAGE in assigned departments |
 | Department Staff | view profile, branches | READ + OPERATE in assigned departments (no approve / manage) |
@@ -121,6 +130,13 @@ Activity renders them in words, e.g. "Denied Stock adjustments — Approve for s
 
 Another company's member is simply not found (404). No response carries passwords, sessions,
 tokens, platform internals or other people's permissions except to administrators.
+
+**EP28 guards** (same resolver, no role checks):
+
+| Function | Use |
+| --- | --- |
+| `requireAnyPermission(db, ctx, codes)` | company-scoped check satisfied by any listed code (a customer read via Sales **or** Accounting); returns company access + effective codes |
+| `requireBranchPermission(db, ctx, code, branchId, companyWide?)` | a branch-scoped code for a branch named in the request (a location's branch): the branch is looked up in the caller's company; `companyWide` (an administration code) reaches every branch; otherwise the code **and** EP26 branch access are required |
 
 ## 9. How a future module protects an endpoint
 

@@ -158,6 +158,12 @@ export function eventLabel(
       ? p.events.added(who, what, effect)
       : p.events.changed(who, what, effect);
   }
+  // EP28: master-data events read "Customer CUS-000001 created" (code only, never the record's fields).
+  const code = typeof e.details.code === 'string' ? e.details.code : '';
+  if (e.type === 'ITEM_STRUCTURE_CHANGED') return c.security.master.structure(code);
+  const m = /^(CUSTOMER|SUPPLIER|ITEM_CATEGORY|ITEM|UNIT|LOCATION)_([A-Z]+)$/.exec(e.type);
+  const verb = m && c.security.master.verbs[m[2]!];
+  if (m && verb) return c.security.master.line(verb, c.security.master.entities[m[1]!]!, code);
   return c.security.events[e.type] ?? e.type;
 }
 

@@ -93,6 +93,13 @@ model Company {
   subscriptions      Subscription[]
   auditLogs          AuditLog[]
   logo               CompanyLogo?
+  /// EP28 operational master data (company-scoped canonical records).
+  codeSequences      MasterCodeSequence[]
+  customers          Customer[]
+  suppliers          Supplier[]
+  units              Unit[]
+  itemCategories     ItemCategory[]
+  items              Item[]
 
   @@index([status])
   @@index([onboardingStatus])
@@ -301,6 +308,8 @@ model Branch {
   sessions       Session[]
   /// Memberships granted this branch specifically (EP26).
   memberAccess   MemberBranchAccess[]
+  /// Physical locations inside this branch (EP28).
+  locations      WarehouseLocation[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -846,4 +855,254 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId, occurredAt])
   @@index([companyId, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Operational master data (EP28) — docs/OPERATIONAL_MASTER_DATA.md
+//
+// ONE canonical record per business identity, shared by every department:
+// Sales, Purchasing, Warehouse, Operations and Accounting reference these ids
+// and never keep their own copies. Customers, suppliers, items, units and
+// categories belong to exactly one Company; warehouse locations belong to one
+// Branch of that company. Every relation carries the company id in its
+// foreign key, so a record can never point into another company.
+//
+// Nothing is hard-deleted: records are deactivated (INACTIVE) and stay
+// identifiable for history. Codes are business identifiers, unique per
+// company (per branch for locations) and immutable once created. No price,
+// cost, margin, payment term or balance lives here — identity only.
+// ---------------------------------------------------------------------------
+
+/// Lifecycle of a master record. INACTIVE refuses new use (future workflows)
+/// but keeps the record readable and historically identifiable.
+enum MasterStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// Per-company counters behind generated codes (CUS-000001, FG-000001, …).
+/// Incremented with one atomic upsert inside the transaction that creates the
+/// record, so concurrent creates never share a number and a failed create
+/// leaves no gap.
+model MasterCodeSequence {
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  /// The code prefix, e.g. CUS, SUP, FG, RM.
+  prefix    String
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@id([companyId, prefix])
+}
+
+enum CustomerKind {
+  INDIVIDUAL
+  BUSINESS
+}
+
+/// The canonical customer (EP28). Identity and contact only — no credit,
+/// receivable, aging or revenue figures (those are workflow / reporting data).
+model Customer {
+  id              String       @id @default(cuid())
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id])
+  /// Company-unique, immutable (generated CUS-000001 or entered on creation).
+  code            String
+  kind            CustomerKind @default(BUSINESS)
+  /// Display / trading name.
+  name            String
+  legalName       String?
+  /// Normalized (no spaces or dashes, upper case). Optional; not assumed Thai.
+  taxId           String?
+  /// Tax branch text, e.g. "สำนักงานใหญ่" or "00001".
+  taxBranch       String?
+  contactName     String?
+  /// E.164 when given.
+  phone           String?
+  email           String?
+  lineId          String?
+  billingAddress  String?
+  shippingAddress String?
+  notes           String?
+  status          MasterStatus @default(ACTIVE)
+  deactivatedAt   DateTime?
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([companyId, code])
+  /// Target of company-bound foreign keys from future documents.
+  @@unique([id, companyId])
+  @@index([companyId, status])
+  @@index([companyId, name])
+}
+
+/// The canonical supplier (EP28) — GENERAL identity only. Financial terms
+/// (payment terms, bank accounts, prices) belong to future Purchasing /
+/// Accounting records that Warehouse never receives; none is stored here.
+model Supplier {
+  id            String       @id @default(cuid())
+  companyId     String
+  company       Company      @relation(fields: [companyId], references: [id])
+  code          String
+  name          String
+  legalName     String?
+  taxId         String?
+  taxBranch     String?
+  contactName   String?
+  phone         String?
+  email         String?
+  address       String?
+  notes         String?
+  status        MasterStatus @default(ACTIVE)
+  deactivatedAt DateTime?
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([companyId, code])
+  @@unique([id, companyId])
+  @@index([companyId, status])
+  @@index([companyId, name])
+}
+
+/// A unit of measure (PCS, KG, L, BOX, …). `precision` is the number of
+/// decimal places a quantity in this unit may carry (0 = whole numbers);
+/// future quantities are exact decimals, never floating point.
+model Unit {
+  id            String       @id @default(cuid())
+  companyId     String
+  company       Company      @relation(fields: [companyId], references: [id])
+  code          String
+  name          String
+  symbol        String?
+  precision     Int          @default(0)
+  status        MasterStatus @default(ACTIVE)
+  deactivatedAt DateTime?
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         Item[]
+
+  @@unique([companyId, code])
+  @@unique([id, companyId])
+  @@index([companyId, status])
+}
+
+/// A flat item category (v1: no hierarchy).
+model ItemCategory {
+  id            String       @id @default(cuid())
+  companyId     String
+  company       Company      @relation(fields: [companyId], references: [id])
+  code          String
+  name          String
+  description   String?
+  status        MasterStatus @default(ACTIVE)
+  deactivatedAt DateTime?
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         Item[]
+
+  @@unique([companyId, code])
+  @@unique([id, companyId])
+  @@index([companyId, status])
+}
+
+/// What an item is. NON_STOCK items (services, fees) never track inventory.
+enum ItemType {
+  FINISHED_GOOD
+  RAW_MATERIAL
+  PACKAGING
+  CONSUMABLE
+  NON_STOCK
+}
+
+/// Whether future stock of an item carries a lot / an expiry date.
+enum TrackingRequirement {
+  NONE
+  OPTIONAL
+  REQUIRED
+}
+
+/// The canonical item (EP28) — the one identity Sales, Purchasing, Warehouse
+/// and Operations reference. Identity and tracking requirements only: no
+/// quantity, cost, price or margin. Tracking rules (database CHECKs):
+/// NON_STOCK ⇒ not inventory tracked; not tracked ⇒ no lot / expiry; expiry is
+/// recorded per lot, so expiry tracking needs lot tracking at least as strict.
+/// Base unit and tracking change only through the structure policy
+/// (src/master-data/policy.ts) — the point future Warehouse locks.
+model Item {
+  id               String              @id @default(cuid())
+  companyId        String
+  company          Company             @relation(fields: [companyId], references: [id])
+  /// Company-unique, immutable (generated FG-000001 … or entered on creation).
+  code             String
+  /// Fixed at creation (it chose the code prefix).
+  type             ItemType
+  name             String
+  description      String?
+  /// Internal reference / SKU, company-unique when given.
+  sku              String?
+  /// Barcode (GTIN / EAN / internal), company-unique when given. No scanning yet.
+  barcode          String?
+  baseUnitId       String
+  baseUnit         Unit                @relation(fields: [baseUnitId, companyId], references: [id, companyId])
+  categoryId       String?
+  category         ItemCategory?       @relation(fields: [categoryId, companyId], references: [id, companyId])
+  inventoryTracked Boolean             @default(true)
+  lotTracking      TrackingRequirement @default(NONE)
+  expiryTracking   TrackingRequirement @default(NONE)
+  status           MasterStatus        @default(ACTIVE)
+  deactivatedAt    DateTime?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([companyId, code])
+  @@unique([companyId, sku])
+  @@unique([companyId, barcode])
+  @@unique([id, companyId])
+  @@index([companyId, status])
+  @@index([companyId, type])
+  @@index([companyId, name])
+  @@index([categoryId])
+  @@index([baseUnitId])
+}
+
+/// A physical place inside one branch (MAIN, RECEIVING, RACK-A, A-01, …).
+/// Code unique within the branch. Optional parent in the same branch (the
+/// parent foreign key carries the branch id; the service refuses cycles and
+/// depth beyond 4). At most one default location per branch. No stock here.
+model WarehouseLocation {
+  id            String              @id @default(cuid())
+  companyId     String
+  branchId      String
+  branch        Branch              @relation(fields: [branchId, companyId], references: [id, companyId])
+  code          String
+  name          String
+  description   String?
+  parentId      String?
+  parent        WarehouseLocation?  @relation("LocationTree", fields: [parentId, branchId], references: [id, branchId])
+  children      WarehouseLocation[] @relation("LocationTree")
+  /// TRUE for the branch's default operational location (NULL otherwise).
+  defaultSlot   Boolean?
+  status        MasterStatus        @default(ACTIVE)
+  deactivatedAt DateTime?
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([branchId, code])
+  @@unique([branchId, defaultSlot])
+  @@unique([id, branchId])
+  @@unique([id, companyId])
+  @@index([companyId, status])
+  @@index([parentId])
 }

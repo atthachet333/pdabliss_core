@@ -6,7 +6,7 @@ import type { DbClient, RequestMeta } from '../auth/audit.js';
  * customer's own action apart from a platform operator's or the seed's.
  *
  * EP25 adds the Company Control Center actions, EP26 branch access and
- * invitation resends. Details name what changed
+ * invitation resends, EP28 the operational master data. Details name what changed
  * (field names, codes, roles) — never a token, a password, a file's bytes or
  * anything secret.
  */
@@ -48,14 +48,52 @@ export type CompanyAuditAction =
   // ---- EP27: permission exceptions (details: member email, permission code, from / to effect)
   | 'MEMBER_PERMISSION_OVERRIDE_ADDED'
   | 'MEMBER_PERMISSION_OVERRIDE_CHANGED'
-  | 'MEMBER_PERMISSION_OVERRIDE_REMOVED';
+  | 'MEMBER_PERMISSION_OVERRIDE_REMOVED'
+  // ---- EP28: operational master data (details: code, name, changed field names,
+  // name / tracking from → to — never notes, addresses or contact values)
+  | MasterDataAuditAction;
+
+export const MASTER_AUDIT_ENTITIES = [
+  'Customer',
+  'Supplier',
+  'Item',
+  'Unit',
+  'ItemCategory',
+  'WarehouseLocation',
+] as const;
+export type MasterAuditEntity = (typeof MASTER_AUDIT_ENTITIES)[number];
+
+const MASTER_EVENT_PREFIX = {
+  Customer: 'CUSTOMER',
+  Supplier: 'SUPPLIER',
+  Item: 'ITEM',
+  Unit: 'UNIT',
+  ItemCategory: 'ITEM_CATEGORY',
+  WarehouseLocation: 'LOCATION',
+} as const satisfies Record<MasterAuditEntity, string>;
+
+type MasterVerb = 'CREATED' | 'UPDATED' | 'DEACTIVATED' | 'REACTIVATED';
+export type MasterDataAuditAction =
+  | `${(typeof MASTER_EVENT_PREFIX)[MasterAuditEntity]}_${MasterVerb}`
+  /** Base unit or inventory / lot / expiry tracking changed (the structure policy point). */
+  | 'ITEM_STRUCTURE_CHANGED';
+
+export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
+  `${MASTER_EVENT_PREFIX[entity]}_${verb}`;
 
 export type ActorScope = 'customer' | 'platform_owner' | 'platform_admin' | 'seed';
 
 type Detail = string | number | boolean | null | readonly string[];
 
 export type AuditEntityType =
-  'User' | 'Company' | 'Branch' | 'CompanyMember' | 'Subscription' | 'Department' | 'Invitation';
+  | 'User'
+  | 'Company'
+  | 'Branch'
+  | 'CompanyMember'
+  | 'Subscription'
+  | 'Department'
+  | 'Invitation'
+  | MasterAuditEntity;
 
 export async function recordCompanyEvent(
   db: DbClient,

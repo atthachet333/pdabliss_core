@@ -6,6 +6,7 @@ import { recordCompanyEvent, type CompanyAuditAction } from '../company/audit.js
 import { clearStaleBranchSessions } from '../company/branch-access.js';
 import { snapshotFor } from '../company/entitlements.js';
 import { HEAD_OFFICE_CODE } from '../company/service.js';
+import { seedDemoMasterData } from '../master-data/demo.js';
 import { normalizeEmail } from './crypto.js';
 import { checkPassword, hashPassword } from './password.js';
 
@@ -527,6 +528,10 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     }
   }
 
+  // EP28: a very small, coherent master-data set (units, categories, items, one
+  // customer, one supplier, locations). Stable codes; never overwrites.
+  const masterData = await seedDemoMasterData(db, company.id, SEED_META);
+
   return {
     companyId: company.id,
     company: companyOutcome,
@@ -536,6 +541,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     identities: results,
     assignments,
     staffBranchAccess: branchAccess,
+    masterData,
   };
 }
 

@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Building2,
   CircleUserRound,
+  Database,
   KeyRound,
   Layers,
   LayoutDashboard,
@@ -28,7 +29,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
-import { can, controlApi, type AdminPermission } from './api';
+import { can, controlApi, type AdminPermission, type PermissionCode } from './api';
 import { ControlContext, useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { PERMISSION_COPY } from './permissionCopy';
@@ -46,6 +47,15 @@ import { AreaLink, AreaNavLink, CompanyMark, Loading } from './parts';
  * sends the effective permissions and checks them again on every call). On large
  * screens the areas form a sidebar; below that, one scrollable row.
  */
+
+/**
+ * EP28: Master Data opens for anyone who may view at least one kind of
+ * master record (the server's codes; it checks every call again).
+ */
+const MASTER_VIEW =
+  /^(company\.master_data\.manage|[a-z]+\.(customers|suppliers|items|locations)\.view)$/;
+const seesMasterData = (codes: readonly PermissionCode[]) =>
+  codes.some((code) => MASTER_VIEW.test(code));
 
 /** Shown in place of a page the role may not open (the API would refuse it anyway). */
 export function RequirePermission({
@@ -117,6 +127,8 @@ export function CompanyShell({ identity, children }: { identity: Identity; child
     label: string;
     icon: typeof Building2;
     cap: AdminPermission;
+    /** Shown regardless of `cap` when set (EP28 Master Data follows operational codes). */
+    show?: boolean;
   }[] = [
     {
       to: '/company',
@@ -156,6 +168,13 @@ export function CompanyShell({ identity, children }: { identity: Identity; child
       icon: Activity,
       cap: 'company.activity.view',
     },
+    {
+      to: '/company/master-data',
+      label: c.shell.masterData,
+      icon: Database,
+      cap: 'company.master_data.manage',
+      show: seesMasterData(caps),
+    },
     { to: '/company/permissions', label: p.nav, icon: KeyRound, cap: 'company.permissions.view' },
     {
       to: '/company/settings',
@@ -164,7 +183,7 @@ export function CompanyShell({ identity, children }: { identity: Identity; child
       cap: 'company.settings.manage',
     },
   ];
-  const visible = nav.filter((n) => can(caps, n.cap));
+  const visible = nav.filter((n) => n.show ?? can(caps, n.cap));
 
   return (
     <div

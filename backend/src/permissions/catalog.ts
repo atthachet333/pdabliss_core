@@ -17,8 +17,9 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *              MANAGE  approve, cancel, update status, manage
  *
  * Action vocabulary: view · create · edit · approve · cancel · delete · export
- * · manage, plus two domain actions with their own meaning: `process`
- * (receiving goods) and `update_status` (move a record's status). `delete`
+ * · manage, plus three domain actions with their own meaning: `process`
+ * (receiving goods), `update_status` (move a record's status) and `confirm`
+ * (confirm that money was paid or received — EP30 deposits). `delete`
  * never implies a hard delete; business records will cancel / void / archive.
  *
  * Warehouse holds no financial action or resource (cost, purchase price,
@@ -45,6 +46,17 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   <dept>.purchase_requests.create   raise own requests from that department
  *   <dept>.purchase_requests.approve  decide (and see) that department's requests
  * No `submit` / `reject` actions: they are the create and approve tiers.
+ *
+ * EP30 purchase orders, deposits and pending receive:
+ *   purchasing.orders.view      read purchase orders (commercial view)
+ *   purchasing.orders.create    create a DRAFT order from an approved request
+ *   purchasing.orders.edit      edit / discard DRAFT orders (supplier, lines, prices, deposit)
+ *   purchasing.orders.approve   ISSUE an order to the supplier (no separate `issue` action)
+ *   purchasing.orders.cancel    cancel an issued order (reason required)
+ *   accounting.deposits.view    supplier deposits of issued orders, with order amounts
+ *   accounting.deposits.confirm confirm OR waive a required deposit (`confirm`: a
+ *                               domain action like `process`)
+ *   warehouse.receiving.view    orders pending receive — quantities only, never amounts
  */
 
 export const PERMISSION_NAMESPACES = [
@@ -69,6 +81,7 @@ export const PERMISSION_ACTIONS = [
   'manage',
   'process',
   'update_status',
+  'confirm',
 ] as const;
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
 
@@ -96,6 +109,7 @@ const TIER: Record<PermissionAction, PermissionTier> = {
   delete: 'MANAGE',
   manage: 'MANAGE',
   update_status: 'MANAGE',
+  confirm: 'MANAGE',
 };
 
 const def = <C extends string>(
@@ -176,6 +190,8 @@ export const PERMISSION_CATALOG = [
   def('purchasing.suppliers.manage', 'PURCHASING', 'COMPANY'),
   def('purchasing.items.view', 'PURCHASING', 'COMPANY'),
   def('purchasing.requests.cancel', 'PURCHASING', 'BRANCH'),
+  def('purchasing.orders.edit', 'PURCHASING', 'BRANCH'),
+  def('purchasing.orders.cancel', 'PURCHASING', 'BRANCH'),
   // ---- Accounting
   def('accounting.workspace.view', 'ACCOUNTING', 'BRANCH'),
   def('accounting.payments.view', 'ACCOUNTING', 'BRANCH'),
@@ -185,6 +201,8 @@ export const PERMISSION_CATALOG = [
   def('accounting.suppliers.view', 'ACCOUNTING', 'COMPANY'),
   def('accounting.purchase_requests.create', 'ACCOUNTING', 'BRANCH'),
   def('accounting.purchase_requests.approve', 'ACCOUNTING', 'BRANCH'),
+  def('accounting.deposits.view', 'ACCOUNTING', 'BRANCH'),
+  def('accounting.deposits.confirm', 'ACCOUNTING', 'BRANCH'),
   // ---- Executive
   def('executive.workspace.view', 'EXECUTIVE', 'BRANCH'),
   def('executive.overview.view', 'EXECUTIVE', 'BRANCH'),

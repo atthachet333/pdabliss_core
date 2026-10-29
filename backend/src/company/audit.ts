@@ -53,6 +53,9 @@ export type CompanyAuditAction =
   | 'DEMO_PERSONA_APPLIED'
   // ---- EP29: purchase requests (details: number, from / to, field names, line no, item code)
   | PurchaseRequestAuditAction
+  // ---- EP30: purchase orders (details: number, from / to, field names, line no,
+  // request number, item code — never amounts, prices, supplier or deposit values)
+  | PurchaseOrderAuditAction
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;
@@ -93,13 +96,26 @@ export type PurchaseRequestAuditAction =
   | 'PURCHASE_REQUEST_REJECTED'
   | 'PURCHASE_REQUEST_CANCELLED';
 
+export type PurchaseOrderAuditAction =
+  | 'PURCHASE_ORDER_CREATED'
+  | 'PURCHASE_ORDER_UPDATED'
+  | 'PURCHASE_ORDER_LINE_ADDED'
+  | 'PURCHASE_ORDER_LINE_UPDATED'
+  | 'PURCHASE_ORDER_LINE_REMOVED'
+  | 'PURCHASE_ORDER_ISSUED'
+  | 'PURCHASE_ORDER_CANCELLED'
+  | 'PURCHASE_ORDER_DEPOSIT_CONFIRMED'
+  | 'PURCHASE_ORDER_DEPOSIT_WAIVED';
+
 /**
  * Entities whose audit details are the customer's business data: Platform
- * Inspection shows that such an event happened, never its details (EP28, EP29).
+ * Inspection shows that such an event happened, never its details (EP28, EP29,
+ * EP30 — no order number, amount or supplier).
  */
 export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   ...MASTER_AUDIT_ENTITIES,
   'PurchaseRequest',
+  'PurchaseOrder',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -118,7 +134,8 @@ export type AuditEntityType =
   | 'Department'
   | 'Invitation'
   | MasterAuditEntity
-  | 'PurchaseRequest';
+  | 'PurchaseRequest'
+  | 'PurchaseOrder';
 
 export async function recordCompanyEvent(
   db: DbClient,

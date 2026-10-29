@@ -13,6 +13,19 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
       "port": 1111
+    },
+    {
+      "name": "ep30-api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/User/AppData/Local/Temp/claude/C--Users-User--claude-spares-spare-9ykiHX/7e4a0794-4aa5-4a11-81f7-c3dcafe9c842/scratchpad/qa-launch.mjs", "api"],
+      "port": 1212,
+      "url": "http://localhost:1212"
+    },
+    {
+      "name": "ep30-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/User/AppData/Local/Temp/claude/C--Users-User--claude-spares-spare-9ykiHX/7e4a0794-4aa5-4a11-81f7-c3dcafe9c842/scratchpad/qa-launch.mjs", "web"],
+      "port": 1211
     }
   ]
 }

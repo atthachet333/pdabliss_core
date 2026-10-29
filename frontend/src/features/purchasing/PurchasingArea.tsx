@@ -1,5 +1,14 @@
 import { FilePlus2 } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { controlClass } from '@/components/ui/fieldStyles';
@@ -24,6 +33,8 @@ import {
   type PurchaseRequest,
 } from './api';
 import { PR_COPY, prError } from './copy';
+import { poApi, type PoContext } from './orderApi';
+import { ORDER_COPY } from './orderCopy';
 import { RequestPage } from './RequestPage';
 
 /*
@@ -36,6 +47,9 @@ import { RequestPage } from './RequestPage';
  */
 
 const BASE = '/core/purchasing';
+
+/** EP30: purchase orders — their own lazy chunk. */
+const OrdersArea = lazy(() => import('./OrdersArea'));
 
 const TONE: Record<PrStatus, 'teal' | 'neutral' | 'warning' | 'muted'> = {
   DRAFT: 'neutral',
@@ -74,6 +88,14 @@ export default function PurchasingArea() {
         <Route path="requests" element={<ListPage ctx={ctx} />} />
         <Route path="requests/new" element={<CreatePage ctx={ctx} />} />
         <Route path="requests/:id" element={<Detail ctx={ctx} />} />
+        <Route
+          path="orders/*"
+          element={
+            <Suspense fallback={<Loading label={c.loading} />}>
+              <OrdersArea />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<Navigate to={BASE} replace />} />
       </Routes>
     </div>
@@ -88,6 +110,24 @@ function Detail({ ctx }: { ctx: PrContext }) {
 /** The Purchasing workspace: real counts and the way to the list and to a new request. */
 function Workspace({ ctx, any }: { ctx: PrContext; any: boolean }) {
   const c = useCopy(PR_COPY);
+  const o = useCopy(ORDER_COPY);
+  const [po, setPo] = useState<PoContext | null>(null);
+  const [poCounts, setPoCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    // EP30: order tiles for those who may read orders (counts from the API).
+    poApi
+      .context()
+      .then(async (p) => {
+        setPo(p);
+        if (!p.orders.view) return;
+        const [list, open] = await Promise.all([
+          poApi.list({ pageSize: 1 }),
+          p.orders.create ? poApi.sourceRequests('') : Promise.resolve(null),
+        ]);
+        setPoCounts({ ...list.counts, ...(open ? { toOrder: open.requests.length } : {}) });
+      })
+      .catch(() => undefined);
+  }, []);
   const [counts, setCounts] = useState<Partial<Record<'mine' | 'queue' | 'approved', number>>>({});
   const queue = ctx.purchasingView || ctx.decideDepartments.length > 0;
   useEffect(() => {
@@ -133,11 +173,7 @@ function Workspace({ ctx, any }: { ctx: PrContext; any: boolean }) {
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-tiles>
         {tiles.map(([key, to]) => (
           <li key={key}>
-            <AreaLink
-              to={to}
-              className="grid min-h-24 gap-1 rounded-2xl bg-white/[0.025] p-5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              data-tile={key}
-            >
+            <AreaLink to={to} className={TILE} data-tile={key}>
               <span className="text-label text-text-secondary">
                 {key === 'approved' ? c.statuses.APPROVED : c.views[key]}
               </span>
@@ -154,9 +190,47 @@ function Workspace({ ctx, any }: { ctx: PrContext; any: boolean }) {
       >
         {c.title} →
       </AreaLink>
+      {po?.orders.view && (
+        <>
+          <h2 className="mt-2 text-body font-semibold text-text-primary">{o.orders}</h2>
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-order-tiles>
+            {(
+              [
+                ...(po.orders.create
+                  ? ([['toOrder', o.tiles.toOrder, `${BASE}/orders/new`]] as const)
+                  : []),
+                ...(po.executive
+                  ? []
+                  : ([['DRAFT', o.tiles.drafts, `${BASE}/orders?status=DRAFT`]] as const)),
+                ['WAITING_DEPOSIT', o.tiles.waiting, `${BASE}/orders?status=WAITING_DEPOSIT`],
+                ['PENDING_RECEIVE', o.tiles.pending, `${BASE}/orders?status=PENDING_RECEIVE`],
+              ] as const
+            ).map(([key, label, to]) => (
+              <li key={key}>
+                <AreaLink to={to} className={TILE} data-tile={key}>
+                  <span className="text-label text-text-secondary">{label}</span>
+                  <span className="text-h3 font-semibold text-text-primary tabular-nums">
+                    {poCounts[key] ?? 0}
+                  </span>
+                </AreaLink>
+              </li>
+            ))}
+          </ul>
+          <AreaLink
+            to={`${BASE}/orders`}
+            className="w-fit text-label text-brand-soft underline-offset-4 hover:underline"
+            data-orders-link
+          >
+            {o.orders} →
+          </AreaLink>
+        </>
+      )}
     </>
   );
 }
+
+const TILE =
+  'grid min-h-24 gap-1 rounded-2xl bg-white/[0.025] p-5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus';
 
 function ListPage({ ctx }: { ctx: PrContext }) {
   const c = useCopy(PR_COPY);

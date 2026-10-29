@@ -61,6 +61,7 @@ const BUYER_CTX: PrContext = {
   decideDepartments: ['SALES', 'OPERATIONS', 'WAREHOUSE', 'PURCHASING', 'ACCOUNTING'],
   purchasingView: true,
   cancelApproved: true,
+  createOrders: true,
   branches: [{ id: 'b0', code: '00000', name: 'Head Office', type: 'HEAD_OFFICE' }],
   selectedBranch: { id: 'b0', code: '00000', name: 'Head Office', type: 'HEAD_OFFICE' },
 };
@@ -109,8 +110,10 @@ const request = (over: Partial<PurchaseRequest> = {}): PurchaseRequest => ({
       unit: { id: 'u1', code: 'BOX', name: 'Box' },
       quantity: '50',
       note: null,
+      ordering: null,
     },
   ],
+  orderState: null,
   updatedAt: '2026-10-29T03:00:00.000Z',
   ...over,
 });

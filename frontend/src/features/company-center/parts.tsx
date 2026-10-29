@@ -144,15 +144,18 @@ export function Pill({
   wrap = false,
   children,
   className,
+  ...data
 }: {
   tone?: 'teal' | 'neutral' | 'warning' | 'muted';
   /** Long data (a branch name) may wrap instead of overflowing a narrow screen. */
   wrap?: boolean;
   children: ReactNode;
   className?: string;
-}) {
+  /** `data-*` hooks (e.g. a status code) are passed through to the element. */
+} & { [key: `data-${string}`]: string | boolean | undefined }) {
   return (
     <span
+      {...data}
       className={cn(
         'inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-0.5 text-caption',
         wrap ? 'break-words' : 'whitespace-nowrap',

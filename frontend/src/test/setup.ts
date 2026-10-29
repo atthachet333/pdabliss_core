@@ -6,8 +6,11 @@ import { resetIdentityForTests } from '@/features/auth/session';
 afterEach(() => cleanup());
 
 // Route pages are lazy chunks; under a parallel test run the first import can
-// take longer than Testing Library's 1s default for findBy* queries.
-configure({ asyncUtilTimeout: 5000 });
+// take longer than Testing Library's 1s default for findBy* queries. EP30:
+// 10 s (below the 15 s test timeout) — the EP24 / EP25 Control Center and
+// Explorer tests that pass in ~2 s alone repeatedly crossed 5 s under a full
+// parallel run (EP27–EP29 reports). An element that never appears still fails.
+configure({ asyncUtilTimeout: 10_000 });
 
 // Per-viewer UI preferences (sidebar width) must not leak between tests.
 afterEach(() => window.localStorage.clear());

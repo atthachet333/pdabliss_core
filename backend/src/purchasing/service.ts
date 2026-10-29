@@ -7,6 +7,7 @@ import type { PurchaseRequestStatus } from '../generated/prisma/enums.js';
 import { AppError } from '../lib/errors.js';
 import { permissionDenied } from '../permissions/guard.js';
 import type { CreateInput, LineInput, ListInput, UpdateInput } from './input.js';
+import { requestOrdering } from './ordering.js';
 import {
   allowedActions,
   assertCan,
@@ -200,16 +201,23 @@ export class PurchaseRequestService {
   }
 
   private async view(actor: PrActor, r: Full) {
-    const events = await this.db.auditLog.findMany({
-      where: {
-        companyId: actor.access.company.id,
-        entityType: 'PurchaseRequest',
-        entityId: r.id,
-        action: { in: LIFECYCLE },
-      },
-      orderBy: { occurredAt: 'asc' },
-      include: { actor: { select: { fullName: true, email: true } } },
-    });
+    const [events, ordering] = await Promise.all([
+      this.db.auditLog.findMany({
+        where: {
+          companyId: actor.access.company.id,
+          entityType: 'PurchaseRequest',
+          entityId: r.id,
+          action: { in: LIFECYCLE },
+        },
+        orderBy: { occurredAt: 'asc' },
+        include: { actor: { select: { fullName: true, email: true } } },
+      }),
+      // EP30: what has been ordered (derived from purchase orders; order
+      // numbers only for members who may read orders).
+      r.status === 'APPROVED' || r.status === 'CANCELLED'
+        ? requestOrdering(this.db, r.lines, actor.permissions.includes('purchasing.orders.view'))
+        : Promise.resolve(null),
+    ]);
     return {
       request: {
         id: r.id,
@@ -255,7 +263,9 @@ export class PurchaseRequestService {
             l.unitId || l.unitName ? { id: l.unitId, code: l.unitCode, name: l.unitName } : null,
           quantity: l.quantity.toString(),
           note: l.note,
+          ordering: ordering?.byLine.get(l.id) ?? null,
         })),
+        orderState: ordering?.overall ?? null,
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
       },
@@ -279,6 +289,8 @@ export class PurchaseRequestService {
       decideDepartments: actor.decideDepartments,
       purchasingView: actor.purchasingView,
       cancelApproved: actor.cancelApproved,
+      /** EP30: may raise purchase orders from approved requests. */
+      createOrders: actor.permissions.includes('purchasing.orders.create'),
       branches: actor.branches,
       selectedBranch: selected,
     };
@@ -742,6 +754,21 @@ export class PurchaseRequestService {
               cancellationReason: reason,
             };
     await this.db.$transaction(async (tx) => {
+      if (action === 'cancel' && from === 'APPROVED') {
+        // EP30: an approved request with a live purchase order (draft or issued)
+        // stays; the lock orders this against an order being created or issued.
+        await tx.$queryRaw`SELECT "id" FROM "PurchaseRequest" WHERE "id" = ${id} FOR UPDATE`;
+        const live = await tx.purchaseOrderLine.count({
+          where: { purchaseRequestId: id, order: { status: { not: 'CANCELLED' } } },
+        });
+        if (live) {
+          throw new AppError(
+            409,
+            'PR_HAS_PURCHASE_ORDERS',
+            'This request has purchase orders. Cancel those orders first.',
+          );
+        }
+      }
       // Conditional on the status we decided from: a concurrent decision wins once.
       const changed = await tx.purchaseRequest.updateMany({
         where: { id, companyId: actor.access.company.id, status: from },

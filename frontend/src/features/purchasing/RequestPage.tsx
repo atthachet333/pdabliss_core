@@ -26,6 +26,7 @@ import {
   type UnitOption,
 } from './api';
 import { PR_COPY, prError } from './copy';
+import { ORDER_COPY } from './orderCopy';
 import { HeaderForm, PurposeField, StatusPill } from './PurchasingArea';
 
 /*
@@ -43,6 +44,7 @@ const decimals = (q: string) => (q.split('.')[1] ?? '').replace(/0+$/, '').lengt
 export function RequestPage({ id, ctx }: { id: string; ctx: PrContext }) {
   const c = useCopy(PR_COPY);
   const cc = useCopy(CONTROL_COPY);
+  const o = useCopy(ORDER_COPY);
   const deptName = useDepartmentName();
   const { date, dateTime } = useDateFormat();
   const { state, set } = useLoad(() => prApi.get(id));
@@ -98,6 +100,24 @@ export function RequestPage({ id, ctx }: { id: string; ctx: PrContext }) {
           <Fact term={c.f.purpose}>
             <span className="whitespace-pre-line">{r.purpose ?? '—'}</span>
           </Fact>
+          {r.orderState && (
+            <Fact term={o.ordering}>
+              <span className="flex flex-wrap items-center gap-3">
+                <span data-order-state={r.orderState}>{o.orderStates[r.orderState]}</span>
+                {ctx.createOrders &&
+                  r.status === 'APPROVED' &&
+                  r.orderState !== 'FULLY_ORDERED' && (
+                    <AreaLink
+                      to={`/core/purchasing/orders/new?request=${encodeURIComponent(r.id)}`}
+                      className={buttonClasses('secondary', 'md')}
+                      data-order-from-request
+                    >
+                      {o.fromRequest}
+                    </AreaLink>
+                  )}
+              </span>
+            </Fact>
+          )}
           {(r.rejectionReason || r.cancellationReason) && (
             <Fact term={c.f.reason}>
               <span className="whitespace-pre-line">
@@ -165,6 +185,29 @@ export function RequestPage({ id, ctx }: { id: string; ctx: PrContext }) {
                     {l.note && (
                       <span className="block text-caption whitespace-pre-line text-text-muted">
                         {l.note}
+                      </span>
+                    )}
+                    {l.ordering && (
+                      <span
+                        className="mt-1 block text-caption text-text-secondary tabular-nums"
+                        data-ordering={l.ordering.state}
+                      >
+                        {o.orderStates[l.ordering.state]} · {o.f.ordered} {l.ordering.ordered} ·{' '}
+                        {o.f.remaining} {l.ordering.remaining}
+                        {l.ordering.orders?.map((x) => (
+                          <span key={x.id}>
+                            {' · '}
+                            <AreaLink
+                              to={`/core/purchasing/orders/${encodeURIComponent(x.id)}`}
+                              className="font-mono text-brand-soft underline-offset-4 hover:underline"
+                            >
+                              {x.number}
+                            </AreaLink>{' '}
+                            <span className="text-text-muted">
+                              ({o.statuses[x.status as 'DRAFT']} {x.quantity})
+                            </span>
+                          </span>
+                        ))}
                       </span>
                     )}
                   </span>

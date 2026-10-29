@@ -34,6 +34,16 @@ export default defineConfig({
               test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
               entriesAware: true,
               entriesAwareMergeThreshold: 2 * 1024,
+              priority: 1,
+            },
+            // EP30: every page loads the entry's static graph anyway; one
+            // "shell" chunk keeps it together (without it, dropping the /app
+            // prototype from production builds split it into eight small
+            // files, each preloaded by every prerendered page).
+            {
+              name: 'shell',
+              tags: ['$initial'],
+              test: (id) => !/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id),
             },
           ],
         },

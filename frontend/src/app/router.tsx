@@ -218,12 +218,26 @@ export const routes: RouteObject[] = [
 ];
 
 /**
+ * EP30: whether this build carries the prototype workspaces — the same rule as
+ * PROTOTYPE_ENABLED (src/prototype/config.ts), written inline so the bundler
+ * folds it to a constant: a normal production build drops the prototype
+ * import below entirely (≈ 135 KiB never shipped).
+ */
+const PROTOTYPE_BUILD = import.meta.env.DEV || import.meta.env.VITE_ENABLE_PROTOTYPE === 'true';
+
+/**
  * EP20: the prototype workspaces (src/app/appRoutes.tsx) are discovered on the
  * first navigation into /app — until then /app/* only matches the public 404
  * splat, which is what makes the router ask. Public URLs return immediately.
+ * EP30: without the prototype, /app gets only its gate (same redirects as before).
  */
 export const patchRoutesOnNavigation: PatchRoutesOnNavigationFunction = async ({ path, patch }) => {
   if (path !== '/app' && !path.startsWith('/app/')) return;
+  if (!PROTOTYPE_BUILD) {
+    const { prototypeOffRoutes } = await import('./prototypeOffRoutes');
+    patch('root', prototypeOffRoutes());
+    return;
+  }
   const { appRoutes } = await import('./appRoutes');
   patch('root', appRoutes());
 };

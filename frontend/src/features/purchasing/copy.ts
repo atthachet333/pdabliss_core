@@ -12,7 +12,7 @@ import type { PrStatus, PrView } from './api';
 
 const th = {
   workspace: 'ฝ่ายจัดซื้อ',
-  workspaceLead: 'ใบขอซื้อจากทุกแผนก ใบสั่งซื้อจะมาในเฟสถัดไป',
+  workspaceLead: 'ใบขอซื้อจากทุกแผนก และใบสั่งซื้อที่สั่งจากใบขอซื้อที่อนุมัติแล้ว',
   title: 'ใบขอซื้อ',
   lead: 'ความต้องการของแผนกก่อนมีใบสั่งซื้อ ไม่มีราคาหรือผู้ขายในขั้นนี้',
   nav: 'เมนูฝ่ายจัดซื้อ',
@@ -118,7 +118,8 @@ export type PrCopy = typeof th;
 
 const en: PrCopy = {
   workspace: 'Purchasing',
-  workspaceLead: 'Requests from every department. Purchase orders come in a later phase.',
+  workspaceLead:
+    'Requests from every department, and the purchase orders placed from approved ones.',
   title: 'Purchase requests',
   lead: 'What departments need, before any purchase order. No price or supplier yet.',
   nav: 'Purchasing menu',
@@ -218,7 +219,7 @@ const en: PrCopy = {
 
 const zh: PrCopy = {
   workspace: '采购',
-  workspaceLead: '来自各部门的请购单。采购订单将在后续阶段推出。',
+  workspaceLead: '来自各部门的请购单，以及根据已批准请购单下达的采购订单。',
   title: '请购单',
   lead: '各部门在采购订单之前的需求，此阶段不涉及价格或供应商。',
   nav: '采购菜单',

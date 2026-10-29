@@ -130,6 +130,7 @@ const th = {
     'accounting.customers': 'ลูกค้า (บัญชี)',
     'accounting.suppliers': 'ผู้ขาย (บัญชี)',
     'accounting.purchase_requests': 'ใบขอซื้อของฝ่ายบัญชี',
+    'accounting.deposits': 'เงินมัดจำผู้ขาย',
     'executive.workspace': 'พื้นที่ผู้บริหาร',
     'executive.overview': 'ภาพรวมผู้บริหาร',
   } as Record<string, string>,
@@ -144,6 +145,7 @@ const th = {
     manage: 'จัดการ',
     process: 'ดำเนินการรับ',
     update_status: 'เปลี่ยนสถานะ',
+    confirm: 'ยืนยัน',
   } as Record<string, string>,
 };
 
@@ -269,6 +271,7 @@ const en: Copy = {
     'accounting.customers': 'Customers (accounting)',
     'accounting.suppliers': 'Suppliers (accounting)',
     'accounting.purchase_requests': 'Purchase requests (accounting)',
+    'accounting.deposits': 'Supplier deposits',
     'executive.workspace': 'Executive workspace',
     'executive.overview': 'Executive overview',
   },
@@ -283,6 +286,7 @@ const en: Copy = {
     manage: 'Manage',
     process: 'Process',
     update_status: 'Update status',
+    confirm: 'Confirm',
   },
 };
 
@@ -400,6 +404,7 @@ const zh: Copy = {
     'accounting.customers': '客户（财务）',
     'accounting.suppliers': '供应商（财务）',
     'accounting.purchase_requests': '请购单（财务）',
+    'accounting.deposits': '供应商定金',
     'executive.workspace': '管理层工作区',
     'executive.overview': '管理层概览',
   },
@@ -414,6 +419,7 @@ const zh: Copy = {
     manage: '管理',
     process: '办理',
     update_status: '更新状态',
+    confirm: '确认',
   },
 };
 

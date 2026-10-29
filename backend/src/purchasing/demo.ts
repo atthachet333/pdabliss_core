@@ -9,7 +9,9 @@ import { companyDay } from './service.js';
  * Demo purchase requests (EP29) — four small fixtures in the demo company, one
  * per status that matters to a reviewer: a Warehouse DRAFT (demo branch), a
  * Sales request SUBMITTED to Purchasing (Head Office), an Operations request
- * APPROVED by Purchasing, a Purchasing request REJECTED by the owner.
+ * APPROVED by Purchasing, a Purchasing request REJECTED by the owner. EP30
+ * adds a Head Office Purchasing request APPROVED by the owner, for the demo
+ * purchase orders (order-demo.ts).
  *
  * Created ONCE each: the CREATED audit entry carries a stable `demo` key and
  * a fixture whose key exists is never touched again — whatever happened to it
@@ -63,6 +65,20 @@ const FIXTURES: Fixture[] = [
     status: 'APPROVED',
     decidedBy: 'purchasing.demo@pdabliss.com',
     lines: [{ item: 'RM-000001', quantity: '12.5' }],
+  },
+  {
+    // EP30: the Head Office request the demo purchase orders are placed against.
+    key: 'PR_APPROVED_PURCHASING',
+    requester: 'purchasing.demo@pdabliss.com',
+    department: 'PURCHASING',
+    branch: '00000',
+    purpose: 'สินค้าสำเร็จรูปและบรรจุภัณฑ์สำหรับไตรมาสถัดไป (ข้อมูลสาธิต)',
+    status: 'APPROVED',
+    decidedBy: 'owner.demo@pdabliss.com',
+    lines: [
+      { item: 'FG-000001', quantity: '48' },
+      { item: 'PK-000001', quantity: '200' },
+    ],
   },
   {
     key: 'PR_REJECTED_PURCHASING',

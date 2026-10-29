@@ -110,7 +110,12 @@ for (const p of PAGES) {
   const sources = [LOCALE_MODULES[p.locale], ROUTE_MODULES[p.route]].filter(Boolean);
   write(p.file, page(p.head, p.head.lang, NOSCRIPT[p.locale], sources, p.locale === 'th'));
 }
-const SHELL_MODULES = { 'login.html': [ROUTE_MODULES['/login']], 'app.html': [APP_MODULE] };
+// EP30: a build without the prototype has no /app workspaces chunk (the app
+// shell then just loads the entry; /app redirects as before).
+const SHELL_MODULES = {
+  'login.html': [ROUTE_MODULES['/login']],
+  'app.html': manifest[APP_MODULE] ? [APP_MODULE] : [],
+};
 for (const s of SHELLS)
   write(
     s.file,

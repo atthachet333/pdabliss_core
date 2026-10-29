@@ -181,7 +181,8 @@ for (const { route, locale, file } of PAGES) {
 }
 for (const [file, src] of [
   ['login.html', ROUTE_MODULES['/login']],
-  ['app.html', APP_MODULE],
+  // EP30: only a prototype build has an /app workspaces chunk to preload.
+  ['app.html', manifest[APP_MODULE] ? APP_MODULE : null],
   ['404.html', null],
 ]) {
   const page = read(file);

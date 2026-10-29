@@ -52,6 +52,25 @@ import { AreaLink, Loading, Pill } from './parts';
 /** "Head Office · 00000" or "Chiang Mai · 00001" — how the working branch is named. */
 /** EP29: purchase requests and the Purchasing workspace — their own lazy chunk. */
 const PurchasingArea = lazy(() => import('@/features/purchasing/PurchasingArea'));
+/** EP30: Accounting's deposit queue and Warehouse's pending receive — one lazy chunk each. */
+const DepositsArea = lazy(() => import('@/features/purchasing/DepositsArea'));
+const ReceiveArea = lazy(() => import('@/features/purchasing/ReceiveArea'));
+
+/** EP30: a department card's way into its first EP30 screen (presentation only). */
+const DEPARTMENT_LINKS: Partial<
+  Record<string, { permission: string; to: string; label: 'openDeposits' | 'openReceive' }>
+> = {
+  ACCOUNTING: {
+    permission: 'accounting.deposits.view',
+    to: '/core/accounting/deposits',
+    label: 'openDeposits',
+  },
+  WAREHOUSE: {
+    permission: 'warehouse.receiving.view',
+    to: '/core/warehouse/pending-receive',
+    label: 'openReceive',
+  },
+};
 
 /** Codes that open purchase requests for this person (presentation only; the server decides). */
 const REQUESTS =
@@ -151,6 +170,26 @@ export function CoreArea({ identity }: { identity: Identity }) {
             )
           }
         />
+        {(
+          [
+            ['accounting/deposits/*', <DepositsArea key="d" />],
+            ['warehouse/pending-receive/*', <ReceiveArea key="r" />],
+          ] as const
+        ).map(([path, area]) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              ctx.blocked ? (
+                <Blocked />
+              ) : ctx.needsSelection ? (
+                <Navigate to="/core/branch" replace {...withLocale(locale)} />
+              ) : (
+                <Suspense fallback={<Loading label={c.shell.loading} />}>{area}</Suspense>
+              )
+            }
+          />
+        ))}
         <Route path="*" element={<Navigate to="/core" replace {...withLocale(locale)} />} />
       </Routes>
     </CoreFrame>
@@ -503,6 +542,17 @@ function OperationsHome({ context }: { context: BranchContext }) {
                           data-open-workspace
                         >
                           {c.core.openPurchasing}
+                        </AreaLink>
+                      ) : DEPARTMENT_LINKS[code] &&
+                        mine.includes(
+                          DEPARTMENT_LINKS[code].permission as (typeof mine)[number],
+                        ) ? (
+                        <AreaLink
+                          to={DEPARTMENT_LINKS[code].to}
+                          className="font-semibold text-brand-soft underline-offset-4 hover:underline"
+                          data-open-workspace
+                        >
+                          {c.core[DEPARTMENT_LINKS[code].label]}
                         </AreaLink>
                       ) : (
                         c.core.later

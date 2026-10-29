@@ -112,8 +112,12 @@ describe('Permission catalog (EP27)', () => {
     const copy = readFileSync('../frontend/src/features/company-center/permissionCopy.ts', 'utf8');
     const resources = new Set(PERMISSION_CATALOG.map((p) => p.resource));
     for (const r of resources) expect(copy.split(`'${r}':`).length - 1, r).toBe(3);
+    // Action labels live in each language's `actions: { … }` block (other
+    // keys of the file, e.g. a dialog's `confirm`, are not action labels).
+    const actionBlocks = [...copy.matchAll(/\n\s+actions: \{([^}]*)\}/g)].map((m) => m[1]!);
+    expect(actionBlocks).toHaveLength(3);
     for (const a of PERMISSION_ACTIONS) {
-      expect(copy.split(new RegExp(`\\n\\s+${a}: `)).length - 1, a).toBe(3);
+      for (const block of actionBlocks) expect(block, a).toMatch(new RegExp(`\\n\\s+${a}: `));
     }
   });
 });

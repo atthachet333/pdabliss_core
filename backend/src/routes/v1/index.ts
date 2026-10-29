@@ -18,6 +18,7 @@ import { demoRoutes } from './demo.js';
 import { masterDataRoutes } from './master-data.js';
 import { operationsRoutes } from './operations.js';
 import { platformRoutes } from './platform.js';
+import { depositRoutes, pendingReceiveRoutes, purchaseOrderRoutes } from './purchase-orders.js';
 import { purchaseRequestRoutes } from './purchase-requests.js';
 
 export interface AccountServices {
@@ -87,6 +88,13 @@ export const v1Routes: FastifyPluginAsync<{
     await app.register(masterDataRoutes, { prefix: '/master-data', db: services.db });
     // EP29: purchase requests (the first operational document).
     await app.register(purchaseRequestRoutes, { prefix: '/purchase-requests', db: services.db });
+    // EP30: purchase orders, the Accounting deposit queue and Warehouse pending receive.
+    await app.register(purchaseOrderRoutes, { prefix: '/purchase-orders', db: services.db });
+    await app.register(depositRoutes, { prefix: '/accounting/deposits', db: services.db });
+    await app.register(pendingReceiveRoutes, {
+      prefix: '/warehouse/pending-receive',
+      db: services.db,
+    });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });
   } else {
     // No DATABASE_URL (development only — production refuses to start without it).
@@ -98,6 +106,9 @@ export const v1Routes: FastifyPluginAsync<{
       '/operations',
       '/master-data',
       '/purchase-requests',
+      '/purchase-orders',
+      '/accounting',
+      '/warehouse',
     ]) {
       app.all(`${prefix}/*`, () => {
         throw authUnavailable();

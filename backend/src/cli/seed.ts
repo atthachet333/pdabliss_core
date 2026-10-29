@@ -29,7 +29,7 @@ async function main() {
     if (process.argv.includes('--demo')) {
       const demo = await seedDemo(db, env);
       out(
-        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, branch 00001 ${demo.branch}, subscription ${demo.subscription}, master data ${demo.masterData}, purchase requests ${demo.purchaseRequests}`,
+        `Demo company: ${demo.company}, Head Office ${demo.headOffice}, branch 00001 ${demo.branch}, subscription ${demo.subscription}, master data ${demo.masterData}, purchase requests ${demo.purchaseRequests}, purchase orders ${demo.purchaseOrders}`,
       );
       // EP28.1: one line per persona (src/demo/personas.ts) — outcomes only, never a password.
       for (const [persona, outcome] of Object.entries(demo.personas)) {

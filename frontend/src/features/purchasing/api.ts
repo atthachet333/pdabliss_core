@@ -25,6 +25,8 @@ export interface PrContext {
   decideDepartments: DepartmentCode[];
   purchasingView: boolean;
   cancelApproved: boolean;
+  /** EP30: may raise purchase orders from approved requests. */
+  createOrders: boolean;
   branches: PrBranch[];
   selectedBranch: PrBranch | null;
 }
@@ -38,7 +40,19 @@ export interface PrLine {
   unit: { id: string | null; code: string | null; name: string | null } | null;
   quantity: string;
   note: string | null;
+  /** EP30 (approved / cancelled requests): what purchase orders have taken. */
+  ordering: {
+    requested: string;
+    ordered: string;
+    inDraft: string;
+    remaining: string;
+    state: OrderState;
+    /** Order numbers only for those who may read orders. */
+    orders: { id: string; number: string; status: string; quantity: string }[] | null;
+  } | null;
 }
+
+export type OrderState = 'NOT_ORDERED' | 'PARTIALLY_ORDERED' | 'FULLY_ORDERED';
 
 type Person = { name: string } | null;
 
@@ -62,6 +76,7 @@ export interface PurchaseRequest {
   cancelledBy: Person;
   cancellationReason: string | null;
   lines: PrLine[];
+  orderState: OrderState | null;
   updatedAt: string;
 }
 

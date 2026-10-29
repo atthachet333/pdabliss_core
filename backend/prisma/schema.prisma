@@ -209,6 +209,12 @@ model CompanyMember {
   approvedRequests    PurchaseRequest[]          @relation("PurchaseRequestApprover")
   rejectedRequests    PurchaseRequest[]          @relation("PurchaseRequestRejecter")
   cancelledRequests   PurchaseRequest[]          @relation("PurchaseRequestCanceller")
+  /// EP30 purchase orders created / issued / cancelled, deposits confirmed / waived by this member.
+  createdOrders       PurchaseOrder[]            @relation("PurchaseOrderCreator")
+  issuedOrders        PurchaseOrder[]            @relation("PurchaseOrderIssuer")
+  cancelledOrders     PurchaseOrder[]            @relation("PurchaseOrderCanceller")
+  confirmedDeposits   PurchaseOrder[]            @relation("PurchaseOrderDepositConfirmer")
+  waivedDeposits      PurchaseOrder[]            @relation("PurchaseOrderDepositWaiver")
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -319,6 +325,8 @@ model Branch {
   locations        WarehouseLocation[]
   /// Purchase requests raised in this branch (EP29).
   purchaseRequests PurchaseRequest[]
+  /// Purchase orders of this branch (EP30; always the branch of their requests).
+  purchaseOrders   PurchaseOrder[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -951,25 +959,27 @@ model Customer {
 /// (payment terms, bank accounts, prices) belong to future Purchasing /
 /// Accounting records that Warehouse never receives; none is stored here.
 model Supplier {
-  id            String       @id @default(cuid())
-  companyId     String
-  company       Company      @relation(fields: [companyId], references: [id])
-  code          String
-  name          String
-  legalName     String?
-  taxId         String?
-  taxBranch     String?
-  contactName   String?
-  phone         String?
-  email         String?
-  address       String?
-  notes         String?
-  status        MasterStatus @default(ACTIVE)
-  deactivatedAt DateTime?
-  createdById   String?
-  updatedById   String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id             String          @id @default(cuid())
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id])
+  code           String
+  name           String
+  legalName      String?
+  taxId          String?
+  taxBranch      String?
+  contactName    String?
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  status         MasterStatus    @default(ACTIVE)
+  deactivatedAt  DateTime?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  /// EP30: purchase orders placed with this supplier (identity snapshotted on each).
+  purchaseOrders PurchaseOrder[]
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -997,6 +1007,8 @@ model Unit {
   items         Item[]
   /// EP29: request lines counted in this unit.
   requestLines  PurchaseRequestLine[]
+  /// EP30: order lines counted in this unit.
+  orderLines    PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -1076,6 +1088,8 @@ model Item {
   updatedAt        DateTime              @updatedAt
   /// EP29: request lines that name this item (canonical reference).
   requestLines     PurchaseRequestLine[]
+  /// EP30: order lines that name this item.
+  orderLines       PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1200,10 +1214,15 @@ model PurchaseRequest {
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   lines                 PurchaseRequestLine[]
+  /// EP30: order lines placed against this request.
+  orderLines            PurchaseOrderLine[]
 
   @@unique([companyId, number])
   /// Target of company-bound foreign keys (lines; future purchase orders).
   @@unique([id, companyId])
+  /// EP30: order lines reference (request, branch, company) — an order line can
+  /// only point at a request of its own order's branch.
+  @@unique([id, branchId, companyId])
   @@index([companyId, status, updatedAt])
   @@index([companyId, branchId, status])
   @@index([companyId, requesterMemberId])
@@ -1235,9 +1254,172 @@ model PurchaseRequestLine {
   note              String?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
+  /// EP30: order lines placed against this request line.
+  orderLines        PurchaseOrderLine[]
 
   @@unique([purchaseRequestId, lineNo])
   /// Target of company-bound foreign keys from future purchase-order lines.
   @@unique([id, companyId])
+  /// EP30: an order line names (request line, request, company) together.
+  @@unique([id, purchaseRequestId, companyId])
+  @@index([itemId])
+}
+
+// ---------------------------------------------------------------------------
+// Purchase orders (EP30) — docs/PURCHASE_ORDER.md
+// ---------------------------------------------------------------------------
+
+enum PurchaseOrderStatus {
+  DRAFT
+  /// The moment of issue: an issued order lands in WAITING_DEPOSIT or
+  /// PENDING_RECEIVE in the same transaction (kept for a future acknowledgement step).
+  ISSUED
+  WAITING_DEPOSIT
+  PENDING_RECEIVE
+  CANCELLED
+}
+
+enum PurchaseOrderDepositType {
+  NONE
+  /// A fixed amount in the order currency.
+  AMOUNT
+  /// A percentage of the grand total; the amount is computed and stored.
+  PERCENT
+}
+
+enum PurchaseOrderDepositStatus {
+  NOT_REQUIRED
+  PENDING
+  CONFIRMED
+  WAIVED
+}
+
+model PurchaseOrder {
+  id                         String                     @id @default(cuid())
+  companyId                  String
+  /// The branch of every request it orders from (database-enforced through its lines).
+  branchId                   String
+  branch                     Branch                     @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// PO-YYYYMM-NNNNNN: company-unique, immutable, from DocumentSequence.
+  number                     String
+  status                     PurchaseOrderStatus        @default(DRAFT)
+  supplierId                 String?
+  supplier                   Supplier?                  @relation(fields: [supplierId, companyId], references: [id, companyId])
+  /// ISO 4217, one per order (THB by default).
+  currency                   String                     @default("THB") @db.Char(3)
+  orderDate                  DateTime                   @db.Date
+  expectedDate               DateTime?                  @db.Date
+  /// Supplier payment terms as agreed (commercial; never shown to Warehouse).
+  paymentTerms               String?
+  /// Remarks for the supplier (commercial views only).
+  note                       String?
+  lineCounter                Int                        @default(0)
+  /// Server-computed totals (2 decimals, half-up per line); never from the client.
+  subtotal                   Decimal                    @default(0) @db.Decimal(18, 2)
+  discountTotal              Decimal                    @default(0) @db.Decimal(18, 2)
+  taxTotal                   Decimal                    @default(0) @db.Decimal(18, 2)
+  grandTotal                 Decimal                    @default(0) @db.Decimal(18, 2)
+  depositType                PurchaseOrderDepositType   @default(NONE)
+  /// The amount (AMOUNT) or percentage (PERCENT) as entered.
+  depositValue               Decimal?                   @db.Decimal(18, 4)
+  /// The explicit deposit amount (computed for PERCENT).
+  depositAmount              Decimal?                   @db.Decimal(18, 2)
+  depositDueDate             DateTime?                  @db.Date
+  depositNote                String?
+  depositStatus              PurchaseOrderDepositStatus @default(NOT_REQUIRED)
+  depositConfirmedAt         DateTime?
+  depositConfirmedByMemberId String?
+  depositConfirmedBy         CompanyMember?             @relation("PurchaseOrderDepositConfirmer", fields: [depositConfirmedByMemberId, companyId], references: [id, companyId])
+  /// A payment reference as given by Accounting (never bank credentials).
+  depositReference           String?
+  depositWaivedAt            DateTime?
+  depositWaivedByMemberId    String?
+  depositWaivedBy            CompanyMember?             @relation("PurchaseOrderDepositWaiver", fields: [depositWaivedByMemberId, companyId], references: [id, companyId])
+  depositWaiveReason         String?
+  /// Supplier identity, refreshed while DRAFT and frozen at issue.
+  supplierCode               String?
+  supplierName               String?
+  supplierTaxId              String?
+  supplierTaxBranch          String?
+  supplierAddress            String?
+  supplierContactName        String?
+  supplierPhone              String?
+  supplierEmail              String?
+  /// Taken at issue.
+  branchCodeSnapshot         String?
+  branchNameSnapshot         String?
+  createdByMemberId          String
+  createdBy                  CompanyMember              @relation("PurchaseOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  issuedAt                   DateTime?
+  issuedByMemberId           String?
+  issuedBy                   CompanyMember?             @relation("PurchaseOrderIssuer", fields: [issuedByMemberId, companyId], references: [id, companyId])
+  /// When the order became ready for receiving (issue without deposit, or deposit settled).
+  pendingReceiveAt           DateTime?
+  cancelledAt                DateTime?
+  cancelledByMemberId        String?
+  cancelledBy                CompanyMember?             @relation("PurchaseOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason         String?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  lines                      PurchaseOrderLine[]
+
+  @@unique([companyId, number])
+  @@unique([id, companyId])
+  /// Target of the lines' (order, branch, company) foreign key.
+  @@unique([id, branchId, companyId])
+  @@index([companyId, status, updatedAt])
+  @@index([companyId, branchId, status])
+  @@index([companyId, supplierId])
+  @@index([companyId, depositStatus])
+}
+
+model PurchaseOrderLine {
+  id                    String                  @id @default(cuid())
+  companyId             String
+  /// Copied from the order; both foreign keys below carry it, so the order and
+  /// the request it orders from are in the same branch.
+  branchId              String
+  purchaseOrderId       String
+  order                 PurchaseOrder           @relation(fields: [purchaseOrderId, branchId, companyId], references: [id, branchId, companyId], onDelete: Cascade)
+  lineNo                Int
+  purchaseRequestId     String
+  request               PurchaseRequest         @relation(fields: [purchaseRequestId, branchId, companyId], references: [id, branchId, companyId])
+  purchaseRequestLineId String
+  requestLine           PurchaseRequestLine     @relation(fields: [purchaseRequestLineId, purchaseRequestId, companyId], references: [id, purchaseRequestId, companyId])
+  /// Snapshots of the request line (item ones refreshed at issue, then frozen).
+  prNumber              String
+  prLineNo              Int
+  type                  PurchaseRequestLineType
+  itemId                String?
+  item                  Item?                   @relation(fields: [itemId, companyId], references: [id, companyId])
+  itemCode              String?
+  itemName              String?
+  description           String?
+  unitId                String?
+  unit                  Unit?                   @relation(fields: [unitId, companyId], references: [id, companyId])
+  unitCode              String?
+  unitName              String?
+  /// Exact decimals (never floating point).
+  quantity              Decimal                 @db.Decimal(18, 6)
+  unitPrice             Decimal                 @default(0) @db.Decimal(18, 4)
+  discountAmount        Decimal                 @default(0) @db.Decimal(18, 2)
+  /// Percent, 0–100 (e.g. 7 for VAT 7 %).
+  taxRate               Decimal                 @default(0) @db.Decimal(5, 2)
+  /// round(quantity × unitPrice, 2)
+  lineSubtotal          Decimal                 @default(0) @db.Decimal(18, 2)
+  /// round((lineSubtotal − discountAmount) × taxRate / 100, 2)
+  lineTax               Decimal                 @default(0) @db.Decimal(18, 2)
+  /// lineSubtotal − discountAmount + lineTax
+  lineTotal             Decimal                 @default(0) @db.Decimal(18, 2)
+  note                  String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@unique([purchaseOrderId, lineNo])
+  /// One line per request line per order.
+  @@unique([purchaseOrderId, purchaseRequestLineId])
+  @@unique([id, companyId])
+  @@index([purchaseRequestLineId])
+  @@index([purchaseRequestId])
   @@index([itemId])
 }

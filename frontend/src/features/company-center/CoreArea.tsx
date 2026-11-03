@@ -55,6 +55,11 @@ const PurchasingArea = lazy(() => import('@/features/purchasing/PurchasingArea')
 /** EP30: Accounting's deposit queue and Warehouse's pending receive — one lazy chunk each. */
 const DepositsArea = lazy(() => import('@/features/purchasing/DepositsArea'));
 const ReceiveArea = lazy(() => import('@/features/purchasing/ReceiveArea'));
+/** EP31: the Warehouse workspace, goods receipts, inventory / lots and movements — one lazy chunk each. */
+const WarehouseHome = lazy(() => import('@/features/warehouse/WarehouseHome'));
+const ReceiptsArea = lazy(() => import('@/features/warehouse/ReceiptsArea'));
+const InventoryArea = lazy(() => import('@/features/warehouse/InventoryArea'));
+const MovementsArea = lazy(() => import('@/features/warehouse/MovementsArea'));
 
 /** EP30: a department card's way into its first EP30 screen (presentation only). */
 const DEPARTMENT_LINKS: Partial<
@@ -67,7 +72,7 @@ const DEPARTMENT_LINKS: Partial<
   },
   WAREHOUSE: {
     permission: 'warehouse.receiving.view',
-    to: '/core/warehouse/pending-receive',
+    to: '/core/warehouse',
     label: 'openReceive',
   },
 };
@@ -174,6 +179,11 @@ export function CoreArea({ identity }: { identity: Identity }) {
           [
             ['accounting/deposits/*', <DepositsArea key="d" />],
             ['warehouse/pending-receive/*', <ReceiveArea key="r" />],
+            ['warehouse', <WarehouseHome key="w" />],
+            ['warehouse/receipts/*', <ReceiptsArea key="gr" />],
+            ['warehouse/inventory', <InventoryArea key="inv" view="stock" />],
+            ['warehouse/lots', <InventoryArea key="lots" view="lots" />],
+            ['warehouse/movements', <MovementsArea key="mv" />],
           ] as const
         ).map(([path, area]) => (
           <Route

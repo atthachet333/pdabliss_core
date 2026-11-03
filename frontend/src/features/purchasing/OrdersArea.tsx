@@ -792,6 +792,15 @@ function PurchasingOrder({ d, set }: { d: Detail; set: (d: OrderDetail) => void 
                       {l.request.orderedElsewhere} · {c.f.remaining} {l.request.remaining}
                     </span>
                   )}
+                  {!editable && l.receiving.receivable && (
+                    <span
+                      className="block text-caption text-text-muted tabular-nums"
+                      data-line-receiving
+                    >
+                      {c.f.received} {l.receiving.received} · {c.f.rejected} {l.receiving.rejected}{' '}
+                      · {c.f.remaining} {l.receiving.remaining}
+                    </span>
+                  )}
                   {l.note && (
                     <span className="block text-caption whitespace-pre-line text-text-muted">
                       {l.note}
@@ -857,6 +866,35 @@ function PurchasingOrder({ d, set }: { d: Detail; set: (d: OrderDetail) => void 
             </button>
           ))}
       </Section>
+
+      {(o.status === 'PENDING_RECEIVE' ||
+        o.status === 'RECEIVED' ||
+        o.receiving.receipts.length > 0) && (
+        <Section id="po-receiving" title={c.receiving}>
+          <Facts>
+            <Fact term={c.f.status}>{c.receiveStates[o.receiving.state]}</Fact>
+            {o.receiving.receivedAt && (
+              <Fact term={c.statuses.RECEIVED}>{dateTime(o.receiving.receivedAt)}</Fact>
+            )}
+            <Fact term={c.receiptsTitle}>
+              {o.receiving.receipts.length ? (
+                <span className="grid gap-1" data-po-receipts>
+                  {o.receiving.receipts.map((r) => (
+                    <span key={r.id} className="flex flex-wrap gap-x-2">
+                      <span className="font-mono">{r.number}</span>
+                      <span className="text-text-muted">
+                        {r.status === 'CANCELLED' ? c.statuses.CANCELLED : dateTime(r.receivedAt)}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                '—'
+              )}
+            </Fact>
+          </Facts>
+        </Section>
+      )}
 
       <Section id="po-amounts" title={c.totals}>
         <Facts>

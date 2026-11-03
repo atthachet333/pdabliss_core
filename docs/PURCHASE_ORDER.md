@@ -17,10 +17,11 @@ migration `20261102090000_ep30_purchase_order`. Screens: `frontend/src/features/
 ```
 APPROVED PR ──create──▶ PO DRAFT ──issue──┬─(no deposit)──────────────────────────▶ PENDING_RECEIVE
                                           └─(deposit)──▶ WAITING_DEPOSIT ──confirm / waive──▶ PENDING_RECEIVE
-DRAFT, WAITING_DEPOSIT, PENDING_RECEIVE ──cancel──▶ CANCELLED (terminal)
+PENDING_RECEIVE ──(EP31: every receivable line received)──▶ RECEIVED ──(a receipt reversed)──▶ PENDING_RECEIVE
+DRAFT, WAITING_DEPOSIT, PENDING_RECEIVE ──cancel──▶ CANCELLED (terminal; not once goods were received)
 ```
 
-Statuses: `DRAFT`, `ISSUED`, `WAITING_DEPOSIT`, `PENDING_RECEIVE`, `CANCELLED`. `ISSUED` is the
+Statuses: `DRAFT`, `ISSUED`, `WAITING_DEPOSIT`, `PENDING_RECEIVE`, `RECEIVED` (EP31), `CANCELLED`. `ISSUED` is the
 moment of issue: an issued order lands in `WAITING_DEPOSIT` or `PENDING_RECEIVE` in the same
 transaction (the value is kept for a future supplier-acknowledgement step; no row holds it today).
 The **deposit state is separate**: `NOT_REQUIRED`, `PENDING`, `CONFIRMED`, `WAIVED`.
@@ -236,7 +237,17 @@ APPROVED by the owner — and four orders with the demo supplier `SUP-000001`:
 | `PO_PENDING_RECEIVE` | 00001 | PENDING_RECEIVE, 8 of 12.5 kg | `warehouse.demo` (demo branch) |
 | `PO_CANCELLED` | 00001 | CANCELLED after issue (4.5 kg released) | history |
 
-## 13. The EP31 contract
+## 13. The EP31 contract (delivered)
+
+*EP31 implemented receiving against this contract — [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).*
+Each line now also carries `receivedQuantity` (accepted on posted receipts), `rejectedQuantity` and
+`receivable`; `pendingQuantity` is what is still to receive; the order carries `receiving` (state,
+`receivedAt`) and its receipts. The order moves to `RECEIVED` when nothing is left, back to
+`PENDING_RECEIVE` when a receipt is reversed, and cannot be cancelled once goods were received
+(`PO_HAS_RECEIPTS`). Purchasing sees per line received / rejected / remaining and the receipts;
+Accounting sees the receive state. RECEIVED orders still count as ordered on their request.
+The EP30 text below is kept as the original handoff.
+
 
 `GET /api/v1/warehouse/pending-receive/:id` (`warehouse.receiving.view`, the order's branch,
 `PENDING_RECEIVE` only) is what Warehouse receives from Purchasing:

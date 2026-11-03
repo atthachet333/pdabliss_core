@@ -63,18 +63,46 @@ const deposit = z.object({
   waiveReason: z.string().nullable(),
 });
 
-const status = z.enum(['DRAFT', 'ISSUED', 'WAITING_DEPOSIT', 'PENDING_RECEIVE', 'CANCELLED']);
+const status = z.enum([
+  'DRAFT',
+  'ISSUED',
+  'WAITING_DEPOSIT',
+  'PENDING_RECEIVE',
+  'RECEIVED',
+  'CANCELLED',
+]);
+
+/** EP31: receive progress (quantities and dates only) — the same for every audience. */
+const receiveState = z.enum(['NOT_RECEIVED', 'PARTIALLY_RECEIVED', 'FULLY_RECEIVED']);
+const receiving = z.object({ state: receiveState, receivedAt: z.string().nullable() });
+const receiptRef = z.object({
+  id: z.string(),
+  number: z.string(),
+  status: z.enum(['DRAFT', 'POSTED', 'CANCELLED']),
+  receivedAt: z.string(),
+});
+const lineReceiving = z.object({
+  receivable: z.boolean(),
+  received: z.string(),
+  rejected: z.string(),
+  remaining: z.string(),
+});
 
 const tracking = z.enum(['NONE', 'OPTIONAL', 'REQUIRED']).nullable();
 
 /**
- * One line to receive: the EP31 handoff. `pendingQuantity` is what has not
- * arrived yet (= ordered until receipts exist); the lot / expiry requirements
- * are the item's current ones (null on a NON_ITEM line).
+ * One line to receive (the EP30 → EP31 handoff). `receivedQuantity` is what
+ * posted receipts accepted, `rejectedQuantity` what they refused, and
+ * `pendingQuantity` what is still to receive (EP31 progress.ts). The lot /
+ * expiry requirements are the item's current ones (null on a NON_ITEM line);
+ * `receivable` is false for a service or a non-stock item.
  */
 const receiveLine = operationalLine.extend({
   orderedQuantity: z.string(),
+  receivedQuantity: z.string(),
+  rejectedQuantity: z.string(),
   pendingQuantity: z.string(),
+  receivable: z.boolean(),
   lotTracking: tracking,
   expiryTracking: tracking,
 });
@@ -90,18 +118,26 @@ export const WarehousePendingReceiveView = z.object({
   expectedDate: day,
   issuedAt: z.string().nullable(),
   pendingReceiveAt: z.string().nullable(),
+  receiving,
   lineCount: z.number(),
   lines: z.array(receiveLine),
+  receipts: z.array(receiptRef),
 });
 export type WarehousePendingReceiveView = z.infer<typeof WarehousePendingReceiveView>;
-/** A queue row: the same allow-list without the lines. */
-export const WarehousePendingReceiveRow = WarehousePendingReceiveView.omit({ lines: true });
+/** A queue row: the same allow-list without the lines and receipts. */
+export const WarehousePendingReceiveRow = WarehousePendingReceiveView.omit({
+  lines: true,
+  receipts: true,
+});
 
 /** The classes of every Warehouse key (top level and line) — all operational. */
 export const WAREHOUSE_FIELD_CLASSES: Record<string, DataClass> = Object.fromEntries(
-  [...Object.keys(WarehousePendingReceiveView.shape), ...Object.keys(receiveLine.shape)].map(
-    (k) => [k, 'operational' as const],
-  ),
+  [
+    ...Object.keys(WarehousePendingReceiveView.shape),
+    ...Object.keys(receiveLine.shape),
+    ...Object.keys(receiving.shape),
+    ...Object.keys(receiptRef.shape),
+  ].map((k) => [k, 'operational' as const]),
 );
 
 /** Fields that are commercial or financial and must never reach Warehouse. */
@@ -141,6 +177,7 @@ export const ExecutivePOView = z.object({
   cancelledAt: z.string().nullable(),
   grandTotal: z.string(),
   deposit: z.object({ status: deposit.shape.status, amount: z.string().nullable() }),
+  receiving,
   lineCount: z.number(),
   requests: z.array(z.object({ id: z.string(), number: z.string() })),
 });
@@ -164,6 +201,7 @@ export const AccountingDepositView = z.object({
   paymentTerms: z.string().nullable(),
   totals,
   deposit,
+  receiving,
   lineCount: z.number(),
   lines: z.array(commercialLine),
   actions: z.array(z.enum(['confirm_deposit', 'waive_deposit'])),
@@ -217,8 +255,10 @@ export const PurchasingPOView = z.object({
         remaining: z.string(),
       }),
       itemActive: z.boolean().nullable(),
+      receiving: lineReceiving,
     }),
   ),
+  receiving: receiving.extend({ receipts: z.array(receiptRef) }),
   requests: z.array(z.object({ id: z.string(), number: z.string() })),
   actions: z.array(z.enum(['edit', 'issue', 'cancel', 'confirm_deposit', 'waive_deposit'])),
 });

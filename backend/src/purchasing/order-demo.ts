@@ -6,7 +6,7 @@ import { depositAmount, lineAmounts, orderTotals } from './money.js';
 import { companyDay } from './service.js';
 
 /*
- * Demo purchase orders (EP30) — four fixtures, one per state a reviewer needs,
+ * Demo purchase orders (EP30, EP31) — five fixtures, one per state a reviewer needs,
  * placed against the APPROVED demo requests with the demo supplier:
  *
  *   PO_DRAFT             Head Office, packaging, prices filled in, not issued
@@ -16,6 +16,8 @@ import { companyDay } from './service.js';
  *                        (warehouse.demo works in the demo branch)
  *   PO_CANCELLED         demo branch, the other 4.5 kg, issued then cancelled
  *                        (its quantity is released: the request is partly ordered)
+ *   PO_RECEIVED          demo branch, finished goods + packaging, issued (EP31): the
+ *                        warehouse demo receives it in full (warehouse/demo.ts)
  *
  * Created ONCE each (stable `demo` key in the CREATED audit entry), never
  * touched again; skipped when a persona, request or supplier is missing.
@@ -69,6 +71,17 @@ const FIXTURES: Fixture[] = [
     lines: [{ requestLineNo: 1, quantity: '4.5', unitPrice: '40', taxRate: '7' }],
     paymentTerms: 'เงินสด (ข้อมูลสาธิต)',
     cancelReason: 'ผู้ขายแจ้งว่าสินค้าหมด (ข้อมูลสาธิต)',
+  },
+  {
+    // EP31: issued here; the warehouse demo receives it in full (warehouse/demo.ts).
+    key: 'PO_RECEIVED',
+    request: 'PR_APPROVED_WAREHOUSE',
+    status: 'PENDING_RECEIVE',
+    lines: [
+      { requestLineNo: 1, quantity: '30', unitPrice: '120', taxRate: '7' },
+      { requestLineNo: 2, quantity: '100', unitPrice: '12.5', taxRate: '7' },
+    ],
+    paymentTerms: 'เครดิต 30 วัน (ข้อมูลสาธิต)',
   },
 ];
 

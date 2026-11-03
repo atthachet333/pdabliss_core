@@ -208,6 +208,13 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP31 — no budget changed.** The Warehouse workspace, goods receipts (editor), inventory / lots and
+  movements add ≈ 57 KiB raw in their own lazy chunks (all JS 4,251.9 / 4,300 KiB; initial JS
+  unchanged at 182.6 KiB gzip; static HTML 529 / 560 KiB). Side effect noted: adding these lazy
+  entries made the bundler's `entriesAware` lucide-icon grouping merge a few small icon chunks
+  differently, so `/login` loads one 1.8 KiB (gzip) shared icon chunk more than in EP30 (63.3 →
+  65.0 / 72 KiB). Grouping the new screens into fewer chunks did not change it; the chunk config
+  was left as EP30 tuned it. Headroom is now ≈ 48 KiB of total JS — the next screens must be lean.
 - **EP30 — no budget changed; JS recovered instead.** After EP29 the total stood at 4,297.5 / 4,300
   KiB. Normal production builds now leave out the `/app` prototype workspaces, which production
   disabled at runtime but still shipped: `router.tsx` folds `PROTOTYPE_BUILD` to a constant, so the

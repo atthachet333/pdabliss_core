@@ -215,6 +215,10 @@ model CompanyMember {
   cancelledOrders     PurchaseOrder[]            @relation("PurchaseOrderCanceller")
   confirmedDeposits   PurchaseOrder[]            @relation("PurchaseOrderDepositConfirmer")
   waivedDeposits      PurchaseOrder[]            @relation("PurchaseOrderDepositWaiver")
+  createdReceipts     GoodsReceipt[]             @relation("GoodsReceiptCreator")
+  postedReceipts      GoodsReceipt[]             @relation("GoodsReceiptPoster")
+  cancelledReceipts   GoodsReceipt[]             @relation("GoodsReceiptCanceller")
+  stockMovements      StockMovement[]
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -327,6 +331,9 @@ model Branch {
   purchaseRequests PurchaseRequest[]
   /// Purchase orders of this branch (EP30; always the branch of their requests).
   purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  stockMovements   StockMovement[]
+  stockBalances    StockBalance[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -980,6 +987,7 @@ model Supplier {
   updatedAt      DateTime        @updatedAt
   /// EP30: purchase orders placed with this supplier (identity snapshotted on each).
   purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -1009,6 +1017,7 @@ model Unit {
   requestLines  PurchaseRequestLine[]
   /// EP30: order lines counted in this unit.
   orderLines    PurchaseOrderLine[]
+  receiptLines  GoodsReceiptLine[]
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -1090,6 +1099,11 @@ model Item {
   requestLines     PurchaseRequestLine[]
   /// EP30: order lines that name this item.
   orderLines       PurchaseOrderLine[]
+  /// EP31: receipt lines, lots and stock of this item.
+  receiptLines     GoodsReceiptLine[]
+  lots             InventoryLot[]
+  stockMovements   StockMovement[]
+  stockBalances    StockBalance[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1107,24 +1121,29 @@ model Item {
 /// parent foreign key carries the branch id; the service refuses cycles and
 /// depth beyond 4). At most one default location per branch. No stock here.
 model WarehouseLocation {
-  id            String              @id @default(cuid())
-  companyId     String
-  branchId      String
-  branch        Branch              @relation(fields: [branchId, companyId], references: [id, companyId])
-  code          String
-  name          String
-  description   String?
-  parentId      String?
-  parent        WarehouseLocation?  @relation("LocationTree", fields: [parentId, branchId], references: [id, branchId])
-  children      WarehouseLocation[] @relation("LocationTree")
+  id                 String                   @id @default(cuid())
+  companyId          String
+  branchId           String
+  branch             Branch                   @relation(fields: [branchId, companyId], references: [id, companyId])
+  code               String
+  name               String
+  description        String?
+  parentId           String?
+  parent             WarehouseLocation?       @relation("LocationTree", fields: [parentId, branchId], references: [id, branchId])
+  children           WarehouseLocation[]      @relation("LocationTree")
   /// TRUE for the branch's default operational location (NULL otherwise).
-  defaultSlot   Boolean?
-  status        MasterStatus        @default(ACTIVE)
-  deactivatedAt DateTime?
-  createdById   String?
-  updatedById   String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  defaultSlot        Boolean?
+  status             MasterStatus             @default(ACTIVE)
+  deactivatedAt      DateTime?
+  createdById        String?
+  updatedById        String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  /// EP31: receipts defaulting here, receipt allocations and stock in this location.
+  defaultForReceipts GoodsReceipt[]           @relation("GoodsReceiptDefaultLocation")
+  allocations        GoodsReceiptAllocation[]
+  stockMovements     StockMovement[]
+  stockBalances      StockBalance[]
 
   @@unique([branchId, code])
   @@unique([branchId, defaultSlot])
@@ -1276,6 +1295,9 @@ enum PurchaseOrderStatus {
   ISSUED
   WAITING_DEPOSIT
   PENDING_RECEIVE
+  /// EP31: every receivable line fully received (posted receipts). Cancelling a
+  /// receipt can bring the order back to PENDING_RECEIVE.
+  RECEIVED
   CANCELLED
 }
 
@@ -1355,6 +1377,8 @@ model PurchaseOrder {
   issuedBy                   CompanyMember?             @relation("PurchaseOrderIssuer", fields: [issuedByMemberId, companyId], references: [id, companyId])
   /// When the order became ready for receiving (issue without deposit, or deposit settled).
   pendingReceiveAt           DateTime?
+  /// EP31: when the last receivable quantity was received (status RECEIVED).
+  receivedAt                 DateTime?
   cancelledAt                DateTime?
   cancelledByMemberId        String?
   cancelledBy                CompanyMember?             @relation("PurchaseOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
@@ -1362,6 +1386,8 @@ model PurchaseOrder {
   createdAt                  DateTime                   @default(now())
   updatedAt                  DateTime                   @updatedAt
   lines                      PurchaseOrderLine[]
+  /// EP31: goods receipts against this order.
+  receipts                   GoodsReceipt[]
 
   @@unique([companyId, number])
   @@unique([id, companyId])
@@ -1414,12 +1440,241 @@ model PurchaseOrderLine {
   note                  String?
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
+  /// EP31: receipt lines that receive this line.
+  receiptLines          GoodsReceiptLine[]
 
   @@unique([purchaseOrderId, lineNo])
   /// One line per request line per order.
   @@unique([purchaseOrderId, purchaseRequestLineId])
   @@unique([id, companyId])
+  /// Target of the receipt lines' (order line, order, company) foreign key.
+  @@unique([id, purchaseOrderId, companyId])
   @@index([purchaseRequestLineId])
   @@index([purchaseRequestId])
   @@index([itemId])
+}
+
+// ---------------------------------------------------------------------------
+// Goods receipts and inventory (EP31) — docs/WAREHOUSE_RECEIVING.md,
+// docs/INVENTORY_LEDGER.md
+//
+// A goods receipt receives part or all of a PENDING_RECEIVE purchase order
+// into the order's branch. Accepted quantity is allocated to locations (and
+// lots); posting writes one StockMovement per allocation and adds it to the
+// matching StockBalance in the same transaction. Movements are immutable (a
+// trigger refuses UPDATE / DELETE): a cancelled receipt writes reversal
+// movements. StockBalance is a materialized sum of movements, never edited on
+// its own. No cost, price or value anywhere in these tables.
+// ---------------------------------------------------------------------------
+
+enum GoodsReceiptStatus {
+  DRAFT
+  /// Stock was added; the receipt is locked.
+  POSTED
+  /// Terminal. A posted receipt that is cancelled keeps its movements and has reversal movements.
+  CANCELLED
+}
+
+/// Why delivered goods were not accepted into stock.
+enum ReceiptRejectReason {
+  DAMAGED
+  WRONG_ITEM
+  EXPIRED
+  QUALITY
+  QUANTITY_DISCREPANCY
+  OTHER
+}
+
+/// EP31 writes the first two only; every later stock change adds its own type.
+enum StockMovementType {
+  PURCHASE_RECEIPT
+  PURCHASE_RECEIPT_REVERSAL
+}
+
+model GoodsReceipt {
+  id                  String             @id @default(cuid())
+  companyId           String
+  /// Always the order's branch (enforced by the order foreign key).
+  branchId            String
+  branch              Branch             @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// GR-YYYYMM-NNNNNN, company-wide monthly sequence, immutable.
+  number              String
+  status              GoodsReceiptStatus @default(DRAFT)
+  purchaseOrderId     String
+  order               PurchaseOrder      @relation(fields: [purchaseOrderId, branchId, companyId], references: [id, branchId, companyId])
+  /// Snapshots from the order (operational identity only).
+  poNumber            String
+  supplierId          String?
+  supplier            Supplier?          @relation(fields: [supplierId, companyId], references: [id, companyId])
+  supplierCode        String?
+  supplierName        String?
+  /// When the goods arrived (business time, entered by Warehouse).
+  receivedAt          DateTime
+  defaultLocationId   String?
+  defaultLocation     WarehouseLocation? @relation("GoodsReceiptDefaultLocation", fields: [defaultLocationId, branchId], references: [id, branchId])
+  note                String?
+  lineCounter         Int                @default(0)
+  createdByMemberId   String
+  createdBy           CompanyMember      @relation("GoodsReceiptCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  postedAt            DateTime?
+  postedByMemberId    String?
+  postedBy            CompanyMember?     @relation("GoodsReceiptPoster", fields: [postedByMemberId, companyId], references: [id, companyId])
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?     @relation("GoodsReceiptCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  lines               GoodsReceiptLine[]
+  movements           StockMovement[]
+
+  @@unique([companyId, number])
+  @@unique([id, companyId])
+  @@unique([id, branchId, companyId])
+  /// Target of the lines' foreign key: a line belongs to the receipt's order and branch.
+  @@unique([id, purchaseOrderId, branchId, companyId])
+  @@index([purchaseOrderId])
+  @@index([companyId, branchId, status, updatedAt])
+}
+
+model GoodsReceiptLine {
+  id                  String                   @id @default(cuid())
+  companyId           String
+  branchId            String
+  goodsReceiptId      String
+  purchaseOrderId     String
+  receipt             GoodsReceipt             @relation(fields: [goodsReceiptId, purchaseOrderId, branchId, companyId], references: [id, purchaseOrderId, branchId, companyId])
+  purchaseOrderLineId String
+  orderLine           PurchaseOrderLine        @relation(fields: [purchaseOrderLineId, purchaseOrderId, companyId], references: [id, purchaseOrderId, companyId])
+  lineNo              Int
+  /// From the order line (the server's, never the client's).
+  itemId              String
+  item                Item                     @relation(fields: [itemId, companyId], references: [id, companyId])
+  itemCode            String
+  itemName            String
+  unitId              String
+  unit                Unit                     @relation(fields: [unitId, companyId], references: [id, companyId])
+  unitCode            String
+  unitName            String?
+  /// Into stock (allocated to locations / lots).
+  acceptedQuantity    Decimal                  @default(0) @db.Decimal(18, 6)
+  /// Delivered but not accepted: never stock.
+  rejectedQuantity    Decimal                  @default(0) @db.Decimal(18, 6)
+  rejectReason        ReceiptRejectReason?
+  rejectNote          String?
+  /// TRUE (default): the rejected quantity is still owed and stays to receive.
+  /// FALSE: no replacement — the rejected quantity closes that much of the order line.
+  replacementRequired Boolean                  @default(true)
+  note                String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  allocations         GoodsReceiptAllocation[]
+
+  /// One line per order line per receipt.
+  @@unique([goodsReceiptId, purchaseOrderLineId])
+  @@unique([goodsReceiptId, lineNo])
+  @@unique([id, itemId, branchId, companyId])
+  @@index([purchaseOrderLineId])
+}
+
+/// Where accepted quantity of a receipt line goes: a location, a lot (where the item tracks lots), a quantity.
+model GoodsReceiptAllocation {
+  id                 String            @id @default(cuid())
+  companyId          String
+  branchId           String
+  goodsReceiptLineId String
+  itemId             String
+  line               GoodsReceiptLine  @relation(fields: [goodsReceiptLineId, itemId, branchId, companyId], references: [id, itemId, branchId, companyId], onDelete: Cascade)
+  locationId         String
+  location           WarehouseLocation @relation(fields: [locationId, branchId], references: [id, branchId])
+  /// Lot as entered (business value, kept verbatim); resolved to lotId when posted.
+  lotNumber          String?
+  expiryDate         DateTime?         @db.Date
+  manufacturedDate   DateTime?         @db.Date
+  lotId              String?
+  lot                InventoryLot?     @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  quantity           Decimal           @db.Decimal(18, 6)
+  createdAt          DateTime          @default(now())
+  movements          StockMovement[]
+
+  @@index([goodsReceiptLineId])
+  @@index([lotId])
+}
+
+/// A lot (batch) of an item: company-wide identity (item + lot number) with one expiry date.
+model InventoryLot {
+  id               String                   @id @default(cuid())
+  companyId        String
+  itemId           String
+  item             Item                     @relation(fields: [itemId, companyId], references: [id, companyId])
+  lotNumber        String
+  expiryDate       DateTime?                @db.Date
+  manufacturedDate DateTime?                @db.Date
+  createdAt        DateTime                 @default(now())
+  allocations      GoodsReceiptAllocation[]
+  movements        StockMovement[]
+  balances         StockBalance[]
+
+  @@unique([companyId, itemId, lotNumber])
+  @@unique([id, itemId, companyId])
+  @@index([companyId, expiryDate])
+}
+
+/// The inventory ledger: immutable, one row per quantity change of (location, item, lot).
+model StockMovement {
+  id                       String                  @id @default(cuid())
+  companyId                String
+  branchId                 String
+  branch                   Branch                  @relation(fields: [branchId, companyId], references: [id, companyId])
+  locationId               String
+  location                 WarehouseLocation       @relation(fields: [locationId, branchId], references: [id, branchId])
+  itemId                   String
+  item                     Item                    @relation(fields: [itemId, companyId], references: [id, companyId])
+  lotId                    String?
+  lot                      InventoryLot?           @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  type                     StockMovementType
+  /// Signed, exact: + into stock, − out of stock.
+  quantityDelta            Decimal                 @db.Decimal(18, 6)
+  sourceType               String
+  goodsReceiptId           String?
+  receipt                  GoodsReceipt?           @relation(fields: [goodsReceiptId, branchId, companyId], references: [id, branchId, companyId])
+  goodsReceiptLineId       String?
+  goodsReceiptAllocationId String?
+  allocation               GoodsReceiptAllocation? @relation(fields: [goodsReceiptAllocationId], references: [id])
+  /// Business time of the change (the receipt's receivedAt, or the cancellation time).
+  occurredAt               DateTime
+  actorMemberId            String
+  actor                    CompanyMember           @relation(fields: [actorMemberId, companyId], references: [id, companyId])
+  createdAt                DateTime                @default(now())
+
+  /// One receipt movement and at most one reversal per allocation: a retried post cannot duplicate stock.
+  @@unique([goodsReceiptAllocationId, type])
+  @@index([companyId, branchId, itemId, occurredAt])
+  @@index([locationId, lotId, occurredAt])
+  @@index([goodsReceiptId])
+}
+
+/// On-hand quantity per (location, item, lot) — the sum of its movements, maintained with them.
+model StockBalance {
+  id              String            @id @default(cuid())
+  companyId       String
+  branchId        String
+  branch          Branch            @relation(fields: [branchId, companyId], references: [id, companyId])
+  locationId      String
+  location        WarehouseLocation @relation(fields: [locationId, branchId], references: [id, branchId])
+  itemId          String
+  item            Item              @relation(fields: [itemId, companyId], references: [id, companyId])
+  lotId           String?
+  lot             InventoryLot?     @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  /// lotId or '' — makes (location, item, no lot) unique too.
+  lotKey          String
+  quantityOnHand  Decimal           @default(0) @db.Decimal(18, 6)
+  /// First stock into this balance (future stock age / FIFO without lots).
+  firstReceivedAt DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([locationId, itemId, lotKey])
+  @@index([companyId, branchId, itemId])
+  @@index([lotId])
 }

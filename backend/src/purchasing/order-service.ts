@@ -26,6 +26,14 @@ import {
 } from './order-policy.js';
 import { ORDERED_STATUSES, orderedQuantities } from './ordering.js';
 import {
+  isReceivable,
+  progressOf,
+  receiveProgress,
+  receiveState,
+  remainingOf,
+  type LineProgress,
+} from '../warehouse/progress.js';
+import {
   AccountingDepositRow,
   AccountingDepositView,
   ExecutivePOView,
@@ -77,7 +85,9 @@ const include = {
   lines: {
     orderBy: { lineNo: 'asc' as const },
     include: {
-      item: { select: { status: true, lotTracking: true, expiryTracking: true } },
+      item: {
+        select: { status: true, lotTracking: true, expiryTracking: true, inventoryTracked: true },
+      },
       requestLine: { select: { quantity: true } },
     },
   },
@@ -134,8 +144,13 @@ const LIFECYCLE: PurchaseOrderAuditAction[] = [
   'PURCHASE_ORDER_DEPOSIT_CONFIRMED',
   'PURCHASE_ORDER_DEPOSIT_WAIVED',
   'PURCHASE_ORDER_PENDING_RECEIVE',
+  'PURCHASE_ORDER_PARTIALLY_RECEIVED',
+  'PURCHASE_ORDER_RECEIVED',
+  'PURCHASE_ORDER_RECEIVE_REOPENED',
   'PURCHASE_ORDER_CANCELLED',
 ];
+
+type Progress = Map<string, LineProgress>;
 const lifecycleRank = (action: string) => LIFECYCLE.indexOf(action as PurchaseOrderAuditAction);
 
 type RequestLine = Prisma.PurchaseRequestLineGetPayload<{
@@ -260,7 +275,52 @@ export class PurchaseOrderService {
     };
   }
 
+  /** EP31: posted receive progress of the given orders' lines, in one query. */
+  private progress(orders: readonly Full[]) {
+    return receiveProgress(
+      this.db,
+      orders.flatMap((o) => o.lines.map((l) => l.id)),
+    );
+  }
+
+  private receivingOf(o: Full, p: Progress) {
+    return {
+      state: receiveState(
+        o.lines.map((l) => ({
+          ordered: l.quantity,
+          progress: progressOf(p, l.id),
+          receivable: isReceivable(l),
+        })),
+      ),
+      receivedAt: iso(o.receivedAt),
+    };
+  }
+
+  private lineReceiving(l: Full['lines'][number], p: Progress) {
+    const r = progressOf(p, l.id);
+    const receivable = isReceivable(l);
+    return {
+      receivable,
+      received: r.accepted.toString(),
+      rejected: r.rejected.toString(),
+      remaining: receivable ? remainingOf(l.quantity, r).toString() : '0',
+    };
+  }
+
+  /** Receipts of an order (Purchasing: posted and cancelled only; Warehouse: all). */
+  private receipts(orderId: string, withDrafts: boolean) {
+    return this.db.goodsReceipt.findMany({
+      where: { purchaseOrderId: orderId, ...(withDrafts ? {} : { status: { not: 'DRAFT' } }) },
+      orderBy: [{ receivedAt: 'asc' }, { number: 'asc' }],
+      select: { id: true, number: true, status: true, receivedAt: true },
+    });
+  }
+
   private async purchasingView(actor: PoActor, o: Full) {
+    const [progress, receipts] = await Promise.all([
+      this.progress([o]),
+      this.receipts(o.id, false),
+    ]);
     const [events, ordered] = await Promise.all([
       this.db.auditLog.findMany({
         where: {
@@ -331,8 +391,13 @@ export class PurchaseOrderService {
             remaining: Decimal.max(requested.minus(elsewhere), ZERO).toString(),
           },
           itemActive: l.itemId ? l.item?.status === 'ACTIVE' : null,
+          receiving: this.lineReceiving(l, progress),
         };
       }),
+      receiving: {
+        ...this.receivingOf(o, progress),
+        receipts: receipts.map((r) => ({ ...r, receivedAt: r.receivedAt.toISOString() })),
+      },
       requests: this.requests(o),
       actions: poAllowedActions(actor, o),
     });
@@ -353,7 +418,8 @@ export class PurchaseOrderService {
     };
   }
 
-  private executiveView(o: Full) {
+  private async executiveView(o: Full) {
+    const progress = await this.progress([o]);
     return {
       view: 'executive' as const,
       order: ExecutivePOView.parse({
@@ -369,13 +435,14 @@ export class PurchaseOrderService {
         cancelledAt: iso(o.cancelledAt),
         grandTotal: money(o.grandTotal),
         deposit: { status: o.depositStatus, amount: money(o.depositAmount) },
+        receiving: this.receivingOf(o, progress),
         lineCount: o.lines.length,
         requests: this.requests(o),
       }),
     };
   }
 
-  private accountingView(actor: PoActor, o: Full) {
+  private accountingView(actor: PoActor, o: Full, progress: Progress) {
     return {
       view: 'accounting' as const,
       order: AccountingDepositView.parse({
@@ -396,6 +463,7 @@ export class PurchaseOrderService {
         paymentTerms: o.paymentTerms,
         totals: this.totals(o),
         deposit: this.deposit(o),
+        receiving: this.receivingOf(o, progress),
         lineCount: o.lines.length,
         lines: o.lines.map((l) => this.commercialLine(l)),
         actions: poAllowedActions(actor, o).filter(
@@ -405,7 +473,11 @@ export class PurchaseOrderService {
     };
   }
 
-  private warehouseView(o: Full) {
+  private warehouseView(
+    o: Full,
+    progress: Progress,
+    receipts: { id: string; number: string; status: string; receivedAt: Date }[] = [],
+  ) {
     return {
       view: 'warehouse' as const,
       order: WarehousePendingReceiveView.parse({
@@ -418,15 +490,22 @@ export class PurchaseOrderService {
         expectedDate: day(o.expectedDate),
         issuedAt: iso(o.issuedAt),
         pendingReceiveAt: iso(o.pendingReceiveAt),
+        receiving: this.receivingOf(o, progress),
         lineCount: o.lines.length,
-        lines: o.lines.map((l) => ({
-          ...this.operationalLine(l),
-          orderedQuantity: l.quantity.toString(),
-          // No receipts before EP31: everything ordered is still to arrive.
-          pendingQuantity: l.quantity.toString(),
-          lotTracking: l.item?.lotTracking ?? null,
-          expiryTracking: l.item?.expiryTracking ?? null,
-        })),
+        lines: o.lines.map((l) => {
+          const r = this.lineReceiving(l, progress);
+          return {
+            ...this.operationalLine(l),
+            orderedQuantity: l.quantity.toString(),
+            receivedQuantity: r.received,
+            rejectedQuantity: r.rejected,
+            pendingQuantity: r.remaining,
+            receivable: r.receivable,
+            lotTracking: l.item?.lotTracking ?? null,
+            expiryTracking: l.item?.expiryTracking ?? null,
+          };
+        }),
+        receipts: receipts.map((r) => ({ ...r, receivedAt: r.receivedAt.toISOString() })),
       }),
     };
   }
@@ -450,7 +529,7 @@ export class PurchaseOrderService {
     const actor = await loadPoActor(this.db, ctx);
     const o = await this.find(actor, id);
     if (!o || !this.purchasingVisible(actor, o)) throw orderNotFound();
-    return actor.executive ? this.executiveView(o) : this.purchasingView(actor, o);
+    return actor.executive ? await this.executiveView(o) : this.purchasingView(actor, o);
   }
 
   private branchFilter(actor: PoActor, branchId?: string) {
@@ -719,7 +798,9 @@ export class PurchaseOrderService {
       this.db.purchaseOrder.count({ where }),
     ]);
     return {
-      items: rows.map((o) => AccountingDepositRow.parse(this.accountingView(actor, o).order)),
+      items: await this.progress(rows).then((p) =>
+        rows.map((o) => AccountingDepositRow.parse(this.accountingView(actor, o, p).order)),
+      ),
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -731,7 +812,7 @@ export class PurchaseOrderService {
     const actor = await loadPoActor(this.db, ctx);
     const o = await this.find(actor, id);
     if (!o || !this.accountingVisible(actor, o)) throw orderNotFound();
-    return this.accountingView(actor, o);
+    return this.accountingView(actor, o, await this.progress([o]));
   }
 
   async pendingReceiveQueue(ctx: AuthContext, q: QueueInput) {
@@ -768,7 +849,9 @@ export class PurchaseOrderService {
       this.db.purchaseOrder.count({ where }),
     ]);
     return {
-      items: rows.map((o) => WarehousePendingReceiveRow.parse(this.warehouseView(o).order)),
+      items: await this.progress(rows).then((p) =>
+        rows.map((o) => WarehousePendingReceiveRow.parse(this.warehouseView(o, p).order)),
+      ),
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -783,11 +866,12 @@ export class PurchaseOrderService {
       !o ||
       !actor.receiving.view ||
       !this.inBranch(actor, o.branchId) ||
-      o.status !== 'PENDING_RECEIVE'
+      (o.status !== 'PENDING_RECEIVE' && o.status !== 'RECEIVED')
     ) {
       throw orderNotFound();
     }
-    return this.warehouseView(o);
+    const [progress, receipts] = await Promise.all([this.progress([o]), this.receipts(o.id, true)]);
+    return this.warehouseView(o, progress, receipts);
   }
 
   // ----------------------------------------------------------------- writes
@@ -1403,6 +1487,21 @@ export class PurchaseOrderService {
       });
     }
     await this.db.$transaction(async (tx) => {
+      // EP31: the order row lock orders this against a receipt being posted
+      // (posting locks the receipt, then this row). Goods already received
+      // cannot be un-ordered: cancel the receipts (stock reversal) first.
+      await lockOrder(tx, id);
+      const received = await tx.goodsReceipt.count({
+        where: { purchaseOrderId: id, status: 'POSTED' },
+      });
+      if (received) {
+        throw new AppError(
+          409,
+          'PO_HAS_RECEIPTS',
+          'Goods were already received against this order.',
+          { receipts: received },
+        );
+      }
       const changed = await tx.purchaseOrder.updateMany({
         where: { id, companyId: actor.access.company.id, status: o.status },
         data: {

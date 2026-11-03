@@ -57,6 +57,13 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   accounting.deposits.confirm confirm OR waive a required deposit (`confirm`: a
  *                               domain action like `process`)
  *   warehouse.receiving.view    orders pending receive — quantities only, never amounts
+ *
+ * EP31 goods receipts and inventory:
+ *   warehouse.receiving.view     pending receive and goods receipts (quantities, lots, locations)
+ *   warehouse.receiving.process  create, edit and POST a goods receipt (stock goes in)
+ *   warehouse.receiving.cancel   cancel a POSTED receipt — its stock is reversed (MANAGE)
+ *   warehouse.inventory.view     stock on hand, lots / expiry and the movement ledger
+ * Stock adjustments keep their EP27 codes; nothing uses them yet.
  */
 
 export const PERMISSION_NAMESPACES = [
@@ -171,6 +178,7 @@ export const PERMISSION_CATALOG = [
   def('warehouse.inventory.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.receiving.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.receiving.process', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.receiving.cancel', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.stock_adjustment.create', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.stock_adjustment.approve', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.items.view', 'WAREHOUSE', 'COMPANY'),

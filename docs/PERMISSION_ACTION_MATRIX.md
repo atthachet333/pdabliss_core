@@ -57,6 +57,7 @@ branch access or enabled departments takes effect on the next request of every o
 | Executive | `executive.workspace.view`, `executive.overview.view` |
 | **EP28 master data** | `company.master_data.manage` (administration) · `sales.customers.view` · `.manage`, `sales.items.view`, `operations.items.view` · `.manage`, `warehouse.items.view`, `warehouse.locations.view` · `.manage`, `purchasing.suppliers.view` · `.manage`, `purchasing.items.view`, `accounting.customers.view`, `accounting.suppliers.view` |
 | **EP29 purchase requests** | `purchasing.requests.view` · `.create` · `.approve` (existing) + `purchasing.requests.cancel`; `sales` · `operations` · `warehouse` · `accounting` `.purchase_requests.create` · `.approve` |
+| **EP31 receiving and inventory** | `warehouse.receiving.view` · `.process` (existing) + `warehouse.receiving.cancel`; `warehouse.inventory.view` (existing) |
 | **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
@@ -72,6 +73,15 @@ deposit. Purchasing never gains deposit authority; Accounting never gains order 
 gets neither unless assigned to the department; Warehouse reads pending receive only. The override
 CHECK lists 56 operational codes. One policy table: `backend/src/purchasing/order-policy.ts`; see
 [PURCHASE_ORDER.md](PURCHASE_ORDER.md).
+
+**EP31 note.** One new code, `warehouse.receiving.cancel` (MANAGE): reversing a posted goods receipt
+takes stock away and reopens the order, which is a manager decision, not day-to-day receiving.
+`warehouse.receiving.process` (OPERATE) creates, edits and **posts** receipts (posting is part of
+processing — no `post` action word). `warehouse.inventory.view` reads stock, lots and movements. No
+stock-adjustment code is used yet. System Admin gets none of it unless assigned to Warehouse;
+Executive reads only; Purchasing and Accounting see receive progress on orders, never stock. The
+override CHECK lists 57 operational codes. One policy table: `backend/src/warehouse/policy.ts`; see
+[WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).
 
 **EP28 scope note.** Canonical master records are one per company, so the customer, supplier and
 item codes are **COMPANY-scoped** operational permissions (department, package, assignment and

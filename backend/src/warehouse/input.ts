@@ -1,0 +1,165 @@
+import { z } from 'zod';
+
+/*
+ * Request schemas for goods receipts and inventory (EP31). Strict objects:
+ * what the server owns — company, branch, number, status, the order, its
+ * supplier, item and unit, ordered quantities, lots' ids, movement types and
+ * deltas, balances, actors — is refused with 400. Quantities and dates travel
+ * as STRINGS (exact decimals, calendar days).
+ */
+
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+
+const text = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .refine((v) => !CONTROL.test(v), 'invalid characters')
+    .transform((v) => v.replace(/\r\n?/g, '\n').normalize('NFC'));
+
+/** Optional; `null` or '' clears it. */
+const opt = <T extends z.ZodType>(schema: T) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    schema.nullable().optional(),
+  );
+
+const id = z.string().min(1).max(64);
+
+/** A calendar day, 2000-01-01 … 2100-12-31, that exists. */
+export const dayValue = z
+  .string()
+  .regex(/^(20\d{2}|2100)-\d{2}-\d{2}$/, 'invalid date')
+  .refine((v) => {
+    const d = new Date(`${v}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  }, 'invalid date');
+
+/** A non-negative exact decimal: up to 12 integer and 6 decimal digits. */
+const amount = z
+  .string()
+  .trim()
+  .regex(/^\d{1,12}(\.\d{1,6})?$/, 'invalid quantity');
+const positive = amount.refine((v) => /[1-9]/.test(v), 'quantity must be greater than zero');
+
+/** An instant (ISO 8601 with a time zone). */
+const instant = z
+  .string()
+  .max(40)
+  .refine((v) => /T/.test(v) && !Number.isNaN(Date.parse(v)), 'invalid date-time');
+
+/** A lot number as printed by the supplier or the company: kept verbatim, no control characters. */
+const lotNumber = text(60);
+
+export const REJECT_REASONS = [
+  'DAMAGED',
+  'WRONG_ITEM',
+  'EXPIRED',
+  'QUALITY',
+  'QUANTITY_DISCREPANCY',
+  'OTHER',
+] as const;
+
+export const AllocationBody = z
+  .object({
+    locationId: id,
+    lotNumber: opt(lotNumber),
+    expiryDate: opt(dayValue),
+    manufacturedDate: opt(dayValue),
+    quantity: positive,
+  })
+  .strict();
+export type AllocationInput = z.output<typeof AllocationBody>;
+
+/** The whole receipt line, replacing what was there (allocations included). */
+export const LineBody = z
+  .object({
+    acceptedQuantity: amount,
+    rejectedQuantity: amount.optional(),
+    rejectReason: opt(z.enum(REJECT_REASONS)),
+    rejectNote: opt(text(300)),
+    replacementRequired: z.boolean().optional(),
+    note: opt(text(500)),
+    allocations: z.array(AllocationBody).max(50).default([]),
+  })
+  .strict();
+export type LineInput = z.output<typeof LineBody>;
+
+export const CreateReceiptBody = z
+  .object({
+    purchaseOrderId: id,
+    receivedAt: instant.optional(),
+    defaultLocationId: opt(id),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreateReceiptInput = z.output<typeof CreateReceiptBody>;
+
+export const UpdateReceiptBody = z
+  .object({
+    receivedAt: instant.optional(),
+    defaultLocationId: opt(id),
+    note: opt(text(1000)),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'nothing to update');
+export type UpdateReceiptInput = z.output<typeof UpdateReceiptBody>;
+
+export const CancelReceiptBody = z.object({ reason: opt(text(500)) }).strict();
+
+export const ReceiptLineParams = z.object({ id, lineId: id });
+
+const param = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+const page = {
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+};
+
+export const ReceiptListQuery = z
+  .object({
+    status: param(z.enum(['DRAFT', 'POSTED', 'CANCELLED'])),
+    branchId: param(id),
+    purchaseOrderId: param(id),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type ReceiptListInput = z.output<typeof ReceiptListQuery>;
+
+export const EXPIRY_STATES = ['EXPIRED', 'EXPIRING_SOON', 'OK', 'NO_EXPIRY'] as const;
+export type ExpiryState = (typeof EXPIRY_STATES)[number];
+
+export const StockQuery = z
+  .object({
+    /** `stock` (default): by item and location; `lots`: lot-tracked stock by expiry. */
+    view: param(z.enum(['stock', 'lots'])),
+    branchId: param(id),
+    locationId: param(id),
+    itemId: param(id),
+    expiry: param(z.enum(EXPIRY_STATES)),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type StockInput = z.output<typeof StockQuery>;
+
+export const MovementQuery = z
+  .object({
+    branchId: param(id),
+    locationId: param(id),
+    itemId: param(id),
+    lotId: param(id),
+    type: param(z.enum(['PURCHASE_RECEIPT', 'PURCHASE_RECEIPT_REVERSAL'])),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type MovementInput = z.output<typeof MovementQuery>;
+
+export const FefoQuery = z
+  .object({ itemId: id, branchId: param(id), locationId: param(id) })
+  .strict();

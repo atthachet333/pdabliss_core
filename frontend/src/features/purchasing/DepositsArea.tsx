@@ -292,6 +292,10 @@ function DepositPage({ id }: { id: string }) {
             )}
           </Fact>
           <Fact term={c.f.dueDate}>{o.deposit.dueDate ? date(o.deposit.dueDate) : '—'}</Fact>
+          <Fact term={c.receiving}>
+            {c.receiveStates[o.receiving.state]}
+            {o.receiving.receivedAt && ` · ${dateTime(o.receiving.receivedAt)}`}
+          </Fact>
           {o.deposit.note && (
             <Fact term={c.f.depositNote}>
               <span className="whitespace-pre-line">{o.deposit.note}</span>

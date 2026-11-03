@@ -189,9 +189,11 @@ describe('Purchase order policy and arithmetic (EP30)', () => {
       expectedDate: null,
       issuedAt: null,
       pendingReceiveAt: null,
+      receiving: { state: 'NOT_RECEIVED', receivedAt: null },
       lineCount: 1,
       grandTotal: '99',
       deposit: { amount: '1' },
+      receipts: [],
       lines: [
         {
           id: 'l',
@@ -202,7 +204,10 @@ describe('Purchase order policy and arithmetic (EP30)', () => {
           unit: null,
           quantity: '1',
           orderedQuantity: '1',
+          receivedQuantity: '0',
+          rejectedQuantity: '0',
           pendingQuantity: '1',
+          receivable: true,
           lotTracking: 'REQUIRED',
           expiryTracking: null,
           unitPrice: '9',

@@ -14,6 +14,7 @@ import {
 import { seedDemoMasterData } from '../master-data/demo.js';
 import { seedDemoPurchaseRequests } from '../purchasing/demo.js';
 import { seedDemoPurchaseOrders } from '../purchasing/order-demo.js';
+import { seedDemoReceipts } from '../warehouse/demo.js';
 import { normalizeEmail } from './crypto.js';
 import { checkPassword, hashPassword } from './password.js';
 
@@ -445,6 +446,8 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   const purchaseRequests = await seedDemoPurchaseRequests(db, company.id, SEED_META);
   // EP30: four demo purchase orders (draft, waiting deposit, pending receive, cancelled).
   const purchaseOrders = await seedDemoPurchaseOrders(db, company.id, SEED_META);
+  // EP31: three posted goods receipts in the demo branch (one partial, one order fully received).
+  const goodsReceipts = await seedDemoReceipts(db, company.id, SEED_META);
 
   return {
     companyId: company.id,
@@ -456,6 +459,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     masterData,
     purchaseRequests,
     purchaseOrders,
+    goodsReceipts,
   };
 }
 

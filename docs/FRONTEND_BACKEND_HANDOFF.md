@@ -184,6 +184,14 @@ noindex, served by the existing `/platform/*` shell rewrite).
   `/api/v1/warehouse/pending-receive` (no money at all). **EP31 starts from the contract in
   PURCHASE_ORDER.md §13.** Also: normal production builds no longer ship the `/app` prototype
   (still in the repository, on in dev and with `VITE_ENABLE_PROTOTYPE=true`).
+- **EP31 (Goods receipts, lots, expiry, stock ledger, FEFO):** see
+  [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md), [INVENTORY_LEDGER.md](INVENTORY_LEDGER.md) and
+  [EP31_REPORT.md](EP31_REPORT.md). `GoodsReceipt` / `GoodsReceiptLine` / `GoodsReceiptAllocation`,
+  `InventoryLot`, `StockMovement` (immutable) and `StockBalance` under `/api/v1/warehouse`; receipts
+  only from PENDING_RECEIVE orders, posting / reversal in one transaction (`warehouse/ledger.ts` is the
+  only writer of stock), the order's new `RECEIVED` status, a read-only FEFO order. **Every later stock
+  change (sales issue, production, transfers, adjustments) writes `StockMovement` through the same
+  pattern — INVENTORY_LEDGER.md §6.** Warehouse screens live in `frontend/src/features/warehouse/`.
 
 ## 7. Warehouse boundary
 
@@ -238,7 +246,8 @@ access; the EP27 resolver decides the rest. They are fixtures: no demo field exi
 the sign-in bypass and the development persona list exist only outside production with demo routes
 on, and passwords live only in each developer's `.env`. Use `purchasing.demo@pdabliss.com` for EP29
 purchase requests and EP30 orders, `accounting.demo@pdabliss.com` for deposits and
-`warehouse.demo@pdabliss.com` for Warehouse privacy checks.
+`warehouse.demo@pdabliss.com` for Warehouse privacy checks and EP31 receiving (a Warehouse Manager or
+the owner reverses posted receipts).
 
 ## 12. Localization
 

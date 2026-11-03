@@ -185,8 +185,10 @@ const order = (over: Partial<PurchaseOrder> = {}): PurchaseOrder => ({
         remaining: '48',
       },
       itemActive: true,
+      receiving: { receivable: true, received: '0', rejected: '0', remaining: '48' },
     },
   ],
+  receiving: { state: 'NOT_RECEIVED', receivedAt: null, receipts: [] },
   requests: [{ id: 'pr1', number: 'PR-202610-000004' }],
   actions: ['edit', 'issue', 'cancel'],
   ...over,
@@ -521,6 +523,7 @@ describe('Deposits and pending receive (EP30)', () => {
     order: {
       id: 'po1',
       number: 'PO-202610-000002',
+      receiving: { state: 'NOT_RECEIVED', receivedAt: null },
       status: 'WAITING_DEPOSIT',
       branch: B0,
       supplier: {
@@ -573,9 +576,9 @@ describe('Deposits and pending receive (EP30)', () => {
       ),
     );
     renderRoute('/core?lang=en');
-    expect(await screen.findByRole('link', { name: 'Orders pending receive' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Warehouse workspace' })).toHaveAttribute(
       'href',
-      '/core/warehouse/pending-receive',
+      '/core/warehouse',
     );
   });
 
@@ -645,6 +648,8 @@ describe('Deposits and pending receive (EP30)', () => {
         expectedDate: '2026-11-02',
         issuedAt: '2026-10-29T04:00:00.000Z',
         pendingReceiveAt: '2026-10-29T04:00:00.000Z',
+        receiving: { state: 'NOT_RECEIVED', receivedAt: null },
+        receipts: [],
         lineCount: 1,
         lines: [
           {
@@ -656,7 +661,10 @@ describe('Deposits and pending receive (EP30)', () => {
             unit: { code: 'KG', name: 'Kilogram' },
             quantity: '8',
             orderedQuantity: '8',
+            receivedQuantity: '0',
+            rejectedQuantity: '0',
             pendingQuantity: '8',
+            receivable: true,
             lotTracking: 'REQUIRED',
             expiryTracking: 'OPTIONAL',
             request: { id: 'pr1', number: 'PR-202610-000003', lineNo: 1 },
@@ -678,6 +686,22 @@ describe('Deposits and pending receive (EP30)', () => {
         hasMore: false,
       }),
       [`GET ${RCV}/po3`]: ok(pending),
+      [`GET /api/v1/warehouse/context`]: ok({
+        receiving: { view: true, process: false, cancel: false },
+        inventory: { view: false },
+        branches: [],
+        selectedBranch: null,
+        locations: [],
+        counts: {
+          pendingReceive: 1,
+          draftReceipts: 0,
+          stockRows: null,
+          expiring: null,
+          expired: null,
+        },
+        expiringSoonDays: 30,
+        today: '2026-11-03',
+      }),
     });
     renderRoute('/core/warehouse/pending-receive?lang=th');
     const user = userEvent.setup();

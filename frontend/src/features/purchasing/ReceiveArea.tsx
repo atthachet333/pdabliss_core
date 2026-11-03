@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Route, Routes, useParams } from 'react-router';
+import { Route, Routes, useNavigate, useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { BranchCode } from '@/features/company-center/adminParts';
@@ -14,7 +14,11 @@ import {
   Section,
 } from '@/features/company-center/parts';
 import { CONTROL_COPY } from '@/features/company-center/copy';
+import { WH_COPY } from '@/features/warehouse/whCopy';
+import { whApi } from '@/features/warehouse/whApi';
+import { GrStatusPill, WarehouseNav } from '@/features/warehouse/whParts';
 import { useCopy } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import { receiveApi, type Page, type ReceiveOrder } from './orderApi';
 import { ORDER_COPY, poError } from './orderCopy';
@@ -24,8 +28,9 @@ import { LineIdentity, PoStatusPill } from './orderParts';
  * /core/warehouse/pending-receive/* — what is on its way to the branch (EP30),
  * Warehouse's own lazy chunk. The server's WarehousePendingReceiveView holds
  * quantities and identities only: no price, discount, tax, total, deposit,
- * terms or supplier contact exists in what this page receives. No receive
- * action yet (EP31).
+ * terms or supplier contact exists in what this page receives. EP31: per line
+ * what was received, rejected and is still pending, the order's goods receipts,
+ * and “Receive goods” (a new draft receipt) for those who may process receipts.
  */
 
 const BASE = '/core/warehouse/pending-receive';
@@ -56,6 +61,7 @@ function ReceiveList() {
   const [data, setData] = useState<Page<ReceiveOrder> | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [more, setMore] = useState(false);
+  const { state: ctx } = useLoad(whApi.context);
   const request = useRef(0);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 300);
@@ -83,7 +89,7 @@ function ReceiveList() {
         ← CORE
       </AreaLink>
       <PageTitle title={c.receive} lead={c.receiveLead} />
-      <Notice tone="info">{c.receiveLater}</Notice>
+      {ctx.status === 'ready' && <WarehouseNav ctx={ctx.data} />}
       <div role="search" className="grid max-w-xl grid-cols-1">
         <SearchBox
           id={`${base}-q`}
@@ -173,12 +179,31 @@ function ReceiveList() {
 
 function ReceivePage({ id }: { id: string }) {
   const c = useCopy(ORDER_COPY);
+  const w = useCopy(WH_COPY);
   const cc = useCopy(CONTROL_COPY);
   const { date, dateTime } = useDateFormat();
-  const { state } = useLoad(() => receiveApi.get(id));
+  const navigate = useNavigate();
+  const { locale } = useLocale();
+  const { state } = useLoad(() => Promise.all([receiveApi.get(id), whApi.context()]));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error') return <Notice tone="error">{poError(state.error, c, cc)}</Notice>;
-  const o = state.data.order;
+  const [{ order: o }, ctx] = state.data;
+  const canReceive = ctx.receiving.process && o.status === 'PENDING_RECEIVE';
+  const receive = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await whApi.create(o.id);
+      void navigate(`/core/warehouse/receipts/${encodeURIComponent(d.receipt.id)}`, {
+        state: { locale },
+      });
+    } catch (e) {
+      setError(e);
+      setBusy(false);
+    }
+  };
   return (
     <div className="grid grid-cols-1 gap-6" data-receive-order={o.number}>
       <AreaLink
@@ -188,10 +213,29 @@ function ReceivePage({ id }: { id: string }) {
         ← {c.back}
       </AreaLink>
       <div>
-        <PageTitle title={o.number} />
-        <div className="mt-3">
+        <PageTitle
+          title={o.number}
+          action={
+            canReceive ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void receive()}
+                className={buttonClasses('primary', 'md')}
+                data-receive-goods
+              >
+                {busy ? w.loading : w.receiveGoods}
+              </button>
+            ) : undefined
+          }
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <PoStatusPill status={o.status} />
+          <span className="text-caption text-text-muted">{c.receiveStates[o.receiving.state]}</span>
         </div>
+      </div>
+      <div aria-live="polite">
+        {!!error && <Notice tone="error">{poError(error, c, cc)}</Notice>}
       </div>
       <Section id="rcv-facts" title={c.details}>
         <Facts>
@@ -201,6 +245,9 @@ function ReceivePage({ id }: { id: string }) {
           <Fact term={c.statuses.PENDING_RECEIVE}>
             {o.pendingReceiveAt ? dateTime(o.pendingReceiveAt) : '—'}
           </Fact>
+          {o.receiving.receivedAt && (
+            <Fact term={c.statuses.RECEIVED}>{dateTime(o.receiving.receivedAt)}</Fact>
+          )}
         </Facts>
       </Section>
       <Section id="rcv-lines" title={`${c.f.lines} · ${c.linesCount(o.lines.length)}`}>
@@ -216,10 +263,12 @@ function ReceivePage({ id }: { id: string }) {
               </span>
               <div className="grid min-w-0 gap-2">
                 <LineIdentity line={l} />
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption sm:grid-cols-4">
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption sm:grid-cols-3 lg:grid-cols-6">
                   {[
                     [c.f.ordered, l.orderedQuantity],
-                    [c.f.pendingQuantity, l.pendingQuantity],
+                    [c.f.received, l.receivedQuantity],
+                    [c.f.rejected, l.rejectedQuantity],
+                    [c.f.pendingQuantity, l.receivable ? l.pendingQuantity : '—'],
                     [c.f.lot, l.lotTracking ? c.tracking[l.lotTracking] : '—'],
                     [c.f.expiry, l.expiryTracking ? c.tracking[l.expiryTracking] : '—'],
                   ].map(([term, value]) => (
@@ -234,6 +283,24 @@ function ReceivePage({ id }: { id: string }) {
           ))}
         </ol>
       </Section>
+      {o.receipts.length > 0 && (
+        <Section id="rcv-receipts" title={c.receiptsTitle}>
+          <ul className="grid gap-2" data-receipts>
+            {o.receipts.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label">
+                <AreaLink
+                  to={`/core/warehouse/receipts/${encodeURIComponent(r.id)}`}
+                  className="inline-flex min-h-11 items-center font-mono font-semibold text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                >
+                  {r.number}
+                </AreaLink>
+                <GrStatusPill status={r.status} />
+                <span className="text-caption text-text-muted">{dateTime(r.receivedAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
     </div>
   );
 }

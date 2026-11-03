@@ -81,6 +81,20 @@ const FIXTURES: Fixture[] = [
     ],
   },
   {
+    // EP31: the demo-branch request behind the fully received demo order.
+    key: 'PR_APPROVED_WAREHOUSE',
+    requester: 'warehouse.demo@pdabliss.com',
+    department: 'WAREHOUSE',
+    branch: '00001',
+    purpose: 'สินค้าสำเร็จรูปและกล่องสำหรับคลังสาขาตัวอย่าง (ข้อมูลสาธิต)',
+    status: 'APPROVED',
+    decidedBy: 'purchasing.demo@pdabliss.com',
+    lines: [
+      { item: 'FG-000001', quantity: '30' },
+      { item: 'PK-000001', quantity: '100' },
+    ],
+  },
+  {
     key: 'PR_REJECTED_PURCHASING',
     requester: 'purchasing.demo@pdabliss.com',
     department: 'PURCHASING',

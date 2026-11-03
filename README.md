@@ -112,7 +112,13 @@ partial and multi-supplier ordering with derived remaining quantities, safe unde
 server-computed totals, frozen snapshots, supplier deposits confirmed or waived by Accounting, and a
 money-free Warehouse Pending Receive handoff; normal production builds no longer ship the `/app`
 prototype ([docs/PURCHASE_ORDER.md](docs/PURCHASE_ORDER.md), [docs/EP30_REPORT.md](docs/EP30_REPORT.md)).
-Next: EP31 Warehouse receiving (not started).
+**EP31** (completed locally, awaiting owner review) makes Warehouse operational: goods receipts
+against orders pending receive (partial and repeated, accepted / rejected, lots and expiry per item
+rules, split location / lot allocations), an immutable stock movement ledger with balances kept in the
+same transaction, reversal instead of deletion, the order's RECEIVED state, a FEFO order and Warehouse
+screens with no financial value ([docs/WAREHOUSE_RECEIVING.md](docs/WAREHOUSE_RECEIVING.md),
+[docs/INVENTORY_LEDGER.md](docs/INVENTORY_LEDGER.md), [docs/EP31_REPORT.md](docs/EP31_REPORT.md)).
+Next: EP32 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -134,7 +140,7 @@ Roadmap:
    **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** →
    **EP28 Operational Master Data** → **EP28.1 Department demo personas**
 3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
-   receive** → EP31 Warehouse receiving → Sales → Warehouse →
+   receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → Sales → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

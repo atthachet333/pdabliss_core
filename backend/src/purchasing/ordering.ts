@@ -6,7 +6,7 @@ import { Decimal, ZERO } from './money.js';
  * Ordered / remaining quantities of request lines (EP30) — always derived,
  * never stored on the request:
  *
- *   ordered   = Σ quantity on ISSUED, WAITING_DEPOSIT and PENDING_RECEIVE orders
+ *   ordered   = Σ quantity on ISSUED, WAITING_DEPOSIT, PENDING_RECEIVE and RECEIVED orders
  *   in draft  = Σ quantity on DRAFT orders (planned; reserves nothing)
  *   remaining = max(requested − ordered, 0)
  *
@@ -17,6 +17,7 @@ export const ORDERED_STATUSES: PurchaseOrderStatus[] = [
   'ISSUED',
   'WAITING_DEPOSIT',
   'PENDING_RECEIVE',
+  'RECEIVED',
 ];
 
 /** Σ quantity per request line on orders in `statuses` (optionally not counting one order). */

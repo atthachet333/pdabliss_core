@@ -11,8 +11,27 @@ import type { PrBranch } from './api';
  * sends them. Each audience gets its own response shape (`view`).
  */
 
-export type PoStatus = 'DRAFT' | 'ISSUED' | 'WAITING_DEPOSIT' | 'PENDING_RECEIVE' | 'CANCELLED';
-export const PO_STATUSES: PoStatus[] = ['DRAFT', 'WAITING_DEPOSIT', 'PENDING_RECEIVE', 'CANCELLED'];
+export type PoStatus =
+  'DRAFT' | 'ISSUED' | 'WAITING_DEPOSIT' | 'PENDING_RECEIVE' | 'RECEIVED' | 'CANCELLED';
+export const PO_STATUSES: PoStatus[] = [
+  'DRAFT',
+  'WAITING_DEPOSIT',
+  'PENDING_RECEIVE',
+  'RECEIVED',
+  'CANCELLED',
+];
+/** EP31: derived from posted goods receipts. */
+export type ReceiveState = 'NOT_RECEIVED' | 'PARTIALLY_RECEIVED' | 'FULLY_RECEIVED';
+export interface Receiving {
+  state: ReceiveState;
+  receivedAt: string | null;
+}
+export interface ReceiptRef {
+  id: string;
+  number: string;
+  status: 'DRAFT' | 'POSTED' | 'CANCELLED';
+  receivedAt: string;
+}
 export type DepositStatus = 'NOT_REQUIRED' | 'PENDING' | 'CONFIRMED' | 'WAIVED';
 export type DepositType = 'NONE' | 'AMOUNT' | 'PERCENT';
 export type PoAction = 'edit' | 'issue' | 'cancel' | 'confirm_deposit' | 'waive_deposit';
@@ -78,6 +97,7 @@ export interface PurchasingLine extends CommercialLine {
     remaining: string;
   };
   itemActive: boolean | null;
+  receiving: { receivable: boolean; received: string; rejected: string; remaining: string };
 }
 
 export interface PurchaseOrder {
@@ -113,6 +133,7 @@ export interface PurchaseOrder {
   cancellationReason: string | null;
   lineCount: number;
   lines: PurchasingLine[];
+  receiving: Receiving & { receipts: ReceiptRef[] };
   requests: { id: string; number: string }[];
   actions: PoAction[];
 }
@@ -130,6 +151,7 @@ export interface ExecutiveOrder {
   cancelledAt: string | null;
   grandTotal: string;
   deposit: { status: DepositStatus; amount: string | null };
+  receiving: Receiving;
   lineCount: number;
   requests: { id: string; number: string }[];
 }
@@ -181,6 +203,7 @@ export interface DepositOrder {
   paymentTerms: string | null;
   totals: Totals;
   deposit: Deposit;
+  receiving: Receiving;
   lineCount: number;
 }
 
@@ -203,6 +226,7 @@ export interface ReceiveOrder {
   expectedDate: string | null;
   issuedAt: string | null;
   pendingReceiveAt: string | null;
+  receiving: Receiving;
   lineCount: number;
 }
 
@@ -211,14 +235,17 @@ export type Tracking = 'NONE' | 'OPTIONAL' | 'REQUIRED';
 /** One line to receive: ordered / pending quantity and the item's lot / expiry requirement. */
 export interface ReceiveLine extends OperationalLine {
   orderedQuantity: string;
+  receivedQuantity: string;
+  rejectedQuantity: string;
   pendingQuantity: string;
+  receivable: boolean;
   lotTracking: Tracking | null;
   expiryTracking: Tracking | null;
 }
 
 export interface ReceiveDetail {
   view: 'warehouse';
-  order: ReceiveOrder & { lines: ReceiveLine[] };
+  order: ReceiveOrder & { lines: ReceiveLine[]; receipts: ReceiptRef[] };
 }
 
 export interface SupplierOption {

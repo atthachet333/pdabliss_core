@@ -238,6 +238,12 @@ permissions and Warehouse-excluded views — never on the master records.
 ACTIVE supplier, refreshes its supplier and item snapshots at issue and freezes them, so a later
 rename or deactivation does not rewrite an issued order. Warehouse Pending Receive reads the item's
 current `lotTracking` / `expiryTracking`, the handoff EP31 receiving enforces.
+*EP31 delivered receiving* ([WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md),
+[INVENTORY_LEDGER.md](INVENTORY_LEDGER.md)): stock is received into ACTIVE `WarehouseLocation`s of the
+order's branch, lots are company-wide `(item, lot number)` with one expiry, and the lot / expiry
+rules follow the item's tracking. EP31 registers the inventory **structure lock**: once an item has a
+lot, a stock movement or a goods-receipt line, its base unit and tracking can no longer change
+(`ITEM_STRUCTURE_LOCKED`).
 
 **Sales.** Sales order lines reference `customerId`, `itemId`, `unitId`, with the same snapshot
 rule. Price lists, credit limits and receivables are later, separate records.

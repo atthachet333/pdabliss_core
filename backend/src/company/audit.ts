@@ -56,6 +56,9 @@ export type CompanyAuditAction =
   // ---- EP30: purchase orders (details: number, from / to, field names, line no,
   // request number, item code — never amounts, prices, supplier or deposit values)
   | PurchaseOrderAuditAction
+  // ---- EP31: goods receipts and lots (details: number, order number, from / to, line no,
+  // item code, counts — never quantities of value, notes or reasons)
+  | GoodsReceiptAuditAction
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;
@@ -107,17 +110,31 @@ export type PurchaseOrderAuditAction =
   | 'PURCHASE_ORDER_PENDING_RECEIVE'
   | 'PURCHASE_ORDER_CANCELLED'
   | 'PURCHASE_ORDER_DEPOSIT_CONFIRMED'
-  | 'PURCHASE_ORDER_DEPOSIT_WAIVED';
+  | 'PURCHASE_ORDER_DEPOSIT_WAIVED'
+  // EP31: receipts against the order (partial / complete; reopened when a receipt is reversed)
+  | 'PURCHASE_ORDER_PARTIALLY_RECEIVED'
+  | 'PURCHASE_ORDER_RECEIVED'
+  | 'PURCHASE_ORDER_RECEIVE_REOPENED';
+
+export type GoodsReceiptAuditAction =
+  | 'GOODS_RECEIPT_CREATED'
+  | 'GOODS_RECEIPT_UPDATED'
+  | 'GOODS_RECEIPT_LINE_UPDATED'
+  | 'GOODS_RECEIPT_POSTED'
+  | 'GOODS_RECEIPT_CANCELLED'
+  | 'INVENTORY_LOT_CREATED';
 
 /**
  * Entities whose audit details are the customer's business data: Platform
  * Inspection shows that such an event happened, never its details (EP28, EP29,
- * EP30 — no order number, amount or supplier).
+ * EP30, EP31 — no order or receipt number, amount, supplier, lot or quantity).
  */
 export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   ...MASTER_AUDIT_ENTITIES,
   'PurchaseRequest',
   'PurchaseOrder',
+  'GoodsReceipt',
+  'InventoryLot',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -137,7 +154,9 @@ export type AuditEntityType =
   | 'Invitation'
   | MasterAuditEntity
   | 'PurchaseRequest'
-  | 'PurchaseOrder';
+  | 'PurchaseOrder'
+  | 'GoodsReceipt'
+  | 'InventoryLot';
 
 export async function recordCompanyEvent(
   db: DbClient,

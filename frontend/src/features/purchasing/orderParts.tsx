@@ -19,6 +19,7 @@ const PO_TONE: Record<PoStatus, 'teal' | 'neutral' | 'warning' | 'muted'> = {
   ISSUED: 'teal',
   WAITING_DEPOSIT: 'warning',
   PENDING_RECEIVE: 'teal',
+  RECEIVED: 'teal',
   CANCELLED: 'muted',
 };
 

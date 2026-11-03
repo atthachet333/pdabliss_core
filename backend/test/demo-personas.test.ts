@@ -500,29 +500,34 @@ describeDb('Demo personas (EP28.1)', () => {
       ['SALES', 'SUBMITTED'],
       ['OPERATIONS', 'APPROVED'],
       ['PURCHASING', 'APPROVED'],
+      ['WAREHOUSE', 'APPROVED'],
       ['PURCHASING', 'REJECTED'],
     ]);
     const PR = '/api/v1/purchase-requests';
     const buyer = await login('purchasing.demo@pdabliss.com');
     const queue = j(await buyer.get(`${PR}?view=queue`)).items;
     expect(queue.map((r: J) => r.department)).toEqual(['SALES']);
-    expect(j(await buyer.get(PR)).total).toBe(4); // others' drafts stay private
+    expect(j(await buyer.get(PR)).total).toBe(5); // others' drafts stay private
     const wh = await login('warehouse.demo@pdabliss.com');
-    expect(j(await wh.get(PR)).items.map((r: J) => r.status)).toEqual(['DRAFT']);
+    expect(
+      j(await wh.get(PR))
+        .items.map((r: J) => r.status)
+        .sort(),
+    ).toEqual(['APPROVED', 'DRAFT']);
     const sales = await login('sales.demo@pdabliss.com');
     expect(j(await sales.get(PR)).items.map((r: J) => r.department)).toEqual(['SALES']);
     const exec = await login('executive.demo@pdabliss.com');
-    expect(j(await exec.get(PR)).total).toBe(4);
+    expect(j(await exec.get(PR)).total).toBe(5);
     // Decided once: the buyer approves the Sales request; a later seed leaves it approved.
     expect(j(await buyer.post(`${PR}/${queue[0].id}/approve`)).request.status).toBe('APPROVED');
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.purchaseRequest.count()).toBe(5);
+    expect(await h.db.purchaseRequest.count()).toBe(6);
     expect(
       (await h.db.purchaseRequest.findUniqueOrThrow({ where: { id: queue[0].id } })).status,
     ).toBe('APPROVED');
   });
 
-  it('seeds four demo purchase orders once — each persona sees its own part (EP30)', async () => {
+  it('seeds five demo purchase orders once — each persona sees its own part (EP30, EP31)', async () => {
     const rows = await h.db.purchaseOrder.findMany({
       orderBy: { number: 'asc' },
       include: { branch: true },
@@ -532,10 +537,11 @@ describeDb('Demo personas (EP28.1)', () => {
       ['WAITING_DEPOSIT', '00000', 'PENDING'],
       ['PENDING_RECEIVE', '00001', 'NOT_REQUIRED'],
       ['CANCELLED', '00001', 'NOT_REQUIRED'],
+      ['RECEIVED', '00001', 'NOT_REQUIRED'],
     ]);
     const PO = '/api/v1/purchase-orders';
     const buyer = await login('purchasing.demo@pdabliss.com');
-    expect(j(await buyer.get(PO)).total).toBe(4);
+    expect(j(await buyer.get(PO)).total).toBe(5);
     // The operations request is partly ordered: 8 of 12.5 kg (the cancelled 4.5 released).
     const ops = rows[2]!;
     const line = await h.db.purchaseOrderLine.findFirstOrThrow({
@@ -553,7 +559,36 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(j(pending).items.map((o: J) => o.number)).toEqual([ops.number]);
     expect(pending.body).not.toMatch(/price|amount|grandTotal|subtotal|deposit|42\.5/i);
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.purchaseOrder.count()).toBe(4);
+    expect(await h.db.purchaseOrder.count()).toBe(5);
+  });
+
+  it('seeds three posted goods receipts: a partial one, a fully received order, FEFO lots (EP31)', async () => {
+    const receipts = await h.db.goodsReceipt.findMany({ orderBy: { number: 'asc' } });
+    expect(receipts.map((r) => r.status)).toEqual(['POSTED', 'POSTED', 'POSTED']);
+    const wh = await login('warehouse.demo@pdabliss.com');
+    const W = '/api/v1/warehouse';
+    // The raw-material order is partly received: 5 of 8 kg; the other order is RECEIVED.
+    const pending = j(await wh.get(`${W}/pending-receive`)).items;
+    expect(pending).toHaveLength(1);
+    expect(pending[0].receiving.state).toBe('PARTIALLY_RECEIVED');
+    const fg = await h.db.item.findFirstOrThrow({ where: { code: 'FG-000001' } });
+    const fefo = j(await wh.get(`${W}/stock/fefo?itemId=${fg.id}`)).candidates;
+    expect(fefo.map((c: J) => c.lot.lotNumber)).toEqual(['FG-DEMO-B', 'FG-DEMO-A', 'FG-DEMO-C']);
+    const stock = await wh.get(`${W}/stock`);
+    expect(j(stock).total).toBe(5);
+    expect(stock.body).not.toMatch(/price|amount|cost|deposit|\b120\b|12\.5/i);
+    // Ledger = balances.
+    const balances = await h.db.stockBalance.findMany();
+    for (const b of balances) {
+      const sum = await h.db.stockMovement.aggregate({
+        where: { locationId: b.locationId, itemId: b.itemId, lotId: b.lotId },
+        _sum: { quantityDelta: true },
+      });
+      expect(sum._sum.quantityDelta!.toString()).toBe(b.quantityOnHand.toString());
+    }
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await h.db.goodsReceipt.count()).toBe(3);
+    expect(await h.db.stockMovement.count()).toBe(5);
   });
 
   it('the legacy staff account carries the one exception: receiving is denied', async () => {

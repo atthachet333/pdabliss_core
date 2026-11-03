@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { isEmail } from '@/lib/email';
 import type { ContactFields, ContactMethod, Inquiry, Step } from './model';
 
 /*
@@ -19,7 +19,6 @@ export type FieldError =
 
 export type DetailErrors = Partial<Record<keyof ContactFields, FieldError>>;
 
-const email = z.email();
 const digits = (v: string) => v.replace(/\D/g, '');
 
 export function validateDetails(c: ContactFields, method: ContactMethod): DetailErrors {
@@ -36,7 +35,7 @@ export function validateDetails(c: ContactFields, method: ContactMethod): Detail
   ) {
     e.phone = 'phoneInvalid';
   }
-  if (mail && !email.safeParse(mail).success) e.email = 'emailInvalid';
+  if (mail && !isEmail(mail)) e.email = 'emailInvalid';
   if (line && !/^@?[\w.-]{2,40}$/.test(line)) e.lineId = 'lineInvalid';
 
   // The chosen reply method needs a way to use it.

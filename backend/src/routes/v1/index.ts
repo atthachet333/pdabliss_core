@@ -20,6 +20,7 @@ import { operationsRoutes } from './operations.js';
 import { platformRoutes } from './platform.js';
 import { depositRoutes, pendingReceiveRoutes, purchaseOrderRoutes } from './purchase-orders.js';
 import { purchaseRequestRoutes } from './purchase-requests.js';
+import { salesRoutes } from './sales.js';
 import { warehouseRoutes } from './warehouse.js';
 
 export interface AccountServices {
@@ -98,6 +99,8 @@ export const v1Routes: FastifyPluginAsync<{
     });
     // EP31: goods receipts, stock, lots and the movement ledger.
     await app.register(warehouseRoutes, { prefix: '/warehouse', db: services.db });
+    // EP33: sales orders (commercial demand; never writes stock).
+    await app.register(salesRoutes, { prefix: '/sales', db: services.db });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });
   } else {
     // No DATABASE_URL (development only — production refuses to start without it).
@@ -112,6 +115,7 @@ export const v1Routes: FastifyPluginAsync<{
       '/purchase-orders',
       '/accounting',
       '/warehouse',
+      '/sales',
     ]) {
       app.all(`${prefix}/*`, () => {
         throw authUnavailable();

@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,10 +10,17 @@ import {
   ScanLine,
   ShieldCheck,
 } from 'lucide-react';
-import { lazy, Suspense, useState, type FocusEvent, type KeyboardEvent } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+  lazy,
+  Suspense,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FocusEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
-import { z } from 'zod';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { controlClass } from '@/components/ui/fieldStyles';
@@ -27,6 +33,7 @@ import { usePrefersReducedMotion } from '@/features/landing/home/usePrefersReduc
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
+import { isEmail } from '@/lib/email';
 import { usePageMeta } from '@/lib/usePageMeta';
 import { LOGIN_COPY } from './copy';
 import { GatewayScene, type GatePhase } from './GatewayScene';
@@ -40,12 +47,27 @@ import { GatewayScene, type GatePhase } from './GatewayScene';
  * logs the password or the code. `?next=` accepts same-app paths only.
  */
 
-// Keys, not words: messages are looked up in the visitor's language.
-const LoginSchema = z.object({
-  email: z.string().trim().min(1, 'required').email('invalid'),
-  password: z.string().min(1, 'required'),
-});
-type LoginValues = z.infer<typeof LoginSchema>;
+// Keys, not words: messages are looked up in the visitor's language. EP33:
+// two fields do not need a form library — the rules are the ones the form had
+// (email trimmed, required then valid; password required), checked on submit
+// and again on every change after the first submit; the first invalid field
+// takes focus.
+interface LoginValues {
+  email: string;
+  password: string;
+}
+type LoginErrors = { email?: 'required' | 'invalid'; password?: 'required' };
+const check = (v: LoginValues): LoginErrors => {
+  const email = v.email.trim();
+  return {
+    ...(!email
+      ? { email: 'required' as const }
+      : !isEmail(email)
+        ? { email: 'invalid' as const }
+        : {}),
+    ...(!v.password ? { password: 'required' as const } : {}),
+  };
+};
 
 /** Timings of the transition (instant under reduced motion). */
 const ALIGN_MS = 380;
@@ -93,13 +115,11 @@ export function LoginGateway() {
   const [resent, setResent] = useState(false);
   const [pending, setPending] = useState(false);
   const [otp, setOtp] = useState<{ challenge: Challenge; trust: boolean } | null>(null);
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    setFocus,
-    formState: { errors },
-  } = useForm<LoginValues>({ resolver: zodResolver(LoginSchema) });
+  const [values, setValues] = useState<LoginValues>({ email: '', password: '' });
+  const [errors, setErrors] = useState<LoginErrors>({});
+  const [submitted, setSubmitted] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   // Already signed in: go straight to the account's home (or a safe `next`).
   if (identity.status === 'ready' && !pending) {
@@ -143,7 +163,7 @@ export function LoginGateway() {
         await finish(res.identity);
         return;
       }
-      setValue('password', '');
+      setValues((v) => ({ ...v, password: '' }));
       setPending(false);
       setPhase('pass');
       setOtp({ challenge: res.challenge, trust: res.trustDeviceAllowed });
@@ -151,8 +171,8 @@ export function LoginGateway() {
       const code = errorCode(e);
       if (code === 'INVALID_CREDENTIALS') {
         fail(c.failed);
-        setValue('password', '');
-        setFocus('password');
+        setValues((v) => ({ ...v, password: '' }));
+        passwordRef.current?.focus();
       } else if (code === 'EMAIL_NOT_VERIFIED') {
         fail(c.notVerified);
         setUnverifiedEmail(values.email);
@@ -180,15 +200,26 @@ export function LoginGateway() {
 
   const status = statusOf(phase);
   const StatusIcon = STATUS_ICON[status];
-  const password = register('password', {
-    onChange: () => {
-      if (!failed) return;
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitted(true);
+    const found = check(values);
+    setErrors(found);
+    if (found.email) emailRef.current?.focus();
+    else if (found.password) passwordRef.current?.focus();
+    else void onSubmit({ email: values.email.trim(), password: values.password });
+  };
+  const change = (field: keyof LoginValues) => (e: ChangeEvent<HTMLInputElement>) => {
+    const next = { ...values, [field]: e.target.value };
+    setValues(next);
+    if (submitted) setErrors((was) => ({ ...was, [field]: check(next)[field] }));
+    if (field === 'password' && failed) {
       setFailure(null);
       setPhase('pass');
-    },
-  });
+    }
+  };
   const emailError = errors.email
-    ? errors.email.message === 'invalid'
+    ? errors.email === 'invalid'
       ? c.invalidEmail
       : c.required.email
     : null;
@@ -312,7 +343,7 @@ export function LoginGateway() {
           ) : (
             <form
               noValidate
-              onSubmit={handleSubmit(onSubmit)}
+              onSubmit={handleSubmit}
               onBlur={onFormBlur}
               className="mt-5 space-y-4 sm:mt-7"
             >
@@ -333,7 +364,10 @@ export function LoginGateway() {
                   aria-invalid={!!emailError}
                   aria-describedby={emailError ? 'login-email-error' : undefined}
                   onFocus={focusPhase('user')}
-                  {...register('email')}
+                  ref={emailRef}
+                  name="email"
+                  value={values.email}
+                  onChange={change('email')}
                 />
                 {emailError && (
                   <p
@@ -383,7 +417,10 @@ export function LoginGateway() {
                     onFocus={focusPhase('pass')}
                     onKeyDown={onCaps}
                     onKeyUp={onCaps}
-                    {...password}
+                    ref={passwordRef}
+                    name="password"
+                    value={values.password}
+                    onChange={change('password')}
                   />
                   <button
                     type="button"
@@ -469,8 +506,10 @@ export function LoginGateway() {
             <Suspense fallback={null}>
               <DevPersonaPicker
                 onPick={(email) => {
-                  setValue('email', email, { shouldValidate: true });
-                  setFocus('password');
+                  const next = { ...values, email };
+                  setValues(next);
+                  setErrors((was) => ({ ...was, email: check(next).email }));
+                  passwordRef.current?.focus();
                 }}
               />
             </Suspense>

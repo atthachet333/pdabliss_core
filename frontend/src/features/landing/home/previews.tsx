@@ -15,7 +15,8 @@ import {
 import { cn } from '@/lib/cn';
 import { DEPARTMENT_SUMMARY } from '@/workspaces/executive/data';
 import { FOLLOW_UP, PURCHASING_TASKS, type FollowUpSample } from '@/workspaces/purchasing/data';
-import { WORKSPACES, type WorkspaceId } from '@/workspaces/registry';
+import { WORKSPACE_IDENTITY as WORKSPACES } from '@/workspaces/identity';
+import type { WorkspaceId } from '@/workspaces/registry';
 import { SALES_ORDERS, type SalesOrderSample } from '@/workspaces/sales/data';
 import { FEFO_SAMPLE, TODAY, type LotExpiry } from '@/workspaces/warehouse/data';
 

@@ -61,6 +61,8 @@ export type CompanyAuditAction =
   | GoodsReceiptAuditAction
   // ---- EP32: transfers, adjustments, cycle counts (details: number, from / to, counts — never quantities of value)
   | InventoryControlAuditAction
+  // ---- EP33: sales orders (details: number, from → to, line count — never prices or totals)
+  | SalesOrderAuditAction
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;
@@ -126,6 +128,13 @@ export type GoodsReceiptAuditAction =
   | 'GOODS_RECEIPT_CANCELLED'
   | 'INVENTORY_LOT_CREATED';
 
+export type SalesOrderAuditAction =
+  | 'SALES_ORDER_CREATED'
+  | 'SALES_ORDER_UPDATED'
+  | 'SALES_ORDER_SUBMITTED'
+  | 'SALES_ORDER_CONFIRMED'
+  | 'SALES_ORDER_CANCELLED';
+
 export type InventoryControlAuditAction =
   | 'TRANSFER_CREATED'
   | 'TRANSFER_UPDATED'
@@ -161,6 +170,7 @@ export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   'InventoryTransfer',
   'StockAdjustment',
   'CycleCount',
+  'SalesOrder',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -185,7 +195,8 @@ export type AuditEntityType =
   | 'InventoryLot'
   | 'InventoryTransfer'
   | 'StockAdjustment'
-  | 'CycleCount';
+  | 'CycleCount'
+  | 'SalesOrder';
 
 export async function recordCompanyEvent(
   db: DbClient,

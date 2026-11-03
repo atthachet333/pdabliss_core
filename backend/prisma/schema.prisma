@@ -220,6 +220,10 @@ model CompanyMember {
   cancelledReceipts    GoodsReceipt[]             @relation("GoodsReceiptCanceller")
   stockMovements       StockMovement[]
   createdTransfers     InventoryTransfer[]        @relation("TransferCreator")
+  createdSalesOrders   SalesOrder[]               @relation("SalesOrderCreator")
+  submittedSalesOrders SalesOrder[]               @relation("SalesOrderSubmitter")
+  confirmedSalesOrders SalesOrder[]               @relation("SalesOrderConfirmer")
+  cancelledSalesOrders SalesOrder[]               @relation("SalesOrderCanceller")
   postedTransfers      InventoryTransfer[]        @relation("TransferPoster")
   cancelledTransfers   InventoryTransfer[]        @relation("TransferCanceller")
   createdAdjustments   StockAdjustment[]          @relation("AdjustmentCreator")
@@ -344,6 +348,7 @@ model Branch {
   purchaseRequests PurchaseRequest[]
   /// Purchase orders of this branch (EP30; always the branch of their requests).
   purchaseOrders   PurchaseOrder[]
+  salesOrders      SalesOrder[]
   goodsReceipts    GoodsReceipt[]
   stockMovements   StockMovement[]
   stockBalances    StockBalance[]
@@ -971,6 +976,9 @@ model Customer {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  /// EP33
+  salesOrders SalesOrder[]
+
   @@unique([companyId, code])
   /// Target of company-bound foreign keys from future documents.
   @@unique([id, companyId])
@@ -1015,25 +1023,26 @@ model Supplier {
 /// decimal places a quantity in this unit may carry (0 = whole numbers);
 /// future quantities are exact decimals, never floating point.
 model Unit {
-  id            String                @id @default(cuid())
-  companyId     String
-  company       Company               @relation(fields: [companyId], references: [id])
-  code          String
-  name          String
-  symbol        String?
-  precision     Int                   @default(0)
-  status        MasterStatus          @default(ACTIVE)
-  deactivatedAt DateTime?
-  createdById   String?
-  updatedById   String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  items         Item[]
+  id              String                @id @default(cuid())
+  companyId       String
+  company         Company               @relation(fields: [companyId], references: [id])
+  code            String
+  name            String
+  symbol          String?
+  precision       Int                   @default(0)
+  status          MasterStatus          @default(ACTIVE)
+  deactivatedAt   DateTime?
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  items           Item[]
   /// EP29: request lines counted in this unit.
-  requestLines  PurchaseRequestLine[]
+  requestLines    PurchaseRequestLine[]
   /// EP30: order lines counted in this unit.
-  orderLines    PurchaseOrderLine[]
-  receiptLines  GoodsReceiptLine[]
+  orderLines      PurchaseOrderLine[]
+  receiptLines    GoodsReceiptLine[]
+  salesOrderLines SalesOrderLine[]
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -1124,6 +1133,7 @@ model Item {
   adjustmentLines  StockAdjustmentLine[]
   cycleCounts      CycleCount[]
   countLines       CycleCountLine[]
+  salesOrderLines  SalesOrderLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -2005,4 +2015,111 @@ model CycleCountLine {
   @@unique([cycleCountId, lineNo])
   @@unique([cycleCountId, locationId, itemId, lotKey])
   @@index([itemId])
+}
+
+// ---------------------------------------------------------------- EP33 sales orders
+
+/// DRAFT → SUBMITTED → CONFIRMED; CANCELLED before or after confirmation (docs/SALES_ORDER.md).
+/// No fulfilment status yet: EP34 allocates confirmed lines, EP35 delivers and completes.
+enum SalesOrderStatus {
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  CANCELLED
+}
+
+/// Commercial demand: what a customer ordered, at what price. It never moves or
+/// reserves stock — availability is read from the ledger and never stored.
+model SalesOrder {
+  id                  String           @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch           @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// SO-YYYYMM-NNNNNN, company-wide monthly sequence (DocumentSequence), immutable.
+  number              String
+  status              SalesOrderStatus @default(DRAFT)
+  customerId          String
+  customer            Customer         @relation(fields: [customerId, companyId], references: [id, companyId])
+  /// Customer identity as ordered — taken from the master on every draft change,
+  /// refreshed at submit and confirm, then frozen.
+  customerCode        String
+  customerName        String
+  customerTaxId       String?
+  customerTaxBranch   String?
+  /// Business dates (calendar days), separate from createdAt.
+  orderDate           DateTime         @db.Date
+  requestedDate       DateTime?        @db.Date
+  /// The customer's own PO / reference number (plain text).
+  customerReference   String?
+  note                String?
+  currency            String           @default("THB") @db.Char(3)
+  lineCounter         Int              @default(0)
+  /// Server arithmetic only (purchasing/money.ts); the client's totals are never read.
+  subtotal            Decimal          @default(0) @db.Decimal(18, 2)
+  discountTotal       Decimal          @default(0) @db.Decimal(18, 2)
+  taxTotal            Decimal          @default(0) @db.Decimal(18, 2)
+  grandTotal          Decimal          @default(0) @db.Decimal(18, 2)
+  createdByMemberId   String
+  createdBy           CompanyMember    @relation("SalesOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  submittedAt         DateTime?
+  submittedByMemberId String?
+  submittedBy         CompanyMember?   @relation("SalesOrderSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
+  confirmedAt         DateTime?
+  confirmedByMemberId String?
+  confirmedBy         CompanyMember?   @relation("SalesOrderConfirmer", fields: [confirmedByMemberId, companyId], references: [id, companyId])
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?   @relation("SalesOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  lines               SalesOrderLine[]
+
+  @@unique([companyId, number])
+  @@unique([id, companyId])
+  @@unique([id, branchId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([companyId, customerId])
+  @@index([companyId, orderDate])
+  @@index([companyId, requestedDate])
+  @@index([createdByMemberId])
+}
+
+/// One ordered item. Item, unit and type are snapshots (frozen at confirmation);
+/// quantity respects the unit's decimal places. EP34 allocates against these lines.
+model SalesOrderLine {
+  id               String     @id @default(cuid())
+  companyId        String
+  branchId         String
+  salesOrderId     String
+  order            SalesOrder @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId], onDelete: Cascade)
+  lineNo           Int
+  itemId           String
+  item             Item       @relation(fields: [itemId, companyId], references: [id, companyId])
+  itemCode         String
+  itemName         String
+  itemType         ItemType
+  /// Snapshot of the item's inventoryTracked: false = a commercial line only (no availability).
+  inventoryTracked Boolean
+  unitId           String
+  unit             Unit       @relation(fields: [unitId, companyId], references: [id, companyId])
+  unitCode         String
+  unitName         String
+  unitPrecision    Int
+  quantity         Decimal    @db.Decimal(18, 6)
+  unitPrice        Decimal    @default(0) @db.Decimal(18, 4)
+  discountAmount   Decimal    @default(0) @db.Decimal(18, 2)
+  /// Percent, 0–100, exclusive (the EP30 tax model).
+  taxRate          Decimal    @default(0) @db.Decimal(5, 2)
+  lineSubtotal     Decimal    @default(0) @db.Decimal(18, 2)
+  lineTax          Decimal    @default(0) @db.Decimal(18, 2)
+  lineTotal        Decimal    @default(0) @db.Decimal(18, 2)
+  note             String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([salesOrderId, lineNo])
+  /// Target of EP34 allocation foreign keys (line, order, company).
+  @@unique([id, salesOrderId, companyId])
+  @@index([companyId, itemId])
 }

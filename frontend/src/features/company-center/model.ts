@@ -159,12 +159,12 @@ export function eventLabel(
       : p.events.changed(who, what, effect);
   }
   // EP28: master-data events read "Customer CUS-000001 created" (code only, never the record's fields).
-  // EP29: purchase-request events read the same way, by request number.
+  // EP29, EP30: purchase-request and purchase-order events read the same way, by document number.
   const ref = e.details.code ?? e.details.number;
   const code = typeof ref === 'string' ? ref : '';
   if (e.type === 'ITEM_STRUCTURE_CHANGED') return c.security.master.structure(code);
   const m =
-    /^(CUSTOMER|SUPPLIER|ITEM_CATEGORY|ITEM|UNIT|LOCATION|PURCHASE_REQUEST)_([A-Z_]+)$/.exec(
+    /^(CUSTOMER|SUPPLIER|ITEM_CATEGORY|ITEM|UNIT|LOCATION|PURCHASE_REQUEST|PURCHASE_ORDER)_([A-Z_]+)$/.exec(
       e.type,
     );
   const verb = m && c.security.master.verbs[m[2]!];

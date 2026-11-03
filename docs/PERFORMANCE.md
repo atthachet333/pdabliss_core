@@ -208,6 +208,15 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP30 — no budget changed; JS recovered instead.** After EP29 the total stood at 4,297.5 / 4,300
+  KiB. Normal production builds now leave out the `/app` prototype workspaces, which production
+  disabled at runtime but still shipped: `router.tsx` folds `PROTOTYPE_BUILD` to a constant, so the
+  bundler drops `appRoutes` and only a small gate chunk remains. Removing it first split the entry's
+  graph into eight files preloaded by every prerendered page (static HTML ≈ 604 KiB); one `shell`
+  chunk group in `vite.config.ts` keeps them together. **Do not rework that chunking without
+  re-measuring static HTML.** A build with `VITE_ENABLE_PROTOTYPE=true` is larger than the cap by
+  design: the cap is for normal production builds. Numbers: [EP30_REPORT.md](EP30_REPORT.md).
+
 - **EP25 — All JS, raw: 4,100 → 4,300 KiB.** What grew: the signed-in areas built since EP20
   (Account Portal, Platform Control Center, and now the customer Company Control Center and the
   CORE Operations entry, ≈ 100 KiB raw / ≈ 30 KiB gzip in two lazy chunks plus their copy). None

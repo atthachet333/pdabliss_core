@@ -234,6 +234,10 @@ and the PO `supplierId`; they **snapshot** item code / name and supplier code / 
 historical document while keeping the canonical ids. Only ACTIVE items / suppliers may be chosen.
 Prices, payment terms and supplier financial terms live in Purchasing records with their own
 permissions and Warehouse-excluded views — never on the master records.
+*EP30 delivered the purchase order side* ([PURCHASE_ORDER.md](PURCHASE_ORDER.md)): an order takes one
+ACTIVE supplier, refreshes its supplier and item snapshots at issue and freezes them, so a later
+rename or deactivation does not rewrite an issued order. Warehouse Pending Receive reads the item's
+current `lotTracking` / `expiryTracking`, the handoff EP31 receiving enforces.
 
 **Sales.** Sales order lines reference `customerId`, `itemId`, `unitId`, with the same snapshot
 rule. Price lists, credit limits and receivables are later, separate records.

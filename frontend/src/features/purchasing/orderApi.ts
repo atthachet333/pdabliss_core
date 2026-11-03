@@ -206,9 +206,19 @@ export interface ReceiveOrder {
   lineCount: number;
 }
 
+export type Tracking = 'NONE' | 'OPTIONAL' | 'REQUIRED';
+
+/** One line to receive: ordered / pending quantity and the item's lot / expiry requirement. */
+export interface ReceiveLine extends OperationalLine {
+  orderedQuantity: string;
+  pendingQuantity: string;
+  lotTracking: Tracking | null;
+  expiryTracking: Tracking | null;
+}
+
 export interface ReceiveDetail {
   view: 'warehouse';
-  order: ReceiveOrder & { lines: OperationalLine[] };
+  order: ReceiveOrder & { lines: ReceiveLine[] };
 }
 
 export interface SupplierOption {

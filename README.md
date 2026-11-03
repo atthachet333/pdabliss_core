@@ -107,7 +107,12 @@ non-item lines with exact quantities and server snapshots, submit / approve / re
 through one transition policy (single decision under races), server-side visibility by
 permission and branch, audit and timeline, a Purchasing workspace and four demo requests
 ([docs/PURCHASING_REQUEST.md](docs/PURCHASING_REQUEST.md), [docs/EP29_REPORT.md](docs/EP29_REPORT.md)).
-Next: EP30 Purchase Order foundation (not started).
+**EP30** (completed locally, awaiting owner review) adds purchase orders from approved requests:
+partial and multi-supplier ordering with derived remaining quantities, safe under concurrent issue,
+server-computed totals, frozen snapshots, supplier deposits confirmed or waived by Accounting, and a
+money-free Warehouse Pending Receive handoff; normal production builds no longer ship the `/app`
+prototype ([docs/PURCHASE_ORDER.md](docs/PURCHASE_ORDER.md), [docs/EP30_REPORT.md](docs/EP30_REPORT.md)).
+Next: EP31 Warehouse receiving (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -128,8 +133,8 @@ Roadmap:
    Center** → EP24.1.3 Brand identity → **EP25 Company Control Center foundation** →
    **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** →
    **EP28 Operational Master Data** → **EP28.1 Department demo personas**
-3. **EP29 Purchasing Request (PR) foundation** → EP30 purchase orders → deposit / payment status
-   → pending receive → Warehouse receiving → Sales → Warehouse →
+3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
+   receive** → EP31 Warehouse receiving → Sales → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

@@ -494,5 +494,25 @@ describe('Master Data (EP28)', () => {
         PERMISSION_COPY.th,
       ),
     ).toBe('ใบขอซื้อ PR-202610-000001 เพิ่มรายการ');
+    // EP30: purchase-order events by number, every lifecycle step in words.
+    for (const [type, text] of [
+      ['PURCHASE_ORDER_CREATED', 'Purchase order PO-202611-000001 created'],
+      ['PURCHASE_ORDER_ISSUED', 'Purchase order PO-202611-000001 issued'],
+      ['PURCHASE_ORDER_WAITING_DEPOSIT', 'Purchase order PO-202611-000001 waiting for deposit'],
+      ['PURCHASE_ORDER_DEPOSIT_CONFIRMED', 'Purchase order PO-202611-000001 deposit confirmed'],
+      ['PURCHASE_ORDER_DEPOSIT_WAIVED', 'Purchase order PO-202611-000001 deposit waived'],
+      ['PURCHASE_ORDER_PENDING_RECEIVE', 'Purchase order PO-202611-000001 pending receive'],
+      ['PURCHASE_ORDER_CANCELLED', 'Purchase order PO-202611-000001 cancelled'],
+      ['PURCHASE_ORDER_LINE_ADDED', 'Purchase order PO-202611-000001 line added'],
+    ] as const) {
+      expect(
+        eventLabel(
+          { type, details: { number: 'PO-202611-000001' } },
+          CONTROL_COPY.en,
+          ADMIN_COPY.en,
+          PERMISSION_COPY.en,
+        ),
+      ).toBe(text);
+    }
   });
 });

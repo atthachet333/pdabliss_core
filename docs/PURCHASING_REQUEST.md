@@ -183,12 +183,15 @@ touched again): Warehouse DRAFT (demo branch, by `warehouse.demo`), Sales SUBMIT
 
 ## 12. Purchase-order handoff (EP30)
 
-An APPROVED request exposes everything a purchase order needs: branch, department, purpose,
-requester, and its lines (canonical `itemId` / `unitId` or description, quantity, snapshots).
-A future `PurchaseOrder` / `PurchaseOrderLine` references `purchaseRequestId` and
-`purchaseRequestLineId` through the company-bound keys already in place (`@@unique([id,
-companyId])` on both tables), adds `supplierId`, prices and terms with their own permissions and
-Warehouse-excluded views, and tracks ordered quantity per request line. EP29 deliberately stores
-no ordered / remaining quantity; `purchasing.requests.cancel` on APPROVED is meant to be refused
-once a PO references the request (a policy-table check in EP30). Then: deposit / payment status →
-pending receive → Warehouse receiving (lots, expiry, FEFO from the EP28 item tracking).
+*Delivered by EP30 — [PURCHASE_ORDER.md](PURCHASE_ORDER.md).* An APPROVED request feeds any number
+of purchase orders, with one supplier each. `PurchaseOrderLine` references `purchaseRequestId` and
+`purchaseRequestLineId` through company- and branch-bound keys, so an order only orders from
+requests of its own branch.
+
+The request itself still stores no ordered or remaining quantity and its status stays `APPROVED`.
+Its detail derives, per line: **requested** (never changed), **ordered** (Σ quantity on issued, not
+cancelled orders), **in draft** (planned, reserves nothing), **remaining** (requested − ordered),
+the state `NOT_ORDERED` / `PARTIALLY_ORDERED` / `FULLY_ORDERED` and links to its orders (for members
+who may read orders). Cancelling an order releases its quantities. An approved request with a live
+order cannot be cancelled (`PR_HAS_PURCHASE_ORDERS`). Then: Warehouse receiving (EP31 — lots, expiry,
+FEFO from the EP28 item tracking).

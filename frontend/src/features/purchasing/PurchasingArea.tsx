@@ -186,7 +186,7 @@ function Workspace({ ctx, any }: { ctx: PrContext; any: boolean }) {
       </ul>
       <AreaLink
         to={`${BASE}/requests`}
-        className="w-fit text-label text-brand-soft underline-offset-4 hover:underline"
+        className="inline-flex min-h-11 w-fit items-center text-label text-brand-soft underline-offset-4 hover:underline"
       >
         {c.title} →
       </AreaLink>
@@ -218,7 +218,7 @@ function Workspace({ ctx, any }: { ctx: PrContext; any: boolean }) {
           </ul>
           <AreaLink
             to={`${BASE}/orders`}
-            className="w-fit text-label text-brand-soft underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 w-fit items-center text-label text-brand-soft underline-offset-4 hover:underline"
             data-orders-link
           >
             {o.orders} →

@@ -77,7 +77,7 @@ const include = {
   lines: {
     orderBy: { lineNo: 'asc' as const },
     include: {
-      item: { select: { status: true } },
+      item: { select: { status: true, lotTracking: true, expiryTracking: true } },
       requestLine: { select: { quantity: true } },
     },
   },
@@ -126,13 +126,17 @@ const exceedsRemaining = (remaining: Decimal, lineNo?: number) =>
     { remaining: remaining.toString(), ...(lineNo ? { lineNo } : {}) },
   );
 
+/** The order's timeline, in lifecycle order (events of one transaction share a timestamp). */
 const LIFECYCLE: PurchaseOrderAuditAction[] = [
   'PURCHASE_ORDER_CREATED',
   'PURCHASE_ORDER_ISSUED',
+  'PURCHASE_ORDER_WAITING_DEPOSIT',
   'PURCHASE_ORDER_DEPOSIT_CONFIRMED',
   'PURCHASE_ORDER_DEPOSIT_WAIVED',
+  'PURCHASE_ORDER_PENDING_RECEIVE',
   'PURCHASE_ORDER_CANCELLED',
 ];
+const lifecycleRank = (action: string) => LIFECYCLE.indexOf(action as PurchaseOrderAuditAction);
 
 type RequestLine = Prisma.PurchaseRequestLineGetPayload<{
   include: { request: true; unit: true; item: { include: { baseUnit: true } } };
@@ -335,11 +339,17 @@ export class PurchaseOrderService {
     return {
       view: 'purchasing' as const,
       order,
-      timeline: events.map((e) => ({
-        type: e.action,
-        at: e.occurredAt.toISOString(),
-        actor: e.actor ? { name: e.actor.fullName ?? e.actor.email } : null,
-      })),
+      timeline: events
+        .sort(
+          (a, b) =>
+            a.occurredAt.getTime() - b.occurredAt.getTime() ||
+            lifecycleRank(a.action) - lifecycleRank(b.action),
+        )
+        .map((e) => ({
+          type: e.action,
+          at: e.occurredAt.toISOString(),
+          actor: e.actor ? { name: e.actor.fullName ?? e.actor.email } : null,
+        })),
     };
   }
 
@@ -409,7 +419,14 @@ export class PurchaseOrderService {
         issuedAt: iso(o.issuedAt),
         pendingReceiveAt: iso(o.pendingReceiveAt),
         lineCount: o.lines.length,
-        lines: o.lines.map((l) => this.operationalLine(l)),
+        lines: o.lines.map((l) => ({
+          ...this.operationalLine(l),
+          orderedQuantity: l.quantity.toString(),
+          // No receipts before EP31: everything ordered is still to arrive.
+          pendingQuantity: l.quantity.toString(),
+          lotTracking: l.item?.lotTracking ?? null,
+          expiryTracking: l.item?.expiryTracking ?? null,
+        })),
       }),
     };
   }
@@ -1276,6 +1293,12 @@ export class PurchaseOrderService {
         });
       }
       if (o.supplier!.status !== 'ACTIVE') throw refInactive('supplierId');
+      // A tiny percentage of a small total can round to 0.00: nothing to pay, so no deposit.
+      if (o.depositType !== 'NONE' && !o.depositAmount?.gt(0)) {
+        throw new AppError(422, 'PO_DEPOSIT_ZERO', 'The deposit works out to zero.', {
+          field: 'deposit',
+        });
+      }
       if (o.depositType !== 'NONE' && o.depositAmount && o.depositAmount.gt(o.grandTotal)) {
         throw new AppError(
           422,
@@ -1354,6 +1377,14 @@ export class PurchaseOrderService {
         lines: o.lines.length,
         deposit,
       });
+      await this.event(
+        tx,
+        meta,
+        actor,
+        deposit ? 'PURCHASE_ORDER_WAITING_DEPOSIT' : 'PURCHASE_ORDER_PENDING_RECEIVE',
+        id,
+        { number: o.number },
+      );
     });
     return this.get(ctx, id);
   }
@@ -1449,6 +1480,9 @@ export class PurchaseOrderService {
         id,
         { number: o.number, from: 'WAITING_DEPOSIT', to: 'PENDING_RECEIVE' },
       );
+      await this.event(tx, meta, actor, 'PURCHASE_ORDER_PENDING_RECEIVE', id, {
+        number: o.number,
+      });
     });
     return actor.deposits.view ? this.depositOrder(ctx, id) : this.get(ctx, id);
   }

@@ -655,6 +655,10 @@ describe('Deposits and pending receive (EP30)', () => {
             description: null,
             unit: { code: 'KG', name: 'Kilogram' },
             quantity: '8',
+            orderedQuantity: '8',
+            pendingQuantity: '8',
+            lotTracking: 'REQUIRED',
+            expiryTracking: 'OPTIONAL',
             request: { id: 'pr1', number: 'PR-202610-000003', lineNo: 1 },
           },
         ],
@@ -684,6 +688,11 @@ describe('Deposits and pending receive (EP30)', () => {
     expect(screen.getByText('รอรับสินค้า', { selector: '[data-po-status]' })).toBeInTheDocument();
     const text = document.body.textContent ?? '';
     expect(text).toContain('RM-000001');
+    // The EP31 handoff: pending quantity and the item's lot / expiry requirement.
+    const row = within(document.querySelector('[data-line="1"]') as HTMLElement);
+    expect(row.getByText('รอรับ').nextElementSibling).toHaveTextContent('8');
+    expect(row.getByText('ล็อต').nextElementSibling).toHaveTextContent('บังคับ');
+    expect(row.getByText('วันหมดอายุ').nextElementSibling).toHaveTextContent('ไม่บังคับ');
     for (const word of ['ราคาต่อหน่วย', 'ยอดรวม', 'มัดจำ', 'ภาษี', 'THB', 'ส่วนลด', 'Unit price']) {
       expect(text).not.toContain(word);
     }

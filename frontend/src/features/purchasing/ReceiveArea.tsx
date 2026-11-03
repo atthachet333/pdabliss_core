@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Route, Routes, useParams } from 'react-router';
+import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
@@ -54,21 +55,24 @@ function ReceiveList() {
   const [debounced, setDebounced] = useState('');
   const [data, setData] = useState<Page<ReceiveOrder> | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [more, setMore] = useState(false);
   const request = useRef(0);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => {
+  const load = async (page: number) => {
     const n = ++request.current;
-    receiveApi.list({ q: debounced, pageSize: 50 }).then(
-      (next) => {
-        if (n !== request.current) return;
-        setData(next);
-        setError(null);
-      },
-      (e: unknown) => setError(e),
+    const next = await receiveApi.list({ q: debounced, page, pageSize: 25 });
+    if (n !== request.current) return;
+    setData((prev) =>
+      page > 1 && prev ? { ...next, items: [...prev.items, ...next.items] } : next,
     );
+    setError(null);
+  };
+  useEffect(() => {
+    load(1).catch((e: unknown) => setError(e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced]);
   return (
     <>
@@ -148,6 +152,21 @@ function ReceiveList() {
           </tbody>
         </table>
       )}
+      {data?.hasMore && (
+        <button
+          type="button"
+          disabled={more}
+          onClick={() => {
+            setMore(true);
+            load(data.page + 1)
+              .catch((e: unknown) => setError(e))
+              .finally(() => setMore(false));
+          }}
+          className={buttonClasses('secondary', 'md', 'w-fit')}
+        >
+          {more ? c.loading : c.showMore}
+        </button>
+      )}
     </>
   );
 }
@@ -195,7 +214,22 @@ function ReceivePage({ id }: { id: string }) {
               <span className="font-mono text-caption text-text-muted tabular-nums">
                 #{l.lineNo}
               </span>
-              <LineIdentity line={l} />
+              <div className="grid min-w-0 gap-2">
+                <LineIdentity line={l} />
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption sm:grid-cols-4">
+                  {[
+                    [c.f.ordered, l.orderedQuantity],
+                    [c.f.pendingQuantity, l.pendingQuantity],
+                    [c.f.lot, l.lotTracking ? c.tracking[l.lotTracking] : '—'],
+                    [c.f.expiry, l.expiryTracking ? c.tracking[l.expiryTracking] : '—'],
+                  ].map(([term, value]) => (
+                    <div key={term}>
+                      <dt className="text-text-muted">{term}</dt>
+                      <dd className="text-text-primary tabular-nums">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             </li>
           ))}
         </ol>

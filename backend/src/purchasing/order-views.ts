@@ -65,6 +65,20 @@ const deposit = z.object({
 
 const status = z.enum(['DRAFT', 'ISSUED', 'WAITING_DEPOSIT', 'PENDING_RECEIVE', 'CANCELLED']);
 
+const tracking = z.enum(['NONE', 'OPTIONAL', 'REQUIRED']).nullable();
+
+/**
+ * One line to receive: the EP31 handoff. `pendingQuantity` is what has not
+ * arrived yet (= ordered until receipts exist); the lot / expiry requirements
+ * are the item's current ones (null on a NON_ITEM line).
+ */
+const receiveLine = operationalLine.extend({
+  orderedQuantity: z.string(),
+  pendingQuantity: z.string(),
+  lotTracking: tracking,
+  expiryTracking: tracking,
+});
+
 /** Warehouse: operational fields only. */
 export const WarehousePendingReceiveView = z.object({
   id: z.string(),
@@ -77,7 +91,7 @@ export const WarehousePendingReceiveView = z.object({
   issuedAt: z.string().nullable(),
   pendingReceiveAt: z.string().nullable(),
   lineCount: z.number(),
-  lines: z.array(operationalLine),
+  lines: z.array(receiveLine),
 });
 export type WarehousePendingReceiveView = z.infer<typeof WarehousePendingReceiveView>;
 /** A queue row: the same allow-list without the lines. */
@@ -85,7 +99,7 @@ export const WarehousePendingReceiveRow = WarehousePendingReceiveView.omit({ lin
 
 /** The classes of every Warehouse key (top level and line) — all operational. */
 export const WAREHOUSE_FIELD_CLASSES: Record<string, DataClass> = Object.fromEntries(
-  [...Object.keys(WarehousePendingReceiveView.shape), ...Object.keys(operationalLine.shape)].map(
+  [...Object.keys(WarehousePendingReceiveView.shape), ...Object.keys(receiveLine.shape)].map(
     (k) => [k, 'operational' as const],
   ),
 );

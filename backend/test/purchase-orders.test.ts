@@ -201,6 +201,10 @@ describe('Purchase order policy and arithmetic (EP30)', () => {
           description: null,
           unit: null,
           quantity: '1',
+          orderedQuantity: '1',
+          pendingQuantity: '1',
+          lotTracking: 'REQUIRED',
+          expiryTracking: null,
           unitPrice: '9',
           lineTotal: '9',
           request: { id: 'r', number: 'PR-1', lineNo: 1 },
@@ -208,6 +212,12 @@ describe('Purchase order policy and arithmetic (EP30)', () => {
       ],
     });
     expect(keysOf(leaked).filter((k) => MONEY.test(k))).toEqual([]);
+    expect(leaked.lines[0]).toMatchObject({
+      orderedQuantity: '1',
+      pendingQuantity: '1',
+      lotTracking: 'REQUIRED',
+      expiryTracking: null,
+    });
   });
 });
 
@@ -630,6 +640,11 @@ describeDb('Purchase orders (EP30)', () => {
       deposit: { status: 'PENDING' },
     });
     expect(j(iss).order.pendingReceiveAt).toBeNull();
+    expect(j(iss).timeline.map((t: J) => t.type)).toEqual([
+      'PURCHASE_ORDER_CREATED',
+      'PURCHASE_ORDER_ISSUED',
+      'PURCHASE_ORDER_WAITING_DEPOSIT',
+    ]);
 
     // Purchasing cannot settle the deposit.
     expect(code(await buyer.post(`${PO}/${o.id}/deposit/confirm`, {}))).toBe('PERMISSION_DENIED');
@@ -680,6 +695,53 @@ describeDb('Purchase orders (EP30)', () => {
       },
     });
     expect(settled).toBe(1);
+    expect(j(await buyer.get(`${PO}/${o.id}`)).timeline.map((t: J) => t.type)).toEqual([
+      'PURCHASE_ORDER_CREATED',
+      'PURCHASE_ORDER_ISSUED',
+      'PURCHASE_ORDER_WAITING_DEPOSIT',
+      after.deposit.status === 'CONFIRMED'
+        ? 'PURCHASE_ORDER_DEPOSIT_CONFIRMED'
+        : 'PURCHASE_ORDER_DEPOSIT_WAIVED',
+      'PURCHASE_ORDER_PENDING_RECEIVE',
+    ]);
+  });
+
+  it('refuses a deposit that rounds to zero with a clear error, not a database failure', async () => {
+    const pr = await approvedPr('HO', [{ item: 'box', qty: '1' }]);
+    const buyer = await as('buyer@a.example', 'HO');
+    const o = await draft(buyer, {
+      purchaseRequestId: pr.id,
+      supplierId: sup.one,
+      lines: [{ purchaseRequestLineId: pr.lines[0]!.id, quantity: '1', unitPrice: '1' }],
+      deposit: { type: 'PERCENT', value: '0.01' },
+    });
+    expect(o.deposit.amount).toBe('0.00');
+    const res = await buyer.post(`${PO}/${o.id}/issue`);
+    expect(res.statusCode).toBe(422);
+    expect(code(res)).toBe('PO_DEPOSIT_ZERO');
+    expect(j(await buyer.get(`${PO}/${o.id}`)).order.status).toBe('DRAFT');
+  });
+
+  it('gives Warehouse the receive handoff: ordered / pending and lot / expiry requirements', async () => {
+    const pr = await approvedPr('X', [{ item: 'box', qty: '12.5' }]);
+    const buyer = await as('buyer@a.example', 'X');
+    const o = await issued(buyer, {
+      purchaseRequestId: pr.id,
+      lines: [{ purchaseRequestLineId: pr.lines[0]!.id, quantity: '8', unitPrice: '42.5' }],
+    });
+    await h.db.item.update({
+      where: { id: it_.box! },
+      data: { lotTracking: 'REQUIRED', expiryTracking: 'OPTIONAL' },
+    });
+    const wh = await as('wh@a.example', 'X');
+    const detail = j(await wh.get(`${RECEIVE}/${o.id}`));
+    expect(detail.order.lines[0]).toMatchObject({
+      orderedQuantity: '8',
+      pendingQuantity: '8',
+      lotTracking: 'REQUIRED',
+      expiryTracking: 'OPTIONAL',
+    });
+    expect(keysOf(detail).filter((k) => MONEY.test(k))).toEqual([]);
   });
 
   it('partial orders, several orders and suppliers per request, release on cancel — requested never changes', async () => {
@@ -1055,7 +1117,11 @@ describeDb('Purchase orders (EP30)', () => {
     }
     // The company's own audit has the number and transitions — never amounts.
     const audit = await h.db.auditLog.findMany({ where: { entityId: o.id } });
-    expect(audit.map((a) => a.action)).toEqual(['PURCHASE_ORDER_CREATED', 'PURCHASE_ORDER_ISSUED']);
+    expect(audit.map((a) => a.action).sort()).toEqual([
+      'PURCHASE_ORDER_CREATED',
+      'PURCHASE_ORDER_ISSUED',
+      'PURCHASE_ORDER_PENDING_RECEIVE',
+    ]);
     for (const a of audit) {
       expect(keysOf(a.changes).filter((k) => MONEY.test(k) && k !== 'deposit')).toEqual([]);
       expect(JSON.stringify(a.changes)).not.toContain('77.77');

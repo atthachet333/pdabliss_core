@@ -176,6 +176,14 @@ noindex, served by the existing `/platform/*` shell rewrite).
   department, decided once (conditional update), never holding price / supplier / cost. Status
   changes only through explicit actions checked by one policy table — follow the same pattern
   (`policy.ts` + conditional updates + `DocumentSequence`) for purchase orders in EP30.
+- **EP30 (Purchase orders, deposits, pending receive):** see [PURCHASE_ORDER.md](PURCHASE_ORDER.md)
+  and [EP30_REPORT.md](EP30_REPORT.md). `PurchaseOrder` / `PurchaseOrderLine` under
+  `/api/v1/purchase-orders`, numbered `PO-YYYYMM-NNNNNN`; exact decimal strings, server-computed
+  totals, ordered / remaining derived from request lines under row locks. Three audiences, three
+  allow-listed responses: Purchasing, `/api/v1/accounting/deposits` and
+  `/api/v1/warehouse/pending-receive` (no money at all). **EP31 starts from the contract in
+  PURCHASE_ORDER.md §13.** Also: normal production builds no longer ship the `/app` prototype
+  (still in the repository, on in dev and with `VITE_ENABLE_PROTOTYPE=true`).
 
 ## 7. Warehouse boundary
 
@@ -229,7 +237,8 @@ staff account — defined once in `backend/src/demo/personas.ts` and described i
 access; the EP27 resolver decides the rest. They are fixtures: no demo field exists in the domain,
 the sign-in bypass and the development persona list exist only outside production with demo routes
 on, and passwords live only in each developer's `.env`. Use `purchasing.demo@pdabliss.com` for EP29
-purchase requests and `warehouse.demo@pdabliss.com` for Warehouse privacy checks.
+purchase requests and EP30 orders, `accounting.demo@pdabliss.com` for deposits and
+`warehouse.demo@pdabliss.com` for Warehouse privacy checks.
 
 ## 12. Localization
 

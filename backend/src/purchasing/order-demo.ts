@@ -169,6 +169,7 @@ export async function seedDemoPurchaseOrders(db: Db, companyId: string, meta: Re
           supplierPhone: supplier.phone,
           supplierEmail: supplier.email,
           orderDate: new Date(`${today}T00:00:00Z`),
+          expectedDate: new Date(new Date(`${today}T00:00:00Z`).getTime() + 14 * 86_400_000),
           paymentTerms: f.paymentTerms,
           lineCounter: lines.length,
           ...totals,
@@ -220,6 +221,12 @@ export async function seedDemoPurchaseOrders(db: Db, companyId: string, meta: Re
         await event('PURCHASE_ORDER_ISSUED', {
           to: f.status === 'CANCELLED' ? 'PENDING_RECEIVE' : f.status,
         });
+        await event(
+          f.status === 'WAITING_DEPOSIT'
+            ? 'PURCHASE_ORDER_WAITING_DEPOSIT'
+            : 'PURCHASE_ORDER_PENDING_RECEIVE',
+          {},
+        );
       }
       if (f.status === 'CANCELLED') await event('PURCHASE_ORDER_CANCELLED', { to: 'CANCELLED' });
     });

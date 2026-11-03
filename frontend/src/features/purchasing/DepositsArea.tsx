@@ -57,21 +57,24 @@ function DepositList() {
   const [debounced, setDebounced] = useState('');
   const [data, setData] = useState<Page<DepositOrder> | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [more, setMore] = useState(false);
   const request = useRef(0);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => {
+  const load = async (page: number) => {
     const n = ++request.current;
-    depositApi.list({ view, q: debounced, pageSize: 50 }).then(
-      (next) => {
-        if (n !== request.current) return;
-        setData(next);
-        setError(null);
-      },
-      (e: unknown) => setError(e),
+    const next = await depositApi.list({ view, q: debounced, page, pageSize: 25 });
+    if (n !== request.current) return;
+    setData((prev) =>
+      page > 1 && prev ? { ...next, items: [...prev.items, ...next.items] } : next,
     );
+    setError(null);
+  };
+  useEffect(() => {
+    load(1).catch((e: unknown) => setError(e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, debounced]);
   return (
     <>
@@ -203,6 +206,21 @@ function DepositList() {
           </tbody>
         </table>
       )}
+      {data?.hasMore && (
+        <button
+          type="button"
+          disabled={more}
+          onClick={() => {
+            setMore(true);
+            load(data.page + 1)
+              .catch((e: unknown) => setError(e))
+              .finally(() => setMore(false));
+          }}
+          className={buttonClasses('secondary', 'md', 'w-fit')}
+        >
+          {more ? c.loading : c.showMore}
+        </button>
+      )}
     </>
   );
 }
@@ -304,7 +322,10 @@ function DepositPage({ id }: { id: string }) {
                   ? { label: c.f.reference, hint: c.f.referenceHint, maxLength: 100 }
                   : undefined
               }
-              onCancel={() => setConfirm(null)}
+              onCancel={() => {
+                setConfirm(null);
+                heading.current?.focus();
+              }}
               onConfirm={(text) =>
                 act(() =>
                   confirm === 'confirm_deposit'

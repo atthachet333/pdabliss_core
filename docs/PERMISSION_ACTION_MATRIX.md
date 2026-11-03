@@ -57,6 +57,7 @@ branch access or enabled departments takes effect on the next request of every o
 | Executive | `executive.workspace.view`, `executive.overview.view` |
 | **EP28 master data** | `company.master_data.manage` (administration) · `sales.customers.view` · `.manage`, `sales.items.view`, `operations.items.view` · `.manage`, `warehouse.items.view`, `warehouse.locations.view` · `.manage`, `purchasing.suppliers.view` · `.manage`, `purchasing.items.view`, `accounting.customers.view`, `accounting.suppliers.view` |
 | **EP29 purchase requests** | `purchasing.requests.view` · `.create` · `.approve` (existing) + `purchasing.requests.cancel`; `sales` · `operations` · `warehouse` · `accounting` `.purchase_requests.create` · `.approve` |
+| **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
 (OPERATE) and rejecting is the negative side of the `approve` decision (MANAGE). A request is
@@ -64,6 +65,13 @@ raised from a department (`<dept>.purchase_requests.create`, or `purchasing.requ
 decided by Purchasing (`purchasing.requests.approve`, any department) or by the originating
 department's manager (`<dept>.purchase_requests.approve`). Who may do what in each status is one
 policy table (`backend/src/purchasing/policy.ts`); see [PURCHASING_REQUEST.md](PURCHASING_REQUEST.md).
+
+**EP30 note.** No `issue` or `waive` action words: `purchasing.orders.approve` (MANAGE) issues an
+order, and `accounting.deposits.confirm` (MANAGE, a domain action like `process`) confirms or waives a
+deposit. Purchasing never gains deposit authority; Accounting never gains order editing; System Admin
+gets neither unless assigned to the department; Warehouse reads pending receive only. The override
+CHECK lists 56 operational codes. One policy table: `backend/src/purchasing/order-policy.ts`; see
+[PURCHASE_ORDER.md](PURCHASE_ORDER.md).
 
 **EP28 scope note.** Canonical master records are one per company, so the customer, supplier and
 item codes are **COMPANY-scoped** operational permissions (department, package, assignment and

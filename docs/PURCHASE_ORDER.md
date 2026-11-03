@@ -105,8 +105,8 @@ amount; client totals are refused (400) and never read.** One currency per order
 
 **Deposit**: `NONE`, a fixed `AMOUNT`, or a `PERCENT` (0 < p ≤ 100) of the grand total. The
 explicit amount is always stored (a percentage is recomputed whenever the total changes while
-DRAFT), with an optional due date and note. At issue it must be > 0 and ≤ the grand total
-(`PO_DEPOSIT_EXCEEDS_TOTAL`). Accounting confirms it (who, when, an optional payment reference —
+DRAFT), with an optional due date and note. At issue it must be > 0 (`PO_DEPOSIT_ZERO`: a tiny percentage of a small total can round to 0.00)
+and ≤ the grand total (`PO_DEPOSIT_EXCEEDS_TOTAL`). Accounting confirms it (who, when, an optional payment reference —
 the UI warns never to enter account numbers or credentials) or waives it (who, when, reason).
 
 ## 5. Supplier and snapshots
@@ -149,7 +149,7 @@ does not name** (`order-views.ts`):
 | --- | --- | --- |
 | `PurchasingPOView` | Purchasing, Owner | everything: supplier identity and contact, terms, note, lines with prices / tax / totals, request requested / ordered / remaining, deposit, actions, timeline |
 | `AccountingDepositView` | Accounting | number, status, branch, supplier code / name / tax ID, currency, terms, totals, lines with amounts, the deposit, deposit actions — no note, contact or editing |
-| `WarehousePendingReceiveView` | Warehouse | number, status, branch, supplier code / name, dates, lines (item / description, unit, quantity, request number) — **no price, discount, tax, total, currency, deposit, terms, note or supplier contact** |
+| `WarehousePendingReceiveView` | Warehouse | number, status, branch, supplier code / name, dates, lines (item / description, unit, ordered and pending quantity, the item's lot and expiry requirement, request number) — **no price, discount, tax, total, currency, deposit, terms, note or supplier contact** |
 | `ExecutivePOView` | Executive | number, status, branch, supplier name, currency, grand total, deposit status / amount, line count, request numbers — no lines, contact, terms or actions |
 
 Warehouse privacy holds **by any route**: `GET /purchase-orders/*` and `/accounting/deposits/*`
@@ -171,10 +171,12 @@ classified `operational` (`WAREHOUSE_FIELD_CLASSES`, checked against
 
 `PURCHASE_ORDER_CREATED`, `_UPDATED` (field names), `_LINE_ADDED` / `_LINE_UPDATED` /
 `_LINE_REMOVED` (line no, request number, item code, field names), `_ISSUED` (from → to, whether
-a deposit is required), `_CANCELLED` (from → to, whether a reason was given),
-`_DEPOSIT_CONFIRMED`, `_DEPOSIT_WAIVED`. **Never amounts, prices, supplier names, deposit values,
-references or reasons.** The order page shows a timeline (created / issued / deposit confirmed or
-waived / cancelled). Platform Inspection lists that order events happened — no number, amount or
+a deposit is required), `_WAITING_DEPOSIT`, `_PENDING_RECEIVE` (the Warehouse handoff was
+reached), `_CANCELLED` (from → to, whether a reason was given), `_DEPOSIT_CONFIRMED`,
+`_DEPOSIT_WAIVED`. **Never amounts, prices, supplier names, deposit values, references or
+reasons.** The order page shows a timeline (created / issued / waiting for deposit / deposit
+confirmed or waived / pending receive / cancelled, in that order). Company activity reads these
+events in words by order number. Platform Inspection lists that order events happened — no number, amount or
 supplier (`PurchaseOrder` ∈ `BUSINESS_AUDIT_ENTITIES`).
 
 ## 10. API
@@ -201,7 +203,9 @@ must be decimal strings with the allowed places.
 
 - **Purchasing workspace** (`/core/purchasing`): request tiles plus order tiles — requests to
   order, draft orders, waiting for deposit, pending receive — counted by the API.
-- **Orders** (`/core/purchasing/orders`): list (all / in progress, status, branch, search);
+- **Orders** (`/core/purchasing/orders`): list (all / in progress, status, branch, search, server
+  pages; columns number + supplier, status + deposit status, branch, requests, order date, expected
+  delivery, amount, updated — the less essential ones give way below 1280 px and 1024 px);
   **new** from a request (only lines with something left, default = what remains, checked before
   sending; optional supplier); **one order**: facts, supplier and terms (editable while DRAFT),
   lines (price / discount / tax per line, edited in place; add from the order's requests), amounts
@@ -210,14 +214,15 @@ must be decimal strings with the allowed places.
 - **Request page**: per line ordered / remaining, state and order links; "Order from this
   request".
 - **Accounting — Deposits to confirm** (`/core/accounting/deposits`, linked from the Accounting
-  card): queue (to confirm / all), one order with amounts and lines, confirm (reference) / waive
-  (reason).
+  card): queue (to confirm / all, search, server pages), one order with amounts and lines, confirm
+  (reference) / waive (reason).
 - **Warehouse — Pending receive** (`/core/warehouse/pending-receive`, linked from the Warehouse
-  card): list and detail with quantities only; a note that receiving comes later; no receive
-  action.
+  card): list (search, server pages) and detail with quantities and lot / expiry requirements only;
+  a note that receiving comes later; no receive action.
 
 TH / EN / ZH; status is text plus a subtle tone; errors in alerts, results in a polite live
-region; confirmations are labelled groups (Escape backs out, focus returns to the heading).
+region; confirmations are labelled groups (Escape or Cancel backs out and focus returns to the
+heading).
 
 ## 12. Demo data
 
@@ -231,8 +236,44 @@ APPROVED by the owner — and four orders with the demo supplier `SUP-000001`:
 | `PO_PENDING_RECEIVE` | 00001 | PENDING_RECEIVE, 8 of 12.5 kg | `warehouse.demo` (demo branch) |
 | `PO_CANCELLED` | 00001 | CANCELLED after issue (4.5 kg released) | history |
 
-## 13. Next (EP31+)
+## 13. The EP31 contract
 
-Goods receipt against `PENDING_RECEIVE` lines (`warehouse.receiving.process`), received quantities,
-lots / expiry from the EP28 item tracking, stock balances, FEFO; supplier invoices and payments;
-"cancel before any receipt" becomes a real check once receipts exist.
+`GET /api/v1/warehouse/pending-receive/:id` (`warehouse.receiving.view`, the order's branch,
+`PENDING_RECEIVE` only) is what Warehouse receives from Purchasing:
+
+```
+order: number, status, branch { id, code, name }, supplier { code, name }, orderDate, expectedDate,
+       issuedAt, pendingReceiveAt, lineCount
+line:  id, lineNo, type, item { id, code, name } | null, description, unit { code, name },
+       quantity, orderedQuantity, pendingQuantity, lotTracking, expiryTracking,
+       request { id, number, lineNo }
+```
+
+- `pendingQuantity` equals `orderedQuantity` until receipts exist; EP31 derives it as ordered −
+  received, in this same field.
+- `lotTracking` / `expiryTracking` are the item's **current** EP28 requirement (`NONE`, `OPTIONAL`,
+  `REQUIRED`; `null` on a `NON_ITEM` line), not a snapshot: receiving must enforce today's rule,
+  and EP28's `STRUCTURE_LOCKS` freezes it once stock or lots exist.
+- `NON_ITEM` lines (a service, a fee) appear so the order reads completely; whether they are
+  "received" is an EP31 decision.
+
+**EP31 owns** goods receipt (`warehouse.receiving.process`), received quantities, lots, expiry, stock
+balances, stock movements, putaway and FEFO allocation. None of it exists in EP30. "Cancel before
+any receipt" becomes a real check once receipts exist. Supplier invoices and payments come later.
+
+## 14. Decisions and limits
+
+- **Tax is one rate per line** (`taxRate` 0–100, exclusive of the price), enough to make totals
+  usable. No inclusive pricing, withholding tax, tax codes or tax filing. Discount is one amount per
+  line; no header discount.
+- **One currency per order**, `THB` by default, no FX and no rate stored.
+- **A draft may have no supplier yet** and reserves nothing; both are checked at issue. Draft
+  quantities may therefore add up to more than a request has: the first to issue wins, the rest are
+  refused with what remains.
+- **`purchasing.orders.approve` is the issue permission** (EP27 code, no `issue` synonym), and
+  waiving shares `accounting.deposits.confirm`. To separate waiving later, add a code and one line in
+  `poRefusal()`.
+- **No separation of duties in v1**: one person may create and issue. Executive reads deposit and
+  pending-receive views too (Executive sees everything, changes nothing).
+- **Correction after issue** is cancel + a new order; supplier-acknowledgement (`ISSUED` as a
+  resting state) is reserved, not implemented.

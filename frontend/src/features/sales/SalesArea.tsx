@@ -1,0 +1,1071 @@
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router';
+import { buttonClasses } from '@/components/ui/buttonStyles';
+import { Notice } from '@/features/auth/AuthFrame';
+import { SelectField, TextField } from '@/features/auth/fields';
+import { CONTROL_COPY } from '@/features/company-center/copy';
+import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
+import {
+  AreaLink,
+  Fact,
+  Facts,
+  Loading,
+  PageTitle,
+  Pill,
+  Section,
+} from '@/features/company-center/parts';
+import { SearchBox } from '@/features/company-center/SearchBox';
+import { ConfirmBox } from '@/features/purchasing/orderParts';
+import { useDebounced, usePaged } from '@/features/warehouse/whModel';
+import { useCopy } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
+import { cn } from '@/lib/cn';
+import {
+  AMOUNT,
+  decimals,
+  PRICE,
+  QTY,
+  RATE,
+  salesApi,
+  type Availability,
+  type CustomerOption,
+  type SalesContext,
+  type SalesOrder,
+  type SoDetail,
+  type SoItem,
+  type SoLineInput,
+  type SoStatus,
+} from './salesApi';
+import { SALES_COPY, salesError, useMoney } from './salesCopy';
+
+/*
+ * /core/sales/* (EP33) — the Sales workspace, its own lazy chunk:
+ *   index          counts (my drafts, awaiting confirmation, confirmed, short of
+ *                  stock) and the server-paged order list with filters
+ *   orders/new     a DRAFT: customer, dates, reference, note
+ *   orders/:id     the order — header and lines editable while DRAFT (by its
+ *                  creator), then submit / confirm / cancel as the server allows
+ * Money is shown as the server computed it; the line inputs are checked for
+ * shape only. Availability is labelled information, never a reservation.
+ * Every action not listed in the order's `actions` is simply not offered.
+ */
+
+const BASE = '/core/sales';
+const LINK =
+  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-6';
+const ROW =
+  'border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4';
+const CARD = 'rounded-xl bg-white/[0.02] p-4';
+
+function useSales() {
+  const c = useCopy(SALES_COPY);
+  const cc = useCopy(CONTROL_COPY);
+  return { c, err: (e: unknown) => salesError(e, c, cc) };
+}
+
+export default function SalesArea() {
+  const { c, err } = useSales();
+  const { state } = useLoad(salesApi.context);
+  if (state.status === 'loading') return <Loading label={c.loading} />;
+  if (state.status === 'error') return <Notice tone="error">{err(state.error)}</Notice>;
+  const ctx = state.data;
+  return (
+    <div className="grid grid-cols-1 gap-6" data-sales>
+      <Routes>
+        <Route index element={<SalesHome ctx={ctx} />} />
+        {ctx.orders.create && <Route path="orders/new" element={<NewOrder ctx={ctx} />} />}
+        <Route path="orders/:id" element={<ById />} />
+      </Routes>
+    </div>
+  );
+}
+
+function ById() {
+  const { id } = useParams();
+  return <OrderPage key={id} id={id!} />;
+}
+
+const STATUS_TONE: Record<SoStatus, 'neutral' | 'teal' | 'muted' | 'warning'> = {
+  DRAFT: 'neutral',
+  SUBMITTED: 'warning',
+  CONFIRMED: 'teal',
+  CANCELLED: 'muted',
+};
+
+function SoStatusPill({ status }: { status: SoStatus }) {
+  const { c } = useSales();
+  return (
+    <Pill
+      tone={STATUS_TONE[status]}
+      className={status === 'CANCELLED' ? 'line-through' : undefined}
+      data-so-status={status}
+    >
+      {c.statuses[status]}
+    </Pill>
+  );
+}
+
+/** Text first, tone second — never colour alone. */
+function AvailabilityPill({ state }: { state: Availability }) {
+  const { c } = useSales();
+  return (
+    <Pill
+      tone={state === 'AVAILABLE' ? 'teal' : state === 'NOT_STOCK_TRACKED' ? 'muted' : 'warning'}
+      data-availability={state}
+    >
+      {c.avail[state]}
+    </Pill>
+  );
+}
+
+function BackLink() {
+  const { c } = useSales();
+  return (
+    <AreaLink
+      to={BASE}
+      className="inline-flex min-h-11 w-fit items-center text-label text-text-secondary hover:text-text-primary"
+    >
+      ← {c.back}
+    </AreaLink>
+  );
+}
+
+// ------------------------------------------------------------------ home + list
+
+function SalesHome({ ctx }: { ctx: SalesContext }) {
+  const { c, err } = useSales();
+  const money = useMoney();
+  const { date } = useDateFormat();
+  const base = useId();
+  const [params, setParams] = useSearchParams();
+  const status = params.get('status') ?? '';
+  const shortage = params.get('availability') === 'SHORTAGE';
+  const [q, setQ] = useState('');
+  const debounced = useDebounced(q);
+  const { data, error, more, showMore } = usePaged(
+    (page) =>
+      salesApi.list({
+        status,
+        availability: shortage ? 'SHORTAGE' : undefined,
+        q: debounced,
+        page,
+        pageSize: 25,
+      }),
+    [status, shortage, debounced],
+  );
+  const { locale } = useLocale();
+  // Filters live in the URL (shareable, back button); other params and the language stay.
+  const filter = (next: { status?: string; availability?: string }) => {
+    const p = new URLSearchParams(params);
+    for (const k of ['status', 'availability'] as const) {
+      if (next[k]) p.set(k, next[k]);
+      else p.delete(k);
+    }
+    setParams(p, { replace: true, state: { locale } });
+  };
+  const tiles: [keyof SalesContext['counts'], { status?: string; availability?: string }][] = [
+    ['myDrafts', { status: 'DRAFT' }],
+    ['awaitingConfirmation', { status: 'SUBMITTED' }],
+    ['confirmed', { status: 'CONFIRMED' }],
+    ['withShortage', { availability: 'SHORTAGE' }],
+  ];
+  const cols: {
+    head: string;
+    minor?: boolean;
+    end?: boolean;
+    cell: (r: NonNullable<typeof data>['items'][number]) => ReactNode;
+  }[] = [
+    {
+      head: c.f.number,
+      cell: (r) => (
+        <AreaLink to={`${BASE}/orders/${encodeURIComponent(r.id)}`} className={LINK}>
+          {r.number}
+        </AreaLink>
+      ),
+    },
+    { head: c.f.status, cell: (r) => <SoStatusPill status={r.status} /> },
+    {
+      head: c.f.customer,
+      cell: (r) => (
+        <span className="break-words">
+          <span className="font-mono text-caption text-text-muted">{r.customer.code}</span>{' '}
+          {r.customer.name}
+        </span>
+      ),
+    },
+    {
+      head: c.f.availability,
+      cell: (r) => (r.availability ? <AvailabilityPill state={r.availability} /> : '—'),
+    },
+    {
+      head: c.f.grandTotal,
+      end: true,
+      cell: (r) => (
+        <span className="font-semibold whitespace-nowrap tabular-nums">
+          {money(r.grandTotal, r.currency)}
+        </span>
+      ),
+    },
+    {
+      head: c.f.requestedDate,
+      minor: true,
+      cell: (r) => (r.requestedDate ? date(r.requestedDate) : '—'),
+    },
+    { head: c.f.createdBy, minor: true, cell: (r) => r.createdBy?.name ?? '—' },
+    { head: c.f.updated, minor: true, cell: (r) => date(r.updatedAt) },
+  ];
+  return (
+    <>
+      <PageTitle
+        title={c.title}
+        lead={c.lead}
+        action={
+          ctx.orders.create ? (
+            <AreaLink to={`${BASE}/orders/new`} className={buttonClasses('primary', 'md')} data-new>
+              {c.newOrder}
+            </AreaLink>
+          ) : undefined
+        }
+      />
+      {ctx.selectedBranch && (
+        <p className="text-caption text-text-muted">
+          {c.f.branch}: {`${ctx.selectedBranch.code} · ${ctx.selectedBranch.name}`}
+        </p>
+      )}
+      <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-sales-counts>
+        {tiles.map(([key, f]) => {
+          const active = f.status ? status === f.status && !shortage : shortage && !status;
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                aria-pressed={active}
+                onClick={() => filter(active ? {} : f)}
+                className={cn(
+                  'grid min-h-11 w-full gap-1 rounded-xl p-4 text-left shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+                  active
+                    ? 'bg-brand-primary/[0.08] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.4)]'
+                    : 'hover:bg-white/[0.03]',
+                )}
+                data-count={key}
+              >
+                <span className="text-caption text-text-muted">{c.counts[key]}</span>
+                <span className="text-[1.5rem] font-semibold text-text-primary tabular-nums">
+                  {ctx.counts[key]}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div
+        role="search"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] lg:items-end"
+      >
+        <SearchBox
+          id={`${base}-q`}
+          label={c.f.search}
+          value={q}
+          onChange={setQ}
+          placeholder={c.f.searchHint}
+          describedBy={`${base}-count`}
+        />
+        <SelectField
+          id={`${base}-status`}
+          label={c.f.status}
+          value={status}
+          onChange={(e) =>
+            filter({ status: e.target.value, availability: shortage ? 'SHORTAGE' : '' })
+          }
+          data-filter="status"
+        >
+          <option value="">{c.f.any}</option>
+          {(['DRAFT', 'SUBMITTED', 'CONFIRMED', 'CANCELLED'] as const).map((s) => (
+            <option key={s} value={s}>
+              {c.statuses[s]}
+            </option>
+          ))}
+        </SelectField>
+        <label className="flex min-h-11 items-center gap-2 text-label text-text-primary">
+          <input
+            type="checkbox"
+            checked={shortage}
+            onChange={(e) => filter({ status, availability: e.target.checked ? 'SHORTAGE' : '' })}
+            className="size-4 accent-[var(--color-brand-primary)]"
+            data-filter="shortage"
+          />
+          {c.shortageOnly}
+        </label>
+      </div>
+      <p id={`${base}-count`} role="status" className="text-caption text-text-muted">
+        {data ? c.count(data.total) : c.loading}
+      </p>
+      {error && !data ? (
+        <Notice tone="error">{err(error)}</Notice>
+      ) : !data ? (
+        <Loading label={c.loading} />
+      ) : data.items.length === 0 ? (
+        <p className="py-6 text-label text-text-secondary" data-empty>
+          {c.noOrders}
+        </p>
+      ) : (
+        <table className="w-full text-left text-label max-md:block" data-so-rows>
+          <thead className="max-md:sr-only">
+            <tr className="text-caption text-text-muted">
+              {cols.map((col) => (
+                <th
+                  key={col.head}
+                  scope="col"
+                  className={cn(
+                    'px-3 pb-2 font-medium first:pl-4',
+                    col.minor && 'md:max-xl:hidden',
+                    col.end && 'md:text-right',
+                  )}
+                >
+                  {col.head}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="max-md:grid max-md:grid-cols-1 max-md:gap-2">
+            {data.items.map((r) => (
+              <tr key={r.id} className={ROW} data-so={r.number}>
+                {cols.map((col) => (
+                  <td
+                    key={col.head}
+                    data-label={col.head}
+                    className={cn(
+                      CELL,
+                      col.minor && 'md:max-xl:hidden',
+                      col.end && 'md:text-right',
+                    )}
+                  >
+                    {col.cell(r)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {data?.hasMore && (
+        <button
+          type="button"
+          disabled={more}
+          onClick={showMore}
+          className={buttonClasses('secondary', 'md', 'w-fit')}
+          data-show-more
+        >
+          {more ? c.loading : c.showMore}
+        </button>
+      )}
+      <p className="text-caption text-text-muted">{c.availNote}</p>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ customer + header
+
+function CustomerPicker({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: CustomerOption | null;
+  onChange: (v: CustomerOption | null) => void;
+}) {
+  const { c } = useSales();
+  const [q, setQ] = useState('');
+  const debounced = useDebounced(q);
+  const [options, setOptions] = useState<CustomerOption[]>([]);
+  useEffect(() => {
+    let live = true;
+    salesApi.customers(debounced).then(
+      (r) => live && setOptions(r.items),
+      () => live && setOptions([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [debounced]);
+  const list = value && !options.some((o) => o.id === value.id) ? [value, ...options] : options;
+  return (
+    <>
+      <TextField
+        id={`${id}-q`}
+        type="search"
+        label={c.f.customerSearch}
+        placeholder={c.f.customerHint}
+        value={q}
+        maxLength={100}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      <SelectField
+        id={id}
+        label={c.f.customer}
+        value={value?.id ?? ''}
+        onChange={(e) => onChange(list.find((o) => o.id === e.target.value) ?? null)}
+        data-customer-select
+      >
+        <option value="">—</option>
+        {list.map((o) => (
+          <option key={o.id} value={o.id}>{`${o.code} · ${o.name}`}</option>
+        ))}
+      </SelectField>
+    </>
+  );
+}
+
+interface HeaderValues {
+  customer: CustomerOption | null;
+  orderDate: string;
+  requestedDate: string;
+  reference: string;
+  note: string;
+}
+
+function HeaderFields({
+  v,
+  set,
+}: {
+  v: HeaderValues;
+  set: (f: (v: HeaderValues) => HeaderValues) => void;
+}) {
+  const { c } = useSales();
+  const base = useId();
+  return (
+    <>
+      <CustomerPicker
+        id={`${base}-customer`}
+        value={v.customer}
+        onChange={(customer) => set((x) => ({ ...x, customer }))}
+      />
+      <TextField
+        id={`${base}-od`}
+        type="date"
+        label={c.f.orderDate}
+        value={v.orderDate}
+        onChange={(e) => set((x) => ({ ...x, orderDate: e.target.value }))}
+      />
+      <TextField
+        id={`${base}-rd`}
+        type="date"
+        label={c.f.requestedDate}
+        value={v.requestedDate}
+        min={v.orderDate || undefined}
+        onChange={(e) => set((x) => ({ ...x, requestedDate: e.target.value }))}
+      />
+      <TextField
+        id={`${base}-ref`}
+        label={c.f.reference}
+        value={v.reference}
+        maxLength={60}
+        onChange={(e) => set((x) => ({ ...x, reference: e.target.value }))}
+      />
+      <TextField
+        id={`${base}-note`}
+        label={c.f.note}
+        value={v.note}
+        maxLength={1000}
+        onChange={(e) => set((x) => ({ ...x, note: e.target.value }))}
+      />
+    </>
+  );
+}
+
+function NewOrder({ ctx }: { ctx: SalesContext }) {
+  const { c, err } = useSales();
+  const navigate = useNavigate();
+  const { locale } = useLocale();
+  const [v, setV] = useState<HeaderValues>({
+    customer: null,
+    orderDate: ctx.today,
+    requestedDate: '',
+    reference: '',
+    note: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!v.customer) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { order } = await salesApi.create({
+        customerId: v.customer.id,
+        orderDate: v.orderDate || undefined,
+        requestedDate: v.requestedDate || null,
+        customerReference: v.reference.trim() || null,
+        note: v.note.trim() || null,
+      });
+      void navigate(`${BASE}/orders/${encodeURIComponent(order.id)}`, { state: { locale } });
+    } catch (x) {
+      setError(err(x));
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <BackLink />
+      <PageTitle title={c.newOrder} lead={c.lead} />
+      {error && <Notice tone="error">{error}</Notice>}
+      <form
+        noValidate
+        onSubmit={(e) => void submit(e)}
+        className="grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2"
+        data-new-order
+      >
+        <HeaderFields v={v} set={setV} />
+        <button
+          type="submit"
+          disabled={busy || !v.customer}
+          className={buttonClasses('primary', 'md', 'w-fit sm:col-span-2')}
+        >
+          {busy ? c.saving : c.create}
+        </button>
+      </form>
+    </>
+  );
+}
+
+/** A DRAFT's header: only what changed is sent. */
+function HeaderEditor({ o, save }: { o: SalesOrder; save: (body: object) => Promise<boolean> }) {
+  const { c } = useSales();
+  const [v, setV] = useState<HeaderValues>({
+    customer: { id: o.customer.id, code: o.customer.code, name: o.customer.name, status: 'ACTIVE' },
+    orderDate: o.orderDate,
+    requestedDate: o.requestedDate ?? '',
+    reference: o.customerReference ?? '',
+    note: o.note ?? '',
+  });
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const body: Record<string, string | null> = {};
+    if (v.customer && v.customer.id !== o.customer.id) body.customerId = v.customer.id;
+    if (v.orderDate && v.orderDate !== o.orderDate) body.orderDate = v.orderDate;
+    if (v.requestedDate !== (o.requestedDate ?? '')) body.requestedDate = v.requestedDate || null;
+    if (v.reference.trim() !== (o.customerReference ?? ''))
+      body.customerReference = v.reference.trim() || null;
+    if (v.note.trim() !== (o.note ?? '')) body.note = v.note.trim() || null;
+    if (!Object.keys(body).length) return;
+    setBusy(true);
+    await save(body);
+    setBusy(false);
+  };
+  return (
+    <form
+      noValidate
+      onSubmit={(e) => void submit(e)}
+      className="mt-6 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2"
+      data-header-editor
+    >
+      <HeaderFields v={v} set={setV} />
+      <button
+        type="submit"
+        disabled={busy || !v.customer}
+        className={buttonClasses('secondary', 'md', 'w-fit sm:col-span-2')}
+      >
+        {busy ? c.saving : c.save}
+      </button>
+    </form>
+  );
+}
+
+// ------------------------------------------------------------------ one order
+
+type Step = 'submit' | 'confirm' | 'cancel';
+
+function OrderPage({ id }: { id: string }) {
+  const { c, err } = useSales();
+  const money = useMoney();
+  const { date, dateTime } = useDateFormat();
+  const { state, set } = useLoad(() => salesApi.get(id));
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [open, setOpen] = useState<Step | null>(null);
+  const heading = useRef<HTMLDivElement>(null);
+  if (state.status === 'loading') return <Loading label={c.loading} />;
+  if (state.status === 'error')
+    return (
+      <>
+        <BackLink />
+        <Notice tone="error">{err(state.error)}</Notice>
+      </>
+    );
+  const { order: o, timeline } = state.data;
+  const run = async (work: () => Promise<SoDetail>, text = c.saved) => {
+    setNotice(null);
+    try {
+      set(await work());
+      setNotice({ tone: 'success', text });
+      return true;
+    } catch (e) {
+      setNotice({ tone: 'error', text: err(e) });
+      return false;
+    }
+  };
+  const editable = o.actions.includes('edit');
+  const steps = (['submit', 'confirm', 'cancel'] as const).filter((a) => o.actions.includes(a));
+  const label = (s: Step) => (s === 'cancel' && o.status === 'DRAFT' ? c.act.discard : c.act[s]);
+  const ask = (s: Step) => (s === 'cancel' && o.status === 'DRAFT' ? c.ask.discard : c.ask[s]);
+  const cur = o.currency;
+  return (
+    <div className="grid grid-cols-1 gap-6" data-order={o.number} data-status={o.status}>
+      <BackLink />
+      <div ref={heading} tabIndex={-1} className="outline-none">
+        <PageTitle title={o.number} />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <SoStatusPill status={o.status} />
+          {o.availability && <AvailabilityPill state={o.availability} />}
+          <span className="text-caption text-text-muted">{c.title}</span>
+        </div>
+      </div>
+      <div aria-live="polite">{notice && <Notice tone={notice.tone}>{notice.text}</Notice>}</div>
+      {!editable && !steps.length && o.status !== 'CANCELLED' && (
+        <p className="text-caption text-text-muted" data-read-only>
+          {c.readOnly}
+        </p>
+      )}
+
+      <Section id="so-facts" title={c.details}>
+        <Facts>
+          <Fact term={c.f.customer}>
+            <span className="font-mono">{o.customer.code}</span> · {o.customer.name}
+          </Fact>
+          {o.customer.taxId && (
+            <Fact term={c.f.taxId}>
+              {o.customer.taxId}
+              {o.customer.taxBranch ? ` (${o.customer.taxBranch})` : ''}
+            </Fact>
+          )}
+          <Fact term={c.f.branch}>{`${o.branch.code} · ${o.branch.name}`}</Fact>
+          <Fact term={c.f.orderDate}>{date(o.orderDate)}</Fact>
+          <Fact term={c.f.requestedDate}>{o.requestedDate ? date(o.requestedDate) : '—'}</Fact>
+          <Fact term={c.f.reference}>{o.customerReference ?? '—'}</Fact>
+          <Fact term={c.f.createdBy}>{o.createdBy?.name ?? '—'}</Fact>
+          {o.submittedAt && (
+            <Fact
+              term={c.f.submitted}
+            >{`${dateTime(o.submittedAt)} · ${o.submittedBy?.name ?? ''}`}</Fact>
+          )}
+          {o.confirmedAt && (
+            <Fact
+              term={c.f.confirmed}
+            >{`${dateTime(o.confirmedAt)} · ${o.confirmedBy?.name ?? ''}`}</Fact>
+          )}
+          {o.cancelledAt && (
+            <Fact
+              term={c.f.cancelled}
+            >{`${dateTime(o.cancelledAt)} · ${o.cancelledBy?.name ?? ''}`}</Fact>
+          )}
+          {o.cancellationReason && (
+            <Fact term={c.f.reason}>
+              <span className="whitespace-pre-line">{o.cancellationReason}</span>
+            </Fact>
+          )}
+          {o.note && (
+            <Fact term={c.f.note}>
+              <span className="whitespace-pre-line">{o.note}</span>
+            </Fact>
+          )}
+        </Facts>
+        {editable && (
+          <HeaderEditor
+            key={o.updatedAt}
+            o={o}
+            save={(body) => run(() => salesApi.update(o.id, body))}
+          />
+        )}
+      </Section>
+
+      <Section id="so-lines" title={`${c.f.lines} · ${o.lines.length}`}>
+        {editable ? (
+          <LinesEditor
+            key={o.updatedAt}
+            o={o}
+            save={(lines) => run(() => salesApi.lines(o.id, lines))}
+          />
+        ) : (
+          <ol className="grid grid-cols-1 gap-2" data-lines>
+            {o.lines.map((l) => (
+              <li
+                key={l.id}
+                className={cn(CARD, 'grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]')}
+                data-line={l.lineNo}
+              >
+                <span className="min-w-0 text-label">
+                  <span className="block break-words text-text-primary">
+                    <span className="font-mono text-caption text-text-muted">#{l.lineNo}</span>{' '}
+                    <span className="font-mono">{l.item.code}</span> · {l.item.name}
+                  </span>
+                  <span className="block text-caption text-text-secondary tabular-nums">
+                    {c.f.ordered} <span className="font-semibold">{l.quantity}</span> {l.unit.code}
+                  </span>
+                  {l.availability && (
+                    <span className="mt-1 flex flex-wrap items-center gap-2 text-caption text-text-muted tabular-nums">
+                      <AvailabilityPill state={l.availability.state} />
+                      {l.availability.available !== null &&
+                        `${c.f.available} ${l.availability.available} · ${c.f.onHand} ${l.availability.onHand}`}
+                      {l.availability.shortage && l.availability.shortage !== '0' && (
+                        <span className="text-[#f3cf8a]">{`${c.f.shortage} ${l.availability.shortage}`}</span>
+                      )}
+                    </span>
+                  )}
+                  {l.note && (
+                    <span className="block text-caption whitespace-pre-line text-text-muted">
+                      {l.note}
+                    </span>
+                  )}
+                </span>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-caption sm:grid-cols-4">
+                  {(
+                    [
+                      [c.f.unitPrice, money(l.unitPrice, undefined, true)],
+                      [c.f.discount, money(l.discountAmount)],
+                      [c.f.taxRate, `${l.taxRate}%`],
+                      [c.f.lineTotal, money(l.lineTotal)],
+                    ] as const
+                  ).map(([t, v]) => (
+                    <div key={t} className="min-w-0">
+                      <dt className="text-text-muted">{t}</dt>
+                      <dd className="text-text-primary tabular-nums">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            ))}
+          </ol>
+        )}
+        {o.status !== 'DRAFT' && (
+          <p className="mt-3 text-caption text-text-muted">{c.progressNote}</p>
+        )}
+      </Section>
+
+      <Section id="so-totals" title={c.totals}>
+        <Facts>
+          <Fact term={c.f.subtotal}>
+            <span className="tabular-nums">{money(o.subtotal, cur)}</span>
+          </Fact>
+          <Fact term={c.f.discountTotal}>
+            <span className="tabular-nums">{money(o.discountTotal, cur)}</span>
+          </Fact>
+          <Fact term={c.f.taxTotal}>
+            <span className="tabular-nums">{money(o.taxTotal, cur)}</span>
+          </Fact>
+          <Fact term={c.f.grandTotal}>
+            <span className="font-semibold tabular-nums" data-grand-total>
+              {money(o.grandTotal, cur)}
+            </span>
+          </Fact>
+        </Facts>
+        <p className="mt-3 text-caption text-text-muted">{c.taxNote}</p>
+        {o.availability && <p className="mt-1 text-caption text-text-muted">{c.availNote}</p>}
+      </Section>
+
+      {steps.length > 0 && (
+        <div className="grid gap-3 border-t border-white/[0.07] pt-5" data-actions>
+          {open ? (
+            <ConfirmBox
+              question={ask(open)}
+              goLabel={label(open)}
+              reason={
+                open === 'cancel' ? (o.status === 'DRAFT' ? 'optional' : 'required') : undefined
+              }
+              onCancel={() => {
+                setOpen(null);
+                heading.current?.focus();
+              }}
+              onConfirm={async (reason) => {
+                const target = {
+                  submit: 'SUBMITTED',
+                  confirm: 'CONFIRMED',
+                  cancel: 'CANCELLED',
+                } as const;
+                if (await run(() => salesApi.act(o.id, open, reason), c.statuses[target[open]])) {
+                  setOpen(null);
+                  heading.current?.focus();
+                }
+              }}
+            />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {steps.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setOpen(s)}
+                  className={buttonClasses(s === 'cancel' ? 'ghost' : 'primary', 'md')}
+                  data-action={s}
+                >
+                  {label(s)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Section id="so-timeline" title={c.timeline}>
+        <ol className="grid gap-2" data-timeline>
+          {timeline.map((t, i) => (
+            <li key={i} className="flex flex-wrap gap-x-3 text-label">
+              <span className="font-semibold text-text-primary">
+                {c.timelineTypes[t.type.replace('SALES_ORDER_', '')] ?? t.type}
+              </span>
+              <span className="text-text-secondary">{t.actor?.name ?? c.system}</span>
+              <span className="text-caption text-text-muted">{dateTime(t.at)}</span>
+            </li>
+          ))}
+        </ol>
+      </Section>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ draft lines
+
+interface DraftLine {
+  itemId: string;
+  label: string;
+  unit: string;
+  precision: number;
+  available: string | null;
+  quantity: string;
+  unitPrice: string;
+  discountAmount: string;
+  taxRate: string;
+  note: string;
+}
+
+type FieldKey = 'quantity' | 'unitPrice' | 'discountAmount' | 'taxRate';
+
+/** The draft's lines, replaced whole on save. Shape is checked here; amounts are the server's. */
+function LinesEditor({
+  o,
+  save,
+}: {
+  o: SalesOrder;
+  save: (lines: SoLineInput[]) => Promise<boolean>;
+}) {
+  const { c } = useSales();
+  const money = useMoney();
+  const base = useId();
+  const initial = () =>
+    o.lines.map((l): DraftLine => ({
+      itemId: l.item.id,
+      label: `${l.item.code} · ${l.item.name}`,
+      unit: l.unit.code,
+      precision: l.unit.precision,
+      available: l.availability?.available ?? null,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      discountAmount: l.discountAmount,
+      taxRate: l.taxRate,
+      note: l.note ?? '',
+    }));
+  const [lines, setLines] = useState<DraftLine[]>(initial);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const dirty = JSON.stringify(lines) !== JSON.stringify(initial());
+  const check = () => {
+    const e: Record<string, string> = {};
+    lines.forEach((l, i) => {
+      const q = l.quantity.trim();
+      if (!QTY.test(q) || !/[1-9]/.test(q)) e[`${i}-quantity`] = c.invalidNumber;
+      else if (decimals(q) > l.precision)
+        e[`${i}-quantity`] = l.precision ? c.places(l.precision) : c.wholeNumber;
+      if (!PRICE.test(l.unitPrice.trim())) e[`${i}-unitPrice`] = c.invalidNumber;
+      if (!AMOUNT.test(l.discountAmount.trim())) e[`${i}-discountAmount`] = c.invalidNumber;
+      const t = l.taxRate.trim();
+      if (!RATE.test(t) || Number(t) > 100) e[`${i}-taxRate`] = c.invalidNumber;
+    });
+    return e;
+  };
+  const update = (i: number, patch: Partial<DraftLine>) =>
+    setLines((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const add = (item: SoItem) =>
+    setLines((ls) => [
+      ...ls,
+      {
+        itemId: item.id,
+        label: `${item.code} · ${item.name}`,
+        unit: item.unit.code,
+        precision: item.unit.precision,
+        available: item.available,
+        quantity: '1',
+        unitPrice: '0',
+        discountAmount: '0',
+        taxRate: '7',
+        note: '',
+      },
+    ]);
+  const onSave = async () => {
+    const found = check();
+    setErrors(found);
+    const first = Object.keys(found)[0];
+    if (first) {
+      document.getElementById(`${base}-${first}`)?.focus();
+      return;
+    }
+    setBusy(true);
+    await save(
+      lines.map((l) => ({
+        itemId: l.itemId,
+        quantity: l.quantity.trim(),
+        unitPrice: l.unitPrice.trim(),
+        discountAmount: l.discountAmount.trim(),
+        taxRate: l.taxRate.trim(),
+        note: l.note.trim() || null,
+      })),
+    );
+    setBusy(false);
+  };
+  const field = (i: number, key: FieldKey, label: string) => (
+    <TextField
+      id={`${base}-${i}-${key}`}
+      label={label}
+      inputMode="decimal"
+      autoComplete="off"
+      maxLength={19}
+      value={lines[i]![key]}
+      error={errors[`${i}-${key}`]}
+      onChange={(e) => update(i, { [key]: e.target.value })}
+      data-field={key}
+    />
+  );
+  return (
+    <div className="grid gap-4" data-lines-editor>
+      <p className="text-caption text-text-muted">{lines.length ? c.draftNote : c.noLines}</p>
+      <ol className="grid gap-2">
+        {lines.map((l, i) => {
+          const server = o.lines[i]?.item.id === l.itemId ? o.lines[i] : undefined;
+          return (
+            <li key={`${l.itemId}-${i}`} className={cn(CARD, 'grid gap-3')} data-draft-line={i + 1}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <span className="min-w-0 text-label break-words">
+                  <span className="font-mono text-caption text-text-muted">#{i + 1}</span>{' '}
+                  <span className="font-mono">{l.label}</span>
+                  {l.available !== null && (
+                    <span className="block text-caption text-text-muted tabular-nums">
+                      {c.f.available} {l.available} {l.unit}
+                    </span>
+                  )}
+                </span>
+                <span className="flex items-center gap-2">
+                  {server?.availability && <AvailabilityPill state={server.availability.state} />}
+                  {server && (
+                    <span className="text-caption text-text-secondary tabular-nums">
+                      {c.f.lineTotal} {money(server.lineTotal)}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                    className={buttonClasses('ghost', 'md', 'px-3')}
+                    aria-label={`${c.remove} #${i + 1} ${l.label}`}
+                  >
+                    {c.remove}
+                  </button>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {field(i, 'quantity', `${c.f.quantity} (${l.unit})`)}
+                {field(i, 'unitPrice', c.f.unitPrice)}
+                {field(i, 'discountAmount', c.f.discount)}
+                {field(i, 'taxRate', c.f.taxRate)}
+              </div>
+              <TextField
+                id={`${base}-${i}-note`}
+                label={c.f.lineNote}
+                value={l.note}
+                maxLength={500}
+                onChange={(e) => update(i, { note: e.target.value })}
+              />
+            </li>
+          );
+        })}
+      </ol>
+      {lines.length < 100 && <ItemSearch onPick={add} />}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={busy || !dirty}
+          onClick={() => void onSave()}
+          className={buttonClasses('secondary', 'md', 'w-fit')}
+          data-save-lines
+        >
+          {busy ? c.saving : c.saveLines}
+        </button>
+        {dirty && (
+          <span role="status" className="text-caption text-[#f3cf8a]" data-unsaved>
+            {c.unsaved}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Active items (server search, 2+ characters) with the branch's available quantity. */
+function ItemSearch({ onPick }: { onPick: (i: SoItem) => void }) {
+  const { c } = useSales();
+  const id = useId();
+  const [q, setQ] = useState('');
+  const debounced = useDebounced(q);
+  const [got, setGot] = useState<{ q: string; items: SoItem[] } | null>(null);
+  const items = debounced.length >= 2 && got?.q === debounced ? got.items : [];
+  useEffect(() => {
+    let live = true;
+    if (debounced.length >= 2) {
+      salesApi.items(debounced).then(
+        (r) => live && setGot({ q: debounced, items: r.items }),
+        () => live && setGot({ q: debounced, items: [] }),
+      );
+    }
+    return () => {
+      live = false;
+    };
+  }, [debounced]);
+  return (
+    <div className="grid gap-2" data-item-search>
+      <SearchBox
+        id={id}
+        label={c.addItem}
+        value={q}
+        onChange={setQ}
+        placeholder={c.itemHint}
+        describedBy={`${id}-n`}
+      />
+      <span id={`${id}-n`} className="sr-only" role="status">
+        {items.length ? c.count(items.length) : ''}
+      </span>
+      {items.length > 0 && (
+        <ul className="grid gap-1">
+          {items.map((i) => (
+            <li key={i.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onPick(i);
+                  setQ('');
+                }}
+                className="flex min-h-11 w-full flex-wrap items-center justify-between gap-2 rounded-lg px-3 text-left text-label hover:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-focus"
+              >
+                <span>
+                  <span className="font-mono">{i.code}</span> · {i.name}
+                </span>
+                <span className="text-caption text-text-muted tabular-nums">
+                  {i.available === null
+                    ? c.avail.NOT_STOCK_TRACKED
+                    : `${c.f.available} ${i.available} ${i.unit.code}`}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

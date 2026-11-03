@@ -208,6 +208,15 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP33 — no budget changed; JS recovered first.** Phase 0 took the total from 4,298.2 to
+  4,158.7 KiB (**≈ 139.5 KiB recovered**) before any Sales code: the sign-in gateway no longer ships
+  `react-hook-form`, `@hookform/resolvers` or `zod` (the three were removed from the frontend; the
+  only client-side check they served, the email shape, is `lib/email.ts` — zod v4's pattern, with
+  accepted and rejected shapes pinned by `email.test.ts`), and the homepage workspace previews import a small
+  `workspaces/identity.ts` (names, icons, accents) instead of the whole prototype registry. Sales then
+  adds one lazy `SalesArea` chunk (≈ 36.3 KiB raw / 11.3 KiB gzip, its own TH / EN / ZH copy) and the
+  CORE home link: all JS **4,195.6 / 4,300 KiB** (+36.9 KiB over Phase 0); initial JS unchanged at
+  182.6 KiB gzip; static HTML 528 / 560 KiB. Headroom ≈ 104 KiB.
 - **EP32 — no budget changed.** Transfers, adjustments and cycle counts add three lazy chunks
   (≈ 3.6 / 5.3 / 7.7 KiB raw) and one shared `ctlParts` chunk (≈ 28 KiB: list / page / editor parts and
   the TH / EN / ZH copy, loaded only by those three); EP31 screens gain movement labels, nav entries,

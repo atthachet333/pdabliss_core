@@ -151,11 +151,9 @@ export class SalesOrderService {
       take: 1000,
       orderBy: { updatedAt: 'desc' },
     });
-    const stock = await this.stockForOrders(actor, open as unknown as Full[]);
+    const stock = await this.stockForOrders(actor, open);
     return open
-      .filter((o) =>
-        this.lineStates(o as unknown as Full, stock).some((a) => a?.shortage && a.shortage.gt(0)),
-      )
+      .filter((o) => this.lineStates(o, stock).some((a) => a?.shortage && a.shortage.gt(0)))
       .map((o) => o.id);
   }
 
@@ -176,7 +174,7 @@ export class SalesOrderService {
       availability:
         o.status === 'CANCELLED' || !o.lines.length
           ? null
-          : orderAvailability(states.map((s) => s?.state ?? 'NOT_STOCK_TRACKED') as Availability[]),
+          : orderAvailability(states.map((s): Availability => s?.state ?? 'NOT_STOCK_TRACKED')),
       createdBy: who(o.createdBy),
       updatedAt: o.updatedAt.toISOString(),
     };

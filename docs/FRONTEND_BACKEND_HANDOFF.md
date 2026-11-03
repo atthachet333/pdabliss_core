@@ -202,6 +202,15 @@ noindex, served by the existing `/platform/*` shell rewrite).
   adjustments / cycleCounts capabilities and three counts. A location with stock or an open document
   can no longer be deactivated. **Sales issue and Production follow INVENTORY_LEDGER.md §7.** Screens:
   `TransfersArea`, `AdjustmentsArea`, `CountsArea` (one lazy chunk each, shared `ctlParts`).
+- **EP33 (Sales orders):** see [SALES_ORDER.md](SALES_ORDER.md) and [EP33_REPORT.md](EP33_REPORT.md).
+  `SalesOrder` (`SO-`) / `SalesOrderLine` under `/api/v1/sales` (`/context`, `/items`, `/orders`,
+  DRAFT edits, `/submit`, `/confirm`, `/cancel`); one policy table (`backend/src/sales/policy.ts`),
+  strict input (server-owned fields are 400), Sales allow-lists (selling terms, never cost). Availability
+  is read from balances on every response (`sales/availability.ts`, equal to the FEFO candidate set) and
+  is **not a reservation**; nothing in Sales writes stock. Each line's `progress` carries `ordered`
+  with `allocated` / `picked` / `delivered` / `outstanding` null — **EP34 allocation and EP35 delivery
+  fill them** against the line's `[id, salesOrderId, companyId]` key. Screen: `SalesArea` (one lazy
+  chunk) at `/core/sales/*`.
 
 ## 7. Warehouse boundary
 
@@ -258,7 +267,8 @@ on, and passwords live only in each developer's `.env`. Use `purchasing.demo@pda
 purchase requests and EP30 orders, `accounting.demo@pdabliss.com` for deposits and
 `warehouse.demo@pdabliss.com` for Warehouse privacy checks, EP31 receiving and EP32 drafting / counting
 (it stays Warehouse **Staff**; `owner.demo@pdabliss.com` posts transfers, approves adjustments, posts
-counts and reverses posted documents).
+counts and reverses posted documents). Use `sales.demo@pdabliss.com` for EP33 sales orders (it stays
+Sales **Staff** at the Head Office; `owner.demo@pdabliss.com` confirms and cancels).
 
 ## 12. Localization
 

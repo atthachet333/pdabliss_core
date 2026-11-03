@@ -640,6 +640,47 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(await h.db.inventoryTransfer.count()).toBe(2);
   });
 
+  it('seeds four sales orders once — staff drafts and submits, the owner confirms; no stock effect (EP33)', async () => {
+    const S = '/api/v1/sales';
+    const movements = await h.db.stockMovement.count();
+    const owner = await login('owner.demo@pdabliss.com');
+    const all = j(await owner.get(`${S}/orders`)).items;
+    expect(all.map((o: J) => o.status).sort()).toEqual([
+      'CANCELLED',
+      'CONFIRMED',
+      'DRAFT',
+      'SUBMITTED',
+    ]);
+    const by = (status: string) => all.find((o: J) => o.status === status);
+    expect(by('CONFIRMED')).toMatchObject({ branch: { code: '00001' }, availability: 'AVAILABLE' });
+    expect(by('SUBMITTED')).toMatchObject({
+      branch: { code: '00000' },
+      availability: 'UNAVAILABLE',
+    });
+    expect(by('CANCELLED').availability).toBeNull();
+    const confirmed = j(await owner.get(`${S}/orders/${by('CONFIRMED').id}`)).order;
+    expect(confirmed.lines).toHaveLength(2);
+    expect(confirmed.grandTotal).toBe('1572.90'); // (6 × 185 + 20 × 18) × 1.07
+    // The demo sales persona (staff, Head Office): its own draft and the submitted
+    // order; it cannot confirm, and the demo-branch order is not in its branches.
+    const sales = await login('sales.demo@pdabliss.com');
+    const mine = j(await sales.get(`${S}/orders`)).items;
+    expect(mine.map((o: J) => o.status).sort()).toEqual(['CANCELLED', 'DRAFT', 'SUBMITTED']);
+    const submitted = j(await sales.get(`${S}/orders/${by('SUBMITTED').id}`)).order;
+    expect(submitted.actions).toEqual([]);
+    expect(j(await sales.get(`${S}/orders/${by('DRAFT').id}`)).order.actions).toEqual([
+      'edit',
+      'submit',
+      'cancel',
+    ]);
+    // Warehouse never reaches Sales.
+    const wh = await login('warehouse.demo@pdabliss.com');
+    expect((await wh.get(`${S}/orders`)).statusCode).toBe(403);
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await h.db.salesOrder.count()).toBe(4);
+    expect(await h.db.stockMovement.count()).toBe(movements);
+  });
+
   it('the legacy staff account carries the one exception: receiving is denied', async () => {
     const staff = await login('staff.demo@pdabliss.com');
     const res = await staff.get(

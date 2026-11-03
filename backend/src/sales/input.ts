@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { amountValue, taxRateValue, unitPriceValue } from '../purchasing/order-input.js';
 import { quantityValue } from '../purchasing/input.js';
+import { dayValue } from '../warehouse/input.js';
 
 /*
  * Request schemas for sales orders (EP33). Strict objects: what the server owns
@@ -28,10 +29,8 @@ const opt = <T extends z.ZodType>(schema: T) =>
     schema.nullable().optional(),
   );
 const id = z.string().min(1).max(64);
-const day = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid date')
-  .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), 'invalid date');
+/** A real calendar day (2026-02-30 is refused, never rolled over). */
+const day = dayValue;
 const param = <T extends z.ZodType>(s: T) =>
   z.preprocess((v) => (v === '' ? undefined : v), s.optional());
 

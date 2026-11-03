@@ -124,7 +124,12 @@ approve = post), cycle counts with a scoped lock, zero and unexpected counts, st
 corrections, reversal for every posted document, and the location deactivation guard
 ([docs/INVENTORY_TRANSFER.md](docs/INVENTORY_TRANSFER.md), [docs/STOCK_ADJUSTMENT.md](docs/STOCK_ADJUSTMENT.md),
 [docs/CYCLE_COUNT.md](docs/CYCLE_COUNT.md), [docs/EP32_REPORT.md](docs/EP32_REPORT.md)).
-Next: EP33 (not started).
+**EP33** (completed locally, awaiting owner review) recovers ≈ 140 KiB of shipped JS first, then adds
+the Sales order foundation: customer, items, selling terms and server-computed totals in one branch,
+DRAFT → SUBMITTED → CONFIRMED (manager) with cancellation, snapshots frozen at confirmation, and
+informational availability from the ledger — never a reservation and never a stock write
+([docs/SALES_ORDER.md](docs/SALES_ORDER.md), [docs/EP33_REPORT.md](docs/EP33_REPORT.md)).
+Next: EP34 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -147,7 +152,7 @@ Roadmap:
    **EP28 Operational Master Data** → **EP28.1 Department demo personas**
 3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
    receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
-   stock adjustment, cycle count** → Sales → Warehouse →
+   stock adjustment, cycle count** → **EP33 Sales order foundation** → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

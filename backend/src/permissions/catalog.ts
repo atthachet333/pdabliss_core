@@ -72,6 +72,13 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   warehouse.stock_adjustment.approve approve (= post), reject, reverse (EP27 code, MANAGE)
  *   warehouse.counts.create            create, start, count, send to review, cancel (OPERATE)
  *   warehouse.counts.approve           post a reviewed count — corrections written (MANAGE)
+ *
+ * EP33 sales orders (EP27 codes, no new ones — backend/src/sales/policy.ts):
+ *   sales.orders.view     read the branch's orders (a DRAFT only for its creator and confirmers)
+ *   sales.orders.create   draft, edit, submit and discard own orders (submit is part of create)
+ *   sales.orders.approve  CONFIRM a submitted order (no separate `confirm` code)
+ *   sales.orders.cancel   cancel a submitted or confirmed order (reason required)
+ *   sales.orders.edit     reserved (editing a draft is part of creating it)
  */
 
 export const PERMISSION_NAMESPACES = [

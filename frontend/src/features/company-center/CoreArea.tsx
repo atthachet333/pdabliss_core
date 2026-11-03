@@ -64,11 +64,21 @@ const MovementsArea = lazy(() => import('@/features/warehouse/MovementsArea'));
 const TransfersArea = lazy(() => import('@/features/warehouse/TransfersArea'));
 const AdjustmentsArea = lazy(() => import('@/features/warehouse/AdjustmentsArea'));
 const CountsArea = lazy(() => import('@/features/warehouse/CountsArea'));
+/** EP33: the Sales workspace and its sales orders — one lazy chunk. */
+const SalesArea = lazy(() => import('@/features/sales/SalesArea'));
 
 /** EP30: a department card's way into its first EP30 screen (presentation only). */
 const DEPARTMENT_LINKS: Partial<
-  Record<string, { permission: string; to: string; label: 'openDeposits' | 'openReceive' }>
+  Record<
+    string,
+    { permission: string; to: string; label: 'openDeposits' | 'openReceive' | 'openSales' }
+  >
 > = {
+  SALES: {
+    permission: 'sales.orders.view',
+    to: '/core/sales',
+    label: 'openSales',
+  },
   ACCOUNTING: {
     permission: 'accounting.deposits.view',
     to: '/core/accounting/deposits',
@@ -191,6 +201,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['warehouse/transfers/*', <TransfersArea key="tr" />],
             ['warehouse/adjustments/*', <AdjustmentsArea key="adj" />],
             ['warehouse/counts/*', <CountsArea key="cc" />],
+            ['sales/*', <SalesArea key="so" />],
           ] as const
         ).map(([path, area]) => (
           <Route

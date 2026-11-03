@@ -22,7 +22,6 @@ import {
   lotRef,
   lotView,
   nextNumber,
-  onHand,
   page,
   person,
   timeline,
@@ -46,6 +45,7 @@ import {
   type WarehouseActor,
 } from './policy.js';
 import { TransferRow, TransferView } from './views.js';
+import { stockReserved, usableOf } from './reservations.js';
 
 /*
  * Inventory transfers (EP32) — docs/INVENTORY_TRANSFER.md. Moves existing
@@ -91,8 +91,18 @@ export class TransferService {
   }
 
   private async view(actor: WarehouseActor, t: Full) {
+    // EP34: what can leave the source — on hand less what Sales has reserved there.
     const available = await Promise.all(
-      t.lines.map((l) => onHand(this.db, t.sourceLocationId, l.itemId, l.lotId)),
+      t.lines.map(
+        async (l) =>
+          (
+            await usableOf(this.db, {
+              locationId: t.sourceLocationId,
+              itemId: l.itemId,
+              lotId: l.lotId,
+            })
+          ).available,
+      ),
     );
     return {
       transfer: TransferView.parse({
@@ -220,11 +230,22 @@ export class TransferService {
       if (seen.has(key))
         throw fail(422, 'DUPLICATE_LINE', 'This stock is already on the transfer.', { lineNo });
       seen.add(key);
-      const available = await onHand(tx, sourceId, l.itemId, l.lotId ?? null);
-      if (available.lt(l.quantity)) {
+      const u = await usableOf(tx, {
+        locationId: sourceId,
+        itemId: l.itemId,
+        lotId: l.lotId ?? null,
+      });
+      if (u.onHand.lt(l.quantity)) {
         throw fail(409, 'INSUFFICIENT_STOCK', 'There is not enough stock at the source.', {
           lineNo,
-          available: available.toString(),
+          available: u.available.toString(),
+        });
+      }
+      if (u.available.lt(l.quantity)) {
+        throw stockReserved({
+          lineNo,
+          reserved: u.reserved.toString(),
+          available: u.available.toString(),
         });
       }
     }

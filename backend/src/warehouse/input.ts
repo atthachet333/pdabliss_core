@@ -147,6 +147,17 @@ export const StockQuery = z
   .strict();
 export type StockInput = z.output<typeof StockQuery>;
 
+/** EP34 Pending Pick: confirmed sales orders with stock reserved (warehouse-safe read model). */
+export const PickDemandQuery = z
+  .object({
+    branchId: param(id),
+    readiness: param(z.enum(['READY', 'PARTIALLY_READY'])),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type PickDemandInput = z.output<typeof PickDemandQuery>;
+
 export const MOVEMENT_TYPES = [
   'PURCHASE_RECEIPT',
   'PURCHASE_RECEIPT_REVERSAL',

@@ -9,7 +9,11 @@ import { apiRequest } from '@/lib/api';
  */
 
 export type SoStatus = 'DRAFT' | 'SUBMITTED' | 'CONFIRMED' | 'CANCELLED';
-export type SoAction = 'edit' | 'submit' | 'confirm' | 'cancel';
+export type SoAction =
+  'edit' | 'submit' | 'confirm' | 'cancel' | 'allocate' | 'release' | 'reallocate';
+/** EP34 — derived from active reservations (null: nothing to allocate). */
+export type AllocationState = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
+export type PickReadiness = 'NOT_READY' | 'PARTIALLY_READY' | 'READY';
 export type Availability =
   'AVAILABLE' | 'PARTIALLY_AVAILABLE' | 'UNAVAILABLE' | 'NOT_STOCK_TRACKED';
 
@@ -29,6 +33,8 @@ export interface SoRow {
   currency: string;
   grandTotal: string;
   availability: Availability | null;
+  allocationState: AllocationState | null;
+  pickReadiness: PickReadiness | null;
   createdBy: Person;
   updatedAt: string;
 }
@@ -49,13 +55,16 @@ export interface SoLine {
   availability: {
     state: Availability;
     onHand: string | null;
+    reserved: string | null;
     available: string | null;
     shortage: string | null;
   } | null;
-  /** EP34 / EP35 fill allocated, picked, delivered and outstanding; null until then. */
+  /** EP34, confirmed tracked lines: reserved for this line and what is still short. */
+  allocation: { allocated: string; shortage: string } | null;
+  /** EP34 fills allocated (tracked lines); EP35 adds picked, delivered and outstanding. */
   progress: {
     ordered: string;
-    allocated: null;
+    allocated: string | null;
     picked: null;
     delivered: null;
     outstanding: null;
@@ -86,6 +95,20 @@ export interface SalesOrder extends SoRow {
 export interface SoDetail {
   order: SalesOrder;
   timeline: { type: string; at: string; actor: Person }[];
+}
+
+/** What one allocate / reallocate did (quantities only). */
+export interface AllocationResult {
+  state: AllocationState | null;
+  pickReadiness: PickReadiness | null;
+  allocatedNow: string;
+  lines: {
+    lineNo: number;
+    ordered: string;
+    allocatedNow: string;
+    totalAllocated: string;
+    shortage: string;
+  }[];
 }
 
 export interface SalesContext {
@@ -169,7 +192,7 @@ export const salesApi = {
   lines: (id: string, lines: SoLineInput[]) =>
     apiRequest<SoDetail>('PUT', `${at(id)}/lines`, { lines }),
   act: (id: string, action: Exclude<SoAction, 'edit'>, reason?: string) =>
-    apiRequest<SoDetail>(
+    apiRequest<SoDetail & { allocation?: AllocationResult }>(
       'POST',
       `${at(id)}/${action}`,
       action === 'cancel' ? { reason: reason ?? null } : {},

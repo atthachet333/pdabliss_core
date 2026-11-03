@@ -95,6 +95,9 @@ export const StockRow = z.object({
     })
     .nullable(),
   quantityOnHand: z.string(),
+  /** EP34: claimed by active sales reservations; available = on hand − reserved. */
+  quantityReserved: z.string(),
+  quantityAvailable: z.string(),
   expiryState,
   daysToExpiry: z.number().nullable(),
   firstReceivedAt: z.string(),
@@ -133,8 +136,44 @@ export const FefoCandidate = z.object({
     .object({ id: z.string(), lotNumber: z.string(), expiryDate: z.string().nullable() })
     .nullable(),
   quantityOnHand: z.string(),
+  quantityReserved: z.string(),
+  quantityAvailable: z.string(),
   expiryState,
   firstReceivedAt: z.string(),
+});
+
+/**
+ * EP34 Pending Pick — what Warehouse needs to prepare a confirmed sales order:
+ * the order number and dates, items, quantities, and WHERE the reserved stock is
+ * (location, lot, expiry). Deliberately no customer (EP35 delivery decides what
+ * ship-to identity Warehouse needs), no price, discount, tax, total, note or reference.
+ */
+export const PickDemandOrder = z.object({
+  id: z.string(),
+  number: z.string(),
+  branch: ref,
+  orderDate: z.string(),
+  requestedDate: z.string().nullable(),
+  confirmedAt: z.string().nullable(),
+  readiness: z.enum(['NOT_READY', 'PARTIALLY_READY', 'READY']),
+  lines: z.array(
+    z.object({
+      lineNo: z.number(),
+      item: ref,
+      unit: z.object({ code: z.string() }),
+      ordered: z.string(),
+      allocated: z.string(),
+      shortage: z.string(),
+      picks: z.array(
+        z.object({
+          location: ref,
+          lot: z.object({ lotNumber: z.string(), expiryDate: z.string().nullable() }).nullable(),
+          expiryState,
+          quantity: z.string(),
+        }),
+      ),
+    }),
+  ),
 });
 
 /** Every key Warehouse can receive from these views — all operational (checked by a test). */
@@ -146,6 +185,7 @@ export const INVENTORY_FIELD_CLASSES: Record<string, DataClass> = Object.fromEnt
     ...Object.keys(StockRow.shape),
     ...Object.keys(MovementRow.shape),
     ...Object.keys(FefoCandidate.shape),
+    ...Object.keys(PickDemandOrder.shape),
   ].map((k) => [k, 'operational' as const]),
 );
 

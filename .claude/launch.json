@@ -4,15 +4,42 @@
     {
       "name": "backend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "backend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "backend",
+        "run",
+        "dev"
+      ],
       "port": 1112,
       "url": "http://localhost:1112"
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 1111
+    },
+    {
+      "name": "qa34-backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "D:/temp/claude/C--Users-JJJJDAI-pdabliss-core/5bab6073-2c03-45d4-a991-56f727998e51/scratchpad/qa-backend.mjs"
+      ],
+      "port": 2112,
+      "url": "http://localhost:2112"
+    },
+    {
+      "name": "qa34-frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "D:/temp/claude/C--Users-JJJJDAI-pdabliss-core/5bab6073-2c03-45d4-a991-56f727998e51/scratchpad/qa-frontend.mjs"
+      ],
+      "port": 2111
     }
   ]
 }

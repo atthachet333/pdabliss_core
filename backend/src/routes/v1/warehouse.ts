@@ -21,6 +21,7 @@ import {
   LinesBody,
   MovementQuery,
   OptionalReasonBody,
+  PickDemandQuery,
   ReasonBody,
   ReceiptLineParams,
   ReceiptListQuery,
@@ -33,6 +34,7 @@ import {
   UpdateTransferBody,
 } from '../../warehouse/input.js';
 import { registerInventoryLocks } from '../../warehouse/locks.js';
+import { PickDemandService } from '../../warehouse/pick-demand.js';
 import { ReceivingService } from '../../warehouse/service.js';
 import { TransferService } from '../../warehouse/transfers.js';
 
@@ -52,9 +54,11 @@ import { TransferService } from '../../warehouse/transfers.js';
  *   PUT    /receipts/:id/lines/:lineId      DRAFT line: accepted / rejected / allocations (replaced whole)
  *   POST   /receipts/:id/post               DRAFT → POSTED (stock in)
  *   POST   /receipts/:id/cancel {reason?}   DRAFT → CANCELLED, or POSTED → CANCELLED (reversal, reason)
- *   GET    /stock                           stock on hand (?view=stock|lots, branch, location, item, expiry, q)
+ *   GET    /stock                           stock (on hand, reserved, available; ?view=stock|lots, branch, location, item, expiry, q)
  *   GET    /stock/fefo?itemId=              FEFO order of an item's stock (read-only)
  *   GET    /movements                       the movement ledger (?branch, location, item, lot, type, sourceType, from, to, q)
+ *   GET    /pending-pick                    EP34: confirmed sales demand with stock reserved
+ *                                           (?readiness, branchId, q) — read-only, never commercial
  *
  *   GET    /transfers  POST /transfers  GET|PATCH /transfers/:id  PUT /transfers/:id/lines
  *   POST   /transfers/:id/post              DRAFT → POSTED (TRANSFER_OUT + TRANSFER_IN)
@@ -82,6 +86,7 @@ export const warehouseRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db 
   app.addHook('preHandler', requireSession);
   const w = new ReceivingService(db);
   const tr = new TransferService(db);
+  const pick = new PickDemandService(db);
   const adj = new AdjustmentService(db);
   const cc = new CountService(db);
   const auth = requireAuth;
@@ -118,6 +123,8 @@ export const warehouseRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db 
   app.get('/stock', async (r) => w.stock(auth(r), parseInput(StockQuery, r.query)));
   app.get('/stock/fefo', async (r) => w.fefo(auth(r), parseInput(FefoQuery, r.query)));
   app.get('/movements', async (r) => w.movements(auth(r), parseInput(MovementQuery, r.query)));
+  // EP34: confirmed sales demand with stock reserved — read-only, no commercial data.
+  app.get('/pending-pick', async (r) => pick.list(auth(r), parseInput(PickDemandQuery, r.query)));
 
   // ---------------------------------------------------------------- transfers
   app.get('/transfers', async (r) => tr.list(auth(r), parseInput(TransferListQuery, r.query)));

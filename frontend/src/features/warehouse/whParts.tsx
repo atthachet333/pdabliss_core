@@ -28,6 +28,8 @@ export function WarehouseNav({ ctx }: { ctx: WarehouseContext }) {
       [`${WH}/transfers`, c.nav.transfers],
       [`${WH}/adjustments`, c.nav.adjustments],
       [`${WH}/counts`, c.nav.counts],
+      // EP34: confirmed sales demand with stock reserved (read-only until EP35 picking).
+      [`${WH}/pending-pick`, c.nav.pendingPick],
     );
   }
   return (

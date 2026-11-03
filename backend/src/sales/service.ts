@@ -4,8 +4,9 @@ import { recordCompanyEvent, type SalesOrderAuditAction } from '../company/audit
 import type { Db, Prisma } from '../db/client.js';
 import { AppError } from '../lib/errors.js';
 import { permissionDenied } from '../permissions/guard.js';
-import { lineAmounts, money, orderTotals, ZERO, type Decimal } from '../purchasing/money.js';
+import { Decimal, lineAmounts, money, orderTotals, ZERO } from '../purchasing/money.js';
 import { companyDay } from '../purchasing/service.js';
+import { allocateOrder, allocationStateOf, releaseOrder, type LineResult } from './allocation.js';
 import {
   lineAvailability,
   orderAvailability,
@@ -30,7 +31,7 @@ import {
   type SalesActor,
   type SoAction,
 } from './policy.js';
-import { SoItem, SoRow, SoView } from './views.js';
+import { SoAllocationResult, SoItem, SoRow, SoView } from './views.js';
 
 /*
  * Sales orders (EP33) — docs/SALES_ORDER.md. Commercial demand truth: a
@@ -43,6 +44,11 @@ import { SoItem, SoRow, SoView } from './views.js';
  */
 
 const person = { select: { user: { select: { fullName: true, email: true } } } } as const;
+/** EP34: the order's ACTIVE reservations (quantities only — no location / lot for Sales). */
+const ACTIVE = {
+  where: { status: 'ACTIVE' as const },
+  select: { salesOrderLineId: true, quantity: true },
+};
 const include = {
   branch: { select: { id: true, code: true, name: true } },
   createdBy: person,
@@ -50,6 +56,7 @@ const include = {
   confirmedBy: person,
   cancelledBy: person,
   lines: { orderBy: { lineNo: 'asc' as const } },
+  allocations: ACTIVE,
 } satisfies Prisma.SalesOrderInclude;
 type Full = Prisma.SalesOrderGetPayload<{ include: typeof include }>;
 
@@ -67,8 +74,20 @@ const TIMELINE: SalesOrderAuditAction[] = [
   'SALES_ORDER_SUBMITTED',
   'SALES_ORDER_CONFIRMED',
   'SALES_ORDER_CANCELLED',
+  'SALES_ALLOCATION_CREATED',
+  'SALES_ALLOCATION_RELEASED',
+  'SALES_ALLOCATION_REALLOCATED',
+  'SALES_ORDER_FULLY_ALLOCATED',
+  'SALES_ORDER_PARTIALLY_ALLOCATED',
 ];
 const OPEN = ['SUBMITTED', 'CONFIRMED'] as const;
+
+const allocatedByLine = (rows: readonly { salesOrderLineId: string; quantity: Decimal }[]) => {
+  const m = new Map<string, Decimal>();
+  for (const r of rows)
+    m.set(r.salesOrderLineId, (m.get(r.salesOrderLineId) ?? ZERO).plus(r.quantity));
+  return m;
+};
 
 export class SalesOrderService {
   constructor(private readonly db: Db) {}
@@ -114,24 +133,43 @@ export class SalesOrderService {
 
   // ------------------------------------------------------------------ availability
 
-  /** Per-line availability, consuming the branch's stock line by line within the order. */
-  private lineStates(o: Pick<Full, 'branchId' | 'status' | 'lines'>, stock: Map<string, Stock>) {
+  /**
+   * Per-line availability: what each line still needs after its own reservations,
+   * against the branch's available stock (on hand − every reservation), consumed
+   * line by line within the order.
+   */
+  private lineStates(
+    o: Pick<Full, 'branchId' | 'status' | 'lines' | 'allocations'>,
+    stock: Map<string, Stock>,
+  ) {
     if (o.status === 'CANCELLED') return o.lines.map(() => null);
+    const held = allocatedByLine(o.allocations);
     const left = new Map<string, Decimal>();
     return o.lines.map((l) => {
       const s = stockOf(stock, o.branchId, l.itemId);
       const remaining = left.get(l.itemId) ?? s.available;
-      const a = lineAvailability(l.inventoryTracked, l.quantity, {
-        onHand: s.onHand,
-        available: remaining,
-      });
-      if (l.inventoryTracked)
-        left.set(
-          l.itemId,
-          remaining.minus(l.quantity).isNeg() ? ZERO : remaining.minus(l.quantity),
-        );
+      const allocated = held.get(l.id) ?? ZERO;
+      const a = lineAvailability(
+        l.inventoryTracked,
+        l.quantity,
+        { ...s, available: remaining },
+        allocated,
+      );
+      const needed = Decimal.max(ZERO, l.quantity.minus(allocated));
+      if (l.inventoryTracked) left.set(l.itemId, Decimal.max(ZERO, remaining.minus(needed)));
       return { ...a, available: l.inventoryTracked ? remaining : null };
     });
+  }
+
+  /** Allocation progress of the tracked lines, and the order's derived state. */
+  private allocation(o: Pick<Full, 'status' | 'lines' | 'allocations'>) {
+    const held = allocatedByLine(o.allocations);
+    const tracked = o.lines.filter((l) => l.inventoryTracked);
+    const derived = allocationStateOf(
+      o.status,
+      tracked.map((l) => ({ ordered: l.quantity, allocated: held.get(l.id) ?? ZERO })),
+    );
+    return { held, derived, hasActive: o.allocations.length > 0 };
   }
 
   private async stockForOrders(actor: SalesActor, orders: Pick<Full, 'branchId' | 'lines'>[]) {
@@ -147,7 +185,13 @@ export class SalesOrderService {
   private async shortageIds(actor: SalesActor, where: Prisma.SalesOrderWhereInput) {
     const open = await this.db.salesOrder.findMany({
       where: { ...where, status: { in: [...OPEN] } },
-      select: { id: true, branchId: true, status: true, lines: { orderBy: { lineNo: 'asc' } } },
+      select: {
+        id: true,
+        branchId: true,
+        status: true,
+        lines: { orderBy: { lineNo: 'asc' } },
+        allocations: ACTIVE,
+      },
       take: 1000,
       orderBy: { updatedAt: 'desc' },
     });
@@ -160,6 +204,7 @@ export class SalesOrderService {
   // ------------------------------------------------------------------ views
 
   private row(o: Full, states: ReturnType<SalesOrderService['lineStates']>) {
+    const alloc = this.allocation(o);
     return {
       id: o.id,
       number: o.number,
@@ -175,6 +220,8 @@ export class SalesOrderService {
         o.status === 'CANCELLED' || !o.lines.length
           ? null
           : orderAvailability(states.map((s): Availability => s?.state ?? 'NOT_STOCK_TRACKED')),
+      allocationState: alloc.derived?.state ?? null,
+      pickReadiness: alloc.derived?.readiness ?? null,
       createdBy: who(o.createdBy),
       updatedAt: o.updatedAt.toISOString(),
     };
@@ -182,6 +229,7 @@ export class SalesOrderService {
 
   private async view(actor: SalesActor, o: Full) {
     const states = this.lineStates(o, await this.stockForOrders(actor, [o]));
+    const alloc = this.allocation(o);
     const timeline = await this.db.auditLog.findMany({
       where: {
         companyId: o.companyId,
@@ -242,20 +290,37 @@ export class SalesOrderService {
               ? {
                   state: a.state,
                   onHand: a.onHand?.toString() ?? null,
+                  reserved: a.reserved?.toString() ?? null,
                   available: a.available?.toString() ?? null,
                   shortage: a.shortage?.toString() ?? null,
                 }
               : null,
+            allocation:
+              l.inventoryTracked && o.status === 'CONFIRMED'
+                ? {
+                    allocated: (alloc.held.get(l.id) ?? ZERO).toString(),
+                    shortage: Decimal.max(
+                      ZERO,
+                      l.quantity.minus(alloc.held.get(l.id) ?? ZERO),
+                    ).toString(),
+                  }
+                : null,
             progress: {
               ordered: l.quantity.toString(),
-              allocated: null,
+              allocated: l.inventoryTracked ? (alloc.held.get(l.id) ?? ZERO).toString() : null,
               picked: null,
               delivered: null,
               outstanding: null,
             },
           };
         }),
-        actions: allowedSoActions(actor, o),
+        actions: allowedSoActions(actor, o).filter(
+          (x) =>
+            (x !== 'allocate' ||
+              alloc.derived?.state === 'NOT_ALLOCATED' ||
+              alloc.derived?.state === 'PARTIALLY_ALLOCATED') &&
+            ((x !== 'release' && x !== 'reallocate') || alloc.hasActive),
+        ),
       }),
       timeline: timeline.map((e) => ({
         type: e.action,
@@ -544,6 +609,8 @@ export class SalesOrderService {
     id: string,
     action: SoAction,
   ) {
+    // No Sales access at all is 403; an order hidden from a Sales member is 404 (canSee).
+    if (!actor.view) throw permissionDenied('sales.orders.view');
     await tx.$queryRaw`SELECT "id" FROM "SalesOrder" WHERE "id" = ${id} FOR UPDATE`;
     const o = await tx.salesOrder.findFirst({ where: { id, companyId: actor.access.company.id } });
     if (!o || !canSee(actor, o)) throw orderNotFound();
@@ -724,12 +791,118 @@ export class SalesOrderService {
           cancellationReason: reason,
         },
       });
+      // EP34: a cancelled order keeps no stock — every ACTIVE reservation is released in
+      // the same transaction (the order row lock serializes it with any allocation).
+      const released = await releaseOrder(tx, this.allocActor(actor), id, 'ORDER_CANCELLED');
       await this.event(tx, actor, meta, 'SALES_ORDER_CANCELLED', id, {
         number: o.number,
         from: o.status,
         to: 'CANCELLED',
       });
+      if (released) {
+        await this.event(tx, actor, meta, 'SALES_ALLOCATION_RELEASED', id, {
+          number: o.number,
+          reason: 'ORDER_CANCELLED',
+          reservations: released,
+        });
+      }
     });
     return this.get(ctx, id);
+  }
+
+  // ------------------------------------------------------------------ EP34 allocation
+
+  private allocActor(actor: SalesActor) {
+    return { companyId: actor.access.company.id, memberId: actor.memberId };
+  }
+
+  /** One document-level event for what was reserved, then the state it left. */
+  private async allocated(
+    tx: Prisma.TransactionClient,
+    actor: SalesActor,
+    meta: RequestMeta,
+    o: { id: string; number: string },
+    lines: LineResult[],
+  ) {
+    const touched = lines.filter((l) => l.allocatedNow.gt(0)).length;
+    if (!touched) return;
+    await this.event(tx, actor, meta, 'SALES_ALLOCATION_CREATED', o.id, {
+      number: o.number,
+      lines: touched,
+    });
+    const full = lines.every((l) => l.shortage.isZero());
+    await this.event(
+      tx,
+      actor,
+      meta,
+      full ? 'SALES_ORDER_FULLY_ALLOCATED' : 'SALES_ORDER_PARTIALLY_ALLOCATED',
+      o.id,
+      { number: o.number, shortLines: lines.filter((l) => l.shortage.gt(0)).length },
+    );
+  }
+
+  private async withResult(ctx: AuthContext, id: string, lines: LineResult[]) {
+    const view = await this.get(ctx, id);
+    return {
+      ...view,
+      allocation: SoAllocationResult.parse({
+        state: view.order.allocationState,
+        pickReadiness: view.order.pickReadiness,
+        allocatedNow: lines.reduce((t, l) => t.plus(l.allocatedNow), ZERO).toString(),
+        lines: lines.map((l) => ({
+          lineNo: l.lineNo,
+          ordered: l.ordered.toString(),
+          allocatedNow: l.allocatedNow.toString(),
+          totalAllocated: l.totalAllocated.toString(),
+          shortage: l.shortage.toString(),
+        })),
+      }),
+    };
+  }
+
+  /** CONFIRMED: reserve what the tracked lines still need, FEFO (repeatable — never double). */
+  async allocate(ctx: AuthContext, id: string, meta: RequestMeta) {
+    const actor = await loadSalesActor(this.db, ctx);
+    const lines = await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'allocate');
+      const r = await allocateOrder(tx, this.allocActor(actor), o, this.today(actor));
+      await this.allocated(tx, actor, meta, o, r);
+      return r;
+    });
+    return this.withResult(ctx, id, lines);
+  }
+
+  /** CONFIRMED: release every ACTIVE reservation (kept as RELEASED history). */
+  async release(ctx: AuthContext, id: string, meta: RequestMeta) {
+    const actor = await loadSalesActor(this.db, ctx);
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'release');
+      const n = await releaseOrder(tx, this.allocActor(actor), id, 'RELEASED');
+      if (!n) throw fail(409, 'SO_NOT_ALLOCATED', 'This order has no stock reserved.');
+      await this.event(tx, actor, meta, 'SALES_ALLOCATION_RELEASED', id, {
+        number: o.number,
+        reason: 'RELEASED',
+        reservations: n,
+      });
+    });
+    return this.get(ctx, id);
+  }
+
+  /** CONFIRMED: release everything and allocate again from current stock, in one transaction. */
+  async reallocate(ctx: AuthContext, id: string, meta: RequestMeta) {
+    const actor = await loadSalesActor(this.db, ctx);
+    const lines = await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'reallocate');
+      const n = await releaseOrder(tx, this.allocActor(actor), id, 'REALLOCATED');
+      if (!n) throw fail(409, 'SO_NOT_ALLOCATED', 'This order has no stock reserved.');
+      const r = await allocateOrder(tx, this.allocActor(actor), o, this.today(actor));
+      await this.event(tx, actor, meta, 'SALES_ALLOCATION_REALLOCATED', id, {
+        number: o.number,
+        released: n,
+      });
+      await this.allocated(tx, actor, meta, o, r);
+      return r;
+    });
+    return this.withResult(ctx, id, lines);
   }
 }

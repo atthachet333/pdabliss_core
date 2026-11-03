@@ -13,6 +13,7 @@ import type { StockMovementType } from '../generated/prisma/enums.js';
 import { AppError } from '../lib/errors.js';
 import { ZERO, type Decimal } from '../purchasing/money.js';
 import { isReceivable, progressOf, receiveProgress, remainingOf } from './progress.js';
+import { takeRespectingReservations } from './reservations.js';
 import { assertKnownLots, assertLocations, normalizeLine } from './rules.js';
 
 /*
@@ -37,6 +38,10 @@ import { assertKnownLots, assertLocations, normalizeLine } from './rules.js';
  * Movements are never updated or deleted (a database trigger refuses it); a
  * reversal subtracts with a conditional update that refuses to go below zero.
  * Balance = Σ movements per (location, item, lot) — tested.
+ *
+ * EP34: every decrease also keeps on hand ≥ what Sales has reserved of that
+ * stock (reservations.ts `takeRespectingReservations`, STOCK_RESERVED) — a
+ * reservation is not a movement, but no movement may eat into one.
  */
 
 export interface LedgerActor {
@@ -143,19 +148,6 @@ const addToBalance = (
   DO UPDATE SET "quantityOnHand" = "StockBalance"."quantityOnHand" + EXCLUDED."quantityOnHand",
                 "updatedAt" = (NOW() AT TIME ZONE 'UTC')`;
 
-/** Subtracts `qty` (> 0) only if that much is on hand; false when it would go negative. */
-const takeFromBalance = async (
-  tx: Prisma.TransactionClient,
-  k: { locationId: string; itemId: string; lotId: string | null },
-  qty: Decimal,
-) =>
-  (await tx.$executeRaw`
-    UPDATE "StockBalance"
-    SET "quantityOnHand" = "quantityOnHand" - ${qty.toString()}::numeric,
-        "updatedAt" = (NOW() AT TIME ZONE 'UTC')
-    WHERE "locationId" = ${k.locationId} AND "itemId" = ${k.itemId} AND "lotKey" = ${k.lotId ?? ''}
-      AND "quantityOnHand" >= ${qty.toString()}::numeric`) === 1;
-
 /**
  * Per-location advisory locks, always in location-id order (no deadlock):
  * stock writers take them SHARED (they do not block each other), a cycle count
@@ -221,7 +213,8 @@ export type MovementSource =
  * THE stock writer: one movement and its balance change, in the caller's
  * transaction. A positive delta is added in one upsert; a negative delta is
  * taken only if that much is on hand (else `short()` is thrown — never
- * negative stock). The count scope lock is checked first.
+ * negative stock) and what stays still covers the active reservations (else
+ * STOCK_RESERVED). The count scope lock is checked first.
  */
 export async function applyMovement(
   tx: Prisma.TransactionClient,
@@ -256,8 +249,8 @@ export async function applyMovement(
       });
     }
     await addToBalance(tx, { companyId: a.companyId, branchId: m.branchId, ...key }, m.delta);
-  } else if (!(await takeFromBalance(tx, key, m.delta.neg()))) {
-    throw (m.short ?? insufficientStock)();
+  } else {
+    await takeRespectingReservations(tx, key, m.delta.neg(), m.short ?? insufficientStock);
   }
   await tx.stockMovement.create({
     data: {

@@ -34,6 +34,7 @@ export default function WarehouseHome() {
       `${WH}/adjustments?status=SUBMITTED`,
     ],
     [ctx.counts.activeCounts, c.tiles.activeCounts, `${WH}/counts?status=COUNTING`],
+    [ctx.counts.pendingPick, c.tiles.pendingPick, `${WH}/pending-pick`],
   ].filter((t): t is [number, string, string] => t[0] !== null);
   return (
     <div className="grid grid-cols-1 gap-6" data-warehouse-home>

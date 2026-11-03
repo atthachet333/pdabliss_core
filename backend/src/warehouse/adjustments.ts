@@ -50,6 +50,7 @@ import {
   type WarehouseActor,
 } from './policy.js';
 import { AdjustmentRow, AdjustmentView } from './views.js';
+import { stockReserved, usableOf } from './reservations.js';
 
 /*
  * Stock adjustments (EP32) — docs/STOCK_ADJUSTMENT.md. A controlled
@@ -257,11 +258,23 @@ export class AdjustmentService {
         await knownLot(tx, companyId, l.itemId, l.newLotNumber, l.newLotExpiry ?? null, lineNo);
       }
       if (l.direction === 'DECREASE') {
-        const held = await onHand(tx, l.locationId, l.itemId, l.lotId ?? null);
-        if (held.lt(l.quantity)) {
+        // EP34: a decrease may not take reserved stock (posting checks again in the ledger).
+        const u = await usableOf(tx, {
+          locationId: l.locationId,
+          itemId: l.itemId,
+          lotId: l.lotId ?? null,
+        });
+        if (u.onHand.lt(l.quantity)) {
           throw fail(409, 'INSUFFICIENT_STOCK', 'There is not enough stock to take away.', {
             lineNo,
-            available: held.toString(),
+            available: u.onHand.toString(),
+          });
+        }
+        if (u.available.lt(l.quantity)) {
+          throw stockReserved({
+            lineNo,
+            reserved: u.reserved.toString(),
+            available: u.available.toString(),
           });
         }
       }

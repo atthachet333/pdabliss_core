@@ -551,7 +551,8 @@ export function StockPicker({
         .stock({ view: 'stock', locationId, pageSize: 100 })
         .then((p) => {
           if (live)
-            setGot({ at: locationId, rows: p.items.filter((x) => x.quantityOnHand !== '0') });
+            // EP34: reserved stock cannot move — offer what is available only.
+            setGot({ at: locationId, rows: p.items.filter((x) => x.quantityAvailable !== '0') });
         })
         .catch(() => {
           if (live) setGot({ at: locationId, rows: [] });
@@ -576,7 +577,7 @@ export function StockPicker({
       <option value="">{rows && !rows.length ? k.noStockHere : k.choose}</option>
       {rows?.map((s) => (
         <option key={s.id} value={s.id}>
-          {`${s.item.code}${s.lot ? ` · ${s.lot.lotNumber}` : ''} — ${s.quantityOnHand} ${s.unit.code}`}
+          {`${s.item.code}${s.lot ? ` · ${s.lot.lotNumber}` : ''} — ${s.quantityAvailable} ${s.unit.code}`}
         </option>
       ))}
     </SelectField>

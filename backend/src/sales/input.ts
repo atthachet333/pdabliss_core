@@ -67,6 +67,8 @@ export type UpdateSoInput = z.output<typeof UpdateSoBody>;
 
 export const SoLinesBody = z.object({ lines: z.array(SoLineBody).max(100) }).strict();
 export const SoReasonBody = z.object({ reason: opt(text(500)) }).strict();
+/** EP34 allocate / release / reallocate: the server decides every quantity, location and lot. */
+export const SoNoBody = z.object({}).strict();
 
 export const SO_STATUSES = ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'CANCELLED'] as const;
 export const AVAILABILITY = [

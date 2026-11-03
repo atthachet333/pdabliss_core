@@ -201,9 +201,9 @@ function LinesEditor({
                     {
                       itemId: s.item.id,
                       lotId: s.lot?.id ?? null,
-                      label: `${s.item.code}${s.lot ? ` · ${s.lot.lotNumber}` : ''} (${k.f.available} ${s.quantityOnHand})`,
+                      label: `${s.item.code}${s.lot ? ` · ${s.lot.lotNumber}` : ''} (${k.f.available} ${s.quantityAvailable})`,
                       unit: s.unit.code,
-                      quantity: s.quantityOnHand,
+                      quantity: s.quantityAvailable,
                     },
                   ],
             )

@@ -77,6 +77,7 @@ const ctx = (over: Partial<WarehouseContext> = {}): WarehouseContext => ({
     draftTransfers: 1,
     submittedAdjustments: 0,
     activeCounts: 0,
+    pendingPick: 0,
   },
   expiringSoonDays: 30,
   today: '2026-11-03',
@@ -165,6 +166,7 @@ describe('Warehouse receiving and inventory (EP31)', () => {
       'Transfers',
       'Adjustments',
       'Cycle counts',
+      'Pending pick',
     ]);
     const tile = (name: string) => screen.getByText(name).closest('a')!;
     expect(tile('Draft transfers')).toHaveAttribute(
@@ -349,6 +351,8 @@ describe('Warehouse receiving and inventory (EP31)', () => {
       unit: { code: 'PCS' },
       lot: { id: lot, lotNumber: lot, expiryDate, manufacturedDate: null },
       quantityOnHand: '6',
+      quantityReserved: '0',
+      quantityAvailable: '6',
       expiryState: state,
       daysToExpiry: days,
       firstReceivedAt: '2026-11-03T02:00:00.000Z',
@@ -383,7 +387,7 @@ describe('Warehouse receiving and inventory (EP31)', () => {
     );
     expect(api.called(`GET ${W}/stock`)[0]!.query).toMatchObject({ view: 'lots' });
     const heads = [...document.querySelectorAll('[data-stock-rows] th')].map((t) => t.textContent);
-    expect(heads).toEqual(['物料', '批次', '有效期', '库位', '在库数量', '操作']);
+    expect(heads).toEqual(['物料', '批次', '有效期', '库位', '在库数量', '已预留', '可用', '操作']);
   });
 
   it('a view-only member sees receipts but no edit, post or cancel control', async () => {

@@ -1,4 +1,13 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
@@ -53,6 +62,9 @@ import { SALES_COPY, salesError, useMoney } from './salesCopy';
 const BASE = '/core/sales';
 const LINK =
   'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-6';
+/** EP34: the allocation of a confirmed order — its own lazy chunk. */
+const AllocationSection = lazy(() => import('./AllocationSection'));
+
 const ROW =
   'border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4';
 const CARD = 'rounded-xl bg-white/[0.02] p-4';
@@ -195,7 +207,20 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
     },
     {
       head: c.f.availability,
-      cell: (r) => (r.availability ? <AvailabilityPill state={r.availability} /> : '—'),
+      // EP34: a confirmed order shows how much is reserved; before that, what stock exists.
+      cell: (r) =>
+        r.allocationState ? (
+          <Pill
+            tone={r.allocationState === 'FULLY_ALLOCATED' ? 'teal' : 'warning'}
+            data-allocation-state={r.allocationState}
+          >
+            {c.alloc.states[r.allocationState]}
+          </Pill>
+        ) : r.availability ? (
+          <AvailabilityPill state={r.availability} />
+        ) : (
+          '—'
+        ),
     },
     {
       head: c.f.grandTotal,
@@ -595,11 +620,11 @@ function OrderPage({ id }: { id: string }) {
       </>
     );
   const { order: o, timeline } = state.data;
-  const run = async (work: () => Promise<SoDetail>, text = c.saved) => {
+  const run = async (work: () => Promise<SoDetail>, text: string | (() => string) = c.saved) => {
     setNotice(null);
     try {
       set(await work());
-      setNotice({ tone: 'success', text });
+      setNotice({ tone: 'success', text: typeof text === 'function' ? text() : text });
       return true;
     } catch (e) {
       setNotice({ tone: 'error', text: err(e) });
@@ -742,6 +767,12 @@ function OrderPage({ id }: { id: string }) {
           <p className="mt-3 text-caption text-text-muted">{c.progressNote}</p>
         )}
       </Section>
+
+      {o.status === 'CONFIRMED' && (
+        <Suspense fallback={<Loading label={c.loading} />}>
+          <AllocationSection o={o} run={run} />
+        </Suspense>
+      )}
 
       <Section id="so-totals" title={c.totals}>
         <Facts>

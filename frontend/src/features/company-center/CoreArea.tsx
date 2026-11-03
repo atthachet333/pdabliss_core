@@ -64,6 +64,8 @@ const MovementsArea = lazy(() => import('@/features/warehouse/MovementsArea'));
 const TransfersArea = lazy(() => import('@/features/warehouse/TransfersArea'));
 const AdjustmentsArea = lazy(() => import('@/features/warehouse/AdjustmentsArea'));
 const CountsArea = lazy(() => import('@/features/warehouse/CountsArea'));
+/** EP34: Warehouse Pending Pick (reserved sales demand, read-only) — its own lazy chunk. */
+const PendingPickArea = lazy(() => import('@/features/warehouse/PendingPickArea'));
 /** EP33: the Sales workspace and its sales orders — one lazy chunk. */
 const SalesArea = lazy(() => import('@/features/sales/SalesArea'));
 
@@ -201,6 +203,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['warehouse/transfers/*', <TransfersArea key="tr" />],
             ['warehouse/adjustments/*', <AdjustmentsArea key="adj" />],
             ['warehouse/counts/*', <CountsArea key="cc" />],
+            ['warehouse/pending-pick', <PendingPickArea key="pp" />],
             ['sales/*', <SalesArea key="so" />],
           ] as const
         ).map(([path, area]) => (

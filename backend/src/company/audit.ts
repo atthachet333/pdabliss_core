@@ -133,7 +133,13 @@ export type SalesOrderAuditAction =
   | 'SALES_ORDER_UPDATED'
   | 'SALES_ORDER_SUBMITTED'
   | 'SALES_ORDER_CONFIRMED'
-  | 'SALES_ORDER_CANCELLED';
+  | 'SALES_ORDER_CANCELLED'
+  // ---- EP34 allocation (details: number, line / reservation counts — never quantities of value)
+  | 'SALES_ALLOCATION_CREATED'
+  | 'SALES_ALLOCATION_RELEASED'
+  | 'SALES_ALLOCATION_REALLOCATED'
+  | 'SALES_ORDER_FULLY_ALLOCATED'
+  | 'SALES_ORDER_PARTIALLY_ALLOCATED';
 
 export type InventoryControlAuditAction =
   | 'TRANSFER_CREATED'

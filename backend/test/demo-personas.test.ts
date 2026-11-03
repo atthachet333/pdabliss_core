@@ -573,12 +573,10 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(pending[0].receiving.state).toBe('PARTIALLY_RECEIVED');
     const fg = await h.db.item.findFirstOrThrow({ where: { code: 'FG-000001' } });
     const fefo = j(await wh.get(`${W}/stock/fefo?itemId=${fg.id}`)).candidates;
-    // EP32 moved 4 of lot B from RECEIVING to MAIN: B is first at both.
-    expect(fefo.map((c: J) => c.lot.lotNumber)).toEqual([
-      'FG-DEMO-B',
-      'FG-DEMO-B',
-      'FG-DEMO-A',
-      'FG-DEMO-C',
+    // EP32 moved 4 of lot B from RECEIVING to MAIN; EP34 demo orders then reserved all
+    // of B and A and 2 of C — the FEFO list offers only what is still available.
+    expect(fefo.map((c: J) => [c.lot.lotNumber, c.quantityOnHand, c.quantityAvailable])).toEqual([
+      ['FG-DEMO-C', '12', '10'],
     ]);
     const stock = await wh.get(`${W}/stock`);
     expect(j(stock).total).toBe(7);
@@ -640,45 +638,90 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(await h.db.inventoryTransfer.count()).toBe(2);
   });
 
-  it('seeds four sales orders once — staff drafts and submits, the owner confirms; no stock effect (EP33)', async () => {
+  it('seeds sales orders and allocations once — FEFO reservations, no stock effect (EP33, EP34)', async () => {
     const S = '/api/v1/sales';
     const movements = await h.db.stockMovement.count();
+    const onHand = JSON.stringify(
+      await h.db.stockBalance.findMany({
+        orderBy: { id: 'asc' },
+        select: { quantityOnHand: true },
+      }),
+    );
     const owner = await login('owner.demo@pdabliss.com');
     const all = j(await owner.get(`${S}/orders`)).items;
     expect(all.map((o: J) => o.status).sort()).toEqual([
       'CANCELLED',
       'CONFIRMED',
+      'CONFIRMED',
+      'CONFIRMED',
       'DRAFT',
       'SUBMITTED',
     ]);
     const by = (status: string) => all.find((o: J) => o.status === status);
-    expect(by('CONFIRMED')).toMatchObject({ branch: { code: '00001' }, availability: 'AVAILABLE' });
     expect(by('SUBMITTED')).toMatchObject({
       branch: { code: '00000' },
       availability: 'UNAVAILABLE',
     });
     expect(by('CANCELLED').availability).toBeNull();
-    const confirmed = j(await owner.get(`${S}/orders/${by('CONFIRMED').id}`)).order;
-    expect(confirmed.lines).toHaveLength(2);
-    expect(confirmed.grandTotal).toBe('1572.90'); // (6 × 185 + 20 × 18) × 1.07
-    // The demo sales persona (staff, Head Office): its own draft and the submitted
-    // order; it cannot confirm, and the demo-branch order is not in its branches.
+    const states = all
+      .filter((o: J) => o.status === 'CONFIRMED')
+      .map((o: J) => [o.lineCount, o.allocationState, o.pickReadiness])
+      .sort();
+    expect(states).toEqual(
+      [
+        [1, 'NOT_ALLOCATED', 'NOT_READY'], // SO_OPEN
+        [2, 'FULLY_ALLOCATED', 'READY'], // SO_CONFIRMED
+        [2, 'PARTIALLY_ALLOCATED', 'PARTIALLY_READY'], // SO_ALLOC_PARTIAL
+      ].sort(),
+    );
+    const full = all.find((o: J) => o.allocationState === 'FULLY_ALLOCATED');
+    expect(j(await owner.get(`${S}/orders/${full.id}`)).order.grandTotal).toBe('1572.90');
+    // FEFO from the real demo stock: lot B (two locations) for SO_CONFIRMED, then A + C and
+    // the 5 kg of raw material that exist for SO_ALLOC_PARTIAL.
+    const rows = await h.db.salesAllocation.findMany({
+      where: { status: 'ACTIVE' },
+      include: { lot: true, location: true, line: true },
+      orderBy: [{ line: { itemCode: 'asc' } }, { createdAt: 'asc' }],
+    });
+    expect(
+      rows.map((r) => [r.line.itemCode, r.lot?.lotNumber, r.location.code, r.quantity.toString()]),
+    ).toEqual([
+      ['FG-000001', 'FG-DEMO-B', 'RECEIVING', '2'],
+      ['FG-000001', 'FG-DEMO-B', 'MAIN', '4'],
+      ['FG-000001', 'FG-DEMO-A', 'MAIN', '12'],
+      ['FG-000001', 'FG-DEMO-C', 'MAIN', '2'],
+      ['PK-000001', undefined, 'MAIN', '20'],
+      ['RM-000001', 'RM-DEMO-01', 'MAIN', '5'],
+    ]);
+    // The demo sales persona stays staff at the Head Office: no demo-branch orders, no allocation.
     const sales = await login('sales.demo@pdabliss.com');
     const mine = j(await sales.get(`${S}/orders`)).items;
     expect(mine.map((o: J) => o.status).sort()).toEqual(['CANCELLED', 'DRAFT', 'SUBMITTED']);
-    const submitted = j(await sales.get(`${S}/orders/${by('SUBMITTED').id}`)).order;
-    expect(submitted.actions).toEqual([]);
-    expect(j(await sales.get(`${S}/orders/${by('DRAFT').id}`)).order.actions).toEqual([
-      'edit',
-      'submit',
-      'cancel',
-    ]);
-    // Warehouse never reaches Sales.
+    expect((await sales.post(`${S}/orders/${full.id}/release`)).statusCode).toBe(404);
+    // Warehouse never reaches Sales, but sees the demo branch's Pending Pick (no money).
     const wh = await login('warehouse.demo@pdabliss.com');
     expect((await wh.get(`${S}/orders`)).statusCode).toBe(403);
+    const pick = await wh.get('/api/v1/warehouse/pending-pick');
+    expect(
+      j(pick)
+        .items.map((o: J) => o.readiness)
+        .sort(),
+    ).toEqual(['PARTIALLY_READY', 'READY']);
+    expect(JSON.stringify(j(pick).items)).not.toMatch(
+      /price|amount|total|discount|tax|185|customer/i,
+    );
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.salesOrder.count()).toBe(4);
+    expect(await h.db.salesOrder.count()).toBe(6);
+    expect(await h.db.salesAllocation.count()).toBe(6);
     expect(await h.db.stockMovement.count()).toBe(movements);
+    expect(
+      JSON.stringify(
+        await h.db.stockBalance.findMany({
+          orderBy: { id: 'asc' },
+          select: { quantityOnHand: true },
+        }),
+      ),
+    ).toBe(onHand);
   });
 
   it('the legacy staff account carries the one exception: receiving is denied', async () => {

@@ -1,17 +1,17 @@
 import type { Db, Prisma } from '../db/client.js';
 import { Decimal, ZERO } from '../purchasing/money.js';
+import { keyOf, reservedOf } from '../warehouse/reservations.js';
 import type { Availability } from './input.js';
 
 /*
- * Sales availability (EP33) — INFORMATIONAL ONLY, docs/SALES_ORDER.md §6.
- * It reads the ledger's balances and never writes anything: no reservation, no
- * allocation, no lot is marked. Two orders may both "see" the same stock;
- * EP34 allocation resolves who gets it.
+ * Sales availability (EP33, EP34) — docs/SALES_ORDER.md §6. It reads balances
+ * and reservations and writes nothing; only allocation (allocation.ts) reserves.
  *
  *   onHand    = Σ balances of the item in the order's branch (every location, lot)
- *   available = Σ of those balances FEFO would offer: on hand > 0 and the lot not
- *               expired — exactly the set `fefoCandidates` (warehouse/service.ts)
- *               lists (a test keeps both equal)
+ *   reserved  = Σ ACTIVE reservations of those balances (any order)
+ *   available = Σ (on hand − reserved) of the balances FEFO would offer: on hand > 0
+ *               and the lot not expired — exactly the `quantityAvailable` of
+ *               `fefoCandidates` (warehouse/service.ts; a test keeps both equal)
  *   state     = AVAILABLE (available ≥ ordered) · PARTIALLY_AVAILABLE (0 < available
  *               < ordered) · UNAVAILABLE (available = 0) · NOT_STOCK_TRACKED
  *   shortage  = max(0, ordered − available)
@@ -19,6 +19,7 @@ import type { Availability } from './input.js';
 
 export interface Stock {
   onHand: Decimal;
+  reserved: Decimal;
   available: Decimal;
 }
 
@@ -44,46 +45,67 @@ export async function stockFor(
     },
     select: {
       branchId: true,
+      locationId: true,
       itemId: true,
+      lotId: true,
       quantityOnHand: true,
       lot: { select: { expiryDate: true } },
     },
   });
+  const reserved = await reservedOf(db, rows);
   const todayDate = new Date(`${today}T00:00:00Z`);
   for (const r of rows) {
     const k = key(r.branchId, r.itemId);
-    const s = out.get(k) ?? { onHand: ZERO, available: ZERO };
+    const s = out.get(k) ?? { onHand: ZERO, reserved: ZERO, available: ZERO };
+    const held = reserved.get(keyOf(r)) ?? ZERO;
     const expired = !!r.lot?.expiryDate && r.lot.expiryDate < todayDate;
     out.set(k, {
       onHand: s.onHand.plus(r.quantityOnHand),
-      available: expired ? s.available : s.available.plus(r.quantityOnHand),
+      reserved: s.reserved.plus(held),
+      available: expired
+        ? s.available
+        : s.available.plus(Decimal.max(ZERO, r.quantityOnHand.minus(held))),
     });
   }
   return out;
 }
 
 export const stockOf = (m: Map<string, Stock>, branchId: string, itemId: string): Stock =>
-  m.get(key(branchId, itemId)) ?? { onHand: ZERO, available: ZERO };
+  m.get(key(branchId, itemId)) ?? { onHand: ZERO, reserved: ZERO, available: ZERO };
 
+/**
+ * One line: what it still needs (ordered − already allocated to it) against what
+ * is available to new demand. A fully allocated line is AVAILABLE whatever the
+ * branch has left; `shortage` = what neither its reservations nor stock cover.
+ */
 export function lineAvailability(
   tracked: boolean,
   ordered: Decimal,
   s: Stock,
+  allocated: Decimal = ZERO,
 ): {
   state: Availability;
   onHand: Decimal | null;
+  reserved: Decimal | null;
   available: Decimal | null;
   shortage: Decimal | null;
 } {
   if (!tracked)
-    return { state: 'NOT_STOCK_TRACKED', onHand: null, available: null, shortage: null };
-  const shortage = Decimal.max(ZERO, ordered.minus(s.available));
+    return {
+      state: 'NOT_STOCK_TRACKED',
+      onHand: null,
+      reserved: null,
+      available: null,
+      shortage: null,
+    };
+  const needed = Decimal.max(ZERO, ordered.minus(allocated));
+  const shortage = Decimal.max(ZERO, needed.minus(s.available));
   const state: Availability = shortage.isZero()
     ? 'AVAILABLE'
-    : s.available.gt(0)
+    : s.available.gt(0) || allocated.gt(0)
       ? 'PARTIALLY_AVAILABLE'
       : 'UNAVAILABLE';
-  return { state, onHand: s.onHand, available: s.available, shortage };
+  return { state, onHand: s.onHand, reserved: s.reserved, available: s.available, shortage };
 }
 
 /** The order's state: the worst of its stock lines; NOT_STOCK_TRACKED only when no line is tracked. */

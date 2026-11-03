@@ -18,7 +18,12 @@ import { permissionDenied } from '../permissions/guard.js';
  *   cancel    DRAFT                 same (reason optional)                 CANCELLED
  *   confirm   SUBMITTED             sales.orders.approve (MANAGE)          CONFIRMED
  *   cancel    SUBMITTED, CONFIRMED  sales.orders.cancel (MANAGE), reason   CANCELLED
+ *   allocate  CONFIRMED             sales.orders.approve (MANAGE)          CONFIRMED (stock reserved)
+ *   release   CONFIRMED             same                                   CONFIRMED (reservations released)
+ *   reallocate CONFIRMED            same                                   CONFIRMED (release + allocate, atomic)
  *   CANCELLED is terminal; CONFIRMED is commercially immutable (cancel + recreate).
+ *   EP34: the allocation actions reuse `approve` — the manager who confirms the
+ *   order commits stock to it; there is no separate allocation code.
  *
  * Every action also needs the order's branch (EP26). Reading needs
  * sales.orders.view in the order's branch; a DRAFT is visible only to its
@@ -27,7 +32,15 @@ import { permissionDenied } from '../permissions/guard.js';
  * reserved (unused): editing a draft is part of creating it.
  */
 
-export const SO_ACTIONS = ['edit', 'submit', 'confirm', 'cancel'] as const;
+export const SO_ACTIONS = [
+  'edit',
+  'submit',
+  'confirm',
+  'cancel',
+  'allocate',
+  'release',
+  'reallocate',
+] as const;
 export type SoAction = (typeof SO_ACTIONS)[number];
 
 export interface SalesActor {
@@ -76,9 +89,12 @@ const FROM: Record<SoAction, readonly SalesOrderStatus[]> = {
   submit: ['DRAFT'],
   confirm: ['SUBMITTED'],
   cancel: ['DRAFT', 'SUBMITTED', 'CONFIRMED'],
+  allocate: ['CONFIRMED'],
+  release: ['CONFIRMED'],
+  reallocate: ['CONFIRMED'],
 };
 
-export const TARGET: Record<Exclude<SoAction, 'edit'>, SalesOrderStatus> = {
+export const TARGET: Record<'submit' | 'confirm' | 'cancel', SalesOrderStatus> = {
   submit: 'SUBMITTED',
   confirm: 'CONFIRMED',
   cancel: 'CANCELLED',
@@ -89,6 +105,9 @@ const CODE: Record<SoAction, PermissionCode> = {
   submit: 'sales.orders.create',
   confirm: 'sales.orders.approve',
   cancel: 'sales.orders.cancel',
+  allocate: 'sales.orders.approve',
+  release: 'sales.orders.approve',
+  reallocate: 'sales.orders.approve',
 };
 
 /** Why `action` is refused, or null. Without authority nothing about the state is revealed. */
@@ -99,7 +118,7 @@ export function soRefusal(
 ): 'status' | 'authority' | 'branch' | null {
   const own = o.createdByMemberId === actor.memberId && actor.create;
   const authority =
-    action === 'confirm'
+    action === 'confirm' || action === 'allocate' || action === 'release' || action === 'reallocate'
       ? actor.confirm
       : action === 'cancel' && o.status !== 'DRAFT'
         ? actor.cancel

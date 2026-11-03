@@ -13,6 +13,11 @@ const ref = z.object({ id: z.string(), code: z.string(), name: z.string() });
 const person = z.object({ name: z.string() }).nullable();
 const status = z.enum(['DRAFT', 'SUBMITTED', 'CONFIRMED', 'CANCELLED']);
 const availability = z.enum(AVAILABILITY);
+/** EP34 — derived from ACTIVE reservations; null when nothing is to be allocated. */
+const allocationState = z
+  .enum(['NOT_ALLOCATED', 'PARTIALLY_ALLOCATED', 'FULLY_ALLOCATED'])
+  .nullable();
+const pickReadiness = z.enum(['NOT_READY', 'PARTIALLY_READY', 'READY']).nullable();
 
 export const SoRow = z.object({
   id: z.string(),
@@ -27,6 +32,8 @@ export const SoRow = z.object({
   grandTotal: z.string(),
   /** Now, from the ledger — informational, never a reservation (null for CANCELLED). */
   availability: availability.nullable(),
+  allocationState,
+  pickReadiness,
   createdBy: person,
   updatedAt: z.string(),
 });
@@ -55,17 +62,21 @@ const soLine = z.object({
     .object({
       state: availability,
       onHand: z.string().nullable(),
+      /** EP34: reserved by every order; available = what new demand can still get. */
+      reserved: z.string().nullable(),
       available: z.string().nullable(),
       shortage: z.string().nullable(),
     })
     .nullable(),
+  /** EP34, CONFIRMED tracked lines: reserved for this line, and what is still short. */
+  allocation: z.object({ allocated: z.string(), shortage: z.string() }).nullable(),
   /**
-   * The fulfilment contract (EP34 / EP35). EP33 has only `ordered`; the others
-   * stay null until allocation, picking and delivery exist — never faked.
+   * The fulfilment contract. EP34 fills `allocated` (tracked lines); picked,
+   * delivered and outstanding stay null until EP35 — never faked.
    */
   progress: z.object({
     ordered: z.string(),
-    allocated: z.null(),
+    allocated: z.string().nullable(),
     picked: z.null(),
     delivered: z.null(),
     outstanding: z.null(),
@@ -96,7 +107,25 @@ export const SoView = SoRow.extend({
   cancelledBy: person,
   cancellationReason: z.string().nullable(),
   lines: z.array(soLine),
-  actions: z.array(z.enum(['edit', 'submit', 'confirm', 'cancel'])),
+  actions: z.array(
+    z.enum(['edit', 'submit', 'confirm', 'cancel', 'allocate', 'release', 'reallocate']),
+  ),
+});
+
+/** What one allocate / reallocate did (quantities only — no location or lot for Sales). */
+export const SoAllocationResult = z.object({
+  state: allocationState,
+  pickReadiness,
+  allocatedNow: z.string(),
+  lines: z.array(
+    z.object({
+      lineNo: z.number(),
+      ordered: z.string(),
+      allocatedNow: z.string(),
+      totalAllocated: z.string(),
+      shortage: z.string(),
+    }),
+  ),
 });
 
 /** An item a sales line can name, with the branch's availability (no cost, no location / lot). */
@@ -127,7 +156,10 @@ const COMMERCIAL = new Set([
 
 /** Every key a Sales order response can carry, with its class (checked by a test). */
 export const SALES_FIELD_CLASSES: Record<string, DataClass> = Object.fromEntries(
-  [...Object.keys(SoView.shape), ...Object.keys(soLine.shape), ...Object.keys(SoItem.shape)].map(
-    (k) => [k, COMMERCIAL.has(k) ? 'commercial' : 'operational'],
-  ),
+  [
+    ...Object.keys(SoView.shape),
+    ...Object.keys(soLine.shape),
+    ...Object.keys(SoItem.shape),
+    ...Object.keys(SoAllocationResult.shape),
+  ].map((k) => [k, COMMERCIAL.has(k) ? 'commercial' : 'operational']),
 );

@@ -24,6 +24,21 @@ export function registerErrorHandling(app: FastifyInstance): void {
       return reply.status(error.statusCode).send(body);
     }
 
+    // EP34: two transactions locking the same stock in a different order — PostgreSQL
+    // aborts one (deadlock / serialization failure). Nothing was written; say so.
+    if (
+      (error as { code?: unknown }).code === 'P2034' ||
+      /deadlock detected|could not serialize access/i.test(error.message)
+    ) {
+      return reply.status(409).send({
+        error: {
+          code: 'CONCURRENT_UPDATE',
+          message: 'Someone changed the same stock at the same moment. Try again.',
+          requestId: request.id,
+        },
+      } satisfies ErrorBody);
+    }
+
     // Fastify-native client errors (malformed JSON, schema validation, rate limit, …)
     const status = error.statusCode ?? 500;
     if (status >= 400 && status < 500) {

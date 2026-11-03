@@ -64,6 +64,8 @@ export interface WarehouseContext {
     draftTransfers: number | null;
     submittedAdjustments: number | null;
     activeCounts: number | null;
+    /** EP34: confirmed sales orders with stock reserved in the branch. */
+    pendingPick: number | null;
   };
   expiringSoonDays: number;
   today: string;
@@ -141,10 +143,38 @@ export interface StockRow {
     manufacturedDate: string | null;
   } | null;
   quantityOnHand: string;
+  /** EP34: claimed by active sales reservations; available = on hand − reserved. */
+  quantityReserved: string;
+  quantityAvailable: string;
   expiryState: ExpiryState;
   daysToExpiry: number | null;
   firstReceivedAt: string;
   updatedAt: string;
+}
+
+/** EP34 Pending Pick — warehouse-safe sales demand (no customer, no money). */
+export interface PickOrder {
+  id: string;
+  number: string;
+  branch: Ref;
+  orderDate: string;
+  requestedDate: string | null;
+  confirmedAt: string | null;
+  readiness: 'NOT_READY' | 'PARTIALLY_READY' | 'READY';
+  lines: {
+    lineNo: number;
+    item: Ref;
+    unit: { code: string };
+    ordered: string;
+    allocated: string;
+    shortage: string;
+    picks: {
+      location: Ref;
+      lot: { lotNumber: string; expiryDate: string | null } | null;
+      expiryState: ExpiryState;
+      quantity: string;
+    }[];
+  }[];
 }
 
 export interface MovementRow {
@@ -241,4 +271,6 @@ export const whApi = {
     ),
   movements: (params: Params) =>
     apiRequest<Page<MovementRow>>('GET', `${BASE}/movements${query(params)}`),
+  pendingPick: (params: Params) =>
+    apiRequest<Page<PickOrder> & { today: string }>('GET', `${BASE}/pending-pick${query(params)}`),
 };

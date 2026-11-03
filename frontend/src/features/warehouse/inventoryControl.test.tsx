@@ -90,6 +90,7 @@ const ctx = (manager: boolean): WarehouseContext => ({
     draftTransfers: 1,
     submittedAdjustments: 1,
     activeCounts: 1,
+    pendingPick: 0,
   },
   expiringSoonDays: 30,
   today: '2026-11-03',

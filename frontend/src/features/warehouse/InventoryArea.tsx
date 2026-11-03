@@ -53,6 +53,8 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
     c.f.expiry,
     c.f.location,
     c.f.onHand,
+    c.f.reserved,
+    c.f.available,
     ...(acts ? [c.f.actions] : []),
   ];
   return (
@@ -122,7 +124,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                   scope="col"
                   className={cn(
                     'px-3 pb-2 font-medium first:pl-4',
-                    h === c.f.onHand && 'text-right',
+                    (h === c.f.onHand || h === c.f.reserved || h === c.f.available) && 'text-right',
                   )}
                 >
                   {h}
@@ -170,6 +172,29 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                     <span className="font-semibold tabular-nums">
                       {s.quantityOnHand}{' '}
                       <span className="font-normal text-text-muted">{s.unit.code}</span>
+                    </span>,
+                    'md:text-right md:whitespace-nowrap',
+                  )}
+                  {cell(
+                    c.f.reserved,
+                    <span
+                      className={cn(
+                        'tabular-nums',
+                        s.quantityReserved === '0' && 'text-text-muted',
+                      )}
+                      data-reserved={s.quantityReserved}
+                    >
+                      {s.quantityReserved}
+                    </span>,
+                    'md:text-right md:whitespace-nowrap',
+                  )}
+                  {cell(
+                    c.f.available,
+                    <span
+                      className="font-semibold tabular-nums"
+                      data-available={s.quantityAvailable}
+                    >
+                      {s.quantityAvailable}
                     </span>,
                     'md:text-right md:whitespace-nowrap',
                   )}

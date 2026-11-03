@@ -5,7 +5,7 @@ import type { Db, Prisma } from '../db/client.js';
 import { AppError } from '../lib/errors.js';
 import { permissionDenied } from '../permissions/guard.js';
 import { companyDay } from '../purchasing/service.js';
-import { ZERO } from '../purchasing/money.js';
+import { Decimal, ZERO } from '../purchasing/money.js';
 import type {
   CreateReceiptInput,
   ExpiryState,
@@ -27,6 +27,7 @@ import {
   type WarehouseActor,
 } from './policy.js';
 import { isReceivable, progressOf, receiveProgress, remainingOf } from './progress.js';
+import { keyOf, reservedOf } from './reservations.js';
 import { assertLocations } from './rules.js';
 import {
   FefoCandidate,
@@ -183,8 +184,18 @@ export class ReceivingService {
               where: { ...scoped, status: { in: ['COUNTING', 'REVIEW'] } },
             })
           : null,
+        // EP34: confirmed sales orders with stock reserved here (Pending Pick).
+        actor.inventory.view
+          ? this.db.salesOrder.count({
+              where: {
+                ...scoped,
+                status: 'CONFIRMED',
+                allocations: { some: { status: 'ACTIVE' } },
+              },
+            })
+          : null,
       ]);
-    const [draftTransfers, submittedAdjustments, activeCounts] = control;
+    const [draftTransfers, submittedAdjustments, activeCounts, pendingPick] = control;
     return {
       receiving: actor.receiving,
       inventory: actor.inventory,
@@ -209,6 +220,7 @@ export class ReceivingService {
         draftTransfers: draftTransfers ?? null,
         submittedAdjustments: submittedAdjustments ?? null,
         activeCounts: activeCounts ?? null,
+        pendingPick: pendingPick ?? null,
       },
       expiringSoonDays: EXPIRING_SOON_DAYS,
       today,
@@ -700,9 +712,11 @@ export class ReceivingService {
       }),
       this.db.stockBalance.count({ where }),
     ]);
+    const reserved = await reservedOf(this.db, rows);
     return {
       items: rows.map((b) => {
         const exp = day(b.lot?.expiryDate ?? null);
+        const r = reserved.get(keyOf(b)) ?? ZERO;
         return StockRow.parse({
           id: b.id,
           branch: b.branch,
@@ -718,6 +732,8 @@ export class ReceivingService {
               }
             : null,
           quantityOnHand: b.quantityOnHand.toString(),
+          quantityReserved: r.toString(),
+          quantityAvailable: Decimal.max(ZERO, b.quantityOnHand.minus(r)).toString(),
           expiryState: expiryStateOf(exp, today),
           daysToExpiry: exp ? daysBetween(today, exp) : null,
           firstReceivedAt: b.firstReceivedAt.toISOString(),
@@ -853,6 +869,8 @@ export class ReceivingService {
             ? { id: c.lot.id, lotNumber: c.lot.lotNumber, expiryDate: day(c.lot.expiryDate) }
             : null,
           quantityOnHand: c.quantityOnHand.toString(),
+          quantityReserved: c.quantityReserved.toString(),
+          quantityAvailable: c.quantityAvailable.toString(),
           expiryState: expiryStateOf(day(c.lot?.expiryDate ?? null), today),
           firstReceivedAt: c.firstReceivedAt.toISOString(),
         }),
@@ -862,8 +880,8 @@ export class ReceivingService {
 }
 
 /**
- * FEFO order of the stock of one item in one branch (EP31 foundation for
- * future Sales / Production allocation — nothing allocates yet):
+ * FEFO order of the stock of one item in one branch (EP31; EP34 sales
+ * allocation reserves in exactly this order — sales/allocation.ts):
  *
  *   1. lots with an expiry date, earliest first (expired lots excluded unless asked)
  *   2. then lots without an expiry, then stock without a lot
@@ -879,6 +897,8 @@ export async function fefoCandidates(
     locationId?: string;
     today: string;
     includeExpired?: boolean;
+    /** Keep candidates whose whole quantity is reserved (they are never offered otherwise). */
+    includeReserved?: boolean;
   },
 ) {
   const rows = await db.stockBalance.findMany({
@@ -891,19 +911,41 @@ export async function fefoCandidates(
     },
     include: { lot: true, location: loc },
   });
-  const key = (d: Date | null | undefined) => (d ? d.toISOString() : '');
+  // EP34: what Sales has reserved is not available; fully reserved stock is not a candidate.
+  const reserved = await reservedOf(db, rows);
   return rows
     .filter((b) => o.includeExpired || !b.lot?.expiryDate || day(b.lot.expiryDate)! >= o.today)
-    .sort((a, b) => {
-      const tier = (x: typeof a) => (x.lot?.expiryDate ? 0 : x.lot ? 1 : 2);
-      return (
-        tier(a) - tier(b) ||
-        key(a.lot?.expiryDate).localeCompare(key(b.lot?.expiryDate)) ||
-        key(a.lot?.createdAt).localeCompare(key(b.lot?.createdAt)) ||
-        (a.lot?.lotNumber ?? '').localeCompare(b.lot?.lotNumber ?? '') ||
-        key(a.firstReceivedAt).localeCompare(key(b.firstReceivedAt)) ||
-        a.location.code.localeCompare(b.location.code) ||
-        a.id.localeCompare(b.id)
-      );
-    });
+    .map((b) => {
+      const r = reserved.get(keyOf(b)) ?? ZERO;
+      return {
+        ...b,
+        quantityReserved: r,
+        quantityAvailable: Decimal.max(ZERO, b.quantityOnHand.minus(r)),
+      };
+    })
+    .filter((b) => o.includeReserved || b.quantityAvailable.gt(0))
+    .sort(byFefo);
+}
+
+const at = (d: Date | null | undefined) => (d ? d.toISOString() : '');
+
+/** The FEFO comparator — shared with sales allocation (sales/allocation.ts), never re-implemented. */
+export function byFefo(a: FefoKey, b: FefoKey) {
+  const tier = (x: FefoKey) => (x.lot?.expiryDate ? 0 : x.lot ? 1 : 2);
+  return (
+    tier(a) - tier(b) ||
+    at(a.lot?.expiryDate).localeCompare(at(b.lot?.expiryDate)) ||
+    at(a.lot?.createdAt).localeCompare(at(b.lot?.createdAt)) ||
+    (a.lot?.lotNumber ?? '').localeCompare(b.lot?.lotNumber ?? '') ||
+    at(a.firstReceivedAt).localeCompare(at(b.firstReceivedAt)) ||
+    a.location.code.localeCompare(b.location.code) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
+export interface FefoKey {
+  id: string;
+  firstReceivedAt: Date;
+  location: { code: string };
+  lot: { expiryDate: Date | null; createdAt: Date; lotNumber: string } | null;
 }

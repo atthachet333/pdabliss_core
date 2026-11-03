@@ -88,6 +88,8 @@ const row = (over: Partial<SoRow> = {}): SoRow => ({
   currency: 'THB',
   grandTotal: '2311.20',
   availability: 'PARTIALLY_AVAILABLE',
+  allocationState: null,
+  pickReadiness: null,
   createdBy: { name: 'Demo Sales' },
   updatedAt: '2026-11-03T02:00:00.000Z',
   ...over,
@@ -137,7 +139,14 @@ const order = (over: Partial<SalesOrder> = {}): SalesOrder => ({
       lineTax: '151.20',
       lineTotal: '2311.20',
       note: null,
-      availability: { state: 'PARTIALLY_AVAILABLE', onHand: '9', available: '8', shortage: '4' },
+      availability: {
+        state: 'PARTIALLY_AVAILABLE',
+        onHand: '9',
+        reserved: '1',
+        available: '8',
+        shortage: '4',
+      },
+      allocation: null,
       progress: {
         ordered: '12',
         allocated: null,
@@ -323,7 +332,7 @@ describe('Sales orders (EP33)', () => {
     // Server amounts and line availability, worded as information.
     expect(screen.getByText('2,311.20 THB')).toBeInTheDocument();
     expect(screen.getByText('Short 4')).toBeInTheDocument();
-    expect(screen.getByText(/Allocation, picking and delivery/)).toBeInTheDocument();
+    expect(screen.getByText(/Picking and delivery arrive in a later phase/)).toBeInTheDocument();
     unmount();
 
     let current = order({ actions: ['confirm', 'cancel'] });

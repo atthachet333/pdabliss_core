@@ -224,6 +224,8 @@ model CompanyMember {
   submittedSalesOrders SalesOrder[]               @relation("SalesOrderSubmitter")
   confirmedSalesOrders SalesOrder[]               @relation("SalesOrderConfirmer")
   cancelledSalesOrders SalesOrder[]               @relation("SalesOrderCanceller")
+  createdAllocations   SalesAllocation[]          @relation("SalesAllocationCreator")
+  releasedAllocations  SalesAllocation[]          @relation("SalesAllocationReleaser")
   postedTransfers      InventoryTransfer[]        @relation("TransferPoster")
   cancelledTransfers   InventoryTransfer[]        @relation("TransferCanceller")
   createdAdjustments   StockAdjustment[]          @relation("AdjustmentCreator")
@@ -349,6 +351,7 @@ model Branch {
   /// Purchase orders of this branch (EP30; always the branch of their requests).
   purchaseOrders   PurchaseOrder[]
   salesOrders      SalesOrder[]
+  salesAllocations SalesAllocation[]
   goodsReceipts    GoodsReceipt[]
   stockMovements   StockMovement[]
   stockBalances    StockBalance[]
@@ -1134,6 +1137,7 @@ model Item {
   cycleCounts      CycleCount[]
   countLines       CycleCountLine[]
   salesOrderLines  SalesOrderLine[]
+  salesAllocations SalesAllocation[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1180,6 +1184,8 @@ model WarehouseLocation {
   adjustmentLines    StockAdjustmentLine[]
   countScopes        CycleCountLocation[]
   countLines         CycleCountLine[]
+  /// EP34: stock reserved here for sales order lines.
+  salesAllocations   SalesAllocation[]
 
   @@unique([branchId, code])
   @@unique([branchId, defaultSlot])
@@ -1664,6 +1670,7 @@ model InventoryLot {
   transferLines    InventoryTransferLine[]
   adjustmentLines  StockAdjustmentLine[]
   countLines       CycleCountLine[]
+  salesAllocations SalesAllocation[]
 
   @@unique([companyId, itemId, lotNumber])
   @@unique([id, itemId, companyId])
@@ -2031,15 +2038,15 @@ enum SalesOrderStatus {
 /// Commercial demand: what a customer ordered, at what price. It never moves or
 /// reserves stock — availability is read from the ledger and never stored.
 model SalesOrder {
-  id                  String           @id @default(cuid())
+  id                  String            @id @default(cuid())
   companyId           String
   branchId            String
-  branch              Branch           @relation(fields: [branchId, companyId], references: [id, companyId])
+  branch              Branch            @relation(fields: [branchId, companyId], references: [id, companyId])
   /// SO-YYYYMM-NNNNNN, company-wide monthly sequence (DocumentSequence), immutable.
   number              String
-  status              SalesOrderStatus @default(DRAFT)
+  status              SalesOrderStatus  @default(DRAFT)
   customerId          String
-  customer            Customer         @relation(fields: [customerId, companyId], references: [id, companyId])
+  customer            Customer          @relation(fields: [customerId, companyId], references: [id, companyId])
   /// Customer identity as ordered — taken from the master on every draft change,
   /// refreshed at submit and confirm, then frozen.
   customerCode        String
@@ -2047,33 +2054,35 @@ model SalesOrder {
   customerTaxId       String?
   customerTaxBranch   String?
   /// Business dates (calendar days), separate from createdAt.
-  orderDate           DateTime         @db.Date
-  requestedDate       DateTime?        @db.Date
+  orderDate           DateTime          @db.Date
+  requestedDate       DateTime?         @db.Date
   /// The customer's own PO / reference number (plain text).
   customerReference   String?
   note                String?
-  currency            String           @default("THB") @db.Char(3)
-  lineCounter         Int              @default(0)
+  currency            String            @default("THB") @db.Char(3)
+  lineCounter         Int               @default(0)
   /// Server arithmetic only (purchasing/money.ts); the client's totals are never read.
-  subtotal            Decimal          @default(0) @db.Decimal(18, 2)
-  discountTotal       Decimal          @default(0) @db.Decimal(18, 2)
-  taxTotal            Decimal          @default(0) @db.Decimal(18, 2)
-  grandTotal          Decimal          @default(0) @db.Decimal(18, 2)
+  subtotal            Decimal           @default(0) @db.Decimal(18, 2)
+  discountTotal       Decimal           @default(0) @db.Decimal(18, 2)
+  taxTotal            Decimal           @default(0) @db.Decimal(18, 2)
+  grandTotal          Decimal           @default(0) @db.Decimal(18, 2)
   createdByMemberId   String
-  createdBy           CompanyMember    @relation("SalesOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  createdBy           CompanyMember     @relation("SalesOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
   submittedAt         DateTime?
   submittedByMemberId String?
-  submittedBy         CompanyMember?   @relation("SalesOrderSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
+  submittedBy         CompanyMember?    @relation("SalesOrderSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
   confirmedAt         DateTime?
   confirmedByMemberId String?
-  confirmedBy         CompanyMember?   @relation("SalesOrderConfirmer", fields: [confirmedByMemberId, companyId], references: [id, companyId])
+  confirmedBy         CompanyMember?    @relation("SalesOrderConfirmer", fields: [confirmedByMemberId, companyId], references: [id, companyId])
   cancelledAt         DateTime?
   cancelledByMemberId String?
-  cancelledBy         CompanyMember?   @relation("SalesOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancelledBy         CompanyMember?    @relation("SalesOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
   cancellationReason  String?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
   lines               SalesOrderLine[]
+  /// EP34: reservations of this order's lines (history kept: RELEASED rows stay).
+  allocations         SalesAllocation[]
 
   @@unique([companyId, number])
   @@unique([id, companyId])
@@ -2118,8 +2127,67 @@ model SalesOrderLine {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
+  /// EP34
+  allocations SalesAllocation[]
+
   @@unique([salesOrderId, lineNo])
   /// Target of EP34 allocation foreign keys (line, order, company).
   @@unique([id, salesOrderId, companyId])
   @@index([companyId, itemId])
+}
+
+// ---------------------------------------------------------------- EP34 sales allocation
+
+/// ACTIVE → RELEASED (released, reallocated or order cancelled); CONSUMED is reserved
+/// for EP35, when the SALES_ISSUE movement takes the stock out (docs/SALES_ALLOCATION.md).
+enum SalesAllocationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+}
+
+enum SalesAllocationRelease {
+  RELEASED
+  REALLOCATED
+  ORDER_CANCELLED
+}
+
+/// A reservation: a quantity of ONE stock identity (branch, location, item, lot) claimed
+/// for one line of a CONFIRMED sales order. It is not a movement — on hand never changes;
+/// available = on hand − Σ ACTIVE reservations of that identity, kept ≥ 0 by
+/// sales/allocation.ts (allocating) and the ledger's decrease guard (every other writer).
+model SalesAllocation {
+  id                 String                  @id @default(cuid())
+  companyId          String
+  branchId           String
+  branch             Branch                  @relation(fields: [branchId, companyId], references: [id, companyId])
+  salesOrderId       String
+  order              SalesOrder              @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  salesOrderLineId   String
+  line               SalesOrderLine          @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  itemId             String
+  item               Item                    @relation(fields: [itemId, companyId], references: [id, companyId])
+  locationId         String
+  location           WarehouseLocation       @relation(fields: [locationId, branchId], references: [id, branchId])
+  lotId              String?
+  lot                InventoryLot?           @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  /// lotId or '' — the StockBalance identity key.
+  lotKey             String
+  quantity           Decimal                 @db.Decimal(18, 6)
+  status             SalesAllocationStatus   @default(ACTIVE)
+  /// true while ACTIVE, NULL after: one ACTIVE row per (line, location, lot).
+  activeSlot         Boolean?                @default(true)
+  createdByMemberId  String
+  createdBy          CompanyMember           @relation("SalesAllocationCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  releasedAt         DateTime?
+  releasedByMemberId String?
+  releasedBy         CompanyMember?          @relation("SalesAllocationReleaser", fields: [releasedByMemberId, companyId], references: [id, companyId])
+  releaseReason      SalesAllocationRelease?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@unique([salesOrderLineId, locationId, lotKey, activeSlot])
+  @@index([locationId, itemId, lotKey, status])
+  @@index([companyId, branchId, itemId, status])
+  @@index([salesOrderId, status])
 }

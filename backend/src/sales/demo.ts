@@ -4,9 +4,10 @@ import type { Db } from '../db/client.js';
 import type { SalesOrderStatus } from '../generated/prisma/enums.js';
 import { lineAmounts, orderTotals } from '../purchasing/money.js';
 import { companyDay } from '../purchasing/service.js';
+import { allocateOrder } from './allocation.js';
 
 /*
- * Demo sales orders (EP33) — four fixtures, one per state a reviewer needs,
+ * Demo sales orders (EP33, EP34) — four EP33 fixtures, one per state a reviewer needs,
  * for the demo customer (CUS-000001). sales.demo (staff, Head Office) drafts
  * and submits; owner.demo (the company owner) confirms and cancels — the demo
  * sales persona stays staff. Nothing here touches stock: availability is read
@@ -19,9 +20,17 @@ import { companyDay } from '../purchasing/service.js';
  *                 (the EP31 / EP32 demo stock covers it)
  *   SO_CANCELLED  Head Office, sales.demo, submitted then cancelled by owner.demo
  *
- * Created ONCE each (stable `demo` key in the CREATED audit entry), never
- * touched again; skipped when a persona, branch, customer or item is missing.
- * Numbers come from the normal SO sequence; amounts are the server's
+ * EP34 adds two demo-branch orders and allocates through the same code as the
+ * API (allocation.ts — FEFO from the EP31 / EP32 demo stock, never a movement):
+ *
+ *   SO_CONFIRMED      allocated in full → READY (FG-DEMO-B from two locations + packaging)
+ *   SO_ALLOC_PARTIAL  demo branch, owner.demo, confirmed: FG 14 (FG-DEMO-A 12 + FG-DEMO-C 2,
+ *                     two FEFO lots) and raw material 8 kg of which 5 exist → PARTIALLY_ALLOCATED
+ *   SO_OPEN           demo branch, owner.demo, confirmed, packaging 10, left unallocated
+ *
+ * Created ONCE each (stable `demo` key in the CREATED / ALLOCATION_CREATED audit
+ * entry), never touched again; skipped when a persona, branch, customer or item
+ * is missing. Numbers come from the normal SO sequence; amounts are the server's
  * arithmetic (purchasing/money.ts).
  */
 
@@ -70,7 +79,28 @@ const FIXTURES: Fixture[] = [
     lines: [{ item: 'FG-000001', quantity: '3', unitPrice: '185' }],
     cancelReason: 'ลูกค้าขอยกเลิกคำสั่งซื้อ (ข้อมูลสาธิต)',
   },
+  {
+    key: 'SO_ALLOC_PARTIAL',
+    branch: '00001',
+    by: 'OWNER',
+    status: 'CONFIRMED',
+    lines: [
+      { item: 'FG-000001', quantity: '14', unitPrice: '185' },
+      { item: 'RM-000001', quantity: '8', unitPrice: '95' },
+    ],
+    reference: 'PO-DEMO-0044',
+  },
+  {
+    key: 'SO_OPEN',
+    branch: '00001',
+    by: 'OWNER',
+    status: 'CONFIRMED',
+    lines: [{ item: 'PK-000001', quantity: '10', unitPrice: '18' }],
+  },
 ];
+
+/** EP34: orders the demo allocates, in this order (FEFO depends on it). */
+const ALLOCATE = ['SO_CONFIRMED', 'SO_ALLOC_PARTIAL'];
 
 const TAX_RATE = '7';
 
@@ -89,7 +119,11 @@ export async function seedDemoSalesOrders(db: Db, companyId: string, meta: Reque
     db.customer.findFirst({ where: { companyId, code: 'CUS-000001', status: 'ACTIVE' } }),
     db.branch.findMany({ where: { companyId, code: { in: ['00000', '00001'] } } }),
     db.item.findMany({
-      where: { companyId, code: { in: ['FG-000001', 'PK-000001'] }, status: 'ACTIVE' },
+      where: {
+        companyId,
+        code: { in: ['FG-000001', 'PK-000001', 'RM-000001'] },
+        status: 'ACTIVE',
+      },
       include: { baseUnit: true },
     }),
   ]);
@@ -209,6 +243,46 @@ export async function seedDemoSalesOrders(db: Db, companyId: string, meta: Reque
       }
     });
     created++;
+  }
+  for (const key of ALLOCATE) {
+    const marker = await db.auditLog.findFirst({
+      where: { companyId, action: 'SALES_ORDER_CREATED', changes: { path: ['demo'], equals: key } },
+    });
+    const done = await db.auditLog.count({
+      where: {
+        companyId,
+        action: 'SALES_ALLOCATION_CREATED',
+        changes: { path: ['demo'], equals: `ALLOC_${key}` },
+      },
+    });
+    if (!marker || done) continue;
+    const allocatedNow = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "SalesOrder" WHERE "id" = ${marker.entityId} FOR UPDATE`;
+      const o = await tx.salesOrder.findFirst({
+        where: { id: marker.entityId, companyId, status: 'CONFIRMED' },
+      });
+      if (!o) return false;
+      const lines = await allocateOrder(tx, { companyId, memberId: owner.id }, o, today);
+      const touched = lines.filter((l) => l.allocatedNow.gt(0)).length;
+      if (!touched) return false;
+      const event = (action: SalesOrderAuditAction, details: Record<string, string | number>) =>
+        recordCompanyEvent(tx, meta, {
+          action,
+          actorId: owner.userId,
+          actorScope: 'seed',
+          companyId,
+          entityType: 'SalesOrder',
+          entityId: o.id,
+          details: { number: o.number, ...details },
+        });
+      await event('SALES_ALLOCATION_CREATED', { demo: `ALLOC_${key}`, lines: touched });
+      const short = lines.filter((l) => l.shortage.gt(0)).length;
+      await event(short ? 'SALES_ORDER_PARTIALLY_ALLOCATED' : 'SALES_ORDER_FULLY_ALLOCATED', {
+        shortLines: short,
+      });
+      return true;
+    });
+    if (allocatedNow) created++;
   }
   return created ? (`created ${created}` as const) : ('unchanged' as const);
 }

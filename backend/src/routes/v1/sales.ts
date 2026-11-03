@@ -8,6 +8,7 @@ import {
   SoItemQuery,
   SoLinesBody,
   SoListQuery,
+  SoNoBody,
   SoReasonBody,
   UpdateSoBody,
 } from '../../sales/input.js';
@@ -28,7 +29,12 @@ import { SalesOrderService } from '../../sales/service.js';
  *   PUT    /orders/:id/lines {lines}   DRAFT lines, replaced whole
  *   POST   /orders/:id/submit          DRAFT → SUBMITTED
  *   POST   /orders/:id/confirm         SUBMITTED → CONFIRMED (manager; no stock effect)
- *   POST   /orders/:id/cancel {reason?}  → CANCELLED (reason required once submitted)
+ *   POST   /orders/:id/cancel {reason?}  → CANCELLED (reason required once submitted;
+ *                                       EP34: its reservations are released)
+ *   POST   /orders/:id/allocate        CONFIRMED: reserve stock FEFO (manager; repeatable)
+ *   POST   /orders/:id/release         CONFIRMED: release every reservation
+ *   POST   /orders/:id/reallocate      CONFIRMED: release + allocate again, atomically
+ * Reservations are not movements: on hand never changes (docs/SALES_ALLOCATION.md).
  * Customers are searched through /api/v1/master-data/customers (sales.customers.view).
  */
 
@@ -57,6 +63,20 @@ export const salesRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db }) =
   );
   app.post(`${O}/:id/submit`, async (r) => s.submit(auth(r), idOf(r.params), meta(r)));
   app.post(`${O}/:id/confirm`, async (r) => s.confirm(auth(r), idOf(r.params), meta(r)));
+  // EP34: no body — a client never names a quantity, location, lot or status (400 if it tries).
+  const none = (r: { body: unknown }) => parseInput(SoNoBody, r.body ?? {});
+  app.post(`${O}/:id/allocate`, small, async (r) => {
+    none(r);
+    return s.allocate(auth(r), idOf(r.params), meta(r));
+  });
+  app.post(`${O}/:id/release`, small, async (r) => {
+    none(r);
+    return s.release(auth(r), idOf(r.params), meta(r));
+  });
+  app.post(`${O}/:id/reallocate`, small, async (r) => {
+    none(r);
+    return s.reallocate(auth(r), idOf(r.params), meta(r));
+  });
   app.post(`${O}/:id/cancel`, small, async (r) =>
     s.cancel(
       auth(r),

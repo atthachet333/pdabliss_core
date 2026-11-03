@@ -108,6 +108,7 @@ describe('Sales order policy, availability and contracts (EP33)', () => {
   it('derives availability per line and per order (no stock means unavailable)', () => {
     const s = (onHand: string, available: string) => ({
       onHand: new Decimal(onHand),
+      reserved: new Decimal(onHand).minus(available),
       available: new Decimal(available),
     });
     const q = (v: string) => new Decimal(v);
@@ -119,9 +120,14 @@ describe('Sales order policy, availability and contracts (EP33)', () => {
     expect(lineAvailability(false, q('1'), s('0', '0'))).toEqual({
       state: 'NOT_STOCK_TRACKED',
       onHand: null,
+      reserved: null,
       available: null,
       shortage: null,
     });
+    // EP34: a line's own reservations count — fully allocated is AVAILABLE with no stock left.
+    expect(lineAvailability(true, q('5'), s('5', '0'), q('5')).state).toBe('AVAILABLE');
+    const half = lineAvailability(true, q('10'), s('6', '0'), q('6'));
+    expect([half.state, half.shortage!.toString()]).toEqual(['PARTIALLY_AVAILABLE', '4']);
     expect(orderAvailability(['AVAILABLE', 'NOT_STOCK_TRACKED'])).toBe('AVAILABLE');
     expect(orderAvailability(['AVAILABLE', 'UNAVAILABLE'])).toBe('PARTIALLY_AVAILABLE');
     expect(orderAvailability(['UNAVAILABLE', 'UNAVAILABLE'])).toBe('UNAVAILABLE');
@@ -357,7 +363,7 @@ describeDb('Sales orders (EP33)', () => {
       lineTotal: '32.10',
       unit: { code: 'PCS', precision: 0 },
       item: { code: 'BOX-1', type: 'FINISHED_GOOD', inventoryTracked: true },
-      progress: { ordered: '3', allocated: null, picked: null, delivered: null, outstanding: null },
+      progress: { ordered: '3', allocated: '0', picked: null, delivered: null, outstanding: null },
     });
     expect(o.lines[1]).toMatchObject({ quantity: '1.25', lineTotal: '107.00', note: 'Cold pack' });
     expect(o.lines[2].availability.state).toBe('NOT_STOCK_TRACKED');
@@ -516,7 +522,7 @@ describeDb('Sales orders (EP33)', () => {
     expect(conf).toMatchObject({
       status: 'CONFIRMED',
       confirmedBy: { name: 'salesm' },
-      actions: ['cancel'],
+      actions: ['cancel', 'allocate'],
     });
     expect(code(await m.post(`${SO}/${o.id}/confirm`))).toBe('SO_ALREADY_CONFIRMED');
     expect(code(await m.patch(`${SO}/${o.id}`, { note: 'x' }))).toBe('PERMISSION_DENIED');
@@ -619,10 +625,10 @@ describeDb('Sales orders (EP33)', () => {
       ],
     });
     expect(o.lines.map((l: J) => l.availability)).toEqual([
-      { state: 'AVAILABLE', onHand: '12', available: '7', shortage: '0' },
-      { state: 'PARTIALLY_AVAILABLE', onHand: '12', available: '2', shortage: '2' },
-      { state: 'AVAILABLE', onHand: '0.75', available: '0.75', shortage: '0' },
-      { state: 'NOT_STOCK_TRACKED', onHand: null, available: null, shortage: null },
+      { state: 'AVAILABLE', onHand: '12', reserved: '0', available: '7', shortage: '0' },
+      { state: 'PARTIALLY_AVAILABLE', onHand: '12', reserved: '0', available: '2', shortage: '2' },
+      { state: 'AVAILABLE', onHand: '0.75', reserved: '0', available: '0.75', shortage: '0' },
+      { state: 'NOT_STOCK_TRACKED', onHand: null, reserved: null, available: null, shortage: null },
     ]);
     expect(o.availability).toBe('PARTIALLY_AVAILABLE');
     expect(o.shortageLines).toBe(1);
@@ -722,6 +728,7 @@ describeDb('Sales orders (EP33)', () => {
     const row = all.items[0];
     expect(Object.keys(row).sort()).toEqual(
       [
+        'allocationState',
         'availability',
         'branch',
         'createdBy',
@@ -732,6 +739,7 @@ describeDb('Sales orders (EP33)', () => {
         'lineCount',
         'number',
         'orderDate',
+        'pickReadiness',
         'requestedDate',
         'status',
         'updatedAt',

@@ -869,30 +869,25 @@ describeDb('Goods receipts and inventory (EP31)', () => {
     const r = await draft(wh, po.id);
     await save(wh, r, 1, accept('10'));
     await post(wh, r);
-    // A future outbound movement (Sales / Production) took 7 of the 10.
-    const balance = await h.db.stockBalance.findFirstOrThrow({ where: { itemId: it_.box! } });
-    await h.db.stockMovement.create({
-      data: {
-        companyId: A.companyId,
-        branchId: br.X,
-        locationId: loc.MAIN!,
-        itemId: it_.box!,
-        type: 'PURCHASE_RECEIPT_REVERSAL',
-        quantityDelta: '-7',
-        sourceType: 'TEST_CONSUMPTION',
-        occurredAt: new Date(),
-        actorMemberId: ids['whm@a.example']!,
-      },
-    });
-    await h.db.stockBalance.update({ where: { id: balance.id }, data: { quantityOnHand: '3' } });
+    // 7 of the 10 left MAIN through a real ledger movement (an EP32 transfer).
     const whm = await as('whm@a.example', 'X');
+    const t = j(
+      await whm.post('/api/v1/warehouse/transfers', {
+        sourceLocationId: loc.MAIN,
+        destinationLocationId: loc.QC,
+      }),
+    ).transfer;
+    await whm.put(`/api/v1/warehouse/transfers/${t.id}/lines`, {
+      lines: [{ itemId: it_.box, quantity: '7' }],
+    });
+    expect((await whm.post(`/api/v1/warehouse/transfers/${t.id}/post`)).statusCode).toBe(200);
     expect(code(await whm.post(`${GR}/${r.id}/cancel`, { reason: 'Supplier recall' }))).toBe(
       'STOCK_INSUFFICIENT',
     );
     expect((await h.db.goodsReceipt.findUniqueOrThrow({ where: { id: r.id } })).status).toBe(
       'POSTED',
     );
-    expect(await onHand(it_.box!)).toBe('3.000000');
+    expect(await onHand(it_.box!, loc.MAIN)).toBe('3.000000');
     expect(await h.db.stockMovement.count({ where: { goodsReceiptId: r.id } })).toBe(1);
     await assertLedger();
   });

@@ -54,6 +54,7 @@ import type {
   UnitUpdateInput,
 } from './input.js';
 import {
+  assertLocationDeactivationAllowed,
   assertStructureChangeAllowed,
   assertTracking,
   LOCATION_MAX_DEPTH,
@@ -1181,8 +1182,9 @@ export class MasterDataService {
   }
 
   /**
-   * Deactivate: refused while active locations sit inside it; a default
-   * location stops being the default. Reactivate: the branch and the parent
+   * Deactivate: refused while active locations sit inside it, or while it
+   * holds stock or an open warehouse document needs it (LOCATION_LOCKS, EP32);
+   * a default location stops being the default. Reactivate: the branch and the parent
    * must be active.
    */
   async setLocationStatus(ctx: AuthContext, id: string, status: MasterStatus, meta: RequestMeta) {
@@ -1204,6 +1206,7 @@ export class MasterDataService {
             { count: children },
           );
         }
+        await assertLocationDeactivationAllowed(tx, row);
       } else if (row.parentId) {
         const parent = await tx.warehouseLocation.findUnique({ where: { id: row.parentId } });
         if (parent?.status !== 'ACTIVE') throw referenceInactive('parentId');

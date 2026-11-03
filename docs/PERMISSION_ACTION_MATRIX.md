@@ -58,6 +58,7 @@ branch access or enabled departments takes effect on the next request of every o
 | **EP28 master data** | `company.master_data.manage` (administration) · `sales.customers.view` · `.manage`, `sales.items.view`, `operations.items.view` · `.manage`, `warehouse.items.view`, `warehouse.locations.view` · `.manage`, `purchasing.suppliers.view` · `.manage`, `purchasing.items.view`, `accounting.customers.view`, `accounting.suppliers.view` |
 | **EP29 purchase requests** | `purchasing.requests.view` · `.create` · `.approve` (existing) + `purchasing.requests.cancel`; `sales` · `operations` · `warehouse` · `accounting` `.purchase_requests.create` · `.approve` |
 | **EP31 receiving and inventory** | `warehouse.receiving.view` · `.process` (existing) + `warehouse.receiving.cancel`; `warehouse.inventory.view` (existing) |
+| **EP32 inventory control** | `warehouse.transfers.create` · `.approve` · `.cancel`, `warehouse.counts.create` · `.approve` (new); `warehouse.stock_adjustment.create` · `.approve` (EP27, now used); reads with `warehouse.inventory.view` |
 | **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
@@ -82,6 +83,18 @@ stock-adjustment code is used yet. System Admin gets none of it unless assigned 
 Executive reads only; Purchasing and Accounting see receive progress on orders, never stock. The
 override CHECK lists 57 operational codes. One policy table: `backend/src/warehouse/policy.ts`; see
 [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).
+
+**EP32 note.** Five new codes, all BRANCH-scoped: `warehouse.transfers.create` (OPERATE: draft,
+edit, cancel a draft), `.approve` (MANAGE: post — no `post` word), `.cancel` (MANAGE: reverse a posted
+transfer); `warehouse.counts.create` (OPERATE: create, start, count, review, reopen, cancel) and
+`.approve` (MANAGE: post). Adjustments use the EP27 codes: `warehouse.stock_adjustment.create`
+(OPERATE: draft, submit, cancel before posting) and `.approve` (MANAGE: approve = post, reject, reverse).
+So Warehouse Staff create and count, Warehouse Managers post / approve / reverse, Executive reads
+(`warehouse.inventory.view`) and acts on nothing, System Admin gets nothing unless assigned to
+Warehouse, the owner has everything. The override CHECK lists 62 operational codes. Rule tables:
+`TRANSFER_RULES`, `ADJUSTMENT_RULES`, `COUNT_RULES` in `backend/src/warehouse/policy.ts`; see
+[INVENTORY_TRANSFER.md](INVENTORY_TRANSFER.md), [STOCK_ADJUSTMENT.md](STOCK_ADJUSTMENT.md),
+[CYCLE_COUNT.md](CYCLE_COUNT.md).
 
 **EP28 scope note.** Canonical master records are one per company, so the customer, supplier and
 item codes are **COMPANY-scoped** operational permissions (department, package, assignment and

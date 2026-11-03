@@ -63,7 +63,15 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   warehouse.receiving.process  create, edit and POST a goods receipt (stock goes in)
  *   warehouse.receiving.cancel   cancel a POSTED receipt — its stock is reversed (MANAGE)
  *   warehouse.inventory.view     stock on hand, lots / expiry and the movement ledger
- * Stock adjustments keep their EP27 codes; nothing uses them yet.
+ *
+ * EP32 inventory control (reads: warehouse.inventory.view):
+ *   warehouse.transfers.create         create / edit / cancel a DRAFT transfer (OPERATE)
+ *   warehouse.transfers.approve        POST a transfer — stock moves (MANAGE; no `post` action)
+ *   warehouse.transfers.cancel         cancel a POSTED transfer — reversal (MANAGE)
+ *   warehouse.stock_adjustment.create  draft / submit / cancel an adjustment (EP27 code, OPERATE)
+ *   warehouse.stock_adjustment.approve approve (= post), reject, reverse (EP27 code, MANAGE)
+ *   warehouse.counts.create            create, start, count, send to review, cancel (OPERATE)
+ *   warehouse.counts.approve           post a reviewed count — corrections written (MANAGE)
  */
 
 export const PERMISSION_NAMESPACES = [
@@ -181,6 +189,11 @@ export const PERMISSION_CATALOG = [
   def('warehouse.receiving.cancel', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.stock_adjustment.create', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.stock_adjustment.approve', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.transfers.create', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.transfers.approve', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.transfers.cancel', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.counts.create', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.counts.approve', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.items.view', 'WAREHOUSE', 'COMPANY'),
   def('warehouse.locations.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.locations.manage', 'WAREHOUSE', 'BRANCH'),

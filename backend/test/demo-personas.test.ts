@@ -573,9 +573,15 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(pending[0].receiving.state).toBe('PARTIALLY_RECEIVED');
     const fg = await h.db.item.findFirstOrThrow({ where: { code: 'FG-000001' } });
     const fefo = j(await wh.get(`${W}/stock/fefo?itemId=${fg.id}`)).candidates;
-    expect(fefo.map((c: J) => c.lot.lotNumber)).toEqual(['FG-DEMO-B', 'FG-DEMO-A', 'FG-DEMO-C']);
+    // EP32 moved 4 of lot B from RECEIVING to MAIN: B is first at both.
+    expect(fefo.map((c: J) => c.lot.lotNumber)).toEqual([
+      'FG-DEMO-B',
+      'FG-DEMO-B',
+      'FG-DEMO-A',
+      'FG-DEMO-C',
+    ]);
     const stock = await wh.get(`${W}/stock`);
-    expect(j(stock).total).toBe(5);
+    expect(j(stock).total).toBe(7);
     expect(stock.body).not.toMatch(/price|amount|cost|deposit|\b120\b|12\.5/i);
     // Ledger = balances.
     const balances = await h.db.stockBalance.findMany();
@@ -588,7 +594,50 @@ describeDb('Demo personas (EP28.1)', () => {
     }
     await seedDemo(h.db, parseSeedEnv(ENV));
     expect(await h.db.goodsReceipt.count()).toBe(3);
-    expect(await h.db.stockMovement.count()).toBe(5);
+    expect(await h.db.stockMovement.count({ where: { sourceType: 'GOODS_RECEIPT' } })).toBe(5);
+  });
+
+  it('seeds inventory control: transfers, adjustments and a posted count — staff drafts, the owner posts (EP32)', async () => {
+    const W = '/api/v1/warehouse';
+    const wh = await login('warehouse.demo@pdabliss.com');
+    const transfers = j(await wh.get(`${W}/transfers`)).items;
+    expect(transfers.map((t: J) => t.status).sort()).toEqual(['DRAFT', 'POSTED']);
+    const adjustments = j(await wh.get(`${W}/adjustments`)).items;
+    expect(adjustments.map((a: J) => [a.reason, a.status]).sort()).toEqual([
+      ['DAMAGE', 'POSTED'],
+      ['FOUND', 'POSTED'],
+    ]);
+    expect(adjustments.every((a: J) => a.approvedBy.name !== a.createdBy.name)).toBe(true);
+    const counts = j(await wh.get(`${W}/counts`)).items;
+    expect(counts).toHaveLength(1);
+    expect(counts[0]).toMatchObject({ status: 'POSTED', lineCount: 2, varianceLines: 1 });
+    // The demo warehouse persona stays staff: it cannot post or approve.
+    const draft = transfers.find((t: J) => t.status === 'DRAFT');
+    expect(j(await wh.get(`${W}/transfers/${draft.id}`)).transfer.actions).toEqual([
+      'edit',
+      'cancel',
+    ]);
+    const types = (await h.db.stockMovement.findMany()).map((m) => m.type).sort();
+    expect(types.filter((t) => t !== 'PURCHASE_RECEIPT')).toEqual([
+      'ADJUSTMENT_IN',
+      'ADJUSTMENT_OUT',
+      'COUNT_CORRECTION',
+      'TRANSFER_IN',
+      'TRANSFER_OUT',
+    ]);
+    const balances = await h.db.stockBalance.findMany();
+    for (const b of balances) {
+      const sum = await h.db.stockMovement.aggregate({
+        where: { locationId: b.locationId, itemId: b.itemId, lotId: b.lotId },
+        _sum: { quantityDelta: true },
+      });
+      expect(sum._sum.quantityDelta!.toString()).toBe(b.quantityOnHand.toString());
+    }
+    const body = (await wh.get(`${W}/movements`)).body;
+    expect(body).not.toMatch(/price|amount|cost|deposit/i);
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await h.db.stockMovement.count()).toBe(10);
+    expect(await h.db.inventoryTransfer.count()).toBe(2);
   });
 
   it('the legacy staff account carries the one exception: receiving is denied', async () => {

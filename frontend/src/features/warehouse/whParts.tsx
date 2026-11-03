@@ -24,6 +24,10 @@ export function WarehouseNav({ ctx }: { ctx: WarehouseContext }) {
       [`${WH}/inventory`, c.nav.inventory],
       [`${WH}/lots`, c.nav.lots],
       [`${WH}/movements`, c.nav.movements],
+      // EP32: read with warehouse.inventory.view; acting needs the document's own codes.
+      [`${WH}/transfers`, c.nav.transfers],
+      [`${WH}/adjustments`, c.nav.adjustments],
+      [`${WH}/counts`, c.nav.counts],
     );
   }
   return (

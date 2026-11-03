@@ -10,8 +10,9 @@ import { WH } from './whModel';
 
 /*
  * /core/warehouse — the Warehouse workspace (EP31): real counts from the API
- * (pending receive, draft receipts, stock lines, lots expiring soon / expired)
- * for the selected branch, each a way into its screen. No made-up figures.
+ * (pending receive, draft receipts, stock lines, lots expiring soon / expired;
+ * EP32: draft transfers, adjustments to approve, counts in progress) for the
+ * selected branch, each a way into its screen. No made-up figures.
  */
 export default function WarehouseHome() {
   const c = useCopy(WH_COPY);
@@ -26,6 +27,13 @@ export default function WarehouseHome() {
     [ctx.counts.stockRows, c.tiles.stock, `${WH}/inventory`],
     [ctx.counts.expiring, c.tiles.expiring, `${WH}/lots?expiry=EXPIRING_SOON`],
     [ctx.counts.expired, c.tiles.expired, `${WH}/lots?expiry=EXPIRED`],
+    [ctx.counts.draftTransfers, c.tiles.draftTransfers, `${WH}/transfers?status=DRAFT`],
+    [
+      ctx.counts.submittedAdjustments,
+      c.tiles.submittedAdjustments,
+      `${WH}/adjustments?status=SUBMITTED`,
+    ],
+    [ctx.counts.activeCounts, c.tiles.activeCounts, `${WH}/counts?status=COUNTING`],
   ].filter((t): t is [number, string, string] => t[0] !== null);
   return (
     <div className="grid grid-cols-1 gap-6" data-warehouse-home>
@@ -37,7 +45,7 @@ export default function WarehouseHome() {
       </AreaLink>
       <PageTitle title={c.workspace} lead={c.workspaceLead} />
       <WarehouseNav ctx={ctx} />
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5" data-tiles>
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-tiles>
         {tiles.map(([n, label, to]) => (
           <li key={to}>
             <AreaLink

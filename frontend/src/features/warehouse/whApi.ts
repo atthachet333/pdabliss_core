@@ -22,9 +22,23 @@ export const REJECT_REASONS: RejectReason[] = [
   'OTHER',
 ];
 export type ExpiryState = 'EXPIRED' | 'EXPIRING_SOON' | 'OK' | 'NO_EXPIRY';
-export type MovementType = 'PURCHASE_RECEIPT' | 'PURCHASE_RECEIPT_REVERSAL';
+export const MOVEMENT_TYPES = [
+  'PURCHASE_RECEIPT',
+  'PURCHASE_RECEIPT_REVERSAL',
+  'TRANSFER_OUT',
+  'TRANSFER_IN',
+  'TRANSFER_OUT_REVERSAL',
+  'TRANSFER_IN_REVERSAL',
+  'ADJUSTMENT_IN',
+  'ADJUSTMENT_OUT',
+  'ADJUSTMENT_IN_REVERSAL',
+  'ADJUSTMENT_OUT_REVERSAL',
+  'COUNT_CORRECTION',
+] as const;
+export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
 type Person = { name: string } | null;
+type DocRef = { id: string; number: string };
 export interface Ref {
   id: string;
   code: string;
@@ -34,6 +48,10 @@ export interface Ref {
 export interface WarehouseContext {
   receiving: { view: boolean; process: boolean; cancel: boolean };
   inventory: { view: boolean };
+  /** EP32 inventory control (presentation only; the server decides). */
+  transfers: { create: boolean; approve: boolean; cancel: boolean };
+  adjustments: { create: boolean; approve: boolean };
+  cycleCounts: { create: boolean; approve: boolean };
   branches: (Ref & { type: string })[];
   selectedBranch: (Ref & { type: string }) | null;
   locations: (Ref & { branchId: string; isDefault: boolean })[];
@@ -43,6 +61,9 @@ export interface WarehouseContext {
     stockRows: number | null;
     expiring: number | null;
     expired: number | null;
+    draftTransfers: number | null;
+    submittedAdjustments: number | null;
+    activeCounts: number | null;
   };
   expiringSoonDays: number;
   today: string;
@@ -140,6 +161,9 @@ export interface MovementRow {
     type: string;
     receipt: { id: string; number: string } | null;
     order: { number: string } | null;
+    transfer: DocRef | null;
+    adjustment: DocRef | null;
+    count: DocRef | null;
   };
   actor: Person;
 }

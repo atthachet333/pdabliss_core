@@ -142,37 +142,55 @@ export class ReceivingService {
       quantityOnHand: { gt: 0 },
       lot: { expiryDate },
     });
-    const [locations, pending, drafts, stockRows, expiring, expired] = await Promise.all([
-      this.db.warehouseLocation.findMany({
-        where: { companyId, branchId: { in: branchIds }, status: 'ACTIVE' },
-        orderBy: [{ defaultSlot: 'asc' }, { code: 'asc' }],
-        select: { id: true, code: true, name: true, branchId: true, defaultSlot: true },
-      }),
-      actor.receiving.view
-        ? this.db.purchaseOrder.count({
-            where: { companyId, branchId: { in: branchIds }, status: 'PENDING_RECEIVE' },
-          })
-        : null,
-      actor.receiving.view
-        ? this.db.goodsReceipt.count({
-            where: { companyId, branchId: { in: branchIds }, status: 'DRAFT' },
-          })
-        : null,
-      actor.inventory.view
-        ? this.db.stockBalance.count({
-            where: { companyId, branchId: { in: branchIds }, quantityOnHand: { gt: 0 } },
-          })
-        : null,
-      actor.inventory.view
-        ? this.db.stockBalance.count({ where: lotStock({ gte: todayDate, lte: soon }) })
-        : null,
-      actor.inventory.view
-        ? this.db.stockBalance.count({ where: lotStock({ lt: todayDate }) })
-        : null,
-    ]);
+    const scoped = { companyId, branchId: { in: branchIds } };
+    const [locations, pending, drafts, stockRows, expiring, expired, ...control] =
+      await Promise.all([
+        this.db.warehouseLocation.findMany({
+          where: { companyId, branchId: { in: branchIds }, status: 'ACTIVE' },
+          orderBy: [{ defaultSlot: 'asc' }, { code: 'asc' }],
+          select: { id: true, code: true, name: true, branchId: true, defaultSlot: true },
+        }),
+        actor.receiving.view
+          ? this.db.purchaseOrder.count({
+              where: { companyId, branchId: { in: branchIds }, status: 'PENDING_RECEIVE' },
+            })
+          : null,
+        actor.receiving.view
+          ? this.db.goodsReceipt.count({
+              where: { companyId, branchId: { in: branchIds }, status: 'DRAFT' },
+            })
+          : null,
+        actor.inventory.view
+          ? this.db.stockBalance.count({
+              where: { companyId, branchId: { in: branchIds }, quantityOnHand: { gt: 0 } },
+            })
+          : null,
+        actor.inventory.view
+          ? this.db.stockBalance.count({ where: lotStock({ gte: todayDate, lte: soon }) })
+          : null,
+        actor.inventory.view
+          ? this.db.stockBalance.count({ where: lotStock({ lt: todayDate }) })
+          : null,
+        // EP32: open inventory-control work (read with warehouse.inventory.view).
+        actor.inventory.view
+          ? this.db.inventoryTransfer.count({ where: { ...scoped, status: 'DRAFT' } })
+          : null,
+        actor.inventory.view
+          ? this.db.stockAdjustment.count({ where: { ...scoped, status: 'SUBMITTED' } })
+          : null,
+        actor.inventory.view
+          ? this.db.cycleCount.count({
+              where: { ...scoped, status: { in: ['COUNTING', 'REVIEW'] } },
+            })
+          : null,
+      ]);
+    const [draftTransfers, submittedAdjustments, activeCounts] = control;
     return {
       receiving: actor.receiving,
       inventory: actor.inventory,
+      transfers: actor.transfers,
+      adjustments: actor.adjustments,
+      cycleCounts: actor.counts,
       branches: actor.branches,
       selectedBranch: selected,
       locations: locations.map((l) => ({
@@ -182,7 +200,16 @@ export class ReceivingService {
         branchId: l.branchId,
         isDefault: l.defaultSlot === true,
       })),
-      counts: { pendingReceive: pending, draftReceipts: drafts, stockRows, expiring, expired },
+      counts: {
+        pendingReceive: pending,
+        draftReceipts: drafts,
+        stockRows,
+        expiring,
+        expired,
+        draftTransfers: draftTransfers ?? null,
+        submittedAdjustments: submittedAdjustments ?? null,
+        activeCounts: activeCounts ?? null,
+      },
       expiringSoonDays: EXPIRING_SOON_DAYS,
       today,
     };
@@ -716,6 +743,16 @@ export class ReceivingService {
     if (q.itemId) and.push({ itemId: q.itemId });
     if (q.lotId) and.push({ lotId: q.lotId });
     if (q.type) and.push({ type: q.type });
+    if (q.sourceType) and.push({ sourceType: q.sourceType });
+    if (q.from || q.to) {
+      const start = (d: string) => new Date(`${d}T00:00:00Z`);
+      and.push({
+        occurredAt: {
+          ...(q.from ? { gte: start(q.from) } : {}),
+          ...(q.to ? { lt: new Date(start(q.to).getTime() + 86_400_000) } : {}),
+        },
+      });
+    }
     if (q.q) {
       const c = { contains: q.q, mode: 'insensitive' as const };
       and.push({
@@ -725,6 +762,9 @@ export class ReceivingService {
           { lot: { lotNumber: c } },
           { receipt: { number: c } },
           { receipt: { poNumber: c } },
+          { transfer: { number: c } },
+          { adjustment: { number: c } },
+          { cycleCount: { number: c } },
         ],
       });
     }
@@ -744,6 +784,9 @@ export class ReceivingService {
           },
           lot: { select: { id: true, lotNumber: true, expiryDate: true } },
           receipt: { select: { id: true, number: true, poNumber: true } },
+          transfer: { select: { id: true, number: true } },
+          adjustment: { select: { id: true, number: true } },
+          cycleCount: { select: { id: true, number: true } },
           actor: person,
         },
       }),
@@ -765,6 +808,9 @@ export class ReceivingService {
             type: m.sourceType,
             receipt: m.receipt ? { id: m.receipt.id, number: m.receipt.number } : null,
             order: m.receipt ? { number: m.receipt.poNumber } : null,
+            transfer: m.transfer,
+            adjustment: m.adjustment,
+            count: m.cycleCount,
           },
           actor: who(m.actor),
         }),

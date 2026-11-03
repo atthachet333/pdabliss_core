@@ -3,19 +3,26 @@ import type { RequestMeta } from '../auth/audit.js';
 import {
   recordCompanyEvent,
   type ActorScope,
+  type AuditEntityType,
   type GoodsReceiptAuditAction,
+  type InventoryControlAuditAction,
   type PurchaseOrderAuditAction,
 } from '../company/audit.js';
 import type { Prisma } from '../db/client.js';
+import type { StockMovementType } from '../generated/prisma/enums.js';
 import { AppError } from '../lib/errors.js';
 import { ZERO, type Decimal } from '../purchasing/money.js';
 import { isReceivable, progressOf, receiveProgress, remainingOf } from './progress.js';
 import { assertKnownLots, assertLocations, normalizeLine } from './rules.js';
 
 /*
- * The inventory ledger (EP31) — docs/INVENTORY_LEDGER.md. The only code that
- * writes StockMovement and StockBalance. Every stock change is ONE
- * transaction that:
+ * The inventory ledger (EP31, EP32) — docs/INVENTORY_LEDGER.md. The only code
+ * that writes StockMovement and StockBalance: every document (goods receipt,
+ * transfer, adjustment, cycle count) changes stock through applyMovement().
+ * EP32 adds two guards there: a per-location advisory lock (taken in location
+ * order, shared by stock writers, exclusive by a starting / posting count) and
+ * the count scope lock — a movement on a location an active count covers is
+ * refused (COUNT_IN_PROGRESS). Every stock change is ONE transaction that:
  *
  *   1. locks the receipt row, then the order row (always in this order — two
  *      receipts of one order are serialized on the order row, so what remains
@@ -40,11 +47,11 @@ export interface LedgerActor {
   meta: RequestMeta;
 }
 
-const event = (
+export const event = (
   tx: Prisma.TransactionClient,
   a: LedgerActor,
-  action: GoodsReceiptAuditAction | PurchaseOrderAuditAction,
-  entityType: 'GoodsReceipt' | 'PurchaseOrder' | 'InventoryLot',
+  action: GoodsReceiptAuditAction | PurchaseOrderAuditAction | InventoryControlAuditAction,
+  entityType: AuditEntityType,
   entityId: string,
   details: Record<string, string | number | boolean | null>,
 ) =>
@@ -82,7 +89,7 @@ export const overReceived = (remaining: Decimal, lineNo: number) =>
   );
 
 /** The lot for (company, item, number): created once even when two receipts race (unique key). */
-async function resolveLot(
+export async function resolveLot(
   tx: Prisma.TransactionClient,
   a: LedgerActor,
   itemId: string,
@@ -148,6 +155,125 @@ const takeFromBalance = async (
         "updatedAt" = (NOW() AT TIME ZONE 'UTC')
     WHERE "locationId" = ${k.locationId} AND "itemId" = ${k.itemId} AND "lotKey" = ${k.lotId ?? ''}
       AND "quantityOnHand" >= ${qty.toString()}::numeric`) === 1;
+
+/**
+ * Per-location advisory locks, always in location-id order (no deadlock):
+ * stock writers take them SHARED (they do not block each other), a cycle count
+ * that starts or posts takes them EXCLUSIVE — it waits for writes in flight and
+ * no write slips past its snapshot. Released at the end of the transaction.
+ */
+export async function lockLocations(
+  tx: Prisma.TransactionClient,
+  ids: readonly string[],
+  mode: 'shared' | 'exclusive',
+) {
+  for (const id of [...new Set(ids)].sort()) {
+    const key = `loc:${id}`;
+    if (mode === 'shared')
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${key}))`;
+    else await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+  }
+}
+
+/** Refuses a movement on stock an active (COUNTING / REVIEW) count covers — other than that count's own. */
+async function assertNotCounted(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+  locationId: string,
+  itemId: string,
+  ownCountId?: string,
+) {
+  const count = await tx.cycleCount.findFirst({
+    where: {
+      companyId,
+      status: { in: ['COUNTING', 'REVIEW'] },
+      locations: { some: { locationId } },
+      OR: [{ itemId: null }, { itemId }],
+      ...(ownCountId ? { id: { not: ownCountId } } : {}),
+    },
+    select: { number: true },
+  });
+  if (count) {
+    throw new AppError(
+      409,
+      'COUNT_IN_PROGRESS',
+      'This stock is being counted; it cannot move until the count is posted or cancelled.',
+      { count: count.number },
+    );
+  }
+}
+
+export const insufficientStock = (details: object = {}) =>
+  new AppError(409, 'INSUFFICIENT_STOCK', 'There is not enough stock on hand for this.', details);
+
+export type MovementSource =
+  | {
+      sourceType: 'GOODS_RECEIPT';
+      goodsReceiptId: string;
+      goodsReceiptLineId: string;
+      goodsReceiptAllocationId: string;
+    }
+  | { sourceType: 'TRANSFER'; transferId: string; transferLineId: string }
+  | { sourceType: 'ADJUSTMENT'; adjustmentId: string; adjustmentLineId: string }
+  | { sourceType: 'CYCLE_COUNT'; cycleCountId: string; cycleCountLineId: string };
+
+/**
+ * THE stock writer: one movement and its balance change, in the caller's
+ * transaction. A positive delta is added in one upsert; a negative delta is
+ * taken only if that much is on hand (else `short()` is thrown — never
+ * negative stock). The count scope lock is checked first.
+ */
+export async function applyMovement(
+  tx: Prisma.TransactionClient,
+  a: LedgerActor,
+  m: {
+    branchId: string;
+    locationId: string;
+    itemId: string;
+    lotId: string | null;
+    type: StockMovementType;
+    delta: Decimal;
+    source: MovementSource;
+    occurredAt: Date;
+    /** A count posting its own corrections (its scope is not blocked for it). */
+    ownCountId?: string;
+    short?: () => AppError;
+  },
+) {
+  await lockLocations(tx, [m.locationId], 'shared');
+  await assertNotCounted(tx, a.companyId, m.locationId, m.itemId, m.ownCountId);
+  const key = { locationId: m.locationId, itemId: m.itemId, lotId: m.lotId };
+  if (m.delta.gt(0)) {
+    // Under the location lock: a location being deactivated (master data takes
+    // it exclusively) is either still ACTIVE here or already refuses stock.
+    const at = await tx.warehouseLocation.findUnique({
+      where: { id: m.locationId },
+      select: { status: true, code: true },
+    });
+    if (at?.status !== 'ACTIVE') {
+      throw new AppError(409, 'LOCATION_INACTIVE', 'The selected location is inactive.', {
+        location: at?.code,
+      });
+    }
+    await addToBalance(tx, { companyId: a.companyId, branchId: m.branchId, ...key }, m.delta);
+  } else if (!(await takeFromBalance(tx, key, m.delta.neg()))) {
+    throw (m.short ?? insufficientStock)();
+  }
+  await tx.stockMovement.create({
+    data: {
+      companyId: a.companyId,
+      branchId: m.branchId,
+      locationId: m.locationId,
+      itemId: m.itemId,
+      lotId: m.lotId,
+      type: m.type,
+      quantityDelta: m.delta,
+      ...m.source,
+      occurredAt: m.occurredAt,
+      actorMemberId: a.memberId,
+    },
+  });
+}
 
 const lineInclude = {
   allocations: { orderBy: { createdAt: 'asc' as const } },
@@ -252,6 +378,11 @@ export async function postReceipt(
     lines.map((l) => l.purchaseOrderLineId),
     r.id,
   );
+  await lockLocations(
+    tx,
+    lines.flatMap((l) => l.allocations.map((x) => x.locationId)),
+    'shared',
+  );
   let movements = 0;
   for (const l of lines) {
     const n = normalizeLine(
@@ -309,34 +440,21 @@ export async function postReceipt(
         }
         await tx.goodsReceiptAllocation.update({ where: { id: x.id }, data: { lotId } });
       }
-      await tx.stockMovement.create({
-        data: {
-          companyId: r.companyId,
-          branchId: r.branchId,
-          locationId: x.locationId,
-          itemId: l.itemId,
-          lotId,
-          type: 'PURCHASE_RECEIPT',
-          quantityDelta: x.quantity,
+      await applyMovement(tx, a, {
+        branchId: r.branchId,
+        locationId: x.locationId,
+        itemId: l.itemId,
+        lotId,
+        type: 'PURCHASE_RECEIPT',
+        delta: x.quantity,
+        source: {
           sourceType: 'GOODS_RECEIPT',
           goodsReceiptId: r.id,
           goodsReceiptLineId: l.id,
           goodsReceiptAllocationId: x.id,
-          occurredAt: r.receivedAt,
-          actorMemberId: a.memberId,
         },
+        occurredAt: r.receivedAt,
       });
-      await addToBalance(
-        tx,
-        {
-          companyId: r.companyId,
-          branchId: r.branchId,
-          locationId: x.locationId,
-          itemId: l.itemId,
-          lotId,
-        },
-        x.quantity,
-      );
       movements++;
     }
   }
@@ -377,36 +495,33 @@ export async function reverseReceipt(
     orderBy: { id: 'asc' },
   });
   const now = new Date();
+  await lockLocations(
+    tx,
+    allocations.map((x) => x.locationId),
+    'shared',
+  );
   for (const x of allocations) {
-    const ok = await takeFromBalance(
-      tx,
-      { locationId: x.locationId, itemId: x.itemId, lotId: x.lotId },
-      x.quantity,
-    );
-    if (!ok) {
-      throw new AppError(
-        409,
-        'STOCK_INSUFFICIENT',
-        'This receipt’s stock is no longer all on hand, so it cannot be reversed.',
-        { lineNo: x.line.lineNo, item: x.line.itemCode },
-      );
-    }
-    await tx.stockMovement.create({
-      data: {
-        companyId: r.companyId,
-        branchId: r.branchId,
-        locationId: x.locationId,
-        itemId: x.itemId,
-        lotId: x.lotId,
-        type: 'PURCHASE_RECEIPT_REVERSAL',
-        quantityDelta: ZERO.minus(x.quantity),
+    await applyMovement(tx, a, {
+      branchId: r.branchId,
+      locationId: x.locationId,
+      itemId: x.itemId,
+      lotId: x.lotId,
+      type: 'PURCHASE_RECEIPT_REVERSAL',
+      delta: ZERO.minus(x.quantity),
+      source: {
         sourceType: 'GOODS_RECEIPT',
         goodsReceiptId: r.id,
         goodsReceiptLineId: x.goodsReceiptLineId,
         goodsReceiptAllocationId: x.id,
-        occurredAt: now,
-        actorMemberId: a.memberId,
       },
+      occurredAt: now,
+      short: () =>
+        new AppError(
+          409,
+          'STOCK_INSUFFICIENT',
+          'This receipt’s stock is no longer all on hand, so it cannot be reversed.',
+          { lineNo: x.line.lineNo, item: x.line.itemCode },
+        ),
     });
   }
   const changed = await tx.goodsReceipt.updateMany({

@@ -77,6 +77,38 @@ export type StructureLock = (
 /** EP28: empty — no stock, lot or document references items yet. */
 export const STRUCTURE_LOCKS: StructureLock[] = [];
 
+/**
+ * A check a later module registers for deactivating a warehouse location:
+ * returns a refusal (code + details) when the location still holds stock or an
+ * open document needs it, or null. Runs inside the status transaction.
+ */
+export type LocationLock = (
+  tx: Prisma.TransactionClient,
+  location: { id: string; companyId: string },
+) => Promise<{ code: string; details?: object } | null>;
+
+/** EP32 (warehouse/locks.ts): stock, draft transfers / adjustments / receipts, active counts. */
+export const LOCATION_LOCKS: LocationLock[] = [];
+
+export async function assertLocationDeactivationAllowed(
+  tx: Prisma.TransactionClient,
+  location: { id: string; companyId: string },
+) {
+  for (const lock of LOCATION_LOCKS) {
+    const refusal = await lock(tx, location);
+    if (refusal) {
+      throw new AppError(
+        409,
+        refusal.code,
+        refusal.code === 'LOCATION_HAS_STOCK'
+          ? 'Move or adjust the stock out of this location first.'
+          : 'An open document still uses this location.',
+        refusal.details,
+      );
+    }
+  }
+}
+
 export async function assertStructureChangeAllowed(
   tx: Prisma.TransactionClient,
   item: Pick<Item, 'id' | 'companyId'>,

@@ -147,13 +147,30 @@ export const StockQuery = z
   .strict();
 export type StockInput = z.output<typeof StockQuery>;
 
+export const MOVEMENT_TYPES = [
+  'PURCHASE_RECEIPT',
+  'PURCHASE_RECEIPT_REVERSAL',
+  'TRANSFER_OUT',
+  'TRANSFER_IN',
+  'TRANSFER_OUT_REVERSAL',
+  'TRANSFER_IN_REVERSAL',
+  'ADJUSTMENT_IN',
+  'ADJUSTMENT_OUT',
+  'ADJUSTMENT_IN_REVERSAL',
+  'ADJUSTMENT_OUT_REVERSAL',
+  'COUNT_CORRECTION',
+] as const;
+
 export const MovementQuery = z
   .object({
     branchId: param(id),
     locationId: param(id),
     itemId: param(id),
     lotId: param(id),
-    type: param(z.enum(['PURCHASE_RECEIPT', 'PURCHASE_RECEIPT_REVERSAL'])),
+    type: param(z.enum(MOVEMENT_TYPES)),
+    sourceType: param(z.enum(['GOODS_RECEIPT', 'TRANSFER', 'ADJUSTMENT', 'CYCLE_COUNT'])),
+    from: param(dayValue),
+    to: param(dayValue),
     q: param(z.string().trim().min(1).max(100)),
     ...page,
   })
@@ -163,3 +180,178 @@ export type MovementInput = z.output<typeof MovementQuery>;
 export const FefoQuery = z
   .object({ itemId: id, branchId: param(id), locationId: param(id) })
   .strict();
+
+// ---------------------------------------------------------------- EP32 documents
+//
+// Transfers, adjustments and cycle counts. Lines are replaced whole (PUT); the
+// server owns company, branch (from the locations), number, status, actors,
+// movement types and deltas, balances, the count snapshot and every variance —
+// sending one is refused (400).
+
+const lines = <T extends z.ZodType>(line: T) => z.array(line).max(100);
+const dateRange = { from: param(dayValue), to: param(dayValue) };
+const q = param(z.string().trim().min(1).max(100));
+
+export const TransferLineBody = z
+  .object({ itemId: id, lotId: opt(id), quantity: positive, note: opt(text(300)) })
+  .strict();
+export type TransferLineInput = z.output<typeof TransferLineBody>;
+
+export const CreateTransferBody = z
+  .object({
+    sourceLocationId: id,
+    destinationLocationId: id,
+    transferDate: dayValue.optional(),
+    note: opt(text(1000)),
+    lines: lines(TransferLineBody).optional(),
+  })
+  .strict();
+export type CreateTransferInput = z.output<typeof CreateTransferBody>;
+
+export const UpdateTransferBody = z
+  .object({
+    sourceLocationId: id.optional(),
+    destinationLocationId: id.optional(),
+    transferDate: dayValue.optional(),
+    note: opt(text(1000)),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'nothing to update');
+export type UpdateTransferInput = z.output<typeof UpdateTransferBody>;
+
+export const LinesBody = <T extends z.ZodType>(line: T) =>
+  z.object({ lines: lines(line) }).strict();
+
+export const ADJUSTMENT_REASONS = [
+  'DAMAGE',
+  'LOSS',
+  'SHRINKAGE',
+  'FOUND',
+  'EXPIRED',
+  'COUNT_CORRECTION',
+  'DATA_CORRECTION',
+  'OTHER',
+] as const;
+export type AdjustmentReason = (typeof ADJUSTMENT_REASONS)[number];
+
+export const AdjustmentLineBody = z
+  .object({
+    direction: z.enum(['INCREASE', 'DECREASE']),
+    locationId: id,
+    itemId: id,
+    lotId: opt(id),
+    /** Increase only: a lot not yet known (number + expiry by the item's rules). */
+    newLotNumber: opt(lotNumber),
+    newLotExpiry: opt(dayValue),
+    quantity: positive,
+    note: opt(text(300)),
+  })
+  .strict();
+export type AdjustmentLineInput = z.output<typeof AdjustmentLineBody>;
+
+export const CreateAdjustmentBody = z
+  .object({
+    reason: z.enum(ADJUSTMENT_REASONS),
+    adjustmentDate: dayValue.optional(),
+    note: opt(text(1000)),
+    lines: lines(AdjustmentLineBody).optional(),
+  })
+  .strict();
+export type CreateAdjustmentInput = z.output<typeof CreateAdjustmentBody>;
+
+export const UpdateAdjustmentBody = z
+  .object({
+    reason: z.enum(ADJUSTMENT_REASONS).optional(),
+    adjustmentDate: dayValue.optional(),
+    note: opt(text(1000)),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'nothing to update');
+export type UpdateAdjustmentInput = z.output<typeof UpdateAdjustmentBody>;
+
+export const ReasonBody = z.object({ reason: text(500) }).strict();
+export const OptionalReasonBody = z.object({ reason: opt(text(500)) }).strict();
+
+export const CreateCountBody = z
+  .object({
+    locationIds: z.array(id).min(1).max(20),
+    itemId: opt(id),
+    countDate: dayValue.optional(),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreateCountInput = z.output<typeof CreateCountBody>;
+
+export const UpdateCountBody = z
+  .object({
+    locationIds: z.array(id).min(1).max(20).optional(),
+    itemId: opt(id),
+    countDate: dayValue.optional(),
+    note: opt(text(1000)),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'nothing to update');
+export type UpdateCountInput = z.output<typeof UpdateCountBody>;
+
+/** Counted quantities, many at once (null clears a count; 0 is a real count). */
+export const CountEntriesBody = z
+  .object({
+    entries: z
+      .array(
+        z.object({ lineId: id, countedQuantity: amount.nullable(), note: opt(text(300)) }).strict(),
+      )
+      .min(1)
+      .max(500),
+  })
+  .strict();
+export type CountEntriesInput = z.output<typeof CountEntriesBody>;
+
+/** Stock found that the count did not expect (system quantity 0). */
+export const CountLineBody = z
+  .object({
+    locationId: id,
+    itemId: id,
+    lotId: opt(id),
+    newLotNumber: opt(lotNumber),
+    newLotExpiry: opt(dayValue),
+    countedQuantity: amount,
+    note: opt(text(300)),
+  })
+  .strict();
+export type CountLineInput = z.output<typeof CountLineBody>;
+
+export const TransferListQuery = z
+  .object({
+    status: param(z.enum(['DRAFT', 'POSTED', 'CANCELLED'])),
+    locationId: param(id),
+    branchId: param(id),
+    q,
+    ...dateRange,
+    ...page,
+  })
+  .strict();
+export const AdjustmentListQuery = z
+  .object({
+    status: param(z.enum(['DRAFT', 'SUBMITTED', 'POSTED', 'REJECTED', 'CANCELLED'])),
+    reason: param(z.enum(ADJUSTMENT_REASONS)),
+    locationId: param(id),
+    branchId: param(id),
+    q,
+    ...dateRange,
+    ...page,
+  })
+  .strict();
+export const CountListQuery = z
+  .object({
+    status: param(z.enum(['DRAFT', 'COUNTING', 'REVIEW', 'POSTED', 'CANCELLED'])),
+    locationId: param(id),
+    branchId: param(id),
+    q,
+    ...dateRange,
+    ...page,
+  })
+  .strict();
+export type DocListInput = Omit<z.output<typeof TransferListQuery>, 'status'> & {
+  status?: string;
+  reason?: AdjustmentReason;
+};

@@ -192,6 +192,16 @@ noindex, served by the existing `/platform/*` shell rewrite).
   only writer of stock), the order's new `RECEIVED` status, a read-only FEFO order. **Every later stock
   change (sales issue, production, transfers, adjustments) writes `StockMovement` through the same
   pattern — INVENTORY_LEDGER.md §6.** Warehouse screens live in `frontend/src/features/warehouse/`.
+- **EP32 (Transfers, stock adjustments, cycle counts):** see
+  [INVENTORY_TRANSFER.md](INVENTORY_TRANSFER.md), [STOCK_ADJUSTMENT.md](STOCK_ADJUSTMENT.md),
+  [CYCLE_COUNT.md](CYCLE_COUNT.md) and [EP32_REPORT.md](EP32_REPORT.md). `InventoryTransfer`
+  (`TR-`), `StockAdjustment` (`ADJ-`), `CycleCount` (`CC-`) with their lines under
+  `/api/v1/warehouse/{transfers,adjustments,counts}`; every stock change through `applyMovement`
+  (location advisory locks, the cycle-count scope lock, conditional decrement); new movement types and
+  source links on `/movements` (`?sourceType`, `from`, `to`); `/context` gains the transfers /
+  adjustments / cycleCounts capabilities and three counts. A location with stock or an open document
+  can no longer be deactivated. **Sales issue and Production follow INVENTORY_LEDGER.md §7.** Screens:
+  `TransfersArea`, `AdjustmentsArea`, `CountsArea` (one lazy chunk each, shared `ctlParts`).
 
 ## 7. Warehouse boundary
 
@@ -246,8 +256,9 @@ access; the EP27 resolver decides the rest. They are fixtures: no demo field exi
 the sign-in bypass and the development persona list exist only outside production with demo routes
 on, and passwords live only in each developer's `.env`. Use `purchasing.demo@pdabliss.com` for EP29
 purchase requests and EP30 orders, `accounting.demo@pdabliss.com` for deposits and
-`warehouse.demo@pdabliss.com` for Warehouse privacy checks and EP31 receiving (a Warehouse Manager or
-the owner reverses posted receipts).
+`warehouse.demo@pdabliss.com` for Warehouse privacy checks, EP31 receiving and EP32 drafting / counting
+(it stays Warehouse **Staff**; `owner.demo@pdabliss.com` posts transfers, approves adjustments, posts
+counts and reverses posted documents).
 
 ## 12. Localization
 

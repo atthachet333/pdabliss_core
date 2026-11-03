@@ -7,7 +7,7 @@ import { SearchBox } from '@/features/company-center/SearchBox';
 import { AreaLink, Loading, PageTitle } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
-import { whApi, type MovementType, type WarehouseContext } from './whApi';
+import { MOVEMENT_TYPES, whApi, type MovementRow, type WarehouseContext } from './whApi';
 import { WH_COPY, whError } from './whCopy';
 import { ShowMore, WarehouseNav } from './whParts';
 import { WH, useDebounced, usePaged } from './whModel';
@@ -15,10 +15,36 @@ import { WH, useDebounced, usePaged } from './whModel';
 /*
  * /core/warehouse/movements (EP31) — the stock movement ledger, newest first,
  * its own lazy chunk. Every row is immutable; a correction shows as a
- * reversal. Quantities and identities only.
+ * reversal. EP32 adds transfer, adjustment and count movements, each linked
+ * to its document. Quantities and identities only.
  */
 
-const TYPES: MovementType[] = ['PURCHASE_RECEIPT', 'PURCHASE_RECEIPT_REVERSAL'];
+const DOC_LINK =
+  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0';
+
+/** The source document of a movement: a receipt (and its order), or an EP32 document. */
+function SourceLink({ s }: { s: MovementRow['source'] }) {
+  const doc: [string, { id: string; number: string }] | null = s.receipt
+    ? ['receipts', s.receipt]
+    : s.transfer
+      ? ['transfers', s.transfer]
+      : s.adjustment
+        ? ['adjustments', s.adjustment]
+        : s.count
+          ? ['counts', s.count]
+          : null;
+  if (!doc) return <>—</>;
+  return (
+    <>
+      <AreaLink to={`${WH}/${doc[0]}/${encodeURIComponent(doc[1].id)}`} className={DOC_LINK}>
+        {doc[1].number}
+      </AreaLink>
+      {s.order && (
+        <span className="block font-mono text-caption text-text-muted">{s.order.number}</span>
+      )}
+    </>
+  );
+}
 
 export default function MovementsArea() {
   const c = useCopy(WH_COPY);
@@ -75,7 +101,7 @@ function MovementList({ ctx }: { ctx: WarehouseContext }) {
           data-filter="type"
         >
           <option value="">{c.f.any}</option>
-          {TYPES.map((t) => (
+          {MOVEMENT_TYPES.map((t) => (
             <option key={t} value={t}>
               {c.movementTypes[t]}
             </option>
@@ -128,26 +154,7 @@ function MovementList({ ctx }: { ctx: WarehouseContext }) {
                 >
                   {cell(c.f.date, dateTime(m.occurredAt), 'md:whitespace-nowrap')}
                   {cell(c.f.type, c.movementTypes[m.type])}
-                  {cell(
-                    c.f.document,
-                    m.source.receipt ? (
-                      <>
-                        <AreaLink
-                          to={`${WH}/receipts/${encodeURIComponent(m.source.receipt.id)}`}
-                          className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0"
-                        >
-                          {m.source.receipt.number}
-                        </AreaLink>
-                        {m.source.order && (
-                          <span className="block font-mono text-caption text-text-muted">
-                            {m.source.order.number}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      '—'
-                    ),
-                  )}
+                  {cell(c.f.document, <SourceLink s={m.source} />)}
                   {cell(c.f.item, <span className="font-mono">{m.item.code}</span>)}
                   {cell(
                     c.f.lot,

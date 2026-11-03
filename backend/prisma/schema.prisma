@@ -184,41 +184,54 @@ enum CompanyMemberStatus {
 
 /// A user's place in a company. Department access (Membership) comes on top (EP25 foundation).
 model CompanyMember {
-  id                  String                     @id @default(cuid())
-  companyId           String
-  company             Company                    @relation(fields: [companyId], references: [id])
-  userId              String
-  user                User                       @relation(fields: [userId], references: [id])
-  role                CompanyRole
+  id                   String                     @id @default(cuid())
+  companyId            String
+  company              Company                    @relation(fields: [companyId], references: [id])
+  userId               String
+  user                 User                       @relation(fields: [userId], references: [id])
+  role                 CompanyRole
   /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
   /// enforced by the database (unique + CHECK, EP24). The owner is always ACTIVE (CHECK, EP25).
-  ownerSlot           Boolean?
-  status              CompanyMemberStatus        @default(ACTIVE)
+  ownerSlot            Boolean?
+  status               CompanyMemberStatus        @default(ACTIVE)
   /// Job title inside this company (set by company administration; not a permission).
-  jobTitle            String?
-  deactivatedAt       DateTime?
+  jobTitle             String?
+  deactivatedAt        DateTime?
   /// Operational branch access (EP26). Administration authority does not depend on it.
-  branchScope         BranchAccessScope          @default(ALL_BRANCHES)
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
-  branchAccess        MemberBranchAccess[]
+  branchScope          BranchAccessScope          @default(ALL_BRANCHES)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  branchAccess         MemberBranchAccess[]
   /// Per-member exceptions to the role's operational permissions (EP27).
-  permissionOverrides MemberPermissionOverride[]
+  permissionOverrides  MemberPermissionOverride[]
   /// EP29 purchase requests raised / decided / cancelled by this member.
-  purchaseRequests    PurchaseRequest[]          @relation("PurchaseRequestRequester")
-  approvedRequests    PurchaseRequest[]          @relation("PurchaseRequestApprover")
-  rejectedRequests    PurchaseRequest[]          @relation("PurchaseRequestRejecter")
-  cancelledRequests   PurchaseRequest[]          @relation("PurchaseRequestCanceller")
+  purchaseRequests     PurchaseRequest[]          @relation("PurchaseRequestRequester")
+  approvedRequests     PurchaseRequest[]          @relation("PurchaseRequestApprover")
+  rejectedRequests     PurchaseRequest[]          @relation("PurchaseRequestRejecter")
+  cancelledRequests    PurchaseRequest[]          @relation("PurchaseRequestCanceller")
   /// EP30 purchase orders created / issued / cancelled, deposits confirmed / waived by this member.
-  createdOrders       PurchaseOrder[]            @relation("PurchaseOrderCreator")
-  issuedOrders        PurchaseOrder[]            @relation("PurchaseOrderIssuer")
-  cancelledOrders     PurchaseOrder[]            @relation("PurchaseOrderCanceller")
-  confirmedDeposits   PurchaseOrder[]            @relation("PurchaseOrderDepositConfirmer")
-  waivedDeposits      PurchaseOrder[]            @relation("PurchaseOrderDepositWaiver")
-  createdReceipts     GoodsReceipt[]             @relation("GoodsReceiptCreator")
-  postedReceipts      GoodsReceipt[]             @relation("GoodsReceiptPoster")
-  cancelledReceipts   GoodsReceipt[]             @relation("GoodsReceiptCanceller")
-  stockMovements      StockMovement[]
+  createdOrders        PurchaseOrder[]            @relation("PurchaseOrderCreator")
+  issuedOrders         PurchaseOrder[]            @relation("PurchaseOrderIssuer")
+  cancelledOrders      PurchaseOrder[]            @relation("PurchaseOrderCanceller")
+  confirmedDeposits    PurchaseOrder[]            @relation("PurchaseOrderDepositConfirmer")
+  waivedDeposits       PurchaseOrder[]            @relation("PurchaseOrderDepositWaiver")
+  createdReceipts      GoodsReceipt[]             @relation("GoodsReceiptCreator")
+  postedReceipts       GoodsReceipt[]             @relation("GoodsReceiptPoster")
+  cancelledReceipts    GoodsReceipt[]             @relation("GoodsReceiptCanceller")
+  stockMovements       StockMovement[]
+  createdTransfers     InventoryTransfer[]        @relation("TransferCreator")
+  postedTransfers      InventoryTransfer[]        @relation("TransferPoster")
+  cancelledTransfers   InventoryTransfer[]        @relation("TransferCanceller")
+  createdAdjustments   StockAdjustment[]          @relation("AdjustmentCreator")
+  submittedAdjustments StockAdjustment[]          @relation("AdjustmentSubmitter")
+  approvedAdjustments  StockAdjustment[]          @relation("AdjustmentApprover")
+  rejectedAdjustments  StockAdjustment[]          @relation("AdjustmentRejecter")
+  cancelledAdjustments StockAdjustment[]          @relation("AdjustmentCanceller")
+  createdCounts        CycleCount[]               @relation("CountCreator")
+  startedCounts        CycleCount[]               @relation("CountStarter")
+  postedCounts         CycleCount[]               @relation("CountPoster")
+  cancelledCounts      CycleCount[]               @relation("CountCanceller")
+  countedLines         CycleCountLine[]           @relation("CountLineCounter")
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -334,6 +347,9 @@ model Branch {
   goodsReceipts    GoodsReceipt[]
   stockMovements   StockMovement[]
   stockBalances    StockBalance[]
+  transfers        InventoryTransfer[]
+  adjustments      StockAdjustment[]
+  cycleCounts      CycleCount[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -1069,9 +1085,9 @@ enum TrackingRequirement {
 /// Base unit and tracking change only through the structure policy
 /// (src/master-data/policy.ts) — the point future Warehouse locks.
 model Item {
-  id               String                @id @default(cuid())
+  id               String                  @id @default(cuid())
   companyId        String
-  company          Company               @relation(fields: [companyId], references: [id])
+  company          Company                 @relation(fields: [companyId], references: [id])
   /// Company-unique, immutable (generated FG-000001 … or entered on creation).
   code             String
   /// Fixed at creation (it chose the code prefix).
@@ -1083,18 +1099,18 @@ model Item {
   /// Barcode (GTIN / EAN / internal), company-unique when given. No scanning yet.
   barcode          String?
   baseUnitId       String
-  baseUnit         Unit                  @relation(fields: [baseUnitId, companyId], references: [id, companyId])
+  baseUnit         Unit                    @relation(fields: [baseUnitId, companyId], references: [id, companyId])
   categoryId       String?
-  category         ItemCategory?         @relation(fields: [categoryId, companyId], references: [id, companyId])
-  inventoryTracked Boolean               @default(true)
-  lotTracking      TrackingRequirement   @default(NONE)
-  expiryTracking   TrackingRequirement   @default(NONE)
-  status           MasterStatus          @default(ACTIVE)
+  category         ItemCategory?           @relation(fields: [categoryId, companyId], references: [id, companyId])
+  inventoryTracked Boolean                 @default(true)
+  lotTracking      TrackingRequirement     @default(NONE)
+  expiryTracking   TrackingRequirement     @default(NONE)
+  status           MasterStatus            @default(ACTIVE)
   deactivatedAt    DateTime?
   createdById      String?
   updatedById      String?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
   /// EP29: request lines that name this item (canonical reference).
   requestLines     PurchaseRequestLine[]
   /// EP30: order lines that name this item.
@@ -1104,6 +1120,10 @@ model Item {
   lots             InventoryLot[]
   stockMovements   StockMovement[]
   stockBalances    StockBalance[]
+  transferLines    InventoryTransferLine[]
+  adjustmentLines  StockAdjustmentLine[]
+  cycleCounts      CycleCount[]
+  countLines       CycleCountLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1144,6 +1164,12 @@ model WarehouseLocation {
   allocations        GoodsReceiptAllocation[]
   stockMovements     StockMovement[]
   stockBalances      StockBalance[]
+  /// EP32: transfers from / to here, adjustment lines, count scopes and lines.
+  transfersOut       InventoryTransfer[]      @relation("TransferSource")
+  transfersIn        InventoryTransfer[]      @relation("TransferDestination")
+  adjustmentLines    StockAdjustmentLine[]
+  countScopes        CycleCountLocation[]
+  countLines         CycleCountLine[]
 
   @@unique([branchId, code])
   @@unique([branchId, defaultSlot])
@@ -1485,10 +1511,21 @@ enum ReceiptRejectReason {
   OTHER
 }
 
-/// EP31 writes the first two only; every later stock change adds its own type.
+/// Every stock change has its own type; a reversal is its own type too (never an edit).
+/// EP31: purchase receipts. EP32: transfers, adjustments, count corrections.
 enum StockMovementType {
   PURCHASE_RECEIPT
   PURCHASE_RECEIPT_REVERSAL
+  TRANSFER_OUT
+  TRANSFER_IN
+  TRANSFER_OUT_REVERSAL
+  TRANSFER_IN_REVERSAL
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  ADJUSTMENT_IN_REVERSAL
+  ADJUSTMENT_OUT_REVERSAL
+  /// Signed: counted − system of one counted stock identity.
+  COUNT_CORRECTION
 }
 
 model GoodsReceipt {
@@ -1614,6 +1651,9 @@ model InventoryLot {
   allocations      GoodsReceiptAllocation[]
   movements        StockMovement[]
   balances         StockBalance[]
+  transferLines    InventoryTransferLine[]
+  adjustmentLines  StockAdjustmentLine[]
+  countLines       CycleCountLine[]
 
   @@unique([companyId, itemId, lotNumber])
   @@unique([id, itemId, companyId])
@@ -1641,6 +1681,18 @@ model StockMovement {
   goodsReceiptLineId       String?
   goodsReceiptAllocationId String?
   allocation               GoodsReceiptAllocation? @relation(fields: [goodsReceiptAllocationId], references: [id])
+  transferId               String?
+  transfer                 InventoryTransfer?      @relation(fields: [transferId, branchId, companyId], references: [id, branchId, companyId])
+  transferLineId           String?
+  transferLine             InventoryTransferLine?  @relation(fields: [transferLineId], references: [id])
+  adjustmentId             String?
+  adjustment               StockAdjustment?        @relation(fields: [adjustmentId, branchId, companyId], references: [id, branchId, companyId])
+  adjustmentLineId         String?
+  adjustmentLine           StockAdjustmentLine?    @relation(fields: [adjustmentLineId], references: [id])
+  cycleCountId             String?
+  cycleCount               CycleCount?             @relation(fields: [cycleCountId, branchId, companyId], references: [id, branchId, companyId])
+  cycleCountLineId         String?
+  cycleCountLine           CycleCountLine?         @relation(fields: [cycleCountLineId], references: [id])
   /// Business time of the change (the receipt's receivedAt, or the cancellation time).
   occurredAt               DateTime
   actorMemberId            String
@@ -1649,7 +1701,13 @@ model StockMovement {
 
   /// One receipt movement and at most one reversal per allocation: a retried post cannot duplicate stock.
   @@unique([goodsReceiptAllocationId, type])
+  @@unique([transferLineId, type])
+  @@unique([adjustmentLineId, type])
+  @@unique([cycleCountLineId, type])
   @@index([companyId, branchId, itemId, occurredAt])
+  @@index([transferId])
+  @@index([adjustmentId])
+  @@index([cycleCountId])
   @@index([locationId, lotId, occurredAt])
   @@index([goodsReceiptId])
 }
@@ -1677,4 +1735,274 @@ model StockBalance {
   @@unique([locationId, itemId, lotKey])
   @@index([companyId, branchId, itemId])
   @@index([lotId])
+}
+
+// ---------------------------------------------------------------------------
+// Inventory control (EP32) — docs/INVENTORY_TRANSFER.md, docs/STOCK_ADJUSTMENT.md,
+// docs/CYCLE_COUNT.md. Three documents that change stock only through the EP31
+// ledger (warehouse/ledger.ts): every posted line writes StockMovement rows
+// linked to it (unique per line and type — a retry cannot double-post) and the
+// matching StockBalance in the same transaction. Quantities only — no value.
+// ---------------------------------------------------------------------------
+
+enum InventoryTransferStatus {
+  DRAFT
+  POSTED
+  /// Terminal. A posted transfer that is cancelled keeps its movements and has reversal movements.
+  CANCELLED
+}
+
+/// Moves existing stock between two locations of ONE branch (no in-transit state in EP32).
+model InventoryTransfer {
+  id                    String                  @id @default(cuid())
+  companyId             String
+  branchId              String
+  branch                Branch                  @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// TR-YYYYMM-NNNNNN, company-wide monthly sequence, immutable.
+  number                String
+  status                InventoryTransferStatus @default(DRAFT)
+  sourceLocationId      String
+  sourceLocation        WarehouseLocation       @relation("TransferSource", fields: [sourceLocationId, branchId], references: [id, branchId])
+  destinationLocationId String
+  destinationLocation   WarehouseLocation       @relation("TransferDestination", fields: [destinationLocationId, branchId], references: [id, branchId])
+  transferDate          DateTime                @db.Date
+  note                  String?
+  lineCounter           Int                     @default(0)
+  createdByMemberId     String
+  createdBy             CompanyMember           @relation("TransferCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  postedAt              DateTime?
+  postedByMemberId      String?
+  postedBy              CompanyMember?          @relation("TransferPoster", fields: [postedByMemberId, companyId], references: [id, companyId])
+  cancelledAt           DateTime?
+  cancelledByMemberId   String?
+  cancelledBy           CompanyMember?          @relation("TransferCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason    String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  lines                 InventoryTransferLine[]
+  movements             StockMovement[]
+
+  @@unique([companyId, number])
+  @@unique([id, branchId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([sourceLocationId])
+  @@index([destinationLocationId])
+}
+
+model InventoryTransferLine {
+  id         String            @id @default(cuid())
+  companyId  String
+  branchId   String
+  transferId String
+  transfer   InventoryTransfer @relation(fields: [transferId, branchId, companyId], references: [id, branchId, companyId], onDelete: Cascade)
+  lineNo     Int
+  itemId     String
+  item       Item              @relation(fields: [itemId, companyId], references: [id, companyId])
+  /// The exact source lot (null: stock without a lot). A transfer never creates a lot.
+  lotId      String?
+  lot        InventoryLot?     @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  /// lotId or '' — one line per (item, lot) per transfer.
+  lotKey     String
+  quantity   Decimal           @db.Decimal(18, 6)
+  note       String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  movements  StockMovement[]
+
+  @@unique([transferId, lineNo])
+  @@unique([transferId, itemId, lotKey])
+  @@index([itemId])
+}
+
+enum StockAdjustmentStatus {
+  DRAFT
+  /// Waiting for a manager: approving posts it (one action).
+  SUBMITTED
+  POSTED
+  REJECTED
+  /// Terminal. A posted adjustment that is cancelled keeps its movements and has reversal movements.
+  CANCELLED
+}
+
+enum StockAdjustmentReason {
+  DAMAGE
+  LOSS
+  SHRINKAGE
+  FOUND
+  EXPIRED
+  COUNT_CORRECTION
+  DATA_CORRECTION
+  OTHER
+}
+
+enum AdjustmentDirection {
+  INCREASE
+  DECREASE
+}
+
+/// A controlled correction of stock: submitted by Warehouse, approved (and so posted) by a manager.
+model StockAdjustment {
+  id                  String                @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch                @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// ADJ-YYYYMM-NNNNNN, company-wide monthly sequence, immutable.
+  number              String
+  status              StockAdjustmentStatus @default(DRAFT)
+  reason              StockAdjustmentReason
+  note                String?
+  adjustmentDate      DateTime              @db.Date
+  lineCounter         Int                   @default(0)
+  createdByMemberId   String
+  createdBy           CompanyMember         @relation("AdjustmentCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  submittedAt         DateTime?
+  submittedByMemberId String?
+  submittedBy         CompanyMember?        @relation("AdjustmentSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
+  /// Approval and posting are one action: who approved posted it.
+  approvedAt          DateTime?
+  approvedByMemberId  String?
+  approvedBy          CompanyMember?        @relation("AdjustmentApprover", fields: [approvedByMemberId, companyId], references: [id, companyId])
+  rejectedAt          DateTime?
+  rejectedByMemberId  String?
+  rejectedBy          CompanyMember?        @relation("AdjustmentRejecter", fields: [rejectedByMemberId, companyId], references: [id, companyId])
+  rejectionReason     String?
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?        @relation("AdjustmentCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  lines               StockAdjustmentLine[]
+  movements           StockMovement[]
+
+  @@unique([companyId, number])
+  @@unique([id, branchId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+}
+
+model StockAdjustmentLine {
+  id           String              @id @default(cuid())
+  companyId    String
+  branchId     String
+  adjustmentId String
+  adjustment   StockAdjustment     @relation(fields: [adjustmentId, branchId, companyId], references: [id, branchId, companyId], onDelete: Cascade)
+  lineNo       Int
+  direction    AdjustmentDirection
+  locationId   String
+  location     WarehouseLocation   @relation(fields: [locationId, branchId], references: [id, branchId])
+  itemId       String
+  item         Item                @relation(fields: [itemId, companyId], references: [id, companyId])
+  /// An existing lot (or none); an increase may instead name a new lot (resolved when posted).
+  lotId        String?
+  lot          InventoryLot?       @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  newLotNumber String?
+  newLotExpiry DateTime?           @db.Date
+  quantity     Decimal             @db.Decimal(18, 6)
+  note         String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  movements    StockMovement[]
+
+  @@unique([adjustmentId, lineNo])
+  @@index([locationId])
+  @@index([itemId])
+}
+
+enum CycleCountStatus {
+  DRAFT
+  /// Scope snapshot taken; stock movements on the counted scope are blocked.
+  COUNTING
+  /// Every line counted; waiting for a manager to post. Still blocks the scope.
+  REVIEW
+  POSTED
+  CANCELLED
+}
+
+/// Physical counting of the stock of some locations of one branch (optionally one item).
+model CycleCount {
+  id                  String               @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch               @relation(fields: [branchId, companyId], references: [id, companyId])
+  /// CC-YYYYMM-NNNNNN, company-wide monthly sequence, immutable.
+  number              String
+  status              CycleCountStatus     @default(DRAFT)
+  /// Optional item filter: only this item is counted (and locked) in the locations.
+  itemId              String?
+  item                Item?                @relation(fields: [itemId, companyId], references: [id, companyId])
+  note                String?
+  countDate           DateTime             @db.Date
+  lineCounter         Int                  @default(0)
+  createdByMemberId   String
+  createdBy           CompanyMember        @relation("CountCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  startedAt           DateTime?
+  startedByMemberId   String?
+  startedBy           CompanyMember?       @relation("CountStarter", fields: [startedByMemberId, companyId], references: [id, companyId])
+  reviewAt            DateTime?
+  postedAt            DateTime?
+  postedByMemberId    String?
+  postedBy            CompanyMember?       @relation("CountPoster", fields: [postedByMemberId, companyId], references: [id, companyId])
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?       @relation("CountCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  locations           CycleCountLocation[]
+  lines               CycleCountLine[]
+  movements           StockMovement[]
+
+  @@unique([companyId, number])
+  @@unique([id, branchId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+}
+
+/// The counted locations (the count's scope).
+model CycleCountLocation {
+  cycleCountId String
+  companyId    String
+  branchId     String
+  count        CycleCount        @relation(fields: [cycleCountId, branchId, companyId], references: [id, branchId, companyId], onDelete: Cascade)
+  locationId   String
+  location     WarehouseLocation @relation(fields: [locationId, branchId], references: [id, branchId])
+
+  @@id([cycleCountId, locationId])
+  @@index([locationId])
+}
+
+model CycleCountLine {
+  id                String            @id @default(cuid())
+  companyId         String
+  branchId          String
+  cycleCountId      String
+  count             CycleCount        @relation(fields: [cycleCountId, branchId, companyId], references: [id, branchId, companyId], onDelete: Cascade)
+  lineNo            Int
+  locationId        String
+  location          WarehouseLocation @relation(fields: [locationId, branchId], references: [id, branchId])
+  itemId            String
+  item              Item              @relation(fields: [itemId, companyId], references: [id, companyId])
+  lotId             String?
+  lot               InventoryLot?     @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  /// A lot found that the system did not know (resolved when posted).
+  newLotNumber      String?
+  newLotExpiry      DateTime?         @db.Date
+  /// lotId, 'new:' + lot number, or '' — one line per stock identity per count.
+  lotKey            String
+  /// TRUE: from the start snapshot; FALSE: stock found that the system did not show.
+  expected          Boolean
+  /// On hand when the count started (0 for an unexpected line).
+  systemQuantity    Decimal           @default(0) @db.Decimal(18, 6)
+  /// What was physically counted (null: not counted yet; 0 is a real count).
+  countedQuantity   Decimal?          @db.Decimal(18, 6)
+  countedAt         DateTime?
+  countedByMemberId String?
+  countedBy         CompanyMember?    @relation("CountLineCounter", fields: [countedByMemberId, companyId], references: [id, companyId])
+  note              String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  movements         StockMovement[]
+
+  @@unique([cycleCountId, lineNo])
+  @@unique([cycleCountId, locationId, itemId, lotKey])
+  @@index([itemId])
 }

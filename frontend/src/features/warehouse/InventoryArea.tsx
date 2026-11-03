@@ -5,13 +5,13 @@ import { SelectField } from '@/features/auth/fields';
 import { CONTROL_COPY } from '@/features/company-center/copy';
 import { CELL, useLoad } from '@/features/company-center/model';
 import { SearchBox } from '@/features/company-center/SearchBox';
-import { Loading, PageTitle } from '@/features/company-center/parts';
+import { AreaLink, Loading, PageTitle } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { whApi, type ExpiryState, type WarehouseContext } from './whApi';
 import { WH_COPY, whError } from './whCopy';
 import { ExpiryPill, ShowMore, WarehouseNav } from './whParts';
-import { useDebounced, usePaged } from './whModel';
+import { WH, useDebounced, usePaged } from './whModel';
 
 /*
  * /core/warehouse/inventory and /core/warehouse/lots (EP31) — stock on hand,
@@ -45,7 +45,16 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
     [view, debounced, locationId, expiry],
   );
   const lots = view === 'lots';
-  const heads = [c.f.item, c.f.lot, c.f.expiry, c.f.location, c.f.onHand];
+  // EP32: a stock row leads to a transfer from its location or an adjustment.
+  const acts = ctx.transfers.create || ctx.adjustments.create;
+  const heads = [
+    c.f.item,
+    c.f.lot,
+    c.f.expiry,
+    c.f.location,
+    c.f.onHand,
+    ...(acts ? [c.f.actions] : []),
+  ];
   return (
     <div className="grid grid-cols-1 gap-6" data-stock={view}>
       <PageTitle
@@ -163,6 +172,34 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                       <span className="font-normal text-text-muted">{s.unit.code}</span>
                     </span>,
                     'md:text-right md:whitespace-nowrap',
+                  )}
+                  {acts && (
+                    <td
+                      data-label={c.f.actions}
+                      className={cn(CELL, 'max-md:before:hidden md:text-right')}
+                      data-row-actions
+                    >
+                      <span className="flex flex-wrap gap-x-4 md:justify-end">
+                        {ctx.transfers.create && (
+                          <AreaLink
+                            to={`${WH}/transfers/new?location=${encodeURIComponent(s.location.id)}`}
+                            className="inline-flex min-h-11 items-center text-label text-brand-soft hover:underline md:min-h-0"
+                            aria-label={`${c.nav.transfers} ${s.item.code} ${s.location.code}`}
+                          >
+                            {c.nav.transfers}
+                          </AreaLink>
+                        )}
+                        {ctx.adjustments.create && (
+                          <AreaLink
+                            to={`${WH}/adjustments/new`}
+                            className="inline-flex min-h-11 items-center text-label text-brand-soft hover:underline md:min-h-0"
+                            aria-label={`${c.nav.adjustments} ${s.item.code} ${s.location.code}`}
+                          >
+                            {c.nav.adjustments}
+                          </AreaLink>
+                        )}
+                      </span>
+                    </td>
                   )}
                 </tr>
               );

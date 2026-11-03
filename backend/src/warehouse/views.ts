@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { DataClass } from '../domain/access/data-classification.js';
+import { MOVEMENT_TYPES } from './input.js';
 
 /*
  * Response contracts for goods receipts and inventory (EP31). ALLOW-LISTS:
@@ -103,7 +104,7 @@ export const StockRow = z.object({
 export const MovementRow = z.object({
   id: z.string(),
   occurredAt: z.string(),
-  type: z.enum(['PURCHASE_RECEIPT', 'PURCHASE_RECEIPT_REVERSAL']),
+  type: z.enum(MOVEMENT_TYPES),
   quantityDelta: z.string(),
   branch: ref,
   location: ref,
@@ -116,6 +117,10 @@ export const MovementRow = z.object({
     type: z.string(),
     receipt: z.object({ id: z.string(), number: z.string() }).nullable(),
     order: z.object({ number: z.string() }).nullable(),
+    /** EP32 source documents (one of them is set, by `type`). */
+    transfer: z.object({ id: z.string(), number: z.string() }).nullable(),
+    adjustment: z.object({ id: z.string(), number: z.string() }).nullable(),
+    count: z.object({ id: z.string(), number: z.string() }).nullable(),
   }),
   actor: person,
 });
@@ -141,5 +146,170 @@ export const INVENTORY_FIELD_CLASSES: Record<string, DataClass> = Object.fromEnt
     ...Object.keys(StockRow.shape),
     ...Object.keys(MovementRow.shape),
     ...Object.keys(FefoCandidate.shape),
+  ].map((k) => [k, 'operational' as const]),
+);
+
+// ---------------------------------------------------------------- EP32 documents
+// Transfers, adjustments and cycle counts: identities, quantities, lots,
+// locations, dates and people — the same operational allow-list rule.
+
+const itemRef = ref.extend({ lotTracking: tracking, expiryTracking: tracking });
+const unitRef = z.object({ code: z.string(), precision: z.number() });
+const lotRef = z
+  .object({ id: z.string(), lotNumber: z.string(), expiryDate: z.string().nullable() })
+  .nullable();
+const newLot = z.object({ lotNumber: z.string(), expiryDate: z.string().nullable() }).nullable();
+
+export const TransferRow = z.object({
+  id: z.string(),
+  number: z.string(),
+  status: z.enum(['DRAFT', 'POSTED', 'CANCELLED']),
+  branch: ref,
+  source: ref,
+  destination: ref,
+  transferDate: z.string(),
+  lineCount: z.number(),
+  createdBy: person,
+  updatedAt: z.string(),
+});
+
+const transferLine = z.object({
+  id: z.string(),
+  lineNo: z.number(),
+  item: itemRef,
+  unit: unitRef,
+  lot: lotRef,
+  quantity: z.string(),
+  /** On hand at the source now (what a DRAFT can still take). */
+  available: z.string(),
+  note: z.string().nullable(),
+});
+
+export const TransferView = TransferRow.extend({
+  note: z.string().nullable(),
+  createdAt: z.string(),
+  postedAt: z.string().nullable(),
+  postedBy: person,
+  cancelledAt: z.string().nullable(),
+  cancelledBy: person,
+  cancellationReason: z.string().nullable(),
+  lines: z.array(transferLine),
+  actions: z.array(z.enum(['edit', 'post', 'cancel'])),
+});
+
+const adjustmentReason = z.enum([
+  'DAMAGE',
+  'LOSS',
+  'SHRINKAGE',
+  'FOUND',
+  'EXPIRED',
+  'COUNT_CORRECTION',
+  'DATA_CORRECTION',
+  'OTHER',
+]);
+
+export const AdjustmentRow = z.object({
+  id: z.string(),
+  number: z.string(),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'POSTED', 'REJECTED', 'CANCELLED']),
+  branch: ref,
+  reason: adjustmentReason,
+  adjustmentDate: z.string(),
+  locations: z.array(z.string()),
+  lineCount: z.number(),
+  createdBy: person,
+  approvedBy: person,
+  updatedAt: z.string(),
+});
+
+const adjustmentLine = z.object({
+  id: z.string(),
+  lineNo: z.number(),
+  direction: z.enum(['INCREASE', 'DECREASE']),
+  location: ref,
+  item: itemRef,
+  unit: unitRef,
+  lot: lotRef,
+  newLot,
+  quantity: z.string(),
+  /** On hand now for this stock identity (context; posting re-checks). */
+  onHand: z.string(),
+  note: z.string().nullable(),
+});
+
+export const AdjustmentView = AdjustmentRow.extend({
+  note: z.string().nullable(),
+  createdAt: z.string(),
+  submittedAt: z.string().nullable(),
+  submittedBy: person,
+  approvedAt: z.string().nullable(),
+  rejectedAt: z.string().nullable(),
+  rejectedBy: person,
+  rejectionReason: z.string().nullable(),
+  cancelledAt: z.string().nullable(),
+  cancelledBy: person,
+  cancellationReason: z.string().nullable(),
+  lines: z.array(adjustmentLine),
+  actions: z.array(z.enum(['edit', 'submit', 'approve', 'reject', 'cancel'])),
+});
+
+export const CountRow = z.object({
+  id: z.string(),
+  number: z.string(),
+  status: z.enum(['DRAFT', 'COUNTING', 'REVIEW', 'POSTED', 'CANCELLED']),
+  branch: ref,
+  locations: z.array(ref),
+  item: ref.nullable(),
+  countDate: z.string(),
+  lineCount: z.number(),
+  countedLines: z.number(),
+  varianceLines: z.number(),
+  createdBy: person,
+  updatedAt: z.string(),
+});
+
+const countLine = z.object({
+  id: z.string(),
+  lineNo: z.number(),
+  location: ref,
+  item: itemRef,
+  unit: unitRef,
+  lot: lotRef,
+  newLot,
+  expected: z.boolean(),
+  /** On hand when the count started (0 for stock the system did not show). */
+  systemQuantity: z.string(),
+  countedQuantity: z.string().nullable(),
+  /** counted − system (server-side), null until counted. */
+  variance: z.string().nullable(),
+  countedBy: person,
+  countedAt: z.string().nullable(),
+  note: z.string().nullable(),
+});
+
+export const CountView = CountRow.extend({
+  note: z.string().nullable(),
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  startedBy: person,
+  reviewAt: z.string().nullable(),
+  postedAt: z.string().nullable(),
+  postedBy: person,
+  cancelledAt: z.string().nullable(),
+  cancelledBy: person,
+  cancellationReason: z.string().nullable(),
+  lines: z.array(countLine),
+  actions: z.array(z.enum(['edit', 'start', 'count', 'review', 'reopen', 'post', 'cancel'])),
+});
+
+/** Every EP32 key Warehouse can receive — all operational (checked by a test). */
+export const CONTROL_FIELD_CLASSES: Record<string, DataClass> = Object.fromEntries(
+  [
+    ...Object.keys(TransferView.shape),
+    ...Object.keys(transferLine.shape),
+    ...Object.keys(AdjustmentView.shape),
+    ...Object.keys(adjustmentLine.shape),
+    ...Object.keys(CountView.shape),
+    ...Object.keys(countLine.shape),
   ].map((k) => [k, 'operational' as const]),
 );

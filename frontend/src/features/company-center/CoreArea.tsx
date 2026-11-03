@@ -60,6 +60,10 @@ const WarehouseHome = lazy(() => import('@/features/warehouse/WarehouseHome'));
 const ReceiptsArea = lazy(() => import('@/features/warehouse/ReceiptsArea'));
 const InventoryArea = lazy(() => import('@/features/warehouse/InventoryArea'));
 const MovementsArea = lazy(() => import('@/features/warehouse/MovementsArea'));
+/** EP32: transfers, stock adjustments and cycle counts — one lazy chunk each. */
+const TransfersArea = lazy(() => import('@/features/warehouse/TransfersArea'));
+const AdjustmentsArea = lazy(() => import('@/features/warehouse/AdjustmentsArea'));
+const CountsArea = lazy(() => import('@/features/warehouse/CountsArea'));
 
 /** EP30: a department card's way into its first EP30 screen (presentation only). */
 const DEPARTMENT_LINKS: Partial<
@@ -184,6 +188,9 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['warehouse/inventory', <InventoryArea key="inv" view="stock" />],
             ['warehouse/lots', <InventoryArea key="lots" view="lots" />],
             ['warehouse/movements', <MovementsArea key="mv" />],
+            ['warehouse/transfers/*', <TransfersArea key="tr" />],
+            ['warehouse/adjustments/*', <AdjustmentsArea key="adj" />],
+            ['warehouse/counts/*', <CountsArea key="cc" />],
           ] as const
         ).map(([path, area]) => (
           <Route

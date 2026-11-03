@@ -59,6 +59,8 @@ export type CompanyAuditAction =
   // ---- EP31: goods receipts and lots (details: number, order number, from / to, line no,
   // item code, counts — never quantities of value, notes or reasons)
   | GoodsReceiptAuditAction
+  // ---- EP32: transfers, adjustments, cycle counts (details: number, from / to, counts — never quantities of value)
+  | InventoryControlAuditAction
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;
@@ -124,10 +126,31 @@ export type GoodsReceiptAuditAction =
   | 'GOODS_RECEIPT_CANCELLED'
   | 'INVENTORY_LOT_CREATED';
 
+export type InventoryControlAuditAction =
+  | 'TRANSFER_CREATED'
+  | 'TRANSFER_UPDATED'
+  | 'TRANSFER_POSTED'
+  | 'TRANSFER_CANCELLED'
+  | 'ADJUSTMENT_CREATED'
+  | 'ADJUSTMENT_UPDATED'
+  | 'ADJUSTMENT_SUBMITTED'
+  | 'ADJUSTMENT_APPROVED'
+  | 'ADJUSTMENT_REJECTED'
+  | 'ADJUSTMENT_POSTED'
+  | 'ADJUSTMENT_CANCELLED'
+  | 'CYCLE_COUNT_CREATED'
+  | 'CYCLE_COUNT_UPDATED'
+  | 'CYCLE_COUNT_STARTED'
+  | 'CYCLE_COUNT_COUNTED'
+  | 'CYCLE_COUNT_REVIEWED'
+  | 'CYCLE_COUNT_REOPENED'
+  | 'CYCLE_COUNT_POSTED'
+  | 'CYCLE_COUNT_CANCELLED';
+
 /**
  * Entities whose audit details are the customer's business data: Platform
  * Inspection shows that such an event happened, never its details (EP28, EP29,
- * EP30, EP31 — no order or receipt number, amount, supplier, lot or quantity).
+ * EP30–EP32 — no document number, amount, supplier, lot or quantity).
  */
 export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   ...MASTER_AUDIT_ENTITIES,
@@ -135,6 +158,9 @@ export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   'PurchaseOrder',
   'GoodsReceipt',
   'InventoryLot',
+  'InventoryTransfer',
+  'StockAdjustment',
+  'CycleCount',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -156,7 +182,10 @@ export type AuditEntityType =
   | 'PurchaseRequest'
   | 'PurchaseOrder'
   | 'GoodsReceipt'
-  | 'InventoryLot';
+  | 'InventoryLot'
+  | 'InventoryTransfer'
+  | 'StockAdjustment'
+  | 'CycleCount';
 
 export async function recordCompanyEvent(
   db: DbClient,

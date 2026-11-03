@@ -59,13 +59,25 @@ const person = (role: CompanyRole, permissions: string[]) => ({
 const ctx = (over: Partial<WarehouseContext> = {}): WarehouseContext => ({
   receiving: { view: true, process: true, cancel: false },
   inventory: { view: true },
+  transfers: { create: true, approve: false, cancel: false },
+  adjustments: { create: true, approve: false },
+  cycleCounts: { create: true, approve: false },
   branches: [{ ...REF, type: 'BRANCH' }],
   selectedBranch: { ...REF, type: 'BRANCH' },
   locations: [
     { id: 'l-main', code: 'MAIN', name: 'Main', branchId: 'b1', isDefault: true },
     { id: 'l-qc', code: 'QC', name: 'QC hold', branchId: 'b1', isDefault: false },
   ],
-  counts: { pendingReceive: 2, draftReceipts: 1, stockRows: 7, expiring: 1, expired: 0 },
+  counts: {
+    pendingReceive: 2,
+    draftReceipts: 1,
+    stockRows: 7,
+    expiring: 1,
+    expired: 0,
+    draftTransfers: 1,
+    submittedAdjustments: 0,
+    activeCounts: 0,
+  },
   expiringSoonDays: 30,
   today: '2026-11-03',
   ...over,
@@ -144,8 +156,21 @@ describe('Warehouse receiving and inventory (EP31)', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Pending receive', 'Goods receipts', 'Inventory', 'Lots & expiry', 'Movements']);
+    ).toEqual([
+      'Pending receive',
+      'Goods receipts',
+      'Inventory',
+      'Lots & expiry',
+      'Movements',
+      'Transfers',
+      'Adjustments',
+      'Cycle counts',
+    ]);
     const tile = (name: string) => screen.getByText(name).closest('a')!;
+    expect(tile('Draft transfers')).toHaveAttribute(
+      'href',
+      '/core/warehouse/transfers?status=DRAFT',
+    );
     expect(tile('Orders to receive')).toHaveTextContent('2');
     expect(tile('Lots expiring soon')).toHaveAttribute(
       'href',
@@ -358,7 +383,7 @@ describe('Warehouse receiving and inventory (EP31)', () => {
     );
     expect(api.called(`GET ${W}/stock`)[0]!.query).toMatchObject({ view: 'lots' });
     const heads = [...document.querySelectorAll('[data-stock-rows] th')].map((t) => t.textContent);
-    expect(heads).toEqual(['物料', '批次', '有效期', '库位', '在库数量']);
+    expect(heads).toEqual(['物料', '批次', '有效期', '库位', '在库数量', '操作']);
   });
 
   it('a view-only member sees receipts but no edit, post or cancel control', async () => {

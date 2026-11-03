@@ -35,6 +35,10 @@ export interface WarehouseActor {
   branches: readonly { id: string; code: string; name: string; type: string }[];
   receiving: { view: boolean; process: boolean; cancel: boolean };
   inventory: { view: boolean };
+  /** EP32 */
+  transfers: { create: boolean; approve: boolean; cancel: boolean };
+  adjustments: { create: boolean; approve: boolean };
+  counts: { create: boolean; approve: boolean };
 }
 
 export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<WarehouseActor> {
@@ -55,6 +59,19 @@ export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<Ware
       cancel: has('warehouse.receiving.cancel'),
     },
     inventory: { view: has('warehouse.inventory.view') },
+    transfers: {
+      create: has('warehouse.transfers.create'),
+      approve: has('warehouse.transfers.approve'),
+      cancel: has('warehouse.transfers.cancel'),
+    },
+    adjustments: {
+      create: has('warehouse.stock_adjustment.create'),
+      approve: has('warehouse.stock_adjustment.approve'),
+    },
+    counts: {
+      create: has('warehouse.counts.create'),
+      approve: has('warehouse.counts.approve'),
+    },
   };
 }
 
@@ -121,3 +138,104 @@ export const receiptStateChanged = () =>
     'GR_STATE_CHANGED',
     'This receipt was changed by someone else just now. Reload it and try again.',
   );
+
+// ---------------------------------------------------------------- EP32 documents
+
+/*
+ * Transfers, adjustments and cycle counts (EP32) — the same convention: one
+ * rule per action (the statuses it starts from, the code it needs); without the
+ * code 403 and the state is not revealed; a wrong status is 409; every action
+ * also needs the document's branch. Reading needs warehouse.inventory.view.
+ *
+ *   transfer    edit / post / cancel        DRAFT edit and cancel: transfers.create; post:
+ *                                           transfers.approve; cancel a POSTED one: transfers.cancel
+ *   adjustment  edit / submit / approve /   edit, submit, cancel DRAFT / SUBMITTED: stock_adjustment.create;
+ *               reject / cancel             approve (= post), reject, cancel POSTED: stock_adjustment.approve
+ *   count       edit / start / count /      edit and start a DRAFT, count and send a COUNTING one to
+ *               review / reopen / post /    review, reopen a REVIEW one, cancel before posting:
+ *               cancel                      counts.create; post a REVIEW one: counts.approve
+ */
+
+interface Rule<S extends string> {
+  from: readonly S[];
+  code: (s: S) => PermissionCode;
+}
+
+export function docRefusal<S extends string>(
+  actor: WarehouseActor,
+  rule: Rule<S>,
+  d: { status: S; branchId: string },
+): 'status' | 'authority' | 'branch' | null {
+  if (!actor.permissions.includes(rule.code(d.status))) return 'authority';
+  if (!rule.from.includes(d.status)) return 'status';
+  if (!inBranch(actor, d.branchId)) return 'branch';
+  return null;
+}
+
+export function assertDoc<S extends string>(
+  actor: WarehouseActor,
+  action: string,
+  rule: Rule<S>,
+  d: { status: S; branchId: string },
+) {
+  const why = docRefusal(actor, rule, d);
+  if (why === 'authority') throw permissionDenied(rule.code(d.status));
+  if (why === 'branch') {
+    throw new AppError(403, 'BRANCH_NOT_ALLOWED', 'You do not have access to this branch.');
+  }
+  if (why === 'status') {
+    const code =
+      action === 'post' && d.status === 'POSTED'
+        ? 'DOCUMENT_ALREADY_POSTED'
+        : action === 'edit' || action === 'count'
+          ? 'DOCUMENT_NOT_EDITABLE'
+          : 'INVALID_TRANSITION';
+    throw new AppError(409, code, 'This action is not possible in the document’s current status.', {
+      action,
+      status: d.status,
+    });
+  }
+}
+
+export const allowedDocActions = <S extends string, A extends string>(
+  actor: WarehouseActor,
+  rules: Record<A, Rule<S>>,
+  d: { status: S; branchId: string },
+) => (Object.keys(rules) as A[]).filter((a) => docRefusal(actor, rules[a], d) === null);
+
+type TransferStatus = 'DRAFT' | 'POSTED' | 'CANCELLED';
+export const TRANSFER_RULES = {
+  edit: { from: ['DRAFT'], code: () => 'warehouse.transfers.create' },
+  post: { from: ['DRAFT'], code: () => 'warehouse.transfers.approve' },
+  cancel: {
+    from: ['DRAFT', 'POSTED'],
+    code: (s) => (s === 'POSTED' ? 'warehouse.transfers.cancel' : 'warehouse.transfers.create'),
+  },
+} satisfies Record<string, Rule<TransferStatus>>;
+
+type AdjustmentStatus = 'DRAFT' | 'SUBMITTED' | 'POSTED' | 'REJECTED' | 'CANCELLED';
+export const ADJUSTMENT_RULES = {
+  edit: { from: ['DRAFT'], code: () => 'warehouse.stock_adjustment.create' },
+  submit: { from: ['DRAFT'], code: () => 'warehouse.stock_adjustment.create' },
+  approve: { from: ['SUBMITTED'], code: () => 'warehouse.stock_adjustment.approve' },
+  reject: { from: ['SUBMITTED'], code: () => 'warehouse.stock_adjustment.approve' },
+  cancel: {
+    from: ['DRAFT', 'SUBMITTED', 'POSTED'],
+    code: (s) =>
+      s === 'POSTED' ? 'warehouse.stock_adjustment.approve' : 'warehouse.stock_adjustment.create',
+  },
+} satisfies Record<string, Rule<AdjustmentStatus>>;
+
+type CountStatus = 'DRAFT' | 'COUNTING' | 'REVIEW' | 'POSTED' | 'CANCELLED';
+export const COUNT_RULES = {
+  edit: { from: ['DRAFT'], code: () => 'warehouse.counts.create' },
+  start: { from: ['DRAFT'], code: () => 'warehouse.counts.create' },
+  count: { from: ['COUNTING'], code: () => 'warehouse.counts.create' },
+  review: { from: ['COUNTING'], code: () => 'warehouse.counts.create' },
+  reopen: { from: ['REVIEW'], code: () => 'warehouse.counts.create' },
+  post: { from: ['REVIEW'], code: () => 'warehouse.counts.approve' },
+  cancel: { from: ['DRAFT', 'COUNTING', 'REVIEW'], code: () => 'warehouse.counts.create' },
+} satisfies Record<string, Rule<CountStatus>>;
+
+export const documentNotFound = (kind: 'TRANSFER' | 'ADJUSTMENT' | 'COUNT') =>
+  new AppError(404, `${kind}_NOT_FOUND`, 'This document was not found.');

@@ -118,7 +118,13 @@ rules, split location / lot allocations), an immutable stock movement ledger wit
 same transaction, reversal instead of deletion, the order's RECEIVED state, a FEFO order and Warehouse
 screens with no financial value ([docs/WAREHOUSE_RECEIVING.md](docs/WAREHOUSE_RECEIVING.md),
 [docs/INVENTORY_LEDGER.md](docs/INVENTORY_LEDGER.md), [docs/EP31_REPORT.md](docs/EP31_REPORT.md)).
-Next: EP32 (not started).
+**EP32** (completed locally, awaiting owner review) adds inventory control on the same ledger:
+same-branch transfers with the lot preserved, stock adjustments with reasons (staff submit, manager
+approve = post), cycle counts with a scoped lock, zero and unexpected counts, stale refusal and signed
+corrections, reversal for every posted document, and the location deactivation guard
+([docs/INVENTORY_TRANSFER.md](docs/INVENTORY_TRANSFER.md), [docs/STOCK_ADJUSTMENT.md](docs/STOCK_ADJUSTMENT.md),
+[docs/CYCLE_COUNT.md](docs/CYCLE_COUNT.md), [docs/EP32_REPORT.md](docs/EP32_REPORT.md)).
+Next: EP33 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -140,7 +146,8 @@ Roadmap:
    **EP26 Branch & User Administration** → **EP27 Permission & Action Matrix** →
    **EP28 Operational Master Data** → **EP28.1 Department demo personas**
 3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
-   receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → Sales → Warehouse →
+   receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
+   stock adjustment, cycle count** → Sales → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

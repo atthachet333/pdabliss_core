@@ -208,6 +208,15 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP32 — no budget changed.** Transfers, adjustments and cycle counts add three lazy chunks
+  (≈ 3.6 / 5.3 / 7.7 KiB raw) and one shared `ctlParts` chunk (≈ 28 KiB: list / page / editor parts and
+  the TH / EN / ZH copy, loaded only by those three); EP31 screens gain movement labels, nav entries,
+  tiles and inventory row actions. All JS 4,298.2 / 4,300 KiB (+46.3 KiB); initial JS unchanged at
+  182.6 KiB gzip; `/login` 64.5 / 72 KiB; static HTML 528 / 560 KiB. A first version measured 4,309 KiB;
+  it was brought under by sharing one document page / form / line editor across the three screens,
+  reusing EP31 copy keys instead of repeating them in three languages, shorter confirmations and
+  timeline labels by suffix. **Headroom is now ≈ 1.8 KiB: the next Warehouse screens need JS
+  recovered first, or a recorded budget decision by the owner.**
 - **EP31 — no budget changed.** The Warehouse workspace, goods receipts (editor), inventory / lots and
   movements add ≈ 57 KiB raw in their own lazy chunks (all JS 4,251.9 / 4,300 KiB; initial JS
   unchanged at 182.6 KiB gzip; static HTML 529 / 560 KiB). Side effect noted: adding these lazy

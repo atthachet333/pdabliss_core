@@ -1,4 +1,4 @@
-# Inventory Ledger — Stock Movements, Balances and FEFO (EP31)
+# Inventory Ledger — Stock Movements, Balances and FEFO (EP31, EP32)
 
 How CORE knows what is in stock. Written by EP31 for purchase receipts; **every future stock
 change (sales issue, production, transfers, adjustments) must use the same ledger.**
@@ -32,9 +32,20 @@ actor → the company); a lot belongs to its item. Another company's location or
 referenced. CHECKs: a balance is never negative; a receipt movement is positive, a reversal
 negative, never zero.
 
-**Movement types.** `PURCHASE_RECEIPT` (+) and `PURCHASE_RECEIPT_REVERSAL` (−) — the only two EP31
-writes. Later episodes add their own types (e.g. sales issue, production consumption / output,
-transfer out / in, adjustment) with their own source documents; none exists yet.
+**Movement types** (sign enforced by `StockMovement_check`; each family has its own `sourceType`
+and required source ids):
+
+| Type | Sign | `sourceType` | Source | Episode |
+| --- | --- | --- | --- | --- |
+| `PURCHASE_RECEIPT` / `PURCHASE_RECEIPT_REVERSAL` | + / − | `GOODS_RECEIPT` | receipt, line, allocation | EP31 |
+| `TRANSFER_OUT` / `TRANSFER_IN` | − / + | `TRANSFER` | transfer, line | EP32 |
+| `TRANSFER_OUT_REVERSAL` / `TRANSFER_IN_REVERSAL` | + / − | `TRANSFER` | transfer, line | EP32 |
+| `ADJUSTMENT_IN` / `ADJUSTMENT_OUT` | + / − | `ADJUSTMENT` | adjustment, line | EP32 |
+| `ADJUSTMENT_IN_REVERSAL` / `ADJUSTMENT_OUT_REVERSAL` | − / + | `ADJUSTMENT` | adjustment, line | EP32 |
+| `COUNT_CORRECTION` | ± (never 0) | `CYCLE_COUNT` | count, line | EP32 |
+
+`(line, type)` is unique per source family, so no line can post the same movement twice. Sales issue
+and production consumption / output are future types ([§7](#7-ep32-locks-and-the-contract-for-sales--production)).
 
 ## 3. Posting a receipt — one transaction
 
@@ -62,8 +73,8 @@ All or nothing: any failure rolls everything back.
 quantity from the balance **only if that much is on hand** (`UPDATE … WHERE quantityOnHand >= qty`)
 and insert a `PURCHASE_RECEIPT_REVERSAL` movement; mark the receipt CANCELLED; reopen a RECEIVED
 order. If any balance would go below zero — because later movements already took that stock — the
-whole reversal is refused (`STOCK_INSUFFICIENT`) and nothing changes. EP31 has no outbound movement
-yet, so today that can only happen through future modules; the guard is tested by simulating one.
+whole reversal is refused (`STOCK_INSUFFICIENT`) and nothing changes. Since EP32 a transfer, an
+adjustment or a count can take that stock away first; the guard is tested with a real transfer.
 The original receipt and its movements stay; nothing is deleted.
 
 ## 5. FEFO foundation
@@ -96,3 +107,41 @@ Every later stock change must:
 - keep every response operational for Warehouse (allow-lists, no value);
 - after an outbound movement exists, reversing a purchase receipt that fed it is refused by the
   balance guard — the business flow is to return or adjust, not to rewrite history.
+
+## 7. EP32 locks and the contract for Sales / Production
+
+EP32 moved every stock write into one function, **`applyMovement()`** (`backend/src/warehouse/ledger.ts`):
+
+1. take the location's advisory lock **shared** (`pg_advisory_xact_lock_shared(hashtext('loc:'+id))`);
+   documents touching several locations pre-lock them all in sorted order (`lockLocations`), so
+   writers never deadlock on each other;
+2. refuse a movement on a location an open cycle count covers (`COUNT_IN_PROGRESS`), unless it is
+   that count's own correction;
+3. an increase needs the location ACTIVE (`LOCATION_INACTIVE`) and upserts the balance; a decrease
+   uses the conditional decrement and throws the caller's refusal (`INSUFFICIENT_STOCK`,
+   `REVERSAL_NOT_POSSIBLE`, `STOCK_INSUFFICIENT`) instead of going negative;
+4. insert the immutable movement.
+
+Cycle counts (start and post) and location deactivation take the same locks **exclusively**: they
+wait for writes in flight and block new ones for their transaction. Goods receipts, transfers,
+adjustments and counts all go through this path; **nothing else writes `StockBalance`.**
+
+Location deactivation (EP31 debt, fixed in EP32): a location cannot become INACTIVE while any balance
+there is ≠ 0 (`LOCATION_HAS_STOCK`), or a DRAFT transfer, a DRAFT / SUBMITTED adjustment, a DRAFT
+receipt allocation or an open count names it (`LOCATION_IN_USE`). The check is a hook
+(`LOCATION_LOCKS`, registered by `warehouse/locks.ts`) run by Master Data inside the status
+transaction after the exclusive location lock.
+
+**Future Sales issue / Production consumption and output must:**
+
+- add their own movement types and `sourceType` (e.g. `SALES_ISSUE` / `SALES_ISSUE_REVERSAL`,
+  `PRODUCTION_CONSUMPTION`, `PRODUCTION_OUTPUT`) with typed source FK columns and a unique
+  `(line, type)`, widening `StockMovement_check` in a migration (enum values in a separate migration
+  from their first use);
+- call `applyMovement` for every change, after `lockLocations` on all locations involved, inside the
+  transaction that locks their own document row;
+- pick stock FEFO (`fefoCandidates`) for expiry-tracked items, FIFO by `firstReceivedAt` otherwise,
+  and add reservations themselves if they need them;
+- respect open counts (the ledger refuses for them) and never bypass the stale check;
+- reverse with opposite movements, never by editing or deleting.
+

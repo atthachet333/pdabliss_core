@@ -3,18 +3,28 @@ import { AppError } from '../lib/errors.js';
 import { Decimal, ZERO } from '../purchasing/money.js';
 
 /*
- * Reserved stock (EP34) — docs/SALES_ALLOCATION.md §3. The ONE place that
- * knows how much of a stock identity (location, item, lot) is claimed: the sum
- * of its ACTIVE SalesAllocation rows. Nothing here writes stock.
+ * Reserved stock (EP34, EP37) — docs/SALES_ALLOCATION.md §3,
+ * docs/PRODUCTION_MATERIAL_RESERVATION.md §2. The ONE place that knows how much
+ * of a stock identity (location, item, lot) is claimed: the sum of its ACTIVE
+ * sales reservations (SalesAllocation, EP34) AND its ACTIVE production
+ * reservations (ProductionMaterialAllocation, EP37). Nothing here writes stock.
  *
- *   on hand   = StockBalance.quantityOnHand (physical truth, unchanged by reservations)
- *   reserved  = Σ ACTIVE reservations of the identity
- *   available = on hand − reserved (≥ 0 — the invariant below keeps it so)
+ *   on hand        = StockBalance.quantityOnHand (physical truth, unchanged by reservations)
+ *   reserved       = Σ ACTIVE sales reservations + Σ ACTIVE production reservations
+ *   available      = on hand − reserved (≥ 0 — the invariant below keeps it so)
  *
- * Invariant: reserved ≤ on hand for every identity, under concurrency. Both
- * sides serialize on the balance ROW lock:
- *   - a reservation (sales/allocation.ts) locks the balances it may claim
- *     (`lockBalances`, id order) and only then reads what is reserved;
+ * Every reader (FEFO candidates, sales and production availability, transfer /
+ * adjustment drafts) and every guard goes through `reservedOf`, so Sales can
+ * never reserve what Production holds, Production never what Sales holds, and
+ * no physical decrease (transfer, adjustment, count correction, reversals,
+ * SALES_ISSUE, PRODUCTION_CONSUMPTION) eats into either. A dispatch / material
+ * issue first consumes ITS OWN reservation, then passes the same guard.
+ *
+ * Invariant: sales reserved + production reserved ≤ on hand for every identity,
+ * under concurrency. Every side serializes on the balance ROW lock:
+ *   - a reservation (sales/allocation.ts, production/allocation.ts) locks the
+ *     balances it may claim (`lockBalances`, id order) and only then reads what is
+ *     reserved;
  *   - every physical decrease (ledger.ts applyMovement → `takeRespectingReservations`)
  *     locks its balance row, then reads what is reserved, and refuses to go below it.
  * Reads after the lock are separate statements, so under READ COMMITTED they see
@@ -31,22 +41,39 @@ export const keyOf = (k: StockKey) => `${k.locationId}/${k.itemId}/${k.lotId ?? 
 
 type Tx = Prisma.TransactionClient | Db;
 
-/** Σ ACTIVE reservations per identity (missing = 0). */
+/** Σ ACTIVE sales and production reservations per identity, kept apart (missing = 0). */
+export async function reservedBreakdown(tx: Tx, keys: readonly StockKey[]) {
+  const sales = new Map<string, Decimal>();
+  const production = new Map<string, Decimal>();
+  if (!keys.length) return { sales, production };
+  const where = {
+    status: 'ACTIVE' as const,
+    locationId: { in: [...new Set(keys.map((k) => k.locationId))] },
+    itemId: { in: [...new Set(keys.map((k) => k.itemId))] },
+  };
+  const [s, p] = await Promise.all([
+    tx.salesAllocation.groupBy({
+      by: ['locationId', 'itemId', 'lotKey'],
+      where,
+      _sum: { quantity: true },
+    }),
+    tx.productionMaterialAllocation.groupBy({
+      by: ['locationId', 'itemId', 'lotKey'],
+      where,
+      _sum: { quantity: true },
+    }),
+  ]);
+  for (const r of s) sales.set(`${r.locationId}/${r.itemId}/${r.lotKey}`, r._sum.quantity ?? ZERO);
+  for (const r of p)
+    production.set(`${r.locationId}/${r.itemId}/${r.lotKey}`, r._sum.quantity ?? ZERO);
+  return { sales, production };
+}
+
+/** Σ ACTIVE reservations (sales + production) per identity (missing = 0). */
 export async function reservedOf(tx: Tx, keys: readonly StockKey[]) {
-  const out = new Map<string, Decimal>();
-  if (!keys.length) return out;
-  const rows = await tx.salesAllocation.groupBy({
-    by: ['locationId', 'itemId', 'lotKey'],
-    where: {
-      status: 'ACTIVE',
-      locationId: { in: [...new Set(keys.map((k) => k.locationId))] },
-      itemId: { in: [...new Set(keys.map((k) => k.itemId))] },
-    },
-    _sum: { quantity: true },
-  });
-  for (const r of rows) {
-    out.set(`${r.locationId}/${r.itemId}/${r.lotKey}`, r._sum.quantity ?? ZERO);
-  }
+  const { sales, production } = await reservedBreakdown(tx, keys);
+  const out = new Map(sales);
+  for (const [k, v] of production) out.set(k, (out.get(k) ?? ZERO).plus(v));
   return out;
 }
 
@@ -84,15 +111,17 @@ export const stockReserved = (details: object) =>
   new AppError(
     409,
     'STOCK_RESERVED',
-    'This stock is reserved for sales orders. Release or reallocate the reservation first.',
+    'This stock is reserved (for sales or production). Release or reallocate the reservation first.',
     details,
   );
 
 /**
  * The physical decrease guard: takes `qty` (> 0) from one balance only if that
  * much is on hand (else `short()`) AND what stays covers the active
- * reservations (else STOCK_RESERVED). Used by the ledger for every decrease —
- * transfers out, adjustment decreases, count corrections and all reversals.
+ * reservations — sales AND production — (else STOCK_RESERVED). Used by the ledger
+ * for every decrease: transfers out, adjustment decreases, count corrections, all
+ * reversals, SALES_ISSUE and PRODUCTION_CONSUMPTION (each after consuming its own
+ * reservation, so it can never take the other side's).
  */
 export async function takeRespectingReservations(
   tx: Prisma.TransactionClient,

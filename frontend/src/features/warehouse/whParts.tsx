@@ -36,6 +36,8 @@ export function WarehouseNav({ ctx }: { ctx: WarehouseContext }) {
       [`${WH}/shipments`, c.nav.shipments],
     );
   }
+  // EP37: the read-only production material issue handoff (explicit permission).
+  if (ctx.materialIssues?.view) links.push([`${WH}/material-issues`, c.nav.materialIssues]);
   return (
     <nav
       aria-label={c.workspace}

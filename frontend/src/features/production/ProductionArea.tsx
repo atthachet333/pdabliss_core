@@ -1,4 +1,13 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
@@ -68,6 +77,10 @@ import { useProd } from './productionCopy';
  */
 
 const PRIORITIES: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
+/** EP37: the execution part of an order page and the material issues — their own lazy chunks. */
+const ExecutionPanel = lazy(() => import('./ExecutionPanel'));
+const IssuesArea = lazy(() => import('./IssuesArea'));
+const EXECUTING: readonly string[] = ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'];
 const CARD = 'rounded-xl bg-white/[0.02] p-4';
 
 export default function ProductionArea() {
@@ -82,6 +95,16 @@ export default function ProductionArea() {
       <Routes>
         <Route index element={<Overview ctx={ctx} />} />
         <Route path="orders" element={<OrderList ctx={ctx} />} />
+        <Route path="reservations" element={<OrderList key="r" ctx={ctx} stage="RESERVATION" />} />
+        <Route path="execution" element={<OrderList key="e" ctx={ctx} stage="EXECUTION" />} />
+        <Route
+          path="issues/*"
+          element={
+            <Suspense fallback={<Loading label={c.loading} />}>
+              <IssuesArea />
+            </Suspense>
+          }
+        />
         {ctx.orders.create && <Route path="orders/new" element={<NewOrder ctx={ctx} />} />}
         <Route path="orders/:id" element={<ById kind="order" />} />
         {ctx.bom.view && <Route path="boms" element={<BomList ctx={ctx} />} />}
@@ -117,6 +140,9 @@ function Overview({ ctx }: { ctx: ProductionContext }) {
     ['materialsShort', `${PROD}/orders?materials=SHORT`],
     ['demandToReview', `${PROD}/demand`],
     ['sourceCancelled', `${PROD}/orders`],
+    ['inProduction', `${PROD}/execution`],
+    ['paused', `${PROD}/orders?status=PAUSED`],
+    ['draftIssues', `${PROD}/issues`],
   ];
   return (
     <>
@@ -160,7 +186,13 @@ function Overview({ ctx }: { ctx: ProductionContext }) {
 
 // ------------------------------------------------------------------ order list
 
-function OrderList({ ctx }: { ctx: ProductionContext }) {
+function OrderList({
+  ctx,
+  stage,
+}: {
+  ctx: ProductionContext;
+  stage?: 'RESERVATION' | 'EXECUTION';
+}) {
   const { c, err } = useProd();
   const { date } = useDateFormat();
   const base = useId();
@@ -175,10 +207,11 @@ function OrderList({ ctx }: { ctx: ProductionContext }) {
       productionApi.list({
         ...Object.fromEntries(keys.map((k) => [k, get(k) || undefined])),
         q: debounced || undefined,
+        stage,
         page,
         pageSize: 25,
       }),
-    [...keys.map(get), debounced],
+    [...keys.map(get), debounced, stage],
   );
   const filter = (k: (typeof keys)[number], v: string) => {
     const p = new URLSearchParams(params);
@@ -205,7 +238,13 @@ function OrderList({ ctx }: { ctx: ProductionContext }) {
   return (
     <>
       <PageTitle
-        title={c.nav.orders}
+        title={
+          stage === 'RESERVATION'
+            ? c.nav.reservations
+            : stage === 'EXECUTION'
+              ? c.nav.execution
+              : c.nav.orders
+        }
         lead={c.ordersLead}
         action={
           ctx.orders.create ? (
@@ -291,6 +330,11 @@ function OrderList({ ctx }: { ctx: ProductionContext }) {
               cell: (r) => (
                 <span className="flex flex-wrap gap-1">
                   <MaterialStatePill state={r.materialState} />
+                  {r.reservationState && (
+                    <Pill tone="muted" data-reservation-state={r.reservationState}>
+                      {c.reservationStates[r.reservationState]}
+                    </Pill>
+                  )}
                   {r.attention && (
                     <Pill tone="warning">{c.warnings.SOURCE_CANCELLED.split('—')[0]}</Pill>
                   )}
@@ -598,7 +642,8 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
 
 // ------------------------------------------------------------------ order page
 
-type Step = Exclude<MoAction, 'edit'>;
+/** The EP36 document steps (EP37 material and execution actions live in ExecutionPanel). */
+type Step = Extract<MoAction, 'submit' | 'approve' | 'reject' | 'release' | 'cancel'>;
 
 function OrderPage({ id }: { id: string }) {
   const { c, err } = useProd();
@@ -767,6 +812,12 @@ function OrderPage({ id }: { id: string }) {
           {o.frozen ? c.frozenNote : c.planningNote}
         </p>
       </Section>
+
+      {(EXECUTING.includes(o.status) || o.reservations.length > 0 || o.issues.length > 0) && (
+        <Suspense fallback={<Loading label={c.loading} />}>
+          <ExecutionPanel o={o} run={run} focusHeading={() => heading.current?.focus()} />
+        </Suspense>
+      )}
 
       {steps.length > 0 && (
         <div className="grid gap-3 border-t border-white/[0.07] pt-5" data-actions>

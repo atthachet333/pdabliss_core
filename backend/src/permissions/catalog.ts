@@ -92,6 +92,14 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *                                production orders — the Purchasing handoff (READ)
  *   operations.orders.edit / update_status stay reserved (editing a draft is part of create).
  *
+ * EP37 material reservation, material issue and execution (Operations; reads: operations.orders.view):
+ *   operations.materials.manage        reserve (FEFO), release, reallocate, authorize excess (MANAGE)
+ *   operations.material_issues.create  draft, edit and cancel material issues (OPERATE)
+ *   operations.material_issues.approve POST a material issue — stock leaves (MANAGE)
+ *   operations.material_usage.create   record actual material usage — never a movement (OPERATE)
+ *   operations.execution.manage        start, pause and resume production (MANAGE)
+ *   warehouse.material_issues.view     the Warehouse read-only material issue handoff (READ)
+ *
  * EP33 sales orders (EP27 codes, no new ones — backend/src/sales/policy.ts):
  *   sales.orders.view     read the branch's orders (a DRAFT only for its creator and confirmers)
  *   sales.orders.create   draft, edit, submit and discard own orders (submit is part of create)
@@ -207,6 +215,11 @@ export const PERMISSION_CATALOG = [
   def('operations.orders.cancel', 'OPERATIONS', 'BRANCH'),
   def('operations.bom.view', 'OPERATIONS', 'COMPANY'),
   def('operations.bom.manage', 'OPERATIONS', 'COMPANY'),
+  def('operations.materials.manage', 'OPERATIONS', 'BRANCH'),
+  def('operations.material_issues.create', 'OPERATIONS', 'BRANCH'),
+  def('operations.material_issues.approve', 'OPERATIONS', 'BRANCH'),
+  def('operations.material_usage.create', 'OPERATIONS', 'BRANCH'),
+  def('operations.execution.manage', 'OPERATIONS', 'BRANCH'),
   def('operations.items.view', 'OPERATIONS', 'COMPANY'),
   def('operations.items.manage', 'OPERATIONS', 'COMPANY'),
   def('operations.purchase_requests.create', 'OPERATIONS', 'BRANCH'),
@@ -227,6 +240,7 @@ export const PERMISSION_CATALOG = [
   def('warehouse.picking.process', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.dispatch.confirm', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.delivery.confirm', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.material_issues.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.items.view', 'WAREHOUSE', 'COMPANY'),
   def('warehouse.locations.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.locations.manage', 'WAREHOUSE', 'BRANCH'),

@@ -55,6 +55,8 @@ export interface WarehouseContext {
   cycleCounts: { create: boolean; approve: boolean };
   /** EP35 sales fulfilment: pick / pack / prepare shipments, dispatch, record delivery. */
   fulfilment: { pick: boolean; dispatch: boolean; deliver: boolean };
+  /** EP37: the read-only production material issue handoff. */
+  materialIssues?: { view: boolean };
   branches: (Ref & { type: string })[];
   selectedBranch: (Ref & { type: string }) | null;
   locations: (Ref & { branchId: string; isDefault: boolean })[];

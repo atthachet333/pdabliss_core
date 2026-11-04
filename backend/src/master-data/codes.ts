@@ -69,5 +69,8 @@ export async function reserveThrough(
     INSERT INTO "MasterCodeSequence" ("companyId", "prefix", "lastValue", "updatedAt")
     VALUES (${companyId}, ${prefix}, ${value}, NOW())
     ON CONFLICT ("companyId", "prefix")
-    DO UPDATE SET "lastValue" = GREATEST("MasterCodeSequence"."lastValue", ${value}), "updatedAt" = NOW()`;
+    DO UPDATE SET "lastValue" = ${value}, "updatedAt" = NOW()
+    WHERE "MasterCodeSequence"."lastValue" < ${value}`;
+  // EP37: only a counter that actually moves is written — a repeated demo seed no longer
+  // touches the row (the EP36 "MasterCodeSequence" second-seed drift).
 }

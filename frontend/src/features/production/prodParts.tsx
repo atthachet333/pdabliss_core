@@ -32,6 +32,8 @@ const MO_TONE: Record<MoStatus, 'neutral' | 'teal' | 'muted' | 'warning'> = {
   SUBMITTED: 'warning',
   APPROVED: 'teal',
   READY: 'teal',
+  IN_PRODUCTION: 'teal',
+  PAUSED: 'warning',
   REJECTED: 'muted',
   CANCELLED: 'muted',
 };
@@ -93,6 +95,10 @@ export function ProductionNav({ ctx }: { ctx: ProductionContext }) {
     ...(ctx.bom.view ? [[`${PROD}/boms`, c.nav.boms, false] as [string, string, boolean]] : []),
     [`${PROD}/requirements`, c.nav.requirements, false],
     [`${PROD}/demand`, c.nav.demand, false],
+    // EP37
+    [`${PROD}/reservations`, c.nav.reservations, false],
+    [`${PROD}/issues`, c.nav.issues, false],
+    [`${PROD}/execution`, c.nav.execution, false],
   ];
   return (
     <nav
@@ -355,7 +361,8 @@ export function TimelineList({
       {items.map((t, i) => (
         <li key={i} className="flex flex-wrap gap-x-3 text-label">
           <span className="font-semibold text-text-primary">
-            {c.timelineTypes[t.type.replace(/^PRODUCTION_(ORDER|BOM)_/, '')] ?? t.type}
+            {c.timelineTypes[t.type.replace(/^PRODUCTION_(ORDER_|BOM_)?|^MATERIAL_ISSUE_/, '')] ??
+              t.type}
           </span>
           <span className="text-text-secondary">{t.actor?.name ?? c.system}</span>
           <span className="text-caption text-text-muted">{date(t.at)}</span>

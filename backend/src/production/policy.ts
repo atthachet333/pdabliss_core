@@ -23,6 +23,13 @@ import { permissionDenied } from '../permissions/guard.js';
  *   reject        SUBMITTED            same, reason required                        REJECTED
  *   release       APPROVED             same; materials must be available now        READY
  *   cancel        APPROVED, READY      operations.orders.cancel (MANAGE), reason    CANCELLED
+ *                 IN_PRODUCTION/PAUSED same — only while nothing was issued (EP37)
+ *   allocate / unreserve / reallocate    APPROVED..PAUSED   operations.materials.manage (EP37)
+ *   excess        IN_PRODUCTION, PAUSED      operations.materials.manage, reason
+ *   start         READY                every material fully reserved; execution.manage → IN_PRODUCTION
+ *   pause / resume IN_PRODUCTION ⇄ PAUSED   operations.execution.manage
+ *   issue         IN_PRODUCTION        operations.material_issues.create (draft); posting needs .approve
+ *   usage         IN_PRODUCTION, PAUSED      operations.material_usage.create (no stock effect)
  *   REJECTED and CANCELLED are terminal. IN_PRODUCTION / COMPLETED do not exist
  *   in EP36 — they belong to physical execution (EP37+).
  *
@@ -39,7 +46,24 @@ import { permissionDenied } from '../permissions/guard.js';
  * assigned to Operations (and then never MANAGE).
  */
 
-export const MO_ACTIONS = ['edit', 'submit', 'approve', 'reject', 'release', 'cancel'] as const;
+export const MO_ACTIONS = [
+  'edit',
+  'submit',
+  'approve',
+  'reject',
+  'release',
+  'cancel',
+  // EP37: materials and execution
+  'allocate',
+  'unreserve',
+  'reallocate',
+  'excess',
+  'start',
+  'pause',
+  'resume',
+  'issue',
+  'usage',
+] as const;
 export type MoAction = (typeof MO_ACTIONS)[number];
 export const BOM_ACTIONS = ['edit', 'activate', 'retire', 'revise'] as const;
 export type BomAction = (typeof BOM_ACTIONS)[number];
@@ -56,6 +80,13 @@ export interface ProductionActor {
   bomView: boolean;
   bomManage: boolean;
   shortages: boolean;
+  /** EP37 */
+  materials: boolean;
+  issueCreate: boolean;
+  issuePost: boolean;
+  usage: boolean;
+  execution: boolean;
+  warehouseIssues: boolean;
 }
 
 export async function loadProductionActor(db: Db, ctx: AuthContext): Promise<ProductionActor> {
@@ -77,6 +108,12 @@ export async function loadProductionActor(db: Db, ctx: AuthContext): Promise<Pro
     bomView: has('operations.bom.view'),
     bomManage: has('operations.bom.manage'),
     shortages: has('purchasing.production_shortages.view'),
+    materials: has('operations.materials.manage'),
+    issueCreate: has('operations.material_issues.create'),
+    issuePost: has('operations.material_issues.approve'),
+    usage: has('operations.material_usage.create'),
+    execution: has('operations.execution.manage'),
+    warehouseIssues: has('warehouse.material_issues.view'),
   };
 }
 
@@ -97,7 +134,16 @@ const FROM: Record<MoAction, readonly ProductionOrderStatus[]> = {
   approve: ['SUBMITTED'],
   reject: ['SUBMITTED'],
   release: ['APPROVED'],
-  cancel: ['DRAFT', 'APPROVED', 'READY'],
+  cancel: ['DRAFT', 'APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
+  allocate: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
+  unreserve: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
+  reallocate: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
+  excess: ['IN_PRODUCTION', 'PAUSED'],
+  start: ['READY'],
+  pause: ['IN_PRODUCTION'],
+  resume: ['PAUSED'],
+  issue: ['IN_PRODUCTION'],
+  usage: ['IN_PRODUCTION', 'PAUSED'],
 };
 
 const CODE: Record<MoAction, PermissionCode> = {
@@ -107,6 +153,15 @@ const CODE: Record<MoAction, PermissionCode> = {
   reject: 'operations.orders.approve',
   release: 'operations.orders.approve',
   cancel: 'operations.orders.cancel',
+  allocate: 'operations.materials.manage',
+  unreserve: 'operations.materials.manage',
+  reallocate: 'operations.materials.manage',
+  excess: 'operations.materials.manage',
+  start: 'operations.execution.manage',
+  pause: 'operations.execution.manage',
+  resume: 'operations.execution.manage',
+  issue: 'operations.material_issues.create',
+  usage: 'operations.material_usage.create',
 };
 
 /** Why `action` is refused, or null. Without authority nothing about the state is revealed. */
@@ -121,7 +176,18 @@ export function moRefusal(
       ? actor.approve
       : action === 'cancel' && o.status !== 'DRAFT'
         ? actor.cancel
-        : own;
+        : action === 'allocate' ||
+            action === 'unreserve' ||
+            action === 'reallocate' ||
+            action === 'excess'
+          ? actor.materials
+          : action === 'start' || action === 'pause' || action === 'resume'
+            ? actor.execution
+            : action === 'issue'
+              ? actor.issueCreate
+              : action === 'usage'
+                ? actor.usage
+                : own;
   if (!authority) return 'authority';
   if (!FROM[action].includes(o.status)) return 'status';
   if (!inBranch(actor, o.branchId)) return 'branch';
@@ -151,7 +217,11 @@ export function assertMo(actor: ProductionActor, action: MoAction, o: OrderFacts
         ? 'MO_ALREADY_APPROVED'
         : action === 'edit'
           ? 'MO_NOT_EDITABLE'
-          : 'MO_INVALID_TRANSITION';
+          : action === 'start' && (o.status === 'IN_PRODUCTION' || o.status === 'PAUSED')
+            ? 'MO_ALREADY_STARTED'
+            : action === 'issue'
+              ? 'MO_NOT_IN_PRODUCTION'
+              : 'MO_INVALID_TRANSITION';
     throw new AppError(
       409,
       code,
@@ -187,4 +257,6 @@ export function assertBom(actor: ProductionActor, action: BomAction, status: Pro
 
 export const orderNotFound = () =>
   new AppError(404, 'MO_NOT_FOUND', 'This production order was not found.');
+export const issueNotFound = () =>
+  new AppError(404, 'MI_NOT_FOUND', 'This material issue was not found.');
 export const bomNotFound = () => new AppError(404, 'BOM_NOT_FOUND', 'This BOM was not found.');

@@ -41,6 +41,8 @@ export interface WarehouseActor {
   counts: { create: boolean; approve: boolean };
   /** EP35 sales fulfilment */
   fulfilment: { pick: boolean; dispatch: boolean; deliver: boolean };
+  /** EP37: the read-only production material issue handoff */
+  materialIssues: { view: boolean };
 }
 
 export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<WarehouseActor> {
@@ -79,6 +81,7 @@ export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<Ware
       dispatch: has('warehouse.dispatch.confirm'),
       deliver: has('warehouse.delivery.confirm'),
     },
+    materialIssues: { view: has('warehouse.material_issues.view') },
   };
 }
 

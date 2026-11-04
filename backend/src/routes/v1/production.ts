@@ -3,11 +3,19 @@ import { requestMeta, requireAuth, requireSession } from '../../auth/http.js';
 import { IdParams } from '../../company/input.js';
 import type { Db } from '../../db/client.js';
 import { parseInput } from '../../lib/validation.js';
+import { z } from 'zod';
 import { BomService } from '../../production/bom.js';
+import { MaterialIssueService } from '../../production/issues.js';
 import {
   BomListQuery,
   BranchQuery,
   CreateBomBody,
+  CreateIssueBody,
+  ExcessBody,
+  ExecutionBody,
+  IssueLinesBody,
+  IssueListQuery,
+  UsageBody,
   CreateMoBody,
   DemandQuery,
   ItemQuery,
@@ -47,13 +55,35 @@ import { ProductionOrderService } from '../../production/service.js';
  *   GET    /requirements?branchId         materials of the branch's submitted-or-later orders
  *   GET    /demand?branchId&q             confirmed sales demand eligible for production
  *
+ * EP37 (docs/PRODUCTION_MATERIAL_RESERVATION.md, PRODUCTION_MATERIAL_ISSUE.md, PRODUCTION_EXECUTION.md):
+ *   POST   /orders/:id/materials/allocate|release|reallocate   reserve FEFO / release / both (no body)
+ *   POST   /orders/:id/materials/:materialId/excess {quantity, reason}   authorized extra (manager)
+ *   POST   /orders/:id/start|pause|resume {note?}               execution (no stock effect)
+ *   POST   /orders/:id/usage {materialId, quantity, note?}       actual usage — evidence only
+ *   GET    /issues · POST /issues {productionOrderId, lines?, note?} · GET /issues/:id
+ *   PUT    /issues/:id/lines {lines, note?} · POST /issues/:id/cancel {reason?}
+ *   POST   /issues/:id/post                 the stock writer: PRODUCTION_CONSUMPTION via ledger.ts
+ *
  * /api/v1/purchasing/production-shortages?branchId   (purchasing.production_shortages.view)
+ * /api/v1/warehouse/material-issues?status          (warehouse.material_issues.view) — read-only handoff
  */
+const MaterialParams = z.object({
+  id: z.string().min(1).max(64),
+  materialId: z.string().min(1).max(64),
+});
+const HandoffQuery = z
+  .object({
+    status: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['DRAFT', 'POSTED']).optional()),
+    page: z.coerce.number().int().min(1).max(10_000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  })
+  .strict();
 
 export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db }) => {
   app.addHook('preHandler', requireSession);
   const s = new ProductionOrderService(db);
   const b = new BomService(db);
+  const mi = new MaterialIssueService(db);
   const auth = requireAuth;
   const meta = requestMeta;
   const idOf = (params: unknown) => parseInput(IdParams, params).id;
@@ -107,6 +137,54 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
     s.cancel(auth(r), idOf(r.params), reason(r), meta(r)),
   );
 
+  // EP37 materials and execution
+  app.post(`${O}/:id/materials/allocate`, small, async (r) => {
+    none(r);
+    return s.allocate(auth(r), idOf(r.params), meta(r));
+  });
+  app.post(`${O}/:id/materials/release`, small, async (r) => {
+    none(r);
+    return s.unreserve(auth(r), idOf(r.params), meta(r));
+  });
+  app.post(`${O}/:id/materials/reallocate`, small, async (r) => {
+    none(r);
+    return s.reallocate(auth(r), idOf(r.params), meta(r));
+  });
+  app.post(`${O}/:id/materials/:materialId/excess`, small, async (r) => {
+    const p = parseInput(MaterialParams, r.params);
+    return s.excess(auth(r), p.id, p.materialId, parseInput(ExcessBody, r.body ?? {}), meta(r));
+  });
+  for (const action of ['start', 'pause', 'resume'] as const) {
+    app.post(`${O}/:id/${action}`, small, async (r) =>
+      s.execute(
+        auth(r),
+        idOf(r.params),
+        action,
+        parseInput(ExecutionBody, r.body ?? {}).note ?? null,
+        meta(r),
+      ),
+    );
+  }
+  app.post(`${O}/:id/usage`, small, async (r) =>
+    s.recordUsage(auth(r), idOf(r.params), parseInput(UsageBody, r.body), meta(r)),
+  );
+  const I = '/issues';
+  app.get(I, async (r) => mi.list(auth(r), parseInput(IssueListQuery, r.query)));
+  app.post(I, body, async (r, reply) =>
+    reply.status(201).send(await mi.create(auth(r), parseInput(CreateIssueBody, r.body), meta(r))),
+  );
+  app.get(`${I}/:id`, async (r) => mi.get(auth(r), idOf(r.params)));
+  app.put(`${I}/:id/lines`, body, async (r) =>
+    mi.updateLines(auth(r), idOf(r.params), parseInput(IssueLinesBody, r.body), meta(r)),
+  );
+  app.post(`${I}/:id/cancel`, small, async (r) =>
+    mi.cancel(auth(r), idOf(r.params), reason(r), meta(r)),
+  );
+  app.post(`${I}/:id/post`, small, async (r) => {
+    none(r);
+    return mi.post(auth(r), idOf(r.params), meta(r));
+  });
+
   app.get('/requirements/preview', async (r) =>
     s.preview(auth(r), parseInput(PreviewQuery, r.query)),
   );
@@ -120,5 +198,13 @@ export const productionShortageRoutes: FastifyPluginAsync<{ db: Db }> = async (a
   app.addHook('preHandler', requireSession);
   const s = new ProductionOrderService(db);
   app.get('/', async (r) => s.shortages(requireAuth(r), parseInput(BranchQuery, r.query)));
+  return Promise.resolve();
+};
+
+/** EP37: the Warehouse read-only material issue handoff (no Operations route is opened to Warehouse). */
+export const materialIssueHandoffRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db }) => {
+  app.addHook('preHandler', requireSession);
+  const mi = new MaterialIssueService(db);
+  app.get('/', async (r) => mi.warehouseList(requireAuth(r), parseInput(HandoffQuery, r.query)));
   return Promise.resolve();
 };

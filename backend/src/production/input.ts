@@ -40,6 +40,8 @@ export const MO_STATUSES = [
   'SUBMITTED',
   'APPROVED',
   'READY',
+  'IN_PRODUCTION',
+  'PAUSED',
   'REJECTED',
   'CANCELLED',
 ] as const;
@@ -141,6 +143,8 @@ export const MoListQuery = z
     source: param(z.enum(SOURCES)),
     /** SHORT: open orders whose materials are short now; AVAILABLE: covered now. */
     materials: param(z.enum(['SHORT', 'AVAILABLE'])),
+    /** EP37: RESERVATION = approved … paused (materials being reserved / issued); EXECUTION = in production or paused. */
+    stage: param(z.enum(['RESERVATION', 'EXECUTION'])),
     /** Planned start between from and to (inclusive). */
     from: param(dayValue),
     to: param(dayValue),
@@ -170,3 +174,43 @@ export const BranchQuery = z.object({ branchId: param(id) }).strict();
 export const DemandQuery = z
   .object({ branchId: param(id), q: param(z.string().trim().min(1).max(100)), ...page })
   .strict();
+
+// ---------------------------------------------------------------- EP37
+
+/** Start / pause / resume: an optional work note only. */
+export const ExecutionBody = z.object({ note: opt(text(500)) }).strict();
+
+/** Excess (beyond the frozen requirement): manager, quantity and a reason. */
+export const ExcessBody = z.object({ quantity: quantityValue, reason: text(500) }).strict();
+
+/** Actual usage reported by production — evidence only, never a movement. */
+export const UsageBody = z
+  .object({ materialId: id, quantity: quantityValue, note: opt(text(500)) })
+  .strict();
+
+const issueLine = z.object({ allocationId: id, quantity: quantityValue }).strict();
+/** A draft issue: the order, and optionally which reservations and how much (default: all unclaimed). */
+export const CreateIssueBody = z
+  .object({
+    productionOrderId: id,
+    lines: z.array(issueLine).min(1).max(100).optional(),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreateIssueInput = z.output<typeof CreateIssueBody>;
+export const IssueLinesBody = z
+  .object({ lines: z.array(issueLine).min(1).max(100), note: opt(text(1000)) })
+  .strict();
+export type IssueLineInput = z.output<typeof issueLine>;
+
+export const ISSUE_STATUSES = ['DRAFT', 'POSTED', 'CANCELLED'] as const;
+export const IssueListQuery = z
+  .object({
+    status: param(z.enum(ISSUE_STATUSES)),
+    productionOrderId: param(id),
+    branchId: param(id),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type IssueListInput = z.output<typeof IssueListQuery>;

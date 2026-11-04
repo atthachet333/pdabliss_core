@@ -171,7 +171,20 @@ export type ProductionAuditAction =
   | 'PRODUCTION_ORDER_APPROVED'
   | 'PRODUCTION_ORDER_REJECTED'
   | 'PRODUCTION_ORDER_RELEASED'
-  | 'PRODUCTION_ORDER_CANCELLED';
+  | 'PRODUCTION_ORDER_CANCELLED'
+  // ---- EP37 (reservation, execution, usage — counts and transitions, never quantities of value)
+  | 'PRODUCTION_MATERIALS_ALLOCATED'
+  | 'PRODUCTION_MATERIALS_RELEASED'
+  | 'PRODUCTION_MATERIALS_REALLOCATED'
+  | 'PRODUCTION_EXCESS_ALLOCATED'
+  | 'PRODUCTION_ORDER_STARTED'
+  | 'PRODUCTION_ORDER_PAUSED'
+  | 'PRODUCTION_ORDER_RESUMED'
+  | 'PRODUCTION_MATERIAL_USAGE_RECORDED'
+  | 'MATERIAL_ISSUE_CREATED'
+  | 'MATERIAL_ISSUE_UPDATED'
+  | 'MATERIAL_ISSUE_POSTED'
+  | 'MATERIAL_ISSUE_CANCELLED';
 
 export type InventoryControlAuditAction =
   | 'TRANSFER_CREATED'
@@ -214,6 +227,7 @@ export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   'SalesShipment',
   'ProductionBom',
   'ProductionOrder',
+  'ProductionMaterialIssue',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -244,7 +258,8 @@ export type AuditEntityType =
   | 'SalesPack'
   | 'SalesShipment'
   | 'ProductionBom'
-  | 'ProductionOrder';
+  | 'ProductionOrder'
+  | 'ProductionMaterialIssue';
 
 export async function recordCompanyEvent(
   db: DbClient,

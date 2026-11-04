@@ -19,7 +19,11 @@ import { masterDataRoutes } from './master-data.js';
 import { operationsRoutes } from './operations.js';
 import { platformRoutes } from './platform.js';
 import { depositRoutes, pendingReceiveRoutes, purchaseOrderRoutes } from './purchase-orders.js';
-import { productionRoutes, productionShortageRoutes } from './production.js';
+import {
+  materialIssueHandoffRoutes,
+  productionRoutes,
+  productionShortageRoutes,
+} from './production.js';
 import { purchaseRequestRoutes } from './purchase-requests.js';
 import { salesRoutes } from './sales.js';
 import { warehouseRoutes } from './warehouse.js';
@@ -106,6 +110,11 @@ export const v1Routes: FastifyPluginAsync<{
     await app.register(productionRoutes, { prefix: '/production', db: services.db });
     await app.register(productionShortageRoutes, {
       prefix: '/purchasing/production-shortages',
+      db: services.db,
+    });
+    // EP37: Warehouse's read-only view of material issues (explicit permission).
+    await app.register(materialIssueHandoffRoutes, {
+      prefix: '/warehouse/material-issues',
       db: services.db,
     });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });

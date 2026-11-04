@@ -8,8 +8,35 @@ import { apiRequest } from '@/lib/api';
  * client never sends them. Availability is a snapshot, never a reservation.
  */
 
-export type MoStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'READY' | 'REJECTED' | 'CANCELLED';
-export type MoAction = 'edit' | 'submit' | 'approve' | 'reject' | 'release' | 'cancel';
+export type MoStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'READY'
+  | 'IN_PRODUCTION'
+  | 'PAUSED'
+  | 'REJECTED'
+  | 'CANCELLED';
+export type MoAction =
+  | 'edit'
+  | 'submit'
+  | 'approve'
+  | 'reject'
+  | 'release'
+  | 'cancel'
+  | 'allocate'
+  | 'unreserve'
+  | 'reallocate'
+  | 'excess'
+  | 'start'
+  | 'pause'
+  | 'resume'
+  | 'issue'
+  | 'usage';
+/** EP37: the order's material commitment, derived by the server. */
+export type ReservationState =
+  'NOT_RESERVED' | 'PARTIALLY_RESERVED' | 'FULLY_RESERVED' | 'PARTIALLY_ISSUED' | 'ISSUED';
+export type IssueStatus = 'DRAFT' | 'POSTED' | 'CANCELLED';
 export type BomStatus = 'DRAFT' | 'ACTIVE' | 'RETIRED';
 export type BomAction = 'edit' | 'activate' | 'retire' | 'revise';
 export type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
@@ -44,6 +71,16 @@ export interface ProductionContext {
     materialsShort: number;
     demandToReview: number;
     sourceCancelled: number;
+    inProduction: number;
+    paused: number;
+    draftIssues: number;
+  };
+  execution: {
+    materials: boolean;
+    issueCreate: boolean;
+    issuePost: boolean;
+    usage: boolean;
+    manage: boolean;
   };
   today: string;
 }
@@ -91,6 +128,7 @@ export interface Bom extends BomRow {
 export type BomDetail = { bom: Bom; timeline: Timeline };
 
 export interface Material {
+  id: string;
   lineNo: number;
   item: Ref;
   unit: Unit;
@@ -100,6 +138,13 @@ export interface Material {
   available: string | null;
   shortage: string | null;
   state: Availability | null;
+  reserved: string;
+  issued: string;
+  used: string;
+  stillNeeded: string;
+  excess: string;
+  usageVariance: string;
+  unrecorded: string;
 }
 
 export interface MoRow {
@@ -116,6 +161,7 @@ export interface MoRow {
   requiredDate: string | null;
   priority: Priority;
   materialState: MaterialState;
+  reservationState: ReservationState | null;
   salesOrder: {
     id: string;
     number: string;
@@ -155,6 +201,84 @@ export interface Mo extends MoRow {
   } | null;
   warnings: Warning[];
   actions: MoAction[];
+  startedAt: string | null;
+  startedBy: Person;
+  pausedAt: string | null;
+  executionNote: string | null;
+  reservations: Reservation[];
+  issues: {
+    id: string;
+    number: string;
+    status: IssueStatus;
+    postedAt: string | null;
+    lineCount: number;
+  }[];
+}
+export interface Reservation {
+  id: string;
+  materialLineNo: number;
+  item: Ref;
+  unit: Unit;
+  location: Ref;
+  lot: LotRef | null;
+  quantity: string;
+  claimed: string;
+  excess: boolean;
+}
+export type LotRef = { id: string; lotNumber: string; expiryDate: string | null };
+export interface AllocationResult {
+  reservedNow: string;
+  materials: {
+    lineNo: number;
+    item: string;
+    required: string;
+    reservedNow: string;
+    covered: string;
+    shortage: string;
+  }[];
+}
+export interface IssueRow {
+  id: string;
+  number: string;
+  status: IssueStatus;
+  branch: Ref;
+  order: { id: string; number: string; status: MoStatus };
+  lineCount: number;
+  createdBy: Person;
+  createdAt: string;
+  postedAt: string | null;
+  updatedAt: string;
+}
+export interface Issue extends IssueRow {
+  note: string | null;
+  postedBy: Person;
+  cancelledAt: string | null;
+  cancelledBy: Person;
+  cancellationReason: string | null;
+  lines: {
+    id: string;
+    lineNo: number;
+    materialLineNo: number;
+    item: Ref;
+    unit: Unit;
+    location: Ref;
+    lot: LotRef | null;
+    quantity: string;
+    allocationId: string;
+    reserved: string | null;
+  }[];
+  actions: ('edit' | 'post' | 'cancel')[];
+}
+export type IssueDetail = { issue: Issue; timeline: Timeline };
+export interface HandoffRow {
+  id: string;
+  number: string;
+  status: IssueStatus;
+  branch: Ref;
+  order: { number: string };
+  postedAt: string | null;
+  createdAt: string;
+  lines: { item: Ref; unit: Unit; location: Ref; lot: LotRef | null; quantity: string }[];
 }
 export type MoDetail = { order: Mo; timeline: Timeline };
 
@@ -168,6 +292,9 @@ export interface RequirementRow {
   item: Ref;
   unit: Unit;
   required: string;
+  reserved: string;
+  issued: string;
+  stillNeeded: string;
   available: string;
   shortage: string;
   state: Availability;
@@ -274,6 +401,41 @@ export const productionApi = {
     apiRequest<Page<DemandRow>>('GET', `${P}/demand${qs(q)}`),
   shortages: () =>
     apiRequest<{ items: ShortageRow[] }>('GET', '/api/v1/purchasing/production-shortages'),
+  // EP37 materials, execution, issues
+  materials: (o: string, action: 'allocate' | 'release' | 'reallocate') =>
+    apiRequest<MoDetail & { allocation?: AllocationResult }>(
+      'POST',
+      `${P}/orders/${id(o)}/materials/${action}`,
+      {},
+    ),
+  excess: (o: string, materialId: string, body: { quantity: string; reason: string }) =>
+    apiRequest<MoDetail & { allocation?: AllocationResult }>(
+      'POST',
+      `${P}/orders/${id(o)}/materials/${id(materialId)}/excess`,
+      body,
+    ),
+  execute: (o: string, action: 'start' | 'pause' | 'resume', note?: string) =>
+    apiRequest<MoDetail>('POST', `${P}/orders/${id(o)}/${action}`, note ? { note } : {}),
+  usage: (o: string, body: { materialId: string; quantity: string; note?: string | null }) =>
+    apiRequest<MoDetail>('POST', `${P}/orders/${id(o)}/usage`, body),
+  issues: (q: Record<string, string | number | undefined>) =>
+    apiRequest<Page<IssueRow>>('GET', `${P}/issues${qs(q)}`),
+  issue: (i: string) => apiRequest<IssueDetail>('GET', `${P}/issues/${id(i)}`),
+  createIssue: (body: {
+    productionOrderId: string;
+    lines?: { allocationId: string; quantity: string }[];
+    note?: string | null;
+  }) => apiRequest<IssueDetail>('POST', `${P}/issues`, body),
+  issueLines: (i: string, lines: { allocationId: string; quantity: string }[]) =>
+    apiRequest<IssueDetail>('PUT', `${P}/issues/${id(i)}/lines`, { lines }),
+  issueAct: (i: string, action: 'post' | 'cancel', reason?: string) =>
+    apiRequest<IssueDetail>(
+      'POST',
+      `${P}/issues/${id(i)}/${action}`,
+      action === 'cancel' ? { reason: reason || null } : {},
+    ),
+  handoff: (q: { status?: string; page: number; pageSize: number }) =>
+    apiRequest<Page<HandoffRow>>('GET', `/api/v1/warehouse/material-issues${qs(q)}`),
 };
 
 /** Decimal places of a quantity string (shape check only — the server decides). */

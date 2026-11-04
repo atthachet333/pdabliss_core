@@ -42,7 +42,9 @@ import { assertKnownLots, assertLocations, normalizeLine } from './rules.js';
  *
  * EP34: every decrease also keeps on hand ≥ what Sales has reserved of that
  * stock (reservations.ts `takeRespectingReservations`, STOCK_RESERVED) — a
- * reservation is not a movement, but no movement may eat into one.
+ * reservation is not a movement, but no movement may eat into one. EP37: the
+ * same guard counts production reservations too, and a posted material issue
+ * writes PRODUCTION_CONSUMPTION here, like every other stock change.
  */
 
 export interface LedgerActor {
@@ -214,7 +216,13 @@ export type MovementSource =
   | { sourceType: 'ADJUSTMENT'; adjustmentId: string; adjustmentLineId: string }
   | { sourceType: 'CYCLE_COUNT'; cycleCountId: string; cycleCountLineId: string }
   /** EP35: a dispatched shipment line (SALES_ISSUE). */
-  | { sourceType: 'SALES_SHIPMENT'; salesShipmentId: string; salesShipmentLineId: string };
+  | { sourceType: 'SALES_SHIPMENT'; salesShipmentId: string; salesShipmentLineId: string }
+  /** EP37: a posted material issue line (PRODUCTION_CONSUMPTION). */
+  | {
+      sourceType: 'PRODUCTION_ISSUE';
+      productionMaterialIssueId: string;
+      productionMaterialIssueLineId: string;
+    };
 
 /**
  * THE stock writer: one movement and its balance change, in the caller's

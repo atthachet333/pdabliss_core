@@ -7,6 +7,13 @@ import { permissionDenied } from '../permissions/guard.js';
 import { Decimal, ZERO } from '../purchasing/money.js';
 import { companyDay } from '../purchasing/service.js';
 import { lineProgress } from '../sales/fulfilment.js';
+import {
+  allocateMaterials,
+  materialProgress,
+  releaseMaterials,
+  reservationStateOf,
+  type MaterialResult,
+} from './allocation.js';
 import type { CreateMoInput, MoListInput, UpdateMoInput } from './input.js';
 import {
   allowedMoActions,
@@ -27,7 +34,15 @@ import {
   stockOf,
   type MaterialAvailability,
 } from './requirements.js';
-import { DemandRow, MoRow, MoView, Preview, RequirementRow, ShortageRow } from './views.js';
+import {
+  AllocationResult,
+  DemandRow,
+  MoRow,
+  MoView,
+  Preview,
+  RequirementRow,
+  ShortageRow,
+} from './views.js';
 
 /*
  * Production orders (EP36) — docs/PRODUCTION_ORDER.md. Planning truth: what to
@@ -58,6 +73,7 @@ const include = {
   releasedBy: person,
   rejectedBy: person,
   cancelledBy: person,
+  startedBy: person,
   materials: { orderBy: { lineNo: 'asc' as const } },
   salesOrder: { select: { id: true, number: true, status: true, requestedDate: true } },
   salesOrderLine: { select: { lineNo: true, quantity: true } },
@@ -73,12 +89,31 @@ const TIMELINE: ProductionAuditAction[] = [
   'PRODUCTION_ORDER_REJECTED',
   'PRODUCTION_ORDER_RELEASED',
   'PRODUCTION_ORDER_CANCELLED',
+  'PRODUCTION_MATERIALS_ALLOCATED',
+  'PRODUCTION_MATERIALS_RELEASED',
+  'PRODUCTION_MATERIALS_REALLOCATED',
+  'PRODUCTION_EXCESS_ALLOCATED',
+  'PRODUCTION_ORDER_STARTED',
+  'PRODUCTION_ORDER_PAUSED',
+  'PRODUCTION_ORDER_RESUMED',
+  'PRODUCTION_MATERIAL_USAGE_RECORDED',
 ];
 /** Orders that still plan output (they count as planned demand). */
-export const OPEN = ['DRAFT', 'SUBMITTED', 'APPROVED', 'READY'] as const;
-/** Committed plans: the shortage handoff to Purchasing. */
-const COMMITTED = ['APPROVED', 'READY'] as const;
-const FROZEN: readonly string[] = ['APPROVED', 'READY', 'REJECTED', 'CANCELLED'];
+export const OPEN = ['DRAFT', 'SUBMITTED', 'APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'] as const;
+/** Committed plans: the shortage handoff to Purchasing (EP37: and orders in production). */
+const COMMITTED = ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'] as const;
+/** EP37: statuses whose requirements are being reserved / issued. */
+const EXECUTING = ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'] as const;
+const FROZEN: readonly string[] = [
+  'APPROVED',
+  'READY',
+  'IN_PRODUCTION',
+  'PAUSED',
+  'REJECTED',
+  'CANCELLED',
+];
+type Progress = Awaited<ReturnType<typeof materialProgress>>;
+const NO_PROGRESS: Progress = new Map();
 
 type Stock = Awaited<ReturnType<typeof availableFor>>;
 type BomWithLines = Prisma.ProductionBomGetPayload<{ include: { lines: true } }>;
@@ -225,7 +260,12 @@ export class ProductionOrderService {
     return availableFor(this.db, actor.access.company.id, this.today(actor), pairs);
   }
 
-  /** Per material: required vs available now (null for terminal orders). */
+  /**
+   * Per material: required vs what this order already holds (EP37: ACTIVE
+   * reservations, posted issues) vs what is available to new allocation now
+   * (null for terminal orders). still needed = required − reserved − issued;
+   * shortage = still needed − available.
+   */
   private assess(
     o: {
       branchId: string;
@@ -235,34 +275,60 @@ export class ProductionOrderService {
       materials: Full['materials'];
     },
     stock: Stock,
+    progress: Progress = NO_PROGRESS,
   ) {
     const assessed = ASSESSED.includes(o.status);
     const lines = o.materials.map((m) => {
+      const p = progress.get(m.id);
+      const reserved = p?.reserved ?? ZERO;
+      const issued = p?.issued ?? ZERO;
+      const used = p?.used ?? ZERO;
+      const stillNeeded = Decimal.max(ZERO, m.requiredQuantity.minus(reserved).minus(issued));
+      const execution = {
+        reserved: reserved.toString(),
+        issued: issued.toString(),
+        used: used.toString(),
+        stillNeeded: stillNeeded.toString(),
+        excess: Decimal.max(ZERO, reserved.plus(issued).minus(m.requiredQuantity)).toString(),
+        usageVariance: used.minus(m.requiredQuantity).toString(),
+        unrecorded: Decimal.max(ZERO, issued.minus(used)).toString(),
+      };
       const exact = o.bomOutputQuantity
         ? requiredQuantity(o.quantity, m.bomQuantity, o.bomOutputQuantity, m.unitPrecision).exact
         : true;
       const base = {
+        id: m.id,
         lineNo: m.lineNo,
         item: { id: m.itemId, code: m.itemCode, name: m.itemName },
         unit: { code: m.unitCode, precision: m.unitPrecision },
         bomQuantity: m.bomQuantity.toString(),
         required: m.requiredQuantity.toString(),
         exact,
+        ...execution,
       };
       if (!assessed) return { ...base, available: null, shortage: null, state: null };
       const available = stockOf(stock, o.branchId, m.itemId).available;
-      const a = materialState(m.requiredQuantity, available);
-      return {
-        ...base,
-        available: available.toString(),
-        shortage: a.shortage.toString(),
-        state: a.state,
-      };
+      const shortage = Decimal.max(ZERO, stillNeeded.minus(available));
+      const state: MaterialAvailability = shortage.isZero()
+        ? 'AVAILABLE'
+        : available.gt(0) || reserved.plus(issued).gt(0)
+          ? 'PARTIALLY_AVAILABLE'
+          : 'UNAVAILABLE';
+      return { ...base, available: available.toString(), shortage: shortage.toString(), state };
     });
     const state = assessed
       ? orderMaterialState(lines.map((l) => l.state as MaterialAvailability))
       : 'NOT_ASSESSED';
-    return { lines, state };
+    const reservation = (EXECUTING as readonly string[]).includes(o.status)
+      ? reservationStateOf(
+          o.materials.map((m) => ({
+            required: m.requiredQuantity,
+            reserved: progress.get(m.id)?.reserved ?? ZERO,
+            issued: progress.get(m.id)?.issued ?? ZERO,
+          })),
+        )
+      : null;
+    return { lines, state, reservation };
   }
 
   // ------------------------------------------------------------------ views
@@ -275,7 +341,7 @@ export class ProductionOrderService {
       : null;
   }
 
-  private row(o: Full, state: string) {
+  private row(o: Full, state: string, reservation: string | null = null) {
     return {
       id: o.id,
       number: o.number,
@@ -293,6 +359,7 @@ export class ProductionOrderService {
       requiredDate: day(o.requiredDate),
       priority: o.priority,
       materialState: state,
+      reservationState: reservation,
       salesOrder:
         o.salesOrder && o.salesOrderLine
           ? {
@@ -341,8 +408,45 @@ export class ProductionOrderService {
   }
 
   private async view(actor: ProductionActor, o: Full) {
-    const stock = await this.stockForOrders(actor, [o]);
-    const a = this.assess(o, stock);
+    const [stock, progress, allocations, issues, claims] = await Promise.all([
+      this.stockForOrders(actor, [o]),
+      materialProgress(this.db, [o.id]),
+      this.db.productionMaterialAllocation.findMany({
+        where: { productionOrderId: o.id, status: 'ACTIVE' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        include: {
+          material: {
+            select: {
+              lineNo: true,
+              itemCode: true,
+              itemName: true,
+              unitCode: true,
+              unitPrecision: true,
+            },
+          },
+          location: { select: { id: true, code: true, name: true } },
+          lot: { select: { id: true, lotNumber: true, expiryDate: true } },
+        },
+      }),
+      this.db.productionMaterialIssue.findMany({
+        where: { productionOrderId: o.id },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          postedAt: true,
+          _count: { select: { lines: true } },
+        },
+      }),
+      this.db.productionMaterialIssueLine.groupBy({
+        by: ['allocationId'],
+        where: { productionOrderId: o.id, issue: { status: 'DRAFT' } },
+        _sum: { quantity: true },
+      }),
+    ]);
+    const a = this.assess(o, stock, progress);
+    const claimed = new Map(claims.map((c) => [c.allocationId, c._sum.quantity ?? ZERO]));
     const demand = await this.demandOf(o);
     const timeline = await this.db.auditLog.findMany({
       where: {
@@ -362,7 +466,7 @@ export class ProductionOrderService {
       warnings.push('BOM_RETIRED');
     return {
       order: MoView.parse({
-        ...this.row(o, a.state),
+        ...this.row(o, a.state, a.reservation),
         note: o.note,
         bomOutputQuantity: o.bomOutputQuantity?.toString() ?? null,
         createdAt: o.createdAt.toISOString(),
@@ -382,7 +486,29 @@ export class ProductionOrderService {
         materials: a.lines,
         demand,
         warnings,
-        actions: allowedMoActions(actor, o),
+        actions: this.actionsOf(actor, o, a, allocations.length > 0, claims.length > 0),
+        startedAt: iso(o.startedAt),
+        startedBy: who(o.startedBy),
+        pausedAt: iso(o.pausedAt),
+        executionNote: o.executionNote,
+        reservations: allocations.map((r) => ({
+          id: r.id,
+          materialLineNo: r.material.lineNo,
+          item: { id: r.itemId, code: r.material.itemCode, name: r.material.itemName },
+          unit: { code: r.material.unitCode, precision: r.material.unitPrecision },
+          location: r.location,
+          lot: r.lot ? { ...r.lot, expiryDate: day(r.lot.expiryDate) } : null,
+          quantity: r.quantity.toString(),
+          claimed: (claimed.get(r.id) ?? ZERO).toString(),
+          excess: r.excess,
+        })),
+        issues: issues.map((i) => ({
+          id: i.id,
+          number: i.number,
+          status: i.status,
+          postedAt: iso(i.postedAt),
+          lineCount: i._count.lines,
+        })),
       }),
       timeline: timeline.map((e) => ({
         type: e.action,
@@ -397,13 +523,19 @@ export class ProductionOrderService {
   /** Open, visible orders in scope with their material state now (capped, newest first). */
   private async openStates(actor: ProductionActor, where: Prisma.ProductionOrderWhereInput) {
     const open = await this.db.productionOrder.findMany({
-      where: { ...where, status: { in: ['SUBMITTED', 'APPROVED', 'READY'] } },
+      where: { ...where, status: { in: ['SUBMITTED', ...EXECUTING] } },
       include,
       take: 1000,
       orderBy: { updatedAt: 'desc' },
     });
-    const stock = await this.stockForOrders(actor, open);
-    return open.map((o) => ({ o, state: this.assess(o, stock).state }));
+    const [stock, progress] = await Promise.all([
+      this.stockForOrders(actor, open),
+      materialProgress(
+        this.db,
+        open.map((o) => o.id),
+      ),
+    ]);
+    return open.map((o) => ({ o, state: this.assess(o, stock, progress).state }));
   }
 
   async context(ctx: AuthContext) {
@@ -412,22 +544,39 @@ export class ProductionOrderService {
       actor.branches.find((b) => b.id === ctx.session.branchId) ??
       (actor.branches.length === 1 ? actor.branches[0]! : null);
     const where = this.visibleWhere(actor, selected?.id);
-    const [drafts, submitted, approved, ready, states, demand] = await Promise.all([
-      this.db.productionOrder.count({
-        where: { ...where, status: 'DRAFT', createdByMemberId: actor.memberId },
-      }),
-      this.db.productionOrder.count({ where: { ...where, status: 'SUBMITTED' } }),
-      this.db.productionOrder.count({ where: { ...where, status: 'APPROVED' } }),
-      this.db.productionOrder.count({ where: { ...where, status: 'READY' } }),
-      this.openStates(actor, where),
-      this.demandRows(actor, selected?.id),
-    ]);
+    const [drafts, submitted, approved, ready, states, demand, inProduction, paused, draftIssues] =
+      await Promise.all([
+        this.db.productionOrder.count({
+          where: { ...where, status: 'DRAFT', createdByMemberId: actor.memberId },
+        }),
+        this.db.productionOrder.count({ where: { ...where, status: 'SUBMITTED' } }),
+        this.db.productionOrder.count({ where: { ...where, status: 'APPROVED' } }),
+        this.db.productionOrder.count({ where: { ...where, status: 'READY' } }),
+        this.openStates(actor, where),
+        this.demandRows(actor, selected?.id),
+        this.db.productionOrder.count({ where: { ...where, status: 'IN_PRODUCTION' } }),
+        this.db.productionOrder.count({ where: { ...where, status: 'PAUSED' } }),
+        this.db.productionMaterialIssue.count({
+          where: {
+            companyId: actor.access.company.id,
+            branchId: { in: this.branchFilter(actor, selected?.id) },
+            status: 'DRAFT',
+          },
+        }),
+      ]);
     return {
       orders: {
         view: actor.view,
         create: actor.create,
         approve: actor.approve,
         cancel: actor.cancel,
+      },
+      execution: {
+        materials: actor.materials,
+        issueCreate: actor.issueCreate,
+        issuePost: actor.issuePost,
+        usage: actor.usage,
+        manage: actor.execution,
       },
       bom: { view: actor.bomView, manage: actor.bomManage },
       branches: actor.branches,
@@ -440,6 +589,9 @@ export class ProductionOrderService {
         materialsShort: states.filter((s) => s.state === 'MATERIALS_SHORT').length,
         demandToReview: demand.filter((d) => new Decimal(d.suggested).gt(0)).length,
         sourceCancelled: states.filter((s) => this.attention(s.o)).length,
+        inProduction,
+        paused,
+        draftIssues,
       },
       today: this.today(actor),
     };
@@ -450,6 +602,13 @@ export class ProductionOrderService {
     const base = this.visibleWhere(actor, q.branchId);
     const and: Prisma.ProductionOrderWhereInput[] = [base];
     if (q.status) and.push({ status: q.status });
+    if (q.stage) {
+      and.push({
+        status: {
+          in: q.stage === 'EXECUTION' ? ['IN_PRODUCTION', 'PAUSED'] : [...EXECUTING],
+        },
+      });
+    }
     if (q.itemId) and.push({ itemId: q.itemId });
     if (q.source) and.push({ source: q.source });
     if (q.from || q.to) {
@@ -484,9 +643,18 @@ export class ProductionOrderService {
       }),
       this.db.productionOrder.count({ where }),
     ]);
-    const stock = await this.stockForOrders(actor, rows);
+    const [stock, progress] = await Promise.all([
+      this.stockForOrders(actor, rows),
+      materialProgress(
+        this.db,
+        rows.map((o) => o.id),
+      ),
+    ]);
     return {
-      items: rows.map((o) => MoRow.parse(this.row(o, this.assess(o, stock).state))),
+      items: rows.map((o) => {
+        const a = this.assess(o, stock, progress);
+        return MoRow.parse(this.row(o, a.state, a.reservation));
+      }),
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -560,16 +728,23 @@ export class ProductionOrderService {
     const orders = await this.db.productionOrder.findMany({
       where: {
         ...this.visibleWhere(actor, branchId),
-        status: { in: ['SUBMITTED', 'APPROVED', 'READY'] },
+        status: { in: ['SUBMITTED', ...EXECUTING] },
       },
-      select: { requiredDate: true, materials: true },
+      select: { id: true, requiredDate: true, materials: true },
     });
+    const progress = await materialProgress(
+      this.db,
+      orders.map((o) => o.id),
+    );
     const by = new Map<
       string,
       {
         item: { id: string; code: string; name: string };
         unit: { code: string; precision: number };
         required: Decimal;
+        reserved: Decimal;
+        issued: Decimal;
+        stillNeeded: Decimal;
         orders: number;
         earliest: Date | null;
       }
@@ -580,10 +755,22 @@ export class ProductionOrderService {
           item: { id: m.itemId, code: m.itemCode, name: m.itemName },
           unit: { code: m.unitCode, precision: m.unitPrecision },
           required: ZERO,
+          reserved: ZERO,
+          issued: ZERO,
+          stillNeeded: ZERO,
           orders: 0,
           earliest: null,
         };
+        const pg = progress.get(m.id);
         r.required = r.required.plus(m.requiredQuantity);
+        r.reserved = r.reserved.plus(pg?.reserved ?? ZERO);
+        r.issued = r.issued.plus(pg?.issued ?? ZERO);
+        r.stillNeeded = r.stillNeeded.plus(
+          Decimal.max(
+            ZERO,
+            m.requiredQuantity.minus(pg?.reserved ?? ZERO).minus(pg?.issued ?? ZERO),
+          ),
+        );
         r.orders += 1;
         if (o.requiredDate && (!r.earliest || o.requiredDate < r.earliest))
           r.earliest = o.requiredDate;
@@ -599,11 +786,14 @@ export class ProductionOrderService {
     const items = [...by.values()]
       .map((r) => {
         const available = stockOf(stock, branchId, r.item.id).available;
-        const s = materialState(r.required, available);
+        const s = materialState(r.stillNeeded, available);
         return RequirementRow.parse({
           item: r.item,
           unit: r.unit,
           required: r.required.toString(),
+          reserved: r.reserved.toString(),
+          issued: r.issued.toString(),
+          stillNeeded: r.stillNeeded.toString(),
           available: available.toString(),
           shortage: s.shortage.toString(),
           state: s.state,
@@ -778,16 +968,27 @@ export class ProductionOrderService {
       orderBy: [{ requiredDate: { sort: 'asc', nulls: 'last' } }, { number: 'asc' }],
       take: 500,
     });
-    const stock = await availableFor(
-      this.db,
-      actor.access.company.id,
-      this.today(actor),
-      orders.flatMap((o) => o.materials.map((m) => ({ branchId: o.branchId, itemId: m.itemId }))),
-    );
+    const [stock, progress] = await Promise.all([
+      availableFor(
+        this.db,
+        actor.access.company.id,
+        this.today(actor),
+        orders.flatMap((o) => o.materials.map((m) => ({ branchId: o.branchId, itemId: m.itemId }))),
+      ),
+      materialProgress(
+        this.db,
+        orders.map((o) => o.id),
+      ),
+    ]);
     const items = orders.flatMap((o) =>
       o.materials.flatMap((m) => {
         const available = stockOf(stock, o.branchId, m.itemId).available;
-        const s = materialState(m.requiredQuantity, available);
+        const pg = progress.get(m.id);
+        const still = Decimal.max(
+          ZERO,
+          m.requiredQuantity.minus(pg?.reserved ?? ZERO).minus(pg?.issued ?? ZERO),
+        );
+        const s = materialState(still, available);
         if (s.shortage.isZero()) return [];
         return [
           ShortageRow.parse({
@@ -1132,7 +1333,7 @@ export class ProductionOrderService {
   async transition(
     actor: ProductionActor,
     id: string,
-    action: Exclude<MoAction, 'edit'>,
+    action: 'submit' | 'approve' | 'reject' | 'release' | 'cancel',
     meta: RequestMeta,
     reason: string | null = null,
   ) {
@@ -1186,19 +1387,27 @@ export class ProductionOrderService {
         const materials = await tx.productionOrderMaterial.findMany({
           where: { productionOrderId: id },
         });
-        const stock = await availableFor(
-          tx,
-          o.companyId,
-          this.today(actor),
-          materials.map((m) => ({ branchId: o.branchId, itemId: m.itemId })),
-        );
-        const short = materials.filter(
-          (m) =>
-            !materialState(
-              m.requiredQuantity,
-              stockOf(stock, o.branchId, m.itemId).available,
-            ).shortage.isZero(),
-        );
+        const [stock, progress] = await Promise.all([
+          availableFor(
+            tx,
+            o.companyId,
+            this.today(actor),
+            materials.map((m) => ({ branchId: o.branchId, itemId: m.itemId })),
+          ),
+          materialProgress(tx, [id]),
+        ]);
+        // EP37: what the order already holds (reserved, issued) counts; only the rest must be free.
+        const short = materials.filter((m) => {
+          const pg = progress.get(m.id);
+          const still = Decimal.max(
+            ZERO,
+            m.requiredQuantity.minus(pg?.reserved ?? ZERO).minus(pg?.issued ?? ZERO),
+          );
+          return !materialState(
+            still,
+            stockOf(stock, o.branchId, m.itemId).available,
+          ).shortage.isZero();
+        });
         if (short.length) {
           throw fail(
             409,
@@ -1219,6 +1428,40 @@ export class ProductionOrderService {
         if (o.status !== 'DRAFT' && !reason) {
           throw fail(422, 'REASON_REQUIRED', 'Give a reason for cancelling.', { field: 'reason' });
         }
+        // EP37: issued material is never silently restored — an order that consumed stock
+        // cannot be cancelled here; otherwise its reservations and draft issues go with it.
+        const issued = await tx.productionMaterialAllocation.count({
+          where: { productionOrderId: id, status: 'CONSUMED' },
+        });
+        if (issued) {
+          throw fail(
+            409,
+            'MATERIAL_ALREADY_ISSUED',
+            'Material was already issued to this order; it cannot be cancelled.',
+          );
+        }
+        const released = await releaseMaterials(
+          tx,
+          { companyId: o.companyId, memberId: by },
+          id,
+          'ORDER_CANCELLED',
+        );
+        const drafts = await tx.productionMaterialIssue.updateMany({
+          where: { productionOrderId: id, status: 'DRAFT' },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: now,
+            cancelledByMemberId: by,
+            cancellationReason: 'Production order cancelled',
+          },
+        });
+        if (released) {
+          await this.event(tx, actor, meta, 'PRODUCTION_MATERIALS_RELEASED', o, {
+            reason: 'ORDER_CANCELLED',
+            reservations: released,
+            draftIssues: drafts.count,
+          });
+        }
         await tx.productionOrder.update({
           where: { id },
           data: {
@@ -1233,6 +1476,311 @@ export class ProductionOrderService {
           to: 'CANCELLED',
         });
       }
+    });
+  }
+
+  // ------------------------------------------------------------------ EP37 materials + execution
+
+  /** The actions the order offers now — authority (policy) plus what makes sense right now. */
+  private actionsOf(
+    actor: ProductionActor,
+    o: Full,
+    a: ReturnType<ProductionOrderService['assess']>,
+    hasActive: boolean,
+    hasDraftIssue: boolean,
+  ) {
+    const needs = a.lines.some((l) => l.stillNeeded !== '0');
+    const allCovered = !needs && a.lines.length > 0;
+    return allowedMoActions(actor, o).filter(
+      (x) =>
+        (x !== 'allocate' || needs) &&
+        ((x !== 'unreserve' && x !== 'reallocate') || (hasActive && !hasDraftIssue)) &&
+        (x !== 'start' || allCovered) &&
+        (x !== 'issue' || hasActive) &&
+        (x !== 'usage' || a.lines.some((l) => l.issued !== '0')),
+    );
+  }
+
+  private allocResult(lines: MaterialResult[]) {
+    return AllocationResult.parse({
+      reservedNow: lines.reduce((t, l) => t.plus(l.reservedNow), ZERO).toString(),
+      materials: lines.map((l) => ({
+        lineNo: l.lineNo,
+        item: l.itemCode,
+        required: l.required.toString(),
+        reservedNow: l.reservedNow.toString(),
+        covered: l.covered.toString(),
+        shortage: l.shortage.toString(),
+      })),
+    });
+  }
+
+  private refuseWhileDraftIssues = async (tx: Prisma.TransactionClient, id: string) => {
+    if (
+      await tx.productionMaterialIssue.count({ where: { productionOrderId: id, status: 'DRAFT' } })
+    ) {
+      throw fail(
+        409,
+        'MATERIAL_ISSUE_PENDING',
+        'A draft material issue holds these reservations: post or cancel it first.',
+      );
+    }
+  };
+
+  /** FEFO-reserve what every material still needs (repeatable — never double). */
+  async allocate(ctx: AuthContext, id: string, meta: RequestMeta) {
+    const actor = await loadProductionActor(this.db, ctx);
+    const lines = await this.allocateAs(actor, id, meta);
+    return { ...(await this.get(ctx, id)), allocation: this.allocResult(lines) };
+  }
+
+  async allocateAs(actor: ProductionActor, id: string, meta: RequestMeta) {
+    return this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'allocate');
+      const r = await allocateMaterials(
+        tx,
+        { companyId: o.companyId, memberId: actor.memberId },
+        o,
+        this.today(actor),
+      );
+      const touched = r.filter((l) => l.reservedNow.gt(0)).length;
+      if (touched) {
+        await this.event(tx, actor, meta, 'PRODUCTION_MATERIALS_ALLOCATED', o, {
+          materials: touched,
+          shortMaterials: r.filter((l) => l.shortage.gt(0)).length,
+        });
+      }
+      return r;
+    });
+  }
+
+  /** Release every ACTIVE (unissued) reservation; issued history stays. */
+  async unreserve(ctx: AuthContext, id: string, meta: RequestMeta) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'unreserve');
+      await this.refuseWhileDraftIssues(tx, id);
+      const n = await releaseMaterials(
+        tx,
+        { companyId: o.companyId, memberId: actor.memberId },
+        id,
+        'RELEASED',
+      );
+      if (!n) throw fail(409, 'MO_NOT_RESERVED', 'This order has no material reserved.');
+      await this.event(tx, actor, meta, 'PRODUCTION_MATERIALS_RELEASED', o, {
+        reason: 'RELEASED',
+        reservations: n,
+      });
+    });
+    return this.get(ctx, id);
+  }
+
+  /** Release every ACTIVE reservation and reserve again FEFO from current stock, atomically. */
+  async reallocate(ctx: AuthContext, id: string, meta: RequestMeta) {
+    const actor = await loadProductionActor(this.db, ctx);
+    const lines = await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'reallocate');
+      await this.refuseWhileDraftIssues(tx, id);
+      const n = await releaseMaterials(
+        tx,
+        { companyId: o.companyId, memberId: actor.memberId },
+        id,
+        'REALLOCATED',
+      );
+      if (!n) throw fail(409, 'MO_NOT_RESERVED', 'This order has no material reserved.');
+      const r = await allocateMaterials(
+        tx,
+        { companyId: o.companyId, memberId: actor.memberId },
+        o,
+        this.today(actor),
+      );
+      await this.event(tx, actor, meta, 'PRODUCTION_MATERIALS_REALLOCATED', o, {
+        released: n,
+        materials: r.filter((l) => l.reservedNow.gt(0)).length,
+      });
+      return r;
+    });
+    return { ...(await this.get(ctx, id)), allocation: this.allocResult(lines) };
+  }
+
+  /** Manager-authorized extra material beyond the frozen requirement (reason kept). */
+  async excess(
+    ctx: AuthContext,
+    id: string,
+    materialId: string,
+    input: { quantity: string; reason: string },
+    meta: RequestMeta,
+  ) {
+    const actor = await loadProductionActor(this.db, ctx);
+    const lines = await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'excess');
+      const m = await tx.productionOrderMaterial.findFirst({
+        where: { id: materialId, productionOrderId: id },
+      });
+      if (!m) {
+        throw fail(422, 'REFERENCE_NOT_FOUND', 'The selected record does not exist.', {
+          field: 'materialId',
+        });
+      }
+      this.checkQuantity(input.quantity, m.unitPrecision);
+      const r = await allocateMaterials(
+        tx,
+        { companyId: o.companyId, memberId: actor.memberId },
+        o,
+        this.today(actor),
+        { materialId, quantity: new Decimal(input.quantity), reason: input.reason },
+      );
+      if (r[0]!.reservedNow.isZero()) {
+        throw fail(409, 'MATERIALS_SHORT', 'No stock is available for this extra material now.', {
+          materials: [m.itemCode],
+        });
+      }
+      await this.event(tx, actor, meta, 'PRODUCTION_EXCESS_ALLOCATED', o, {
+        material: m.itemCode,
+        partial: r[0]!.shortage.gt(0),
+      });
+      return r;
+    });
+    return { ...(await this.get(ctx, id)), allocation: this.allocResult(lines) };
+  }
+
+  /**
+   * READY → IN_PRODUCTION: every material fully reserved (or issued), the sales
+   * source still confirmed, the BOM snapshot frozen (it is, since approval).
+   * PAUSED ⇄ IN_PRODUCTION: nothing about stock changes.
+   */
+  async execute(
+    ctx: AuthContext,
+    id: string,
+    action: 'start' | 'pause' | 'resume',
+    note: string | null,
+    meta: RequestMeta,
+  ) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.executeAs(actor, id, action, note, meta);
+    return this.get(ctx, id);
+  }
+
+  async executeAs(
+    actor: ProductionActor,
+    id: string,
+    action: 'start' | 'pause' | 'resume',
+    note: string | null,
+    meta: RequestMeta,
+  ) {
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, action);
+      const now = new Date();
+      const notePart = note !== null ? { executionNote: note } : {};
+      if (action === 'start') {
+        if (o.source === 'SALES_DEMAND' && o.salesOrderId) await this.lockSales(tx, o.salesOrderId);
+        const [materials, progress] = await Promise.all([
+          tx.productionOrderMaterial.findMany({ where: { productionOrderId: id } }),
+          materialProgress(tx, [id]),
+        ]);
+        const missing = materials.filter((m) => {
+          const pg = progress.get(m.id);
+          return (pg?.reserved ?? ZERO).plus(pg?.issued ?? ZERO).lt(m.requiredQuantity);
+        });
+        if (!materials.length || missing.length) {
+          throw fail(
+            409,
+            'MATERIALS_NOT_RESERVED',
+            'Every material must be fully reserved before production starts.',
+            { materials: missing.map((m) => m.itemCode) },
+          );
+        }
+        await tx.productionOrder.update({
+          where: { id },
+          data: {
+            status: 'IN_PRODUCTION',
+            startedAt: now,
+            startedByMemberId: actor.memberId,
+            ...notePart,
+          },
+        });
+        await this.event(tx, actor, meta, 'PRODUCTION_ORDER_STARTED', o, {
+          from: 'READY',
+          to: 'IN_PRODUCTION',
+        });
+      } else if (action === 'pause') {
+        await tx.productionOrder.update({
+          where: { id },
+          data: { status: 'PAUSED', pausedAt: now, ...notePart },
+        });
+        await this.event(tx, actor, meta, 'PRODUCTION_ORDER_PAUSED', o, {
+          from: 'IN_PRODUCTION',
+          to: 'PAUSED',
+        });
+      } else {
+        await tx.productionOrder.update({
+          where: { id },
+          data: { status: 'IN_PRODUCTION', pausedAt: null, ...notePart },
+        });
+        await this.event(tx, actor, meta, 'PRODUCTION_ORDER_RESUMED', o, {
+          from: 'PAUSED',
+          to: 'IN_PRODUCTION',
+        });
+      }
+    });
+  }
+
+  /**
+   * Actual usage reported by production — evidence only (no movement, no balance,
+   * no reservation). Σ usage of a material never exceeds what was issued for it.
+   */
+  async recordUsage(
+    ctx: AuthContext,
+    id: string,
+    input: { materialId: string; quantity: string; note?: string | null },
+    meta: RequestMeta,
+  ) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.recordUsageAs(actor, id, input, meta);
+    return this.get(ctx, id);
+  }
+
+  async recordUsageAs(
+    actor: ProductionActor,
+    id: string,
+    input: { materialId: string; quantity: string; note?: string | null },
+    meta: RequestMeta,
+  ) {
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'usage');
+      const m = await tx.productionOrderMaterial.findFirst({
+        where: { id: input.materialId, productionOrderId: id },
+      });
+      if (!m) {
+        throw fail(422, 'REFERENCE_NOT_FOUND', 'The selected record does not exist.', {
+          field: 'materialId',
+        });
+      }
+      this.checkQuantity(input.quantity, m.unitPrecision);
+      const pg = (await materialProgress(tx, [id])).get(m.id);
+      const issued = pg?.issued ?? ZERO;
+      const used = pg?.used ?? ZERO;
+      if (used.plus(input.quantity).gt(issued)) {
+        throw fail(
+          409,
+          'USAGE_EXCEEDS_ISSUED',
+          'Usage cannot exceed what was issued for this material: issue more first.',
+          { material: m.itemCode, issued: issued.toString(), used: used.toString() },
+        );
+      }
+      await tx.productionMaterialUsage.create({
+        data: {
+          companyId: o.companyId,
+          productionOrderId: id,
+          materialId: m.id,
+          quantity: input.quantity,
+          note: input.note ?? null,
+          recordedByMemberId: actor.memberId,
+        },
+      });
+      await this.event(tx, actor, meta, 'PRODUCTION_MATERIAL_USAGE_RECORDED', o, {
+        material: m.itemCode,
+      });
     });
   }
 }

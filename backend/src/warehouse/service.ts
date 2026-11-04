@@ -233,6 +233,7 @@ export class ReceivingService {
       adjustments: actor.adjustments,
       cycleCounts: actor.counts,
       fulfilment: actor.fulfilment,
+      materialIssues: actor.materialIssues,
       branches: actor.branches,
       selectedBranch: selected,
       locations: locations.map((l) => ({

@@ -92,6 +92,16 @@ const ctx = (who: Who, bomView = true): ProductionContext => ({
     materialsShort: 4,
     demandToReview: 1,
     sourceCancelled: 0,
+    inProduction: 0,
+    paused: 0,
+    draftIssues: 0,
+  },
+  execution: {
+    materials: who === 'manager',
+    issueCreate: who !== 'exec',
+    issuePost: who === 'manager',
+    usage: who !== 'exec',
+    manage: who === 'manager',
   },
   today: '2026-11-04',
 });
@@ -106,6 +116,7 @@ const as = (who: Who, extra: Parameters<typeof fakeApi>[0] = {}, bomView = true)
 });
 
 const material = (over: Partial<Material> = {}): Material => ({
+  id: 'mat1',
   lineNo: 1,
   item: RM,
   unit: { code: 'KG', precision: 3 },
@@ -115,6 +126,13 @@ const material = (over: Partial<Material> = {}): Material => ({
   available: '4',
   shortage: '6',
   state: 'PARTIALLY_AVAILABLE',
+  reserved: '0',
+  issued: '0',
+  used: '0',
+  stillNeeded: '10',
+  excess: '0',
+  usageVariance: '-10',
+  unrecorded: '0',
   ...over,
 });
 const row = (over: Partial<MoRow> = {}): MoRow => ({
@@ -131,6 +149,7 @@ const row = (over: Partial<MoRow> = {}): MoRow => ({
   requiredDate: '2026-11-13',
   priority: 'HIGH',
   materialState: 'MATERIALS_SHORT',
+  reservationState: null,
   salesOrder: null,
   attention: null,
   createdBy: { name: 'Demo Operations' },
@@ -171,6 +190,12 @@ const order = (over: Partial<Mo> = {}): Mo => ({
   demand: null,
   warnings: [],
   actions: ['approve', 'reject'],
+  startedAt: null,
+  startedBy: null,
+  pausedAt: null,
+  executionNote: null,
+  reservations: [],
+  issues: [],
   ...over,
 });
 const tl = (type: string) => [
@@ -227,6 +252,9 @@ describe('Production planning (EP36)', () => {
       'Bills of materials',
       'Material requirements',
       'Sales demand',
+      'Material reservations',
+      'Material issues',
+      'Production execution',
     ]);
     expect(document.querySelector('[data-count="materialsShort"]')!.textContent).toMatch(
       /Materials short\s*4/,
@@ -531,6 +559,9 @@ describe('Production planning (EP36)', () => {
       item: RM,
       unit: { code: 'KG', precision: 3 },
       required: '12',
+      reserved: '0',
+      issued: '0',
+      stillNeeded: '12',
       available: '0',
       shortage: '12',
       state: 'UNAVAILABLE',

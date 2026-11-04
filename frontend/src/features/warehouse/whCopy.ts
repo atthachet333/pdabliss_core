@@ -26,6 +26,7 @@ const th = {
     picks: 'ใบหยิบ',
     packs: 'แพ็กสินค้า',
     shipments: 'จัดส่ง',
+    materialIssues: 'เบิกวัตถุดิบผลิต',
   },
   tiles: {
     pending: 'ใบสั่งซื้อรอรับ',
@@ -182,7 +183,7 @@ const th = {
   noAccess: 'คุณไม่มีสิทธิ์ใช้งานส่วนนี้',
   reversed: 'กลับรายการแล้ว',
   errors: {
-    STOCK_RESERVED: 'สต็อกนี้ถูกจองให้คำสั่งขายแล้ว — ปลดการจองก่อน',
+    STOCK_RESERVED: 'สต็อกนี้ถูกจองไว้แล้ว (ฝ่ายขายหรือการผลิต) — ปลดการจองก่อน',
     CONCURRENT_UPDATE: 'มีการเปลี่ยนสต็อกเดียวกันพร้อมกัน ลองอีกครั้ง',
     PO_LINE_OVER_RECEIVED: 'จำนวนรับเข้า + ปฏิเสธ มากกว่าจำนวนที่ยังต้องรับ',
     QUANTITY_PRECISION: 'จำนวนมีทศนิยมเกินกว่าที่หน่วยอนุญาต',
@@ -230,6 +231,7 @@ const en: WhCopy = {
     picks: 'Picks',
     packs: 'Packing',
     shipments: 'Shipments',
+    materialIssues: 'Production issues',
   },
   tiles: {
     pending: 'Orders to receive',
@@ -377,7 +379,8 @@ const en: WhCopy = {
   noAccess: 'You do not have access to this area.',
   reversed: 'Reversed',
   errors: {
-    STOCK_RESERVED: 'This stock is reserved for sales orders — release the reservation first.',
+    STOCK_RESERVED:
+      'This stock is reserved (for sales or production) — release the reservation first.',
     CONCURRENT_UPDATE: 'The same stock changed at the same moment. Try again.',
     PO_LINE_OVER_RECEIVED: 'Accepted + rejected is more than the line still has to receive.',
     QUANTITY_PRECISION: 'A quantity has more decimal places than its unit allows.',
@@ -422,6 +425,7 @@ const zh: WhCopy = {
     picks: '拣货单',
     packs: '包装',
     shipments: '发运',
+    materialIssues: '生产领料',
   },
   tiles: {
     pending: '待收货订单',
@@ -566,7 +570,7 @@ const zh: WhCopy = {
   noAccess: '您无权访问此区域。',
   reversed: '已冲销',
   errors: {
-    STOCK_RESERVED: '该库存已为销售订单预留 — 请先释放预留。',
+    STOCK_RESERVED: '该库存已被预留（销售或生产）— 请先释放预留。',
     CONCURRENT_UPDATE: '同一库存同时发生了变更，请重试。',
     PO_LINE_OVER_RECEIVED: '接收 + 拒收数量超过该行尚待收货数量。',
     QUANTITY_PRECISION: '数量的小数位超过该单位允许的位数。',

@@ -172,7 +172,7 @@ const th = {
     DELIVERY_EXCEEDS_DISPATCHED: 'มากกว่าที่ส่งออกและยังไม่ส่งถึง',
     DELIVERY_TIME_INVALID: 'เวลาต้องหลังการส่งออกและไม่เป็นอนาคต',
     REASON_REQUIRED: 'ต้องระบุเหตุผล',
-    STOCK_RESERVED: 'สต็อกนี้ถูกจองไว้ให้คำสั่งขาย',
+    STOCK_RESERVED: 'สต็อกนี้ถูกจองไว้ (ฝ่ายขายหรือการผลิต)',
     CONCURRENT_UPDATE: 'มีผู้อื่นแก้ไขสต็อกเดียวกันพร้อมกัน ลองอีกครั้ง',
   } as Record<string, string>,
 };
@@ -341,7 +341,7 @@ const en: CtlCopy = {
     DELIVERY_EXCEEDS_DISPATCHED: 'More than was dispatched and not yet delivered.',
     DELIVERY_TIME_INVALID: 'The time must be after dispatch and not in the future.',
     REASON_REQUIRED: 'A reason is required.',
-    STOCK_RESERVED: 'This stock is reserved for sales orders.',
+    STOCK_RESERVED: 'This stock is reserved (for sales or production).',
     CONCURRENT_UPDATE: 'Someone changed the same stock at the same moment. Try again.',
   },
 };
@@ -507,7 +507,7 @@ const zh: CtlCopy = {
     DELIVERY_EXCEEDS_DISPATCHED: '超过已发运且尚未送达的数量。',
     DELIVERY_TIME_INVALID: '时间须在发运之后且不能是将来。',
     REASON_REQUIRED: '需要填写原因。',
-    STOCK_RESERVED: '此库存已为销售订单预留。',
+    STOCK_RESERVED: '此库存已被预留（销售或生产）。',
     CONCURRENT_UPDATE: '有人同时修改了相同库存，请重试。',
   },
 };

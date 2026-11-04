@@ -73,6 +73,8 @@ const SalesArea = lazy(() => import('@/features/sales/SalesArea'));
 /** EP36: Production planning (Operations) — one lazy chunk; Purchasing's shortage handoff — another. */
 const ProductionArea = lazy(() => import('@/features/production/ProductionArea'));
 const ShortagesArea = lazy(() => import('@/features/production/ShortagesArea'));
+/** EP37: Warehouse's read-only production material issue handoff — its own tiny chunk. */
+const MaterialIssueHandoff = lazy(() => import('@/features/production/MaterialIssueHandoff'));
 
 /** EP30: a department card's way into its first EP30 screen (presentation only). */
 const DEPARTMENT_LINKS: Partial<
@@ -225,6 +227,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['sales/*', <SalesArea key="so" />],
             ['production/*', <ProductionArea key="mo" />],
             ['purchasing/production-shortages', <ShortagesArea key="ps" />],
+            ['warehouse/material-issues', <MaterialIssueHandoff key="mih" />],
           ] as const
         ).map(([path, area]) => (
           <Route

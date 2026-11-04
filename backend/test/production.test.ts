@@ -571,7 +571,8 @@ describeDb('Production planning (EP36)', () => {
     const m = await opm();
     const a = (await ok(act(m, d.id, 'approve'))).order;
     expect(a).toMatchObject({ status: 'APPROVED', frozen: true, approvedBy: { name: 'opm' } });
-    expect(a.actions).toEqual(['release', 'cancel']);
+    // EP37: an approved order can also have its materials reserved.
+    expect(a.actions).toEqual(['release', 'cancel', 'allocate']);
     expect(code(await act(m, d.id, 'approve'))).toBe('MO_ALREADY_APPROVED');
     // Frozen: a new BOM revision changes nothing; the database refuses edits of the plan.
     const r2 = (await ok(m.post(`${P}/boms/${bom.id}/revise`), 201)).bom;
@@ -600,7 +601,11 @@ describeDb('Production planning (EP36)', () => {
     );
     // Release to READY: every material available now (a snapshot, not a claim).
     const r = (await ok(act(m, d.id, 'release'))).order;
-    expect(r).toMatchObject({ status: 'READY', releasedBy: { name: 'opm' }, actions: ['cancel'] });
+    expect(r).toMatchObject({
+      status: 'READY',
+      releasedBy: { name: 'opm' },
+      actions: ['cancel', 'allocate'],
+    }); // EP37: reserve before start
     // Nothing in inventory moved, nothing was reserved, no finished goods appeared.
     expect(await inventory()).toBe(before);
     expect(await h.db.stockBalance.count({ where: { itemId: it_.fg } })).toBe(0);
@@ -1154,7 +1159,7 @@ describeDb('Production planning (EP36)', () => {
     expect((await ok(staff.get(`${P}/orders?source=SALES_DEMAND`))).total).toBe(0);
     expect((await ok(staff.get(`${P}/orders?from=${shift(2)}&to=${shift(4)}`))).total).toBe(3);
     expect((await ok(staff.get(`${P}/orders?q=FG-1`))).total).toBe(5);
-    expect((await staff.get(`${P}/orders?status=IN_PRODUCTION`)).statusCode).toBe(400);
+    expect((await staff.get(`${P}/orders?status=COMPLETED`)).statusCode).toBe(400);
     expect((await staff.get(`${P}/orders?pageSize=500`)).statusCode).toBe(400);
   });
 });

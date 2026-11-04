@@ -124,6 +124,8 @@ export const MovementRow = z.object({
     transfer: z.object({ id: z.string(), number: z.string() }).nullable(),
     adjustment: z.object({ id: z.string(), number: z.string() }).nullable(),
     count: z.object({ id: z.string(), number: z.string() }).nullable(),
+    /** EP35: the dispatched shipment of a SALES_ISSUE. */
+    shipment: z.object({ id: z.string(), number: z.string() }).nullable(),
   }),
   actor: person,
 });
@@ -170,6 +172,8 @@ export const PickDemandOrder = z.object({
           lot: z.object({ lotNumber: z.string(), expiryDate: z.string().nullable() }).nullable(),
           expiryState,
           quantity: z.string(),
+          /** EP35: reserved here and not yet claimed by a pick (what a new pick takes). */
+          toPick: z.string(),
         }),
       ),
     }),

@@ -194,14 +194,45 @@ export class ReceivingService {
               },
             })
           : null,
+        // EP35: fulfilment work by step (read with warehouse.inventory.view).
+        actor.inventory.view
+          ? this.db.salesPick.count({
+              where: { ...scoped, status: { in: ['DRAFT', 'IN_PROGRESS'] } },
+            })
+          : null,
+        actor.inventory.view
+          ? this.db.salesPack.count({
+              where: { ...scoped, status: { in: ['DRAFT', 'PACKED'] }, shipmentId: null },
+            })
+          : null,
+        actor.inventory.view
+          ? this.db.salesShipment.count({ where: { ...scoped, status: 'READY' } })
+          : null,
+        actor.inventory.view
+          ? this.db.salesShipment.count({ where: { ...scoped, status: 'DISPATCHED' } })
+          : null,
+        actor.inventory.view
+          ? this.db.salesShipment.count({ where: { ...scoped, status: 'DELIVERY_EXCEPTION' } })
+          : null,
       ]);
-    const [draftTransfers, submittedAdjustments, activeCounts, pendingPick] = control;
+    const [
+      draftTransfers,
+      submittedAdjustments,
+      activeCounts,
+      pendingPick,
+      openPicks,
+      openPacks,
+      readyShipments,
+      inTransit,
+      deliveryExceptions,
+    ] = control;
     return {
       receiving: actor.receiving,
       inventory: actor.inventory,
       transfers: actor.transfers,
       adjustments: actor.adjustments,
       cycleCounts: actor.counts,
+      fulfilment: actor.fulfilment,
       branches: actor.branches,
       selectedBranch: selected,
       locations: locations.map((l) => ({
@@ -221,6 +252,11 @@ export class ReceivingService {
         submittedAdjustments: submittedAdjustments ?? null,
         activeCounts: activeCounts ?? null,
         pendingPick: pendingPick ?? null,
+        openPicks: openPicks ?? null,
+        openPacks: openPacks ?? null,
+        readyShipments: readyShipments ?? null,
+        inTransit: inTransit ?? null,
+        deliveryExceptions: deliveryExceptions ?? null,
       },
       expiringSoonDays: EXPIRING_SOON_DAYS,
       today,
@@ -781,6 +817,7 @@ export class ReceivingService {
           { transfer: { number: c } },
           { adjustment: { number: c } },
           { cycleCount: { number: c } },
+          { salesShipment: { number: c } },
         ],
       });
     }
@@ -803,6 +840,7 @@ export class ReceivingService {
           transfer: { select: { id: true, number: true } },
           adjustment: { select: { id: true, number: true } },
           cycleCount: { select: { id: true, number: true } },
+          salesShipment: { select: { id: true, number: true } },
           actor: person,
         },
       }),
@@ -827,6 +865,7 @@ export class ReceivingService {
             transfer: m.transfer,
             adjustment: m.adjustment,
             count: m.cycleCount,
+            shipment: m.salesShipment,
           },
           actor: who(m.actor),
         }),

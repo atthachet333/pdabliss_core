@@ -25,7 +25,7 @@ Report: [EP34_REPORT.md](EP34_REPORT.md). Sales orders: [SALES_ORDER.md](SALES_O
 | `companyId`, `branchId`, `salesOrderId`, `salesOrderLineId` | composite FKs: the line belongs to the order, the order to the branch and company |
 | `itemId`, `locationId`, `lotId`, `lotKey` | the `StockBalance` identity reserved (`lotKey` = `lotId` or `''`); the location FK carries `branchId`, so a reservation cannot sit in another branch |
 | `quantity` | > 0, `Decimal(18,6)` |
-| `status` | `ACTIVE` · `RELEASED` · `CONSUMED` (reserved for EP35) |
+| `status` | `ACTIVE` · `RELEASED` · `CONSUMED` (EP35: dispatched — `consumedAt`, `salesShipmentLineId`, `splitFromId` when a partial dispatch split the row) |
 | `activeSlot` | `true` while ACTIVE, `NULL` after — unique `(line, location, lotKey, activeSlot)` = **one ACTIVE row per identity per line** |
 | `releasedAt`, `releasedByMemberId`, `releaseReason` | set together exactly when RELEASED; reasons `RELEASED` · `REALLOCATED` · `ORDER_CANCELLED` |
 | `createdByMemberId`, timestamps | who reserved |
@@ -129,7 +129,8 @@ readiness, and per tracked line ordered / allocated / shortage plus **where** th
 (location, lot, expiry, expiry state, quantity).
 
 Parsed through an allow-list (`warehouse/views.ts PickDemandOrder`): **no customer, price, discount,
-tax, total, note or reference** ever leaves it. Read-only — there is no pick action until EP35. The
+tax, total, note or reference** ever leaves it. EP35: each reserved location also says what is still
+**to pick** (reserved − claimed by open picks); picks are created from it ([SALES_FULFILLMENT.md](SALES_FULFILLMENT.md)). The
 Warehouse context adds a `pendingPick` count; `/stock` rows add `quantityReserved` /
 `quantityAvailable`. The movement ledger contains no reservation entries.
 
@@ -165,13 +166,23 @@ events as in EP33.
 Allocated through the same `allocateOrder()` as the API, by `owner.demo`; a stable `demo` key in the
 audit entry makes a second seed a no-op. `sales.demo` stays Staff.
 
-## 12. Contract for EP35
+## 12. EP35 — what became of the contract
 
-- EP35 picking / delivery consumes reservations: an ACTIVE row becomes `CONSUMED` (status reserved, no
-  slot, no release fields) in the same transaction as the issuing movement, which then no longer needs
-  to respect its own reservation.
-- `progress.picked` / `delivered` / `outstanding` are filled there.
-- A sales issue movement type (`SALES_ISSUE`, `SALES_ISSUE_REVERSAL`) follows INVENTORY_LEDGER.md §7.
+Done in EP35 ([SALES_FULFILLMENT.md](SALES_FULFILLMENT.md)):
+
+- **Dispatch consumes reservations** in the same transaction as its `SALES_ISSUE`: the exact quantity
+  of the matching ACTIVE row becomes CONSUMED — the whole row, or (partial dispatch) the ACTIVE row is
+  reduced and a CONSUMED row of the dispatched quantity is created with `splitFromId`. The CHECK now
+  reads: CONSUMED ⇔ `consumedAt` and `salesShipmentLineId` set; one consumption per shipment line
+  (unique). The ledger's decrease guard is **not** bypassed: the reservation is consumed first, then
+  the movement passes the same check as every other decrease.
+- What a line still needs (allocate) and its allocation state count ACTIVE **and** CONSUMED rows, so
+  dispatched stock is never reserved again; `release` / `reallocate` touch ACTIVE rows only and are
+  refused while picks, packs or a READY shipment hold staged stock (`FULFILMENT_IN_PROGRESS`).
+- Order cancel is refused once anything was dispatched (`SO_ALREADY_DISPATCHED`) or while work is
+  staged; otherwise it releases as before.
+- `progress` carries picked / packed / dispatched / delivered / toDispatch / toDeliver.
+- No `SALES_ISSUE_REVERSAL` was added: a dispatched issue is never reversed in EP35 (returns later).
 
 ## 13. Known limitations (deliberate)
 

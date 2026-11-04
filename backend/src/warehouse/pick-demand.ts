@@ -4,6 +4,7 @@ import { permissionDenied } from '../permissions/guard.js';
 import { Decimal, ZERO } from '../purchasing/money.js';
 import { companyDay } from '../purchasing/service.js';
 import { allocationStateOf } from '../sales/allocation.js';
+import { pickClaims } from '../sales/fulfilment.js';
 import { day } from './documents.js';
 import type { PickDemandInput } from './input.js';
 import { loadWarehouseActor } from './policy.js';
@@ -17,7 +18,8 @@ import { PickDemandOrder } from './views.js';
  * lines (ordered / allocated / shortage) and where the reserved stock is.
  * Read with `warehouse.inventory.view`. It is parsed through an allow-list
  * (views.ts PickDemandOrder): no customer, price, discount, tax, total, note
- * or reference ever leaves here. There is no pick action until EP35.
+ * or reference ever leaves here. EP35: each reserved location says what is still
+ * to pick (reserved − claimed by open picks); picks are created at /picks.
  */
 
 const MAX = 1000;
@@ -70,9 +72,11 @@ export class PickDemandService {
           },
         },
         allocations: {
-          where: { status: 'ACTIVE' },
+          where: { status: { in: ['ACTIVE', 'CONSUMED'] } },
           orderBy: { createdAt: 'asc' },
           select: {
+            id: true,
+            status: true,
             salesOrderLineId: true,
             quantity: true,
             location: { select: { id: true, code: true, name: true } },
@@ -81,10 +85,17 @@ export class PickDemandService {
         },
       },
     });
+    // EP35: what open picks already claim of each reservation (staged, not yet dispatched).
+    const claims = await pickClaims(
+      this.db,
+      orders.flatMap((o) => o.allocations.filter((a) => a.status === 'ACTIVE').map((a) => a.id)),
+    );
     const views = orders.map((o) => {
       const lines = o.lines.map((l) => {
-        const picks = o.allocations.filter((x) => x.salesOrderLineId === l.id);
-        const allocated = picks.reduce((t, x) => t.plus(x.quantity), ZERO);
+        const held = o.allocations.filter((x) => x.salesOrderLineId === l.id);
+        // Allocated counts what was already dispatched (CONSUMED); picks are what is still here.
+        const allocated = held.reduce((t, x) => t.plus(x.quantity), ZERO);
+        const picks = held.filter((x) => x.status === 'ACTIVE');
         return { l, picks, allocated };
       });
       const derived = allocationStateOf(
@@ -113,6 +124,7 @@ export class PickDemandService {
               lot: x.lot ? { lotNumber: x.lot.lotNumber, expiryDate: expiry } : null,
               expiryState: expiryStateOf(expiry, today),
               quantity: x.quantity.toString(),
+              toPick: Decimal.max(ZERO, x.quantity.minus(claims.get(x.id) ?? ZERO)).toString(),
             };
           }),
         })),

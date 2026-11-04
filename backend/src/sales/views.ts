@@ -71,15 +71,19 @@ const soLine = z.object({
   /** EP34, CONFIRMED tracked lines: reserved for this line, and what is still short. */
   allocation: z.object({ allocated: z.string(), shortage: z.string() }).nullable(),
   /**
-   * The fulfilment contract. EP34 fills `allocated` (tracked lines); picked,
-   * delivered and outstanding stay null until EP35 — never faked.
+   * The fulfilment contract (EP34 allocated, EP35 the rest): cumulative milestones
+   * and two outstanding quantities, per line in its unit; null for a line that is
+   * not inventory-tracked (no physical fulfilment) — never faked.
    */
   progress: z.object({
     ordered: z.string(),
     allocated: z.string().nullable(),
-    picked: z.null(),
-    delivered: z.null(),
-    outstanding: z.null(),
+    picked: z.string().nullable(),
+    packed: z.string().nullable(),
+    dispatched: z.string().nullable(),
+    delivered: z.string().nullable(),
+    toDispatch: z.string().nullable(),
+    toDeliver: z.string().nullable(),
   }),
 });
 
@@ -109,6 +113,31 @@ export const SoView = SoRow.extend({
   lines: z.array(soLine),
   actions: z.array(
     z.enum(['edit', 'submit', 'confirm', 'cancel', 'allocate', 'release', 'reallocate']),
+  ),
+});
+
+export const FULFILMENT_STATES = [
+  'NOT_STARTED',
+  'PARTIALLY_PICKED',
+  'PICKED',
+  'PARTIALLY_DISPATCHED',
+  'DISPATCHED',
+  'PARTIALLY_DELIVERED',
+  'DELIVERED',
+  'EXCEPTION',
+] as const;
+
+/** EP35: the order's physical fulfilment for Sales — shipment numbers, states and dates only. */
+export const SoFulfilment = z.object({
+  state: z.enum(FULFILMENT_STATES).nullable(),
+  shipments: z.array(
+    z.object({
+      number: z.string(),
+      status: z.enum(['READY', 'DISPATCHED', 'DELIVERED', 'DELIVERY_EXCEPTION']),
+      dispatchedAt: z.string().nullable(),
+      deliveredAt: z.string().nullable(),
+      exception: z.string().nullable(),
+    }),
   ),
 });
 
@@ -161,5 +190,6 @@ export const SALES_FIELD_CLASSES: Record<string, DataClass> = Object.fromEntries
     ...Object.keys(soLine.shape),
     ...Object.keys(SoItem.shape),
     ...Object.keys(SoAllocationResult.shape),
+    ...Object.keys(SoFulfilment.shape),
   ].map((k) => [k, COMMERCIAL.has(k) ? 'commercial' : 'operational']),
 );

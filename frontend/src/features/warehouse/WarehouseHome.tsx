@@ -35,6 +35,15 @@ export default function WarehouseHome() {
     ],
     [ctx.counts.activeCounts, c.tiles.activeCounts, `${WH}/counts?status=COUNTING`],
     [ctx.counts.pendingPick, c.tiles.pendingPick, `${WH}/pending-pick`],
+    [ctx.counts.openPicks, c.tiles.openPicks, `${WH}/picks?status=DRAFT`],
+    [ctx.counts.openPacks, c.tiles.openPacks, `${WH}/packs?status=PACKED`],
+    [ctx.counts.readyShipments, c.tiles.readyShipments, `${WH}/shipments?status=READY`],
+    [ctx.counts.inTransit, c.tiles.inTransit, `${WH}/shipments?status=DISPATCHED`],
+    [
+      ctx.counts.deliveryExceptions,
+      c.tiles.deliveryExceptions,
+      `${WH}/shipments?status=DELIVERY_EXCEPTION`,
+    ],
   ].filter((t): t is [number, string, string] => t[0] !== null);
   return (
     <div className="grid grid-cols-1 gap-6" data-warehouse-home>

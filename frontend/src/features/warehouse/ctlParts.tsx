@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useRef,
   useState,
   type Dispatch,
   type FormEvent,
@@ -40,7 +41,7 @@ import { WH, useDebounced, usePaged } from './whModel';
  */
 
 const LINK =
-  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0';
+  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7';
 const ROW =
   'border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4';
 
@@ -85,6 +86,13 @@ const TONE: Record<DocStatus, 'neutral' | 'teal' | 'muted' | 'warning'> = {
   POSTED: 'teal',
   REJECTED: 'muted',
   CANCELLED: 'muted',
+  IN_PROGRESS: 'warning',
+  PICKED: 'neutral',
+  PACKED: 'neutral',
+  READY: 'warning',
+  DISPATCHED: 'teal',
+  DELIVERED: 'teal',
+  DELIVERY_EXCEPTION: 'warning',
 };
 
 export function DocStatusPill({ status }: { status: DocStatus }) {
@@ -295,6 +303,12 @@ export function DocPage<K extends DocKind>({
   const { state, set } = useLoad(() => ctlApi.get(kind, id));
   const { notice, run } = useRunner<Detail<K>>(set);
   const [open, setOpen] = useState<Step | null>(null);
+  // Focus returns to the document's title when the confirm box closes (it unmounts with the focused button).
+  const top = useRef<HTMLDivElement>(null);
+  const close = () => {
+    setOpen(null);
+    top.current?.focus();
+  };
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error') return <Notice tone="error">{err(state.error)}</Notice>;
   const d = docOf(kind, state.data);
@@ -307,7 +321,7 @@ export function DocPage<K extends DocKind>({
       >
         ← {k.title[kind]}
       </AreaLink>
-      <div>
+      <div ref={top} tabIndex={-1} className="outline-none">
         <PageTitle title={d.number} />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <DocStatusPill status={d.status} />
@@ -323,9 +337,9 @@ export function DocPage<K extends DocKind>({
               question={open.ask}
               goLabel={open.label}
               reason={open.reason}
-              onCancel={() => setOpen(null)}
+              onCancel={close}
               onConfirm={async (reason) => {
-                if (await run(() => ctlApi.act(kind, d.id, open.action, reason))) setOpen(null);
+                if (await run(() => ctlApi.act(kind, d.id, open.action, reason))) close();
               }}
             />
           ) : (

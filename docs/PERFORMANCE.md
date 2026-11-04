@@ -208,6 +208,13 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP35 — no budget changed.** Sales fulfilment adds one lazy `FulfilmentArea` chunk for the three
+  documents (≈ 23.8 KiB raw / 7.4 KiB gzip, its own TH / EN / ZH copy) built on the EP32 `ctlParts`
+  list / page (which grows to ≈ 34.2 KiB with the shared statuses, errors and the new kinds); Pending
+  Pick gains "Create pick" (≈ 7.3 KiB), `AllocationSection` the Sales fulfilment block (≈ 5.5 KiB),
+  `SalesArea` ≈ 46.7 KiB (copy). All JS **4,252.8 / 4,300 KiB** (EP34: 4,212.7; **+40.1 KiB**);
+  initial JS unchanged at 182.6 KiB gzip; static HTML 528 / 560 KiB. Headroom ≈ 47 KiB — the next
+  large screens should recover JS first.
 - **EP34 — no budget changed.** Sales allocation adds two lazy chunks — `AllocationSection`
   (≈ 3.2 KiB raw / 1.3 KiB gzip, loaded only on confirmed orders) and `PendingPickArea` (≈ 6.5 / 2.6
   KiB) — and grows `SalesArea` to ≈ 43.1 KiB raw (allocation copy in TH / EN / ZH) and `InventoryArea`

@@ -66,6 +66,8 @@ const AdjustmentsArea = lazy(() => import('@/features/warehouse/AdjustmentsArea'
 const CountsArea = lazy(() => import('@/features/warehouse/CountsArea'));
 /** EP34: Warehouse Pending Pick (reserved sales demand, read-only) — its own lazy chunk. */
 const PendingPickArea = lazy(() => import('@/features/warehouse/PendingPickArea'));
+/** EP35: picks, packs and shipments — one lazy chunk for the three. */
+const FulfilmentArea = lazy(() => import('@/features/warehouse/FulfilmentArea'));
 /** EP33: the Sales workspace and its sales orders — one lazy chunk. */
 const SalesArea = lazy(() => import('@/features/sales/SalesArea'));
 
@@ -204,6 +206,9 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['warehouse/adjustments/*', <AdjustmentsArea key="adj" />],
             ['warehouse/counts/*', <CountsArea key="cc" />],
             ['warehouse/pending-pick', <PendingPickArea key="pp" />],
+            ['warehouse/picks/*', <FulfilmentArea key="fp" kind="picks" />],
+            ['warehouse/packs/*', <FulfilmentArea key="fk" kind="packs" />],
+            ['warehouse/shipments/*', <FulfilmentArea key="fs" kind="shipments" />],
             ['sales/*', <SalesArea key="so" />],
           ] as const
         ).map(([path, area]) => (

@@ -160,3 +160,17 @@ EP32 shortage refusals). Allocation locks the same balance rows before reading, 
 Transfers and adjustment decreases also check available stock at draft time; cycle-count corrections and
 all reversals are guarded at posting. EP35's sales issue will consume reservations in the same
 transaction as its movement.
+
+## 9. EP35 SALES_ISSUE (dispatch)
+
+`SALES_ISSUE` is the only movement Sales fulfilment writes: negative, `sourceType = 'SALES_SHIPMENT'`
+with `salesShipmentId` + `salesShipmentLineId` (composite FK to the shipment's branch and company),
+one per shipment line (unique `(salesShipmentLineId, type)`), written through `applyMovement()` at
+**dispatch** — never at pick, pack or delivery ([SALES_FULFILLMENT.md](SALES_FULFILLMENT.md) §6).
+Dispatch locks the order and shipment rows, takes the location locks shared (an open count refuses it
+with `COUNT_IN_PROGRESS`), locks balances then reservations in id order, consumes the exact
+reservation, then issues: the decrease guard runs unchanged and keeps on hand ≥ what stays reserved.
+`StockMovement_check` was re-stated once more (a superset; existing rows satisfy it). There is no
+`SALES_ISSUE_REVERSAL`: issued stock is never restored automatically; returns will add their own
+positive type. Reconciliation after every QA run: balance = Σ movements per identity, nothing
+negative, every SALES_ISSUE matched by a CONSUMED reservation of the same quantity and vice versa.

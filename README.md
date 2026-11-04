@@ -134,7 +134,14 @@ FEFO for a confirmed order in its branch (allocate / release / reallocate; cance
 inventory shows on hand / reserved / available, every ledger decrease refuses to take reserved stock,
 and Warehouse gets a read-only Pending Pick of reserved demand without commercial data — a reservation
 is never a movement ([docs/SALES_ALLOCATION.md](docs/SALES_ALLOCATION.md),
-[docs/EP34_REPORT.md](docs/EP34_REPORT.md)). Next: EP35 (not started).
+[docs/EP34_REPORT.md](docs/EP34_REPORT.md)).
+**EP35** (completed locally, awaiting owner review) adds Sales fulfilment: Warehouse picks reserved stock
+(exact location and lot, partial picks, discrepancies), packs it, groups packs into shipments and
+**dispatches** — the one point where stock leaves (a `SALES_ISSUE` through the ledger that consumes the
+exact reservation, partial dispatch splitting it) — then records delivery or delivery exceptions as
+evidence only. Sales sees per-line picked / packed / dispatched / delivered / outstanding and its
+shipments; Warehouse sees no money ([docs/SALES_FULFILLMENT.md](docs/SALES_FULFILLMENT.md),
+[docs/EP35_REPORT.md](docs/EP35_REPORT.md)). Next: EP36 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -158,7 +165,7 @@ Roadmap:
 3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
    receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
    stock adjustment, cycle count** → **EP33 Sales order foundation** → **EP34 Sales allocation, pick
-   readiness** → Warehouse →
+   readiness** → **EP35 Picking, packing, dispatch and delivery** → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

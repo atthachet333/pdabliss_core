@@ -620,6 +620,8 @@ describeDb('Demo personas (EP28.1)', () => {
       'ADJUSTMENT_IN',
       'ADJUSTMENT_OUT',
       'COUNT_CORRECTION',
+      'SALES_ISSUE', // EP35: the two demo dispatches
+      'SALES_ISSUE',
       'TRANSFER_IN',
       'TRANSFER_OUT',
     ]);
@@ -634,7 +636,7 @@ describeDb('Demo personas (EP28.1)', () => {
     const body = (await wh.get(`${W}/movements`)).body;
     expect(body).not.toMatch(/price|amount|cost|deposit/i);
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.stockMovement.count()).toBe(10);
+    expect(await h.db.stockMovement.count()).toBe(12); // EP35 adds two SALES_ISSUE
     expect(await h.db.inventoryTransfer.count()).toBe(2);
   });
 
@@ -651,9 +653,7 @@ describeDb('Demo personas (EP28.1)', () => {
     const all = j(await owner.get(`${S}/orders`)).items;
     expect(all.map((o: J) => o.status).sort()).toEqual([
       'CANCELLED',
-      'CONFIRMED',
-      'CONFIRMED',
-      'CONFIRMED',
+      ...Array(7).fill('CONFIRMED'),
       'DRAFT',
       'SUBMITTED',
     ]);
@@ -672,25 +672,33 @@ describeDb('Demo personas (EP28.1)', () => {
         [1, 'NOT_ALLOCATED', 'NOT_READY'], // SO_OPEN
         [2, 'FULLY_ALLOCATED', 'READY'], // SO_CONFIRMED
         [2, 'PARTIALLY_ALLOCATED', 'PARTIALLY_READY'], // SO_ALLOC_PARTIAL
+        ...Array(4).fill([1, 'FULLY_ALLOCATED', 'READY']), // EP35 SO_FUL_*
       ].sort(),
     );
-    const full = all.find((o: J) => o.allocationState === 'FULLY_ALLOCATED');
+    const full = all.find((o: J) => o.allocationState === 'FULLY_ALLOCATED' && o.lineCount === 2);
     expect(j(await owner.get(`${S}/orders/${full.id}`)).order.grandTotal).toBe('1572.90');
     // FEFO from the real demo stock: lot B (two locations) for SO_CONFIRMED, then A + C and
     // the 5 kg of raw material that exist for SO_ALLOC_PARTIAL.
     const rows = await h.db.salesAllocation.findMany({
       where: { status: 'ACTIVE' },
-      include: { lot: true, location: true, line: true },
-      orderBy: [{ line: { itemCode: 'asc' } }, { createdAt: 'asc' }],
+      include: { lot: true, location: true, line: true, order: true },
     });
+    // Deterministic order (rows of one allocation share a timestamp): item, order, lot, location.
+    const key = (r: (typeof rows)[number]) =>
+      [r.line.itemCode, r.order.number, r.lot?.lotNumber ?? '', r.location.code].join('|');
+    rows.sort((x, y) => key(x).localeCompare(key(y)));
     expect(
       rows.map((r) => [r.line.itemCode, r.lot?.lotNumber, r.location.code, r.quantity.toString()]),
     ).toEqual([
-      ['FG-000001', 'FG-DEMO-B', 'RECEIVING', '2'],
       ['FG-000001', 'FG-DEMO-B', 'MAIN', '4'],
+      ['FG-000001', 'FG-DEMO-B', 'RECEIVING', '2'],
       ['FG-000001', 'FG-DEMO-A', 'MAIN', '12'],
       ['FG-000001', 'FG-DEMO-C', 'MAIN', '2'],
       ['PK-000001', undefined, 'MAIN', '20'],
+      // EP35 fulfilment orders: what is still reserved (SO_FUL_SHIPPED keeps 6 of 10).
+      ['PK-000001', undefined, 'MAIN', '12'],
+      ['PK-000001', undefined, 'MAIN', '6'],
+      ['PK-000001', undefined, 'MAIN', '6'],
       ['RM-000001', 'RM-DEMO-01', 'MAIN', '5'],
     ]);
     // The demo sales persona stays staff at the Head Office: no demo-branch orders, no allocation.
@@ -706,13 +714,13 @@ describeDb('Demo personas (EP28.1)', () => {
       j(pick)
         .items.map((o: J) => o.readiness)
         .sort(),
-    ).toEqual(['PARTIALLY_READY', 'READY']);
+    ).toEqual(['PARTIALLY_READY', 'READY', 'READY', 'READY', 'READY']);
     expect(JSON.stringify(j(pick).items)).not.toMatch(
       /price|amount|total|discount|tax|185|customer/i,
     );
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.salesOrder.count()).toBe(6);
-    expect(await h.db.salesAllocation.count()).toBe(6);
+    expect(await h.db.salesOrder.count()).toBe(10);
+    expect(await h.db.salesAllocation.count()).toBe(11);
     expect(await h.db.stockMovement.count()).toBe(movements);
     expect(
       JSON.stringify(
@@ -722,6 +730,38 @@ describeDb('Demo personas (EP28.1)', () => {
         }),
       ),
     ).toBe(onHand);
+  });
+
+  it('seeds fulfilment once through the real service — pick, pack, ship, dispatch, deliver (EP35)', async () => {
+    const W = '/api/v1/warehouse';
+    const moves = await h.db.stockMovement.count();
+    const wh = await login('warehouse.demo@pdabliss.com');
+    const picks = j(await wh.get(`${W}/picks`)).items;
+    expect(picks.map((p: J) => p.status)).toEqual(Array(4).fill('PICKED'));
+    const packs = j(await wh.get(`${W}/packs`)).items;
+    expect(packs.map((p: J) => p.status).sort()).toEqual([
+      'DISPATCHED',
+      'DISPATCHED',
+      'PACKED',
+      'PACKED',
+    ]);
+    const ships = j(await wh.get(`${W}/shipments`)).items;
+    expect(ships.map((x: J) => x.status).sort()).toEqual(['DELIVERED', 'DELIVERY_EXCEPTION']);
+    const issues = await h.db.stockMovement.findMany({ where: { type: 'SALES_ISSUE' } });
+    expect(issues.map((m) => m.quantityDelta.toString()).sort()).toEqual(['-3', '-4']);
+    // The demo warehouse persona stays staff: it reads, picks and packs but never dispatches.
+    const ready = j(await wh.get(`${W}/shipments/${ships[0].id}`)).shipment;
+    expect(ready.actions).toEqual([]);
+    expect(JSON.stringify(ships)).not.toMatch(/price|amount|total|discount|tax|"18"/i);
+    const owner = await login('owner.demo@pdabliss.com');
+    const states = j(await owner.get('/api/v1/sales/orders?pageSize=50'))
+      .items.filter((o: J) => o.status === 'CONFIRMED')
+      .map((o: J) => o.number);
+    expect(states).toHaveLength(7);
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await h.db.stockMovement.count()).toBe(moves);
+    expect(await h.db.salesPick.count()).toBe(4);
+    expect(await h.db.salesShipment.count()).toBe(2);
   });
 
   it('the legacy staff account carries the one exception: receiving is denied', async () => {

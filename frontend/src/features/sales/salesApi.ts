@@ -62,12 +62,16 @@ export interface SoLine {
   /** EP34, confirmed tracked lines: reserved for this line and what is still short. */
   allocation: { allocated: string; shortage: string } | null;
   /** EP34 fills allocated (tracked lines); EP35 adds picked, delivered and outstanding. */
+  /** Cumulative milestones per line, in its unit; null for lines that are not inventory-tracked. */
   progress: {
     ordered: string;
     allocated: string | null;
-    picked: null;
-    delivered: null;
-    outstanding: null;
+    picked: string | null;
+    packed: string | null;
+    dispatched: string | null;
+    delivered: string | null;
+    toDispatch: string | null;
+    toDeliver: string | null;
   };
 }
 
@@ -92,8 +96,30 @@ export interface SalesOrder extends SoRow {
   actions: SoAction[];
 }
 
+export type FulfilmentState =
+  | 'NOT_STARTED'
+  | 'PARTIALLY_PICKED'
+  | 'PICKED'
+  | 'PARTIALLY_DISPATCHED'
+  | 'DISPATCHED'
+  | 'PARTIALLY_DELIVERED'
+  | 'DELIVERED'
+  | 'EXCEPTION';
+/** EP35: the order's physical fulfilment (shipment numbers, states, dates — no location / lot). */
+export interface SoFulfilment {
+  state: FulfilmentState | null;
+  shipments: {
+    number: string;
+    status: 'READY' | 'DISPATCHED' | 'DELIVERED' | 'DELIVERY_EXCEPTION';
+    dispatchedAt: string | null;
+    deliveredAt: string | null;
+    exception: string | null;
+  }[];
+}
+
 export interface SoDetail {
   order: SalesOrder;
+  fulfilment: SoFulfilment;
   timeline: { type: string; at: string; actor: Person }[];
 }
 

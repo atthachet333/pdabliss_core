@@ -226,6 +226,17 @@ model CompanyMember {
   cancelledSalesOrders SalesOrder[]               @relation("SalesOrderCanceller")
   createdAllocations   SalesAllocation[]          @relation("SalesAllocationCreator")
   releasedAllocations  SalesAllocation[]          @relation("SalesAllocationReleaser")
+  salesPicksCreated    SalesPick[]                @relation("SalesPickCreator")
+  salesPicksStarted    SalesPick[]                @relation("SalesPickStarter")
+  salesPicksConfirmed  SalesPick[]                @relation("SalesPickConfirmer")
+  salesPicksCancelled  SalesPick[]                @relation("SalesPickCanceller")
+  salesPacksCreated    SalesPack[]                @relation("SalesPackCreator")
+  salesPacksPacked     SalesPack[]                @relation("SalesPackPacker")
+  salesPacksCancelled  SalesPack[]                @relation("SalesPackCanceller")
+  shipmentsCreated     SalesShipment[]            @relation("SalesShipmentCreator")
+  shipmentsDispatched  SalesShipment[]            @relation("SalesShipmentDispatcher")
+  shipmentsCancelled   SalesShipment[]            @relation("SalesShipmentCanceller")
+  deliveryEvents       SalesDeliveryEvent[]
   postedTransfers      InventoryTransfer[]        @relation("TransferPoster")
   cancelledTransfers   InventoryTransfer[]        @relation("TransferCanceller")
   createdAdjustments   StockAdjustment[]          @relation("AdjustmentCreator")
@@ -352,6 +363,9 @@ model Branch {
   purchaseOrders   PurchaseOrder[]
   salesOrders      SalesOrder[]
   salesAllocations SalesAllocation[]
+  salesPicks       SalesPick[]
+  salesPacks       SalesPack[]
+  salesShipments   SalesShipment[]
   goodsReceipts    GoodsReceipt[]
   stockMovements   StockMovement[]
   stockBalances    StockBalance[]
@@ -1138,6 +1152,7 @@ model Item {
   countLines       CycleCountLine[]
   salesOrderLines  SalesOrderLine[]
   salesAllocations SalesAllocation[]
+  salesPickLines   SalesPickLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1186,6 +1201,7 @@ model WarehouseLocation {
   countLines         CycleCountLine[]
   /// EP34: stock reserved here for sales order lines.
   salesAllocations   SalesAllocation[]
+  salesPickLines     SalesPickLine[]
 
   @@unique([branchId, code])
   @@unique([branchId, defaultSlot])
@@ -1542,6 +1558,8 @@ enum StockMovementType {
   ADJUSTMENT_OUT_REVERSAL
   /// Signed: counted − system of one counted stock identity.
   COUNT_CORRECTION
+  /// EP35: stock leaves at dispatch (negative), consuming the matching reservation.
+  SALES_ISSUE
 }
 
 model GoodsReceipt {
@@ -1671,6 +1689,7 @@ model InventoryLot {
   adjustmentLines  StockAdjustmentLine[]
   countLines       CycleCountLine[]
   salesAllocations SalesAllocation[]
+  salesPickLines   SalesPickLine[]
 
   @@unique([companyId, itemId, lotNumber])
   @@unique([id, itemId, companyId])
@@ -1710,6 +1729,11 @@ model StockMovement {
   cycleCount               CycleCount?             @relation(fields: [cycleCountId, branchId, companyId], references: [id, branchId, companyId])
   cycleCountLineId         String?
   cycleCountLine           CycleCountLine?         @relation(fields: [cycleCountLineId], references: [id])
+  /// EP35: the dispatched shipment line (SALES_ISSUE).
+  salesShipmentId          String?
+  salesShipment            SalesShipment?          @relation(fields: [salesShipmentId, branchId, companyId], references: [id, branchId, companyId])
+  salesShipmentLineId      String?
+  salesShipmentLine        SalesShipmentLine?      @relation(fields: [salesShipmentLineId], references: [id])
   /// Business time of the change (the receipt's receivedAt, or the cancellation time).
   occurredAt               DateTime
   actorMemberId            String
@@ -1721,9 +1745,11 @@ model StockMovement {
   @@unique([transferLineId, type])
   @@unique([adjustmentLineId, type])
   @@unique([cycleCountLineId, type])
+  @@unique([salesShipmentLineId, type])
   @@index([companyId, branchId, itemId, occurredAt])
   @@index([transferId])
   @@index([adjustmentId])
+  @@index([salesShipmentId])
   @@index([cycleCountId])
   @@index([locationId, lotId, occurredAt])
   @@index([goodsReceiptId])
@@ -2083,6 +2109,10 @@ model SalesOrder {
   lines               SalesOrderLine[]
   /// EP34: reservations of this order's lines (history kept: RELEASED rows stay).
   allocations         SalesAllocation[]
+  /// EP35 fulfilment documents.
+  picks               SalesPick[]
+  packs               SalesPack[]
+  shipments           SalesShipment[]
 
   @@unique([companyId, number])
   @@unique([id, companyId])
@@ -2128,7 +2158,10 @@ model SalesOrderLine {
   updatedAt        DateTime   @updatedAt
 
   /// EP34
-  allocations SalesAllocation[]
+  allocations   SalesAllocation[]
+  pickLines     SalesPickLine[]
+  packLines     SalesPackLine[]
+  shipmentLines SalesShipmentLine[]
 
   @@unique([salesOrderId, lineNo])
   /// Target of EP34 allocation foreign keys (line, order, company).
@@ -2157,37 +2190,320 @@ enum SalesAllocationRelease {
 /// available = on hand − Σ ACTIVE reservations of that identity, kept ≥ 0 by
 /// sales/allocation.ts (allocating) and the ledger's decrease guard (every other writer).
 model SalesAllocation {
-  id                 String                  @id @default(cuid())
-  companyId          String
-  branchId           String
-  branch             Branch                  @relation(fields: [branchId, companyId], references: [id, companyId])
-  salesOrderId       String
-  order              SalesOrder              @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
-  salesOrderLineId   String
-  line               SalesOrderLine          @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
-  itemId             String
-  item               Item                    @relation(fields: [itemId, companyId], references: [id, companyId])
-  locationId         String
-  location           WarehouseLocation       @relation(fields: [locationId, branchId], references: [id, branchId])
-  lotId              String?
-  lot                InventoryLot?           @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  id                  String                  @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch                  @relation(fields: [branchId, companyId], references: [id, companyId])
+  salesOrderId        String
+  order               SalesOrder              @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  salesOrderLineId    String
+  line                SalesOrderLine          @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  itemId              String
+  item                Item                    @relation(fields: [itemId, companyId], references: [id, companyId])
+  locationId          String
+  location            WarehouseLocation       @relation(fields: [locationId, branchId], references: [id, branchId])
+  lotId               String?
+  lot                 InventoryLot?           @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
   /// lotId or '' — the StockBalance identity key.
-  lotKey             String
-  quantity           Decimal                 @db.Decimal(18, 6)
-  status             SalesAllocationStatus   @default(ACTIVE)
+  lotKey              String
+  quantity            Decimal                 @db.Decimal(18, 6)
+  status              SalesAllocationStatus   @default(ACTIVE)
   /// true while ACTIVE, NULL after: one ACTIVE row per (line, location, lot).
-  activeSlot         Boolean?                @default(true)
-  createdByMemberId  String
-  createdBy          CompanyMember           @relation("SalesAllocationCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
-  releasedAt         DateTime?
-  releasedByMemberId String?
-  releasedBy         CompanyMember?          @relation("SalesAllocationReleaser", fields: [releasedByMemberId, companyId], references: [id, companyId])
-  releaseReason      SalesAllocationRelease?
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  activeSlot          Boolean?                @default(true)
+  createdByMemberId   String
+  createdBy           CompanyMember           @relation("SalesAllocationCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  releasedAt          DateTime?
+  releasedByMemberId  String?
+  releasedBy          CompanyMember?          @relation("SalesAllocationReleaser", fields: [releasedByMemberId, companyId], references: [id, companyId])
+  releaseReason       SalesAllocationRelease?
+  /// EP35: CONSUMED rows — the dispatched shipment line that took this quantity out.
+  consumedAt          DateTime?
+  salesShipmentLineId String?                 @unique
+  consumedBy          SalesShipmentLine?      @relation(fields: [salesShipmentLineId], references: [id])
+  /// EP35: a partial dispatch splits the ACTIVE row; the CONSUMED part names its origin.
+  splitFromId         String?
+  splitFrom           SalesAllocation?        @relation("SalesAllocationSplit", fields: [splitFromId], references: [id])
+  splits              SalesAllocation[]       @relation("SalesAllocationSplit")
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  pickLines           SalesPickLine[]
 
   @@unique([salesOrderLineId, locationId, lotKey, activeSlot])
+  /// EP35: target of pick-line foreign keys (the reservation, its line and identity).
+  @@unique([id, salesOrderLineId, locationId, lotKey])
   @@index([locationId, itemId, lotKey, status])
   @@index([companyId, branchId, itemId, status])
   @@index([salesOrderId, status])
+}
+
+// ---------------------------------------------------------------- EP35 sales fulfilment
+
+/// DRAFT → IN_PROGRESS → PICKED; DRAFT / IN_PROGRESS (or PICKED with nothing packed) → CANCELLED.
+enum SalesPickStatus {
+  DRAFT
+  IN_PROGRESS
+  PICKED
+  CANCELLED
+}
+
+enum SalesPickDiscrepancy {
+  SHORT_PICKED
+  DAMAGED
+  MISSING
+  WRONG_ITEM
+  OTHER
+}
+
+/// DRAFT → PACKED → DISPATCHED (with its shipment); DRAFT / PACKED → CANCELLED.
+enum SalesPackStatus {
+  DRAFT
+  PACKED
+  DISPATCHED
+  CANCELLED
+}
+
+/// READY → DISPATCHED (stock issued) → DELIVERED, or → DELIVERY_EXCEPTION → DELIVERED; READY → CANCELLED.
+enum SalesShipmentStatus {
+  READY
+  DISPATCHED
+  DELIVERED
+  DELIVERY_EXCEPTION
+  CANCELLED
+}
+
+enum SalesDeliveryEventType {
+  DELIVERED
+  PARTIALLY_DELIVERED
+  EXCEPTION
+}
+
+enum SalesDeliveryException {
+  FAILED_ATTEMPT
+  RECIPIENT_UNAVAILABLE
+  ADDRESS_ISSUE
+  DAMAGED_IN_TRANSIT
+  LOST_IN_TRANSIT
+  PARTIAL_DELIVERY
+  OTHER
+}
+
+/// A pick task: take reserved stock (the exact location + lot of an ACTIVE reservation)
+/// off the shelf for one CONFIRMED sales order. Never a movement (docs/SALES_FULFILLMENT.md).
+model SalesPick {
+  id                  String          @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch          @relation(fields: [branchId, companyId], references: [id, companyId])
+  salesOrderId        String
+  order               SalesOrder      @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  /// PICK-YYYYMM-NNNNNN, company-wide monthly sequence, immutable.
+  number              String
+  status              SalesPickStatus @default(DRAFT)
+  note                String?
+  createdByMemberId   String
+  createdBy           CompanyMember   @relation("SalesPickCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  startedAt           DateTime?
+  startedByMemberId   String?
+  startedBy           CompanyMember?  @relation("SalesPickStarter", fields: [startedByMemberId, companyId], references: [id, companyId])
+  pickedAt            DateTime?
+  pickedByMemberId    String?
+  pickedBy            CompanyMember?  @relation("SalesPickConfirmer", fields: [pickedByMemberId, companyId], references: [id, companyId])
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?  @relation("SalesPickCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  lines               SalesPickLine[]
+
+  @@unique([companyId, number])
+  @@unique([id, salesOrderId, branchId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([salesOrderId])
+}
+
+/// One reservation to pick. Exact counters: planned ≥ picked ≥ packed ≥ dispatched —
+/// CHECKed, so no pick, pack or dispatch can exceed the step before it.
+model SalesPickLine {
+  id                 String                @id @default(cuid())
+  companyId          String
+  branchId           String
+  salesOrderId       String
+  pickId             String
+  pick               SalesPick             @relation(fields: [pickId, salesOrderId, branchId, companyId], references: [id, salesOrderId, branchId, companyId])
+  lineNo             Int
+  salesOrderLineId   String
+  orderLine          SalesOrderLine        @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  allocationId       String
+  allocation         SalesAllocation       @relation(fields: [allocationId, salesOrderLineId, locationId, lotKey], references: [id, salesOrderLineId, locationId, lotKey])
+  itemId             String
+  item               Item                  @relation(fields: [itemId, companyId], references: [id, companyId])
+  locationId         String
+  location           WarehouseLocation     @relation(fields: [locationId, branchId], references: [id, branchId])
+  lotId              String?
+  lot                InventoryLot?         @relation(fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  lotKey             String
+  plannedQuantity    Decimal               @db.Decimal(18, 6)
+  /// Null until the pick is confirmed; less than planned needs a discrepancy.
+  pickedQuantity     Decimal?              @db.Decimal(18, 6)
+  discrepancy        SalesPickDiscrepancy?
+  discrepancyNote    String?
+  packedQuantity     Decimal               @default(0) @db.Decimal(18, 6)
+  dispatchedQuantity Decimal               @default(0) @db.Decimal(18, 6)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  packLines          SalesPackLine[]
+
+  @@unique([pickId, lineNo])
+  /// Target of pack-line foreign keys.
+  @@unique([id, salesOrderLineId])
+  @@index([allocationId])
+  @@index([salesOrderId])
+}
+
+/// A pack: picked stock boxed for handover. One order; several packs per order.
+model SalesPack {
+  id                  String          @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch          @relation(fields: [branchId, companyId], references: [id, companyId])
+  salesOrderId        String
+  order               SalesOrder      @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  /// PACK-YYYYMM-NNNNNN, immutable.
+  number              String
+  status              SalesPackStatus @default(DRAFT)
+  packageCount        Int             @default(1)
+  packageReference    String?
+  note                String?
+  /// The non-cancelled shipment this pack travels in (null = not shipped yet).
+  shipmentId          String?
+  shipment            SalesShipment?  @relation(fields: [shipmentId], references: [id])
+  createdByMemberId   String
+  createdBy           CompanyMember   @relation("SalesPackCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  packedAt            DateTime?
+  packedByMemberId    String?
+  packedBy            CompanyMember?  @relation("SalesPackPacker", fields: [packedByMemberId, companyId], references: [id, companyId])
+  dispatchedAt        DateTime?
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?  @relation("SalesPackCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  lines               SalesPackLine[]
+
+  @@unique([companyId, number])
+  @@unique([id, salesOrderId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([salesOrderId])
+  @@index([shipmentId])
+}
+
+model SalesPackLine {
+  id               String              @id @default(cuid())
+  companyId        String
+  salesOrderId     String
+  packId           String
+  pack             SalesPack           @relation(fields: [packId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  lineNo           Int
+  pickLineId       String
+  pickLine         SalesPickLine       @relation(fields: [pickLineId, salesOrderLineId], references: [id, salesOrderLineId])
+  salesOrderLineId String
+  orderLine        SalesOrderLine      @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  quantity         Decimal             @db.Decimal(18, 6)
+  createdAt        DateTime            @default(now())
+  shipmentLines    SalesShipmentLine[]
+
+  @@unique([packId, lineNo])
+  /// Target of shipment-line foreign keys.
+  @@unique([id, pickLineId, salesOrderLineId])
+  @@index([pickLineId])
+}
+
+/// A shipment: packs handed over together. DISPATCH is the stock issue point.
+model SalesShipment {
+  id                   String               @id @default(cuid())
+  companyId            String
+  branchId             String
+  branch               Branch               @relation(fields: [branchId, companyId], references: [id, companyId])
+  salesOrderId         String
+  order                SalesOrder           @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  /// SHP-YYYYMM-NNNNNN, immutable.
+  number               String
+  status               SalesShipmentStatus  @default(READY)
+  /// Where it goes (operational; typed, or the order's customer name).
+  shipToName           String
+  shipToAddress        String?
+  carrier              String?
+  trackingReference    String?
+  note                 String?
+  createdByMemberId    String
+  createdBy            CompanyMember        @relation("SalesShipmentCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  dispatchedAt         DateTime?
+  dispatchedByMemberId String?
+  dispatchedBy         CompanyMember?       @relation("SalesShipmentDispatcher", fields: [dispatchedByMemberId, companyId], references: [id, companyId])
+  handedOverTo         String?
+  deliveredAt          DateTime?
+  cancelledAt          DateTime?
+  cancelledByMemberId  String?
+  cancelledBy          CompanyMember?       @relation("SalesShipmentCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason   String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  lines                SalesShipmentLine[]
+  packs                SalesPack[]
+  events               SalesDeliveryEvent[]
+  movements            StockMovement[]
+
+  @@unique([companyId, number])
+  @@unique([id, branchId, companyId])
+  @@unique([id, salesOrderId, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([salesOrderId])
+}
+
+/// One pack line in a shipment: what is dispatched (and later delivered).
+model SalesShipmentLine {
+  id                String           @id @default(cuid())
+  companyId         String
+  salesOrderId      String
+  shipmentId        String
+  shipment          SalesShipment    @relation(fields: [shipmentId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  lineNo            Int
+  packLineId        String
+  packLine          SalesPackLine    @relation(fields: [packLineId, pickLineId, salesOrderLineId], references: [id, pickLineId, salesOrderLineId])
+  pickLineId        String
+  salesOrderLineId  String
+  orderLine         SalesOrderLine   @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  quantity          Decimal          @db.Decimal(18, 6)
+  /// Confirmed received (≤ quantity); the rest stays outstanding / an exception.
+  deliveredQuantity Decimal          @default(0) @db.Decimal(18, 6)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  movements         StockMovement[]
+  consumption       SalesAllocation?
+
+  @@unique([shipmentId, lineNo])
+  @@index([packLineId])
+  @@index([salesOrderLineId])
+}
+
+/// Immutable delivery evidence (a database trigger refuses UPDATE / DELETE).
+model SalesDeliveryEvent {
+  id                 String                  @id @default(cuid())
+  companyId          String
+  shipmentId         String
+  shipment           SalesShipment           @relation(fields: [shipmentId], references: [id])
+  type               SalesDeliveryEventType
+  reason             SalesDeliveryException?
+  recipientName      String?
+  reference          String?
+  note               String?
+  /// Business time of the outcome (may be earlier than when it was recorded).
+  occurredAt         DateTime
+  recordedByMemberId String
+  recordedBy         CompanyMember           @relation(fields: [recordedByMemberId, companyId], references: [id, companyId])
+  createdAt          DateTime                @default(now())
+
+  @@index([shipmentId, occurredAt])
 }

@@ -39,6 +39,8 @@ export interface WarehouseActor {
   transfers: { create: boolean; approve: boolean; cancel: boolean };
   adjustments: { create: boolean; approve: boolean };
   counts: { create: boolean; approve: boolean };
+  /** EP35 sales fulfilment */
+  fulfilment: { pick: boolean; dispatch: boolean; deliver: boolean };
 }
 
 export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<WarehouseActor> {
@@ -71,6 +73,11 @@ export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<Ware
     counts: {
       create: has('warehouse.counts.create'),
       approve: has('warehouse.counts.approve'),
+    },
+    fulfilment: {
+      pick: has('warehouse.picking.process'),
+      dispatch: has('warehouse.dispatch.confirm'),
+      deliver: has('warehouse.delivery.confirm'),
     },
   };
 }
@@ -237,5 +244,42 @@ export const COUNT_RULES = {
   cancel: { from: ['DRAFT', 'COUNTING', 'REVIEW'], code: () => 'warehouse.counts.create' },
 } satisfies Record<string, Rule<CountStatus>>;
 
-export const documentNotFound = (kind: 'TRANSFER' | 'ADJUSTMENT' | 'COUNT') =>
-  new AppError(404, `${kind}_NOT_FOUND`, 'This document was not found.');
+/*
+ * EP35 sales fulfilment (docs/SALES_FULFILLMENT.md §7) — the same convention.
+ *
+ *   pick      start / confirm / cancel    warehouse.picking.process (a PICKED pick is
+ *                                         cancelled only while nothing of it is packed)
+ *   pack      confirm / cancel            warehouse.picking.process (not while in a shipment)
+ *   shipment  cancel (READY)              warehouse.picking.process
+ *             dispatch (READY)            warehouse.dispatch.confirm — the stock issue
+ *             deliver / exception         warehouse.delivery.confirm (DISPATCHED or
+ *                                         DELIVERY_EXCEPTION)
+ * Creating a pick, pack or shipment needs warehouse.picking.process and the order's branch.
+ */
+type PickStatus = 'DRAFT' | 'IN_PROGRESS' | 'PICKED' | 'CANCELLED';
+export const PICK_RULES = {
+  start: { from: ['DRAFT'], code: () => 'warehouse.picking.process' },
+  confirm: { from: ['DRAFT', 'IN_PROGRESS'], code: () => 'warehouse.picking.process' },
+  cancel: { from: ['DRAFT', 'IN_PROGRESS', 'PICKED'], code: () => 'warehouse.picking.process' },
+} satisfies Record<string, Rule<PickStatus>>;
+
+type PackStatus = 'DRAFT' | 'PACKED' | 'DISPATCHED' | 'CANCELLED';
+export const PACK_RULES = {
+  confirm: { from: ['DRAFT'], code: () => 'warehouse.picking.process' },
+  cancel: { from: ['DRAFT', 'PACKED'], code: () => 'warehouse.picking.process' },
+} satisfies Record<string, Rule<PackStatus>>;
+
+type ShipmentStatus = 'READY' | 'DISPATCHED' | 'DELIVERED' | 'DELIVERY_EXCEPTION' | 'CANCELLED';
+export const SHIPMENT_RULES = {
+  cancel: { from: ['READY'], code: () => 'warehouse.picking.process' },
+  dispatch: { from: ['READY'], code: () => 'warehouse.dispatch.confirm' },
+  deliver: { from: ['DISPATCHED', 'DELIVERY_EXCEPTION'], code: () => 'warehouse.delivery.confirm' },
+  exception: {
+    from: ['DISPATCHED', 'DELIVERY_EXCEPTION'],
+    code: () => 'warehouse.delivery.confirm',
+  },
+} satisfies Record<string, Rule<ShipmentStatus>>;
+
+export const documentNotFound = (
+  kind: 'TRANSFER' | 'ADJUSTMENT' | 'COUNT' | 'PICK' | 'PACK' | 'SHIPMENT',
+) => new AppError(404, `${kind}_NOT_FOUND`, 'This document was not found.');

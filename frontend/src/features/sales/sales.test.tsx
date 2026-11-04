@@ -151,8 +151,11 @@ const order = (over: Partial<SalesOrder> = {}): SalesOrder => ({
         ordered: '12',
         allocated: null,
         picked: null,
+        packed: null,
+        dispatched: null,
         delivered: null,
-        outstanding: null,
+        toDispatch: null,
+        toDeliver: null,
       },
     },
   ],
@@ -332,7 +335,7 @@ describe('Sales orders (EP33)', () => {
     // Server amounts and line availability, worded as information.
     expect(screen.getByText('2,311.20 THB')).toBeInTheDocument();
     expect(screen.getByText('Short 4')).toBeInTheDocument();
-    expect(screen.getByText(/Picking and delivery arrive in a later phase/)).toBeInTheDocument();
+    expect(screen.getByText(/The Warehouse picks, packs and dispatches/)).toBeInTheDocument();
     unmount();
 
     let current = order({ actions: ['confirm', 'cancel'] });

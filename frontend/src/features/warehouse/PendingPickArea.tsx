@@ -1,4 +1,6 @@
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField } from '@/features/auth/fields';
 import { CONTROL_COPY } from '@/features/company-center/copy';
@@ -6,10 +8,12 @@ import { useDateFormat, useLoad } from '@/features/company-center/model';
 import { Loading, PageTitle, Pill } from '@/features/company-center/parts';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import { useCopy, type Localized } from '@/i18n/useCopy';
+import { useLocale } from '@/i18n/useLocale';
+import { apiRequest } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { whApi, type PickOrder, type WarehouseContext } from './whApi';
 import { WH_COPY, whError } from './whCopy';
-import { useDebounced, usePaged } from './whModel';
+import { WH, useDebounced, usePaged } from './whModel';
 import { ExpiryPill, ShowMore, WarehouseNav } from './whParts';
 
 /*
@@ -22,7 +26,7 @@ import { ExpiryPill, ShowMore, WarehouseNav } from './whParts';
 
 const th = {
   title: 'รอหยิบสินค้า',
-  lead: 'คำสั่งขายที่ยืนยันแล้วและจองสต็อกไว้ — หยิบจากตำแหน่งและล็อตที่ระบุ (การหยิบจริงเปิดในเฟสถัดไป)',
+  lead: 'คำสั่งขายที่ยืนยันแล้วและจองสต็อกไว้ — สร้างใบหยิบ แล้วหยิบจากตำแหน่งและล็อตที่ระบุ',
   readiness: 'ความพร้อม',
   ready: { NOT_READY: 'ยังไม่พร้อม', PARTIALLY_READY: 'พร้อมบางส่วน', READY: 'พร้อมหยิบ' },
   searchHint: 'เลขที่คำสั่งขาย หรือรหัสสินค้า',
@@ -33,13 +37,15 @@ const th = {
   none: 'ไม่มีคำสั่งขายที่รอหยิบ',
   noPick: 'ยังไม่มีสต็อกจองไว้สำหรับรายการนี้',
   count: (n: number) => `${n} คำสั่งขาย`,
+  createPick: 'สร้างใบหยิบ',
+  toPick: 'รอหยิบ',
 };
 type PickCopy = typeof th;
 const PICK_COPY: Localized<PickCopy> = {
   th,
   en: {
     title: 'Pending pick',
-    lead: 'Confirmed sales orders with stock reserved — pick from the location and lot shown (picking itself arrives in a later phase).',
+    lead: 'Confirmed sales orders with stock reserved — create a pick, then pick from the location and lot shown.',
     readiness: 'Readiness',
     ready: { NOT_READY: 'Not ready', PARTIALLY_READY: 'Partly ready', READY: 'Ready to pick' },
     searchHint: 'Sales order number or item code',
@@ -50,10 +56,12 @@ const PICK_COPY: Localized<PickCopy> = {
     none: 'No sales orders are waiting to be picked.',
     noPick: 'No stock is reserved for this line yet.',
     count: (n: number) => `${n} ${n === 1 ? 'sales order' : 'sales orders'}`,
+    createPick: 'Create pick',
+    toPick: 'To pick',
   },
   'zh-CN': {
     title: '待拣货',
-    lead: '已确认且已预留库存的销售订单 — 按所示库位和批次拣货（实际拣货将在后续阶段推出）。',
+    lead: '已确认且已预留库存的销售订单 — 创建拣货单，按所示库位和批次拣货。',
     readiness: '就绪状态',
     ready: { NOT_READY: '未就绪', PARTIALLY_READY: '部分就绪', READY: '可拣货' },
     searchHint: '销售订单号或物料代码',
@@ -64,6 +72,8 @@ const PICK_COPY: Localized<PickCopy> = {
     none: '没有待拣货的销售订单。',
     noPick: '此行尚未预留库存。',
     count: (n: number) => `${n} 张销售订单`,
+    createPick: '创建拣货单',
+    toPick: '待拣',
   },
 };
 
@@ -127,7 +137,7 @@ function PickList({ ctx }: { ctx: WarehouseContext }) {
       ) : (
         <ul className="grid grid-cols-1 gap-3" data-pick-orders>
           {data.items.map((o) => (
-            <PickCard key={o.id} o={o} />
+            <PickCard key={o.id} o={o} canPick={ctx.fulfilment.pick} />
           ))}
         </ul>
       )}
@@ -136,10 +146,30 @@ function PickList({ ctx }: { ctx: WarehouseContext }) {
   );
 }
 
-function PickCard({ o }: { o: PickOrder }) {
+function PickCard({ o, canPick }: { o: PickOrder; canPick: boolean }) {
   const p = useCopy(PICK_COPY);
   const c = useCopy(WH_COPY);
+  const cc = useCopy(CONTROL_COPY);
   const { date } = useDateFormat();
+  const navigate = useNavigate();
+  const { locale } = useLocale();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const open = o.lines.some((l) => l.picks.some((x) => x.toPick !== '0'));
+  // EP35: a pick of everything reserved and not yet claimed (the server decides lines, FEFO).
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await apiRequest<{ pick: { id: string } }>('POST', '/api/v1/warehouse/picks', {
+        salesOrderId: o.id,
+      });
+      void navigate(`${WH}/picks/${encodeURIComponent(d.pick.id)}`, { state: { locale } });
+    } catch (e) {
+      setError(whError(e, c, cc));
+      setBusy(false);
+    }
+  };
   return (
     <li
       className="grid gap-3 rounded-xl bg-white/[0.02] p-4 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.08)]"
@@ -191,6 +221,9 @@ function PickCard({ o }: { o: PickOrder }) {
                     {x.lot?.expiryDate && <ExpiryPill state={x.expiryState} />}
                     <span className="ml-auto font-semibold text-text-primary tabular-nums">
                       {x.quantity} {l.unit.code}
+                      {x.toPick !== x.quantity && (
+                        <span className="font-normal text-text-muted">{` · ${p.toPick} ${x.toPick}`}</span>
+                      )}
                     </span>
                   </li>
                 ))}
@@ -201,6 +234,18 @@ function PickCard({ o }: { o: PickOrder }) {
           </li>
         ))}
       </ol>
+      {error && <Notice tone="error">{error}</Notice>}
+      {canPick && open && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void create()}
+          className={buttonClasses('primary', 'md', 'w-fit')}
+          data-create-pick
+        >
+          {p.createPick}
+        </button>
+      )}
     </li>
   );
 }

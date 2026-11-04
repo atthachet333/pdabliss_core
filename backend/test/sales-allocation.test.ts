@@ -120,6 +120,7 @@ describe('Sales allocation policy and contracts (EP34)', () => {
                 lot: null,
                 expiryState: 'NO_EXPIRY',
                 quantity: '1',
+                toPick: '1',
               },
             ],
           },
@@ -794,6 +795,7 @@ describeDb('Sales allocation (EP34)', () => {
         lot: { lotNumber: 'L-PP', expiryDate: shift(15) },
         expiryState: 'EXPIRING_SOON',
         quantity: '4',
+        toPick: '4',
       },
     ]);
     // Key by key and value by value: nothing commercial.

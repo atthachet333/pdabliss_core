@@ -22,6 +22,16 @@ import {
   MovementQuery,
   OptionalReasonBody,
   PickDemandQuery,
+  ConfirmPickBody,
+  CreatePackBody,
+  CreatePickBody,
+  CreateShipmentBody,
+  DeliverBody,
+  DeliveryExceptionBody,
+  DispatchBody,
+  PackListQuery,
+  PickListQuery,
+  ShipmentListQuery,
   ReasonBody,
   ReceiptLineParams,
   ReceiptListQuery,
@@ -34,6 +44,7 @@ import {
   UpdateTransferBody,
 } from '../../warehouse/input.js';
 import { registerInventoryLocks } from '../../warehouse/locks.js';
+import { FulfilmentService } from '../../warehouse/fulfilment.js';
 import { PickDemandService } from '../../warehouse/pick-demand.js';
 import { ReceivingService } from '../../warehouse/service.js';
 import { TransferService } from '../../warehouse/transfers.js';
@@ -59,6 +70,16 @@ import { TransferService } from '../../warehouse/transfers.js';
  *   GET    /movements                       the movement ledger (?branch, location, item, lot, type, sourceType, from, to, q)
  *   GET    /pending-pick                    EP34: confirmed sales demand with stock reserved
  *                                           (?readiness, branchId, q) — read-only, never commercial
+ *
+ *
+ *   EP35 sales fulfilment (docs/SALES_FULFILLMENT.md) — reads with warehouse.inventory.view:
+ *   GET|POST /picks   GET /picks/:id   POST /picks/:id/start · /confirm {lines} · /cancel {reason?}
+ *   GET|POST /packs   GET /packs/:id   POST /packs/:id/confirm · /cancel {reason?}
+ *   GET|POST /shipments  GET /shipments/:id  POST /shipments/:id/cancel {reason?}
+ *   POST   /shipments/:id/dispatch {handedOverTo?, note?}   READY → DISPATCHED: SALES_ISSUE,
+ *                                           reservation consumed (warehouse.dispatch.confirm)
+ *   POST   /shipments/:id/deliver {lines?, recipientName?, reference?, note?, deliveredAt?}
+ *   POST   /shipments/:id/exception {reason, note?, occurredAt?}  (warehouse.delivery.confirm)
  *
  *   GET    /transfers  POST /transfers  GET|PATCH /transfers/:id  PUT /transfers/:id/lines
  *   POST   /transfers/:id/post              DRAFT → POSTED (TRANSFER_OUT + TRANSFER_IN)
@@ -87,6 +108,7 @@ export const warehouseRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db 
   const w = new ReceivingService(db);
   const tr = new TransferService(db);
   const pick = new PickDemandService(db);
+  const ful = new FulfilmentService(db);
   const adj = new AdjustmentService(db);
   const cc = new CountService(db);
   const auth = requireAuth;
@@ -201,6 +223,54 @@ export const warehouseRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db 
   app.post('/counts/:id/post', async (r) => cc.post(auth(r), idOf(r.params), meta(r)));
   app.post('/counts/:id/cancel', small, async (r) =>
     cc.cancel(auth(r), idOf(r.params), optReason(r.body), meta(r)),
+  );
+
+  // ---------------------------------------------------------------- EP35 fulfilment
+  app.get('/picks', async (r) => ful.listPicks(auth(r), parseInput(PickListQuery, r.query)));
+  app.post('/picks', body, async (r, reply) =>
+    reply
+      .status(201)
+      .send(await ful.createPick(auth(r), parseInput(CreatePickBody, r.body), meta(r))),
+  );
+  app.get('/picks/:id', async (r) => ful.getPick(auth(r), idOf(r.params)));
+  app.post('/picks/:id/start', async (r) => ful.startPick(auth(r), idOf(r.params), meta(r)));
+  app.post('/picks/:id/confirm', body, async (r) =>
+    ful.confirmPick(auth(r), idOf(r.params), parseInput(ConfirmPickBody, r.body), meta(r)),
+  );
+  app.post('/picks/:id/cancel', small, async (r) =>
+    ful.cancelPick(auth(r), idOf(r.params), optReason(r.body), meta(r)),
+  );
+  app.get('/packs', async (r) => ful.listPacks(auth(r), parseInput(PackListQuery, r.query)));
+  app.post('/packs', body, async (r, reply) =>
+    reply
+      .status(201)
+      .send(await ful.createPack(auth(r), parseInput(CreatePackBody, r.body), meta(r))),
+  );
+  app.get('/packs/:id', async (r) => ful.getPack(auth(r), idOf(r.params)));
+  app.post('/packs/:id/confirm', async (r) => ful.confirmPack(auth(r), idOf(r.params), meta(r)));
+  app.post('/packs/:id/cancel', small, async (r) =>
+    ful.cancelPack(auth(r), idOf(r.params), optReason(r.body), meta(r)),
+  );
+  app.get('/shipments', async (r) =>
+    ful.listShipments(auth(r), parseInput(ShipmentListQuery, r.query)),
+  );
+  app.post('/shipments', small, async (r, reply) =>
+    reply
+      .status(201)
+      .send(await ful.createShipment(auth(r), parseInput(CreateShipmentBody, r.body), meta(r))),
+  );
+  app.get('/shipments/:id', async (r) => ful.getShipment(auth(r), idOf(r.params)));
+  app.post('/shipments/:id/cancel', small, async (r) =>
+    ful.cancelShipment(auth(r), idOf(r.params), optReason(r.body), meta(r)),
+  );
+  app.post('/shipments/:id/dispatch', small, async (r) =>
+    ful.dispatch(auth(r), idOf(r.params), parseInput(DispatchBody, r.body ?? {}), meta(r)),
+  );
+  app.post('/shipments/:id/deliver', body, async (r) =>
+    ful.deliver(auth(r), idOf(r.params), parseInput(DeliverBody, r.body ?? {}), meta(r)),
+  );
+  app.post('/shipments/:id/exception', small, async (r) =>
+    ful.exception(auth(r), idOf(r.params), parseInput(DeliveryExceptionBody, r.body), meta(r)),
   );
   return Promise.resolve();
 };

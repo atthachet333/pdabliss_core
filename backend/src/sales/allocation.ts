@@ -11,8 +11,9 @@ import { byFefo } from '../warehouse/service.js';
  * its status and the actor's authority). A reservation is NOT a movement:
  * StockMovement and StockBalance are never written here.
  *
- *   1. what each tracked line still needs = ordered − its ACTIVE reservations
- *      (nothing → nothing to do: repeating an allocation never double-reserves);
+ *   1. what each tracked line still needs = ordered − its ACTIVE and CONSUMED
+ *      (EP35: dispatched) reservations (nothing → nothing to do: repeating an
+ *      allocation never double-reserves);
  *   2. lock the order branch's positive balances of those items (id order), THEN
  *      read them, their lots / locations and what is reserved — never trust
  *      availability read before the lock;
@@ -40,10 +41,11 @@ export interface LineResult {
 
 type OrderRef = { id: string; companyId: string; branchId: string };
 
+/** ACTIVE + CONSUMED (EP35: dispatched stock no longer needs reserving) per line. */
 async function activeByLine(tx: Prisma.TransactionClient, orderId: string) {
   const rows = await tx.salesAllocation.groupBy({
     by: ['salesOrderLineId'],
-    where: { salesOrderId: orderId, status: 'ACTIVE' },
+    where: { salesOrderId: orderId, status: { in: ['ACTIVE', 'CONSUMED'] } },
     _sum: { quantity: true },
   });
   return new Map(rows.map((r) => [r.salesOrderLineId, r._sum.quantity ?? ZERO]));

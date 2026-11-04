@@ -20,7 +20,7 @@ import { WH, useDebounced, usePaged } from './whModel';
  */
 
 const DOC_LINK =
-  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0';
+  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7';
 
 /** The source document of a movement: a receipt (and its order), or an EP32 document. */
 function SourceLink({ s }: { s: MovementRow['source'] }) {
@@ -32,7 +32,9 @@ function SourceLink({ s }: { s: MovementRow['source'] }) {
         ? ['adjustments', s.adjustment]
         : s.count
           ? ['counts', s.count]
-          : null;
+          : s.shipment
+            ? ['shipments', s.shipment]
+            : null;
   if (!doc) return <>—</>;
   return (
     <>

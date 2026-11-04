@@ -34,6 +34,7 @@ export const MOVEMENT_TYPES = [
   'ADJUSTMENT_IN_REVERSAL',
   'ADJUSTMENT_OUT_REVERSAL',
   'COUNT_CORRECTION',
+  'SALES_ISSUE',
 ] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
@@ -52,6 +53,8 @@ export interface WarehouseContext {
   transfers: { create: boolean; approve: boolean; cancel: boolean };
   adjustments: { create: boolean; approve: boolean };
   cycleCounts: { create: boolean; approve: boolean };
+  /** EP35 sales fulfilment: pick / pack / prepare shipments, dispatch, record delivery. */
+  fulfilment: { pick: boolean; dispatch: boolean; deliver: boolean };
   branches: (Ref & { type: string })[];
   selectedBranch: (Ref & { type: string }) | null;
   locations: (Ref & { branchId: string; isDefault: boolean })[];
@@ -66,6 +69,12 @@ export interface WarehouseContext {
     activeCounts: number | null;
     /** EP34: confirmed sales orders with stock reserved in the branch. */
     pendingPick: number | null;
+    /** EP35 */
+    openPicks: number | null;
+    openPacks: number | null;
+    readyShipments: number | null;
+    inTransit: number | null;
+    deliveryExceptions: number | null;
   };
   expiringSoonDays: number;
   today: string;
@@ -173,6 +182,8 @@ export interface PickOrder {
       lot: { lotNumber: string; expiryDate: string | null } | null;
       expiryState: ExpiryState;
       quantity: string;
+      /** EP35: reserved here and not yet claimed by a pick. */
+      toPick: string;
     }[];
   }[];
 }
@@ -193,6 +204,8 @@ export interface MovementRow {
     order: { number: string } | null;
     transfer: DocRef | null;
     adjustment: DocRef | null;
+    /** EP35: the dispatched shipment of a SALES_ISSUE. */
+    shipment: DocRef | null;
     count: DocRef | null;
   };
   actor: Person;

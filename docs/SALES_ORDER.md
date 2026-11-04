@@ -169,6 +169,14 @@ sequence upsert (unique, gapless).
 - EP34 may allocate only CONFIRMED lines; cancelling an order with allocations will need a rule there.
   **Done in EP34** ([SALES_ALLOCATION.md](SALES_ALLOCATION.md)): `progress.allocated` is filled for
   tracked lines, and cancelling releases every reservation (`ORDER_CANCELLED`) in the same transaction.
+- **EP35** ([SALES_FULFILLMENT.md](SALES_FULFILLMENT.md) §9): `progress` is now
+  `{ordered, allocated, picked, packed, dispatched, delivered, toDispatch, toDeliver}` — cumulative
+  milestones plus two outstanding quantities, per line in its unit (`outstanding` was replaced by
+  `toDispatch` / `toDeliver`); null for lines that are not inventory-tracked. The order view adds
+  `fulfilment: {state, shipments[]}` (shipment number, status, dispatched / delivered time, exception
+  reason — no location or lot). A confirmed order with dispatched stock can no longer be cancelled
+  (`SO_ALREADY_DISPATCHED`); with staged picks / packs / shipments it is refused until those are
+  cancelled (`FULFILMENT_IN_PROGRESS`).
 
 ## 15. Known limitations (deliberate)
 

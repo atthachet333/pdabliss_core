@@ -15,6 +15,7 @@ import { seedDemoMasterData } from '../master-data/demo.js';
 import { seedDemoPurchaseRequests } from '../purchasing/demo.js';
 import { seedDemoPurchaseOrders } from '../purchasing/order-demo.js';
 import { seedDemoSalesOrders } from '../sales/demo.js';
+import { seedDemoFulfilment } from '../warehouse/fulfilment-demo.js';
 import { seedDemoInventoryControl } from '../warehouse/control-demo.js';
 import { seedDemoReceipts } from '../warehouse/demo.js';
 import { normalizeEmail } from './crypto.js';
@@ -454,6 +455,8 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   const inventoryControl = await seedDemoInventoryControl(db, company.id, SEED_META);
   // EP33: sales orders (draft, submitted, confirmed, cancelled) — never a stock effect.
   const salesOrders = await seedDemoSalesOrders(db, company.id, SEED_META);
+  // EP35: picks, packs, shipments (one delivered, one exception) through the real service.
+  const fulfilment = await seedDemoFulfilment(db, company.id, SEED_META);
 
   return {
     companyId: company.id,
@@ -468,6 +471,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     goodsReceipts,
     inventoryControl,
     salesOrders,
+    fulfilment,
   };
 }
 

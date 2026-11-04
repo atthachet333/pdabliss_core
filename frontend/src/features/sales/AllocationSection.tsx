@@ -4,7 +4,8 @@ import { Pill, Section } from '@/features/company-center/parts';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
-import { salesApi, type SalesOrder, type SoDetail } from './salesApi';
+import { useDateFormat } from '@/features/company-center/model';
+import { salesApi, type SalesOrder, type SoDetail, type SoFulfilment } from './salesApi';
 import { SALES_COPY } from './salesCopy';
 
 /*
@@ -21,9 +22,11 @@ type Step = 'allocate' | 'reallocate' | 'release';
 
 export default function AllocationSection({
   o,
+  ful,
   run,
 }: {
   o: SalesOrder;
+  ful?: SoFulfilment;
   run: (work: () => Promise<SoDetail>, text?: string | (() => string)) => Promise<boolean>;
 }) {
   const a = useCopy(SALES_COPY).alloc;
@@ -160,6 +163,90 @@ export default function AllocationSection({
           <p className="mt-3 text-caption text-text-muted">{a.staffNote}</p>
         )
       )}
+      {ful?.state && <Fulfilment o={o} ful={ful} />}
     </Section>
+  );
+}
+
+/**
+ * EP35 fulfilment, read-only for Sales: the derived state, per tracked line the
+ * cumulative milestones in the line's unit (never summed across lines), and the
+ * shipments by number, status and date — no location, lot or Warehouse document link.
+ */
+function Fulfilment({ o, ful }: { o: SalesOrder; ful: SoFulfilment }) {
+  const f = useCopy(SALES_COPY).ful;
+  const { dateTime } = useDateFormat();
+  const lines = o.lines.filter((l) => l.progress.picked !== null);
+  return (
+    <div className="mt-5 grid gap-3 border-t border-white/[0.07] pt-4" data-fulfilment={ful.state}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-label font-semibold text-text-primary">{f.title}</h3>
+        <Pill
+          tone={
+            ful.state === 'DELIVERED' ? 'teal' : ful.state === 'EXCEPTION' ? 'warning' : 'muted'
+          }
+          data-fulfilment-state={ful.state}
+        >
+          {f.states[ful.state!]}
+        </Pill>
+      </div>
+      <p className="text-caption text-text-muted">{f.note}</p>
+      <ul className="grid grid-cols-1 gap-2 md:grid-cols-2" data-fulfilment-lines>
+        {lines.map((l) => (
+          <li key={l.id} className="grid gap-2 rounded-xl bg-white/[0.02] p-3">
+            <span className="min-w-0 text-label break-words">
+              <span className="font-mono">{l.item.code}</span> · {l.item.name}
+            </span>
+            <dl className="grid grid-cols-3 gap-2 text-caption">
+              {(
+                [
+                  [f.picked, l.progress.picked],
+                  [f.packed, l.progress.packed],
+                  [f.dispatched, l.progress.dispatched],
+                  [f.delivered, l.progress.delivered],
+                  [f.toDispatch, l.progress.toDispatch],
+                  [f.toDeliver, l.progress.toDeliver],
+                ] as const
+              ).map(([t, v]) => (
+                <div key={t} className="min-w-0">
+                  <dt className="text-text-muted">{t}</dt>
+                  <dd className="font-semibold text-text-primary tabular-nums">
+                    {v} <span className="font-normal text-text-muted">{l.unit.code}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+      {ful.shipments.length ? (
+        <ul className="grid gap-1.5" data-shipments>
+          {ful.shipments.map((s) => (
+            <li key={s.number} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label">
+              <span className="font-mono font-semibold">{s.number}</span>
+              <Pill
+                tone={
+                  s.status === 'DELIVERED'
+                    ? 'teal'
+                    : s.status === 'DELIVERY_EXCEPTION'
+                      ? 'warning'
+                      : 'muted'
+                }
+              >
+                {f.shipStatus[s.status]}
+              </Pill>
+              {s.dispatchedAt && (
+                <span className="text-caption text-text-muted">{`${f.dispatched} ${dateTime(s.dispatchedAt)}`}</span>
+              )}
+              {s.deliveredAt && (
+                <span className="text-caption text-text-muted">{`${f.delivered} ${dateTime(s.deliveredAt)}`}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-caption text-text-muted">{f.none}</p>
+      )}
+    </div>
   );
 }

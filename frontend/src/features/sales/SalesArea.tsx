@@ -619,7 +619,7 @@ function OrderPage({ id }: { id: string }) {
         <Notice tone="error">{err(state.error)}</Notice>
       </>
     );
-  const { order: o, timeline } = state.data;
+  const { order: o, timeline, fulfilment } = state.data;
   const run = async (work: () => Promise<SoDetail>, text: string | (() => string) = c.saved) => {
     setNotice(null);
     try {
@@ -770,7 +770,7 @@ function OrderPage({ id }: { id: string }) {
 
       {o.status === 'CONFIRMED' && (
         <Suspense fallback={<Loading label={c.loading} />}>
-          <AllocationSection o={o} run={run} />
+          <AllocationSection o={o} ful={fulfilment} run={run} />
         </Suspense>
       )}
 

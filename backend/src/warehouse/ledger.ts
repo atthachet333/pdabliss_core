@@ -7,6 +7,7 @@ import {
   type GoodsReceiptAuditAction,
   type InventoryControlAuditAction,
   type PurchaseOrderAuditAction,
+  type SalesFulfilmentAuditAction,
 } from '../company/audit.js';
 import type { Prisma } from '../db/client.js';
 import type { StockMovementType } from '../generated/prisma/enums.js';
@@ -55,7 +56,11 @@ export interface LedgerActor {
 export const event = (
   tx: Prisma.TransactionClient,
   a: LedgerActor,
-  action: GoodsReceiptAuditAction | PurchaseOrderAuditAction | InventoryControlAuditAction,
+  action:
+    | GoodsReceiptAuditAction
+    | PurchaseOrderAuditAction
+    | InventoryControlAuditAction
+    | SalesFulfilmentAuditAction,
   entityType: AuditEntityType,
   entityId: string,
   details: Record<string, string | number | boolean | null>,
@@ -207,7 +212,9 @@ export type MovementSource =
     }
   | { sourceType: 'TRANSFER'; transferId: string; transferLineId: string }
   | { sourceType: 'ADJUSTMENT'; adjustmentId: string; adjustmentLineId: string }
-  | { sourceType: 'CYCLE_COUNT'; cycleCountId: string; cycleCountLineId: string };
+  | { sourceType: 'CYCLE_COUNT'; cycleCountId: string; cycleCountLineId: string }
+  /** EP35: a dispatched shipment line (SALES_ISSUE). */
+  | { sourceType: 'SALES_SHIPMENT'; salesShipmentId: string; salesShipmentLineId: string };
 
 /**
  * THE stock writer: one movement and its balance change, in the caller's

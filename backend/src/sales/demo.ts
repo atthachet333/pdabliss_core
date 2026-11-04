@@ -28,6 +28,9 @@ import { allocateOrder } from './allocation.js';
  *                     two FEFO lots) and raw material 8 kg of which 5 exist → PARTIALLY_ALLOCATED
  *   SO_OPEN           demo branch, owner.demo, confirmed, packaging 10, left unallocated
  *
+ * EP35 adds four confirmed, allocated packaging orders (12 / 6 / 10 / 3) that
+ * warehouse/fulfilment-demo.ts picks, packs and ships through the real service.
+ *
  * Created ONCE each (stable `demo` key in the CREATED / ALLOCATION_CREATED audit
  * entry), never touched again; skipped when a persona, branch, customer or item
  * is missing. Numbers come from the normal SO sequence; amounts are the server's
@@ -97,10 +100,28 @@ const FIXTURES: Fixture[] = [
     status: 'CONFIRMED',
     lines: [{ item: 'PK-000001', quantity: '10', unitPrice: '18' }],
   },
+  // EP35: confirmed, allocated packaging orders the fulfilment demo
+  // (warehouse/fulfilment-demo.ts) takes through picking, packing and shipping.
+  ...(['SO_FUL_PICKING', 'SO_FUL_PACKED', 'SO_FUL_SHIPPED', 'SO_FUL_EXCEPTION'] as const).map(
+    (key, i): Fixture => ({
+      key,
+      branch: '00001',
+      by: 'OWNER',
+      status: 'CONFIRMED',
+      lines: [{ item: 'PK-000001', quantity: ['12', '6', '10', '3'][i]!, unitPrice: '18' }],
+    }),
+  ),
 ];
 
 /** EP34: orders the demo allocates, in this order (FEFO depends on it). */
-const ALLOCATE = ['SO_CONFIRMED', 'SO_ALLOC_PARTIAL'];
+const ALLOCATE = [
+  'SO_CONFIRMED',
+  'SO_ALLOC_PARTIAL',
+  'SO_FUL_PICKING',
+  'SO_FUL_PACKED',
+  'SO_FUL_SHIPPED',
+  'SO_FUL_EXCEPTION',
+];
 
 const TAX_RATE = '7';
 

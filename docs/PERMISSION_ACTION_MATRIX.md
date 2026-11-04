@@ -61,6 +61,7 @@ branch access or enabled departments takes effect on the next request of every o
 | **EP32 inventory control** | `warehouse.transfers.create` · `.approve` · `.cancel`, `warehouse.counts.create` · `.approve` (new); `warehouse.stock_adjustment.create` · `.approve` (EP27, now used); reads with `warehouse.inventory.view` |
 | **EP33 sales orders** | `sales.orders.view` · `.create` · `.approve` · `.cancel` (EP27, now used); `sales.orders.edit` reserved; customers via `sales.customers.view` |
 | **EP34 sales allocation** | allocate · release · reallocate with `sales.orders.approve` (no new code); Pending Pick with `warehouse.inventory.view` |
+| **EP35 sales fulfilment** | `warehouse.picking.process` (new, OPERATE) · `warehouse.dispatch.confirm` (new, MANAGE) · `warehouse.delivery.confirm` (new, MANAGE); reads with `warehouse.inventory.view` |
 | **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
@@ -85,6 +86,14 @@ stock-adjustment code is used yet. System Admin gets none of it unless assigned 
 Executive reads only; Purchasing and Accounting see receive progress on orders, never stock. The
 override CHECK lists 57 operational codes. One policy table: `backend/src/warehouse/policy.ts`; see
 [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).
+
+**EP35 note.** Three new BRANCH-scoped Warehouse codes (override CHECK now **65**):
+`warehouse.picking.process` (OPERATE — Staff: picks, packs, shipments; no stock moves),
+`warehouse.dispatch.confirm` (MANAGE — the stock issue; `confirm` maps to MANAGE) and
+`warehouse.delivery.confirm` (MANAGE — delivery and exceptions). Warehouse Staff (including
+`warehouse.demo`) pick and pack but never dispatch; Managers and the Owner dispatch and confirm delivery;
+Executive reads; System Admin only with a Warehouse assignment and then without MANAGE; Sales roles hold
+no Warehouse code — they read progress on the order. See [SALES_FULFILLMENT.md](SALES_FULFILLMENT.md) §10.
 
 **EP34 note.** No new codes (override CHECK still 62). Allocating, releasing and reallocating a
 CONFIRMED order reuse `sales.orders.approve` (MANAGE) — the manager who confirms an order commits stock

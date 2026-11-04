@@ -13,7 +13,7 @@ import type { Availability, SoStatus } from './salesApi';
 
 const th = {
   title: 'คำสั่งขาย',
-  lead: 'บันทึกคำสั่งซื้อของลูกค้า ราคาขาย และยอดที่เซิร์ฟเวอร์คำนวณ — ยังไม่จองและไม่ตัดสต็อก',
+  lead: 'บันทึกคำสั่งซื้อของลูกค้า ราคาขาย และยอดที่เซิร์ฟเวอร์คำนวณ — สต็อกถูกจองเมื่อจองสต็อก และตัดเมื่อคลังส่งออก',
   newOrder: 'สร้างคำสั่งขาย',
   back: 'คำสั่งขายทั้งหมด',
   loading: 'กำลังโหลด…',
@@ -126,7 +126,7 @@ const th = {
   system: 'ระบบ',
   alloc: {
     title: 'การจองสต็อก',
-    lead: 'สต็อกที่จองไว้ให้คำสั่งขายนี้ตาม FEFO ในสาขาของคำสั่งขาย — ยอดคงคลังไม่เปลี่ยนจนกว่าจะส่งมอบ',
+    lead: 'สต็อกที่จองไว้ให้คำสั่งขายนี้ตาม FEFO ในสาขาของคำสั่งขาย — ยอดคงคลังไม่เปลี่ยนจนกว่าคลังจะส่งออก',
     states: {
       NOT_ALLOCATED: 'ยังไม่จอง',
       PARTIALLY_ALLOCATED: 'จองได้บางส่วน',
@@ -151,11 +151,40 @@ const th = {
     released: 'ปลดการจองแล้ว',
     staffNote: 'ผู้จัดการฝ่ายขายเป็นผู้จองหรือปลดการจอง',
   },
-  progressNote: 'การหยิบและส่งมอบ จะเปิดในเฟสถัดไป',
+  progressNote: 'คลังสินค้าเป็นผู้หยิบ แพ็ก และส่งออก ความคืบหน้าแสดงเมื่อคำสั่งขายยืนยันแล้ว',
+  ful: {
+    title: 'การจัดส่ง',
+    states: {
+      NOT_STARTED: 'ยังไม่เริ่มหยิบ',
+      PARTIALLY_PICKED: 'หยิบแล้วบางส่วน',
+      PICKED: 'หยิบครบ',
+      PARTIALLY_DISPATCHED: 'ส่งออกบางส่วน',
+      DISPATCHED: 'ส่งออกครบ',
+      PARTIALLY_DELIVERED: 'ส่งถึงบางส่วน',
+      DELIVERED: 'ส่งถึงครบ',
+      EXCEPTION: 'มีปัญหาการส่ง',
+    },
+    picked: 'หยิบแล้ว',
+    packed: 'แพ็กแล้ว',
+    dispatched: 'ส่งออกแล้ว',
+    delivered: 'ส่งถึงแล้ว',
+    toDispatch: 'ค้างส่งออก',
+    toDeliver: 'ค้างส่งถึง',
+    shipStatus: {
+      READY: 'รอส่งออก',
+      DISPATCHED: 'กำลังขนส่ง',
+      DELIVERED: 'ส่งถึงแล้ว',
+      DELIVERY_EXCEPTION: 'ส่งไม่สำเร็จ',
+    },
+    none: 'ยังไม่มีการจัดส่ง',
+    note: 'คลังสินค้าเป็นผู้หยิบ แพ็ก และส่งออก — สต็อกถูกตัดเมื่อส่งออก',
+  },
   readOnly: 'คุณดูคำสั่งขายนี้ได้อย่างเดียว',
   notFound: 'ไม่พบคำสั่งขายนี้ หรือคุณไม่มีสิทธิ์ดู',
   errors: {
     SO_NOT_ALLOCATED: 'คำสั่งขายนี้ยังไม่มีสต็อกที่จองไว้',
+    FULFILMENT_IN_PROGRESS: 'คลังกำลังหยิบ แพ็ก หรือจัดส่งคำสั่งขายนี้ ให้ยกเลิกงานนั้นก่อน',
+    SO_ALREADY_DISPATCHED: 'ส่งออกสินค้าแล้ว ยกเลิกคำสั่งขายไม่ได้ (การรับคืนจะเปิดในเฟสถัดไป)',
     CONCURRENT_UPDATE: 'มีการเปลี่ยนสต็อกเดียวกันพร้อมกัน ลองอีกครั้ง',
     SO_NOT_EDITABLE: 'แก้ไขได้เฉพาะฉบับร่าง',
     SO_INVALID_TRANSITION: 'ทำไม่ได้ในสถานะปัจจุบัน — โหลดใหม่แล้วลองอีกครั้ง',
@@ -175,7 +204,7 @@ export type SalesCopy = typeof th;
 
 const en: SalesCopy = {
   title: 'Sales orders',
-  lead: 'Record what a customer ordered, the selling terms and server-computed totals — no stock is reserved or moved.',
+  lead: 'Record what a customer ordered, the selling terms and server-computed totals — stock is reserved by allocation and leaves at dispatch.',
   newOrder: 'New sales order',
   back: 'All sales orders',
   loading: 'Loading…',
@@ -288,7 +317,7 @@ const en: SalesCopy = {
   system: 'System',
   alloc: {
     title: 'Allocation',
-    lead: 'Stock reserved for this order, FEFO, in the order’s branch — on hand does not change until delivery.',
+    lead: 'Stock reserved for this order, FEFO, in the order’s branch — on hand does not change until the Warehouse dispatches.',
     states: {
       NOT_ALLOCATED: 'Not allocated',
       PARTIALLY_ALLOCATED: 'Partly allocated',
@@ -313,11 +342,43 @@ const en: SalesCopy = {
     released: 'Reservations released',
     staffNote: 'A sales manager allocates or releases stock.',
   },
-  progressNote: 'Picking and delivery arrive in a later phase.',
+  progressNote:
+    'The Warehouse picks, packs and dispatches; progress shows once the order is confirmed.',
+  ful: {
+    title: 'Fulfilment',
+    states: {
+      NOT_STARTED: 'Not picked yet',
+      PARTIALLY_PICKED: 'Partly picked',
+      PICKED: 'Picked',
+      PARTIALLY_DISPATCHED: 'Partly dispatched',
+      DISPATCHED: 'Dispatched',
+      PARTIALLY_DELIVERED: 'Partly delivered',
+      DELIVERED: 'Delivered',
+      EXCEPTION: 'Delivery exception',
+    },
+    picked: 'Picked',
+    packed: 'Packed',
+    dispatched: 'Dispatched',
+    delivered: 'Delivered',
+    toDispatch: 'To dispatch',
+    toDeliver: 'To deliver',
+    shipStatus: {
+      READY: 'Ready to dispatch',
+      DISPATCHED: 'In transit',
+      DELIVERED: 'Delivered',
+      DELIVERY_EXCEPTION: 'Delivery exception',
+    },
+    none: 'No shipments yet.',
+    note: 'The Warehouse picks, packs and dispatches — stock is deducted at dispatch.',
+  },
   readOnly: 'You can view this order only.',
   notFound: 'This sales order was not found, or you may not see it.',
   errors: {
     SO_NOT_ALLOCATED: 'This order has no stock reserved.',
+    FULFILMENT_IN_PROGRESS:
+      'The Warehouse is picking, packing or shipping this order. Cancel that work first.',
+    SO_ALREADY_DISPATCHED:
+      'Stock has been dispatched; the order cannot be cancelled (returns arrive later).',
     CONCURRENT_UPDATE: 'The same stock changed at the same moment. Try again.',
     SO_NOT_EDITABLE: 'Only a draft can be edited.',
     SO_INVALID_TRANSITION: 'Not possible in the current status — reload and try again.',
@@ -335,7 +396,7 @@ const en: SalesCopy = {
 
 const zh: SalesCopy = {
   title: '销售订单',
-  lead: '记录客户订购的内容、销售条款及由服务器计算的金额 — 不预留也不扣减库存。',
+  lead: '记录客户订购的内容、销售条款及由服务器计算的金额 — 分配时预留库存，发运时扣减库存。',
   newOrder: '新建销售订单',
   back: '全部销售订单',
   loading: '加载中…',
@@ -447,7 +508,7 @@ const zh: SalesCopy = {
   system: '系统',
   alloc: {
     title: '库存分配',
-    lead: '按 FEFO 在订单所属分支为此订单预留的库存 — 交付前在库数量不变。',
+    lead: '按 FEFO 在订单所属分支为此订单预留的库存 — 仓库发运前在库数量不变。',
     states: {
       NOT_ALLOCATED: '未分配',
       PARTIALLY_ALLOCATED: '部分分配',
@@ -468,11 +529,40 @@ const zh: SalesCopy = {
     released: '已释放预留',
     staffNote: '由销售经理分配或释放库存。',
   },
-  progressNote: '拣货和交付将在后续阶段推出。',
+  progressNote: '由仓库拣货、包装和发运；订单确认后显示进度。',
+  ful: {
+    title: '履约',
+    states: {
+      NOT_STARTED: '尚未拣货',
+      PARTIALLY_PICKED: '部分拣货',
+      PICKED: '已拣货',
+      PARTIALLY_DISPATCHED: '部分发运',
+      DISPATCHED: '已发运',
+      PARTIALLY_DELIVERED: '部分送达',
+      DELIVERED: '已送达',
+      EXCEPTION: '送达异常',
+    },
+    picked: '已拣',
+    packed: '已包装',
+    dispatched: '已发运',
+    delivered: '已送达',
+    toDispatch: '待发运',
+    toDeliver: '待送达',
+    shipStatus: {
+      READY: '待发运',
+      DISPATCHED: '运输中',
+      DELIVERED: '已送达',
+      DELIVERY_EXCEPTION: '送达异常',
+    },
+    none: '尚无发运。',
+    note: '仓库负责拣货、包装和发运 — 发运时扣减库存。',
+  },
   readOnly: '您只能查看此订单。',
   notFound: '未找到此销售订单，或您无权查看。',
   errors: {
     SO_NOT_ALLOCATED: '此订单没有预留库存。',
+    FULFILMENT_IN_PROGRESS: '仓库正在为此订单拣货、包装或发运，请先取消该作业。',
+    SO_ALREADY_DISPATCHED: '已发运，订单无法取消（退货将在后续推出）。',
     CONCURRENT_UPDATE: '同一库存同时发生了变更，请重试。',
     SO_NOT_EDITABLE: '只能编辑草稿。',
     SO_INVALID_TRANSITION: '当前状态下无法操作 — 请刷新后重试。',

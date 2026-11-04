@@ -9,11 +9,17 @@ import type { Page, Ref, Tracking } from './whApi';
  * server's. Operational only — there is no price, cost or value to type.
  */
 
-export type DocKind = 'transfers' | 'adjustments' | 'counts';
+export type DocKind = 'transfers' | 'adjustments' | 'counts' | 'picks' | 'packs' | 'shipments';
 export type TrStatus = 'DRAFT' | 'POSTED' | 'CANCELLED';
 export type AdjStatus = 'DRAFT' | 'SUBMITTED' | 'POSTED' | 'REJECTED' | 'CANCELLED';
 export type CountStatus = 'DRAFT' | 'COUNTING' | 'REVIEW' | 'POSTED' | 'CANCELLED';
-export type DocStatus = TrStatus | AdjStatus | CountStatus;
+/** EP35 sales fulfilment (docs/SALES_FULFILLMENT.md). */
+export type PickStatus = 'DRAFT' | 'IN_PROGRESS' | 'PICKED' | 'CANCELLED';
+export type PackStatus = 'DRAFT' | 'PACKED' | 'DISPATCHED' | 'CANCELLED';
+export type ShipmentStatus =
+  'READY' | 'DISPATCHED' | 'DELIVERED' | 'DELIVERY_EXCEPTION' | 'CANCELLED';
+export type DocStatus =
+  TrStatus | AdjStatus | CountStatus | PickStatus | PackStatus | ShipmentStatus;
 export type DocAction =
   | 'edit'
   | 'post'
@@ -24,7 +30,24 @@ export type DocAction =
   | 'start'
   | 'count'
   | 'review'
-  | 'reopen';
+  | 'reopen'
+  | 'confirm'
+  | 'pack'
+  | 'ship'
+  | 'dispatch'
+  | 'deliver'
+  | 'exception';
+export const DISCREPANCIES = ['SHORT_PICKED', 'DAMAGED', 'MISSING', 'WRONG_ITEM', 'OTHER'] as const;
+export type Discrepancy = (typeof DISCREPANCIES)[number];
+export const DELIVERY_EXCEPTIONS = [
+  'FAILED_ATTEMPT',
+  'RECIPIENT_UNAVAILABLE',
+  'ADDRESS_ISSUE',
+  'DAMAGED_IN_TRANSIT',
+  'LOST_IN_TRANSIT',
+  'OTHER',
+] as const;
+export type DeliveryException = (typeof DELIVERY_EXCEPTIONS)[number] | 'PARTIAL_DELIVERY';
 export const ADJ_REASONS = [
   'DAMAGE',
   'LOSS',
@@ -137,17 +160,112 @@ export interface Count extends Common {
   }[];
 }
 
+/** The common shape of an EP35 fulfilment document (no money anywhere). */
+interface Fulfilment {
+  id: string;
+  number: string;
+  branch: Ref;
+  order: { id: string; number: string; status: string; requestedDate: string | null };
+  lineCount: number;
+  createdBy: Person;
+  createdAt: string;
+  updatedAt: string;
+  note: string | null;
+  cancelledAt: string | null;
+  cancelledBy: Person;
+  cancellationReason: string | null;
+  actions: DocAction[];
+}
+type Stocked = { item: Ref; unit: Unit; location: Ref; lot: Lot };
+
+export interface Pick extends Fulfilment {
+  status: PickStatus;
+  startedAt: string | null;
+  startedBy: Person;
+  pickedAt: string | null;
+  pickedBy: Person;
+  lines: (Stocked & {
+    id: string;
+    lineNo: number;
+    orderLineNo: number;
+    expiryState: 'EXPIRED' | 'EXPIRING_SOON' | 'OK' | 'NO_EXPIRY';
+    planned: string;
+    picked: string | null;
+    toPack: string;
+    packed: string;
+    dispatched: string;
+    discrepancy: Discrepancy | null;
+    discrepancyNote: string | null;
+  })[];
+}
+
+export interface Pack extends Fulfilment {
+  status: PackStatus;
+  packageCount: number;
+  packageReference: string | null;
+  shipment: DocRef | null;
+  packedAt: string | null;
+  packedBy: Person;
+  dispatchedAt: string | null;
+  lines: (Stocked & { id: string; lineNo: number; pick: DocRef; quantity: string })[];
+}
+
+export interface Shipment extends Fulfilment {
+  status: ShipmentStatus;
+  shipToName: string;
+  shipToAddress: string | null;
+  carrier: string | null;
+  trackingReference: string | null;
+  handedOverTo: string | null;
+  dispatchedAt: string | null;
+  dispatchedBy: Person;
+  deliveredAt: string | null;
+  reservationOk: boolean | null;
+  packs: (DocRef & { packageCount: number })[];
+  lines: (Stocked & {
+    id: string;
+    lineNo: number;
+    pack: DocRef;
+    quantity: string;
+    delivered: string;
+    outstanding: string;
+  })[];
+  events: {
+    type: 'DELIVERED' | 'PARTIALLY_DELIVERED' | 'EXCEPTION';
+    reason: DeliveryException | null;
+    recipientName: string | null;
+    reference: string | null;
+    note: string | null;
+    occurredAt: string;
+    recordedBy: Person;
+  }[];
+}
+type DocRef = { id: string; number: string };
+
 export type DocOf<K extends DocKind> = K extends 'transfers'
   ? Transfer
   : K extends 'adjustments'
     ? Adjustment
-    : Count;
+    : K extends 'counts'
+      ? Count
+      : K extends 'picks'
+        ? Pick
+        : K extends 'packs'
+          ? Pack
+          : Shipment;
 /** The list row is a subset of the document (no lines, actions or history). */
 export type RowOf<K extends DocKind> = Omit<DocOf<K>, 'lines' | 'actions'>;
 export interface Timeline {
   timeline: { type: string; at: string; actor: Person }[];
 }
-const KEY = { transfers: 'transfer', adjustments: 'adjustment', counts: 'count' } as const;
+const KEY = {
+  transfers: 'transfer',
+  adjustments: 'adjustment',
+  counts: 'count',
+  picks: 'pick',
+  packs: 'pack',
+  shipments: 'shipment',
+} as const;
 export type Detail<K extends DocKind> = Timeline & Record<(typeof KEY)[K], DocOf<K>>;
 export const docOf = <K extends DocKind>(kind: K, d: Detail<K>) =>
   (d as unknown as Record<string, DocOf<K>>)[KEY[kind]]!;
@@ -199,12 +317,12 @@ export const ctlApi = {
     apiRequest<Detail<K>>('PATCH', at(kind, id), body),
   lines: <K extends 'transfers' | 'adjustments'>(kind: K, id: string, lines: object[]) =>
     apiRequest<Detail<K>>('PUT', `${at(kind, id)}/lines`, { lines }),
-  /** A workflow step: post, cancel, submit, approve, reject, start, review, reopen. */
-  act: <K extends DocKind>(kind: K, id: string, action: string, reason?: string) =>
+  /** A workflow step: post, cancel, submit, approve, reject, start, review, reopen, confirm, dispatch… */
+  act: <K extends DocKind>(kind: K, id: string, action: string, reason?: string, body?: object) =>
     apiRequest<Detail<K>>(
       'POST',
       `${at(kind, id)}/${action}`,
-      action === 'cancel' || action === 'reject' ? (reason ? { reason } : {}) : undefined,
+      body ?? (action === 'cancel' || action === 'reject' ? (reason ? { reason } : {}) : undefined),
     ),
   entries: (id: string, entries: { lineId: string; countedQuantity: string | null }[]) =>
     apiRequest<Detail<'counts'>>('PUT', `${at('counts', id)}/entries`, { entries }),

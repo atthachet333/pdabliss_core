@@ -363,7 +363,16 @@ describeDb('Sales orders (EP33)', () => {
       lineTotal: '32.10',
       unit: { code: 'PCS', precision: 0 },
       item: { code: 'BOX-1', type: 'FINISHED_GOOD', inventoryTracked: true },
-      progress: { ordered: '3', allocated: '0', picked: null, delivered: null, outstanding: null },
+      progress: {
+        ordered: '3',
+        allocated: '0',
+        picked: '0',
+        packed: '0',
+        dispatched: '0',
+        delivered: '0',
+        toDispatch: '3',
+        toDeliver: '0',
+      },
     });
     expect(o.lines[1]).toMatchObject({ quantity: '1.25', lineTotal: '107.00', note: 'Cold pack' });
     expect(o.lines[2].availability.state).toBe('NOT_STOCK_TRACKED');

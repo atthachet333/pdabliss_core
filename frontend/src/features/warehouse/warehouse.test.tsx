@@ -62,6 +62,7 @@ const ctx = (over: Partial<WarehouseContext> = {}): WarehouseContext => ({
   transfers: { create: true, approve: false, cancel: false },
   adjustments: { create: true, approve: false },
   cycleCounts: { create: true, approve: false },
+  fulfilment: { pick: true, dispatch: false, deliver: false },
   branches: [{ ...REF, type: 'BRANCH' }],
   selectedBranch: { ...REF, type: 'BRANCH' },
   locations: [
@@ -78,6 +79,11 @@ const ctx = (over: Partial<WarehouseContext> = {}): WarehouseContext => ({
     submittedAdjustments: 0,
     activeCounts: 0,
     pendingPick: 0,
+    openPicks: 0,
+    openPacks: 0,
+    readyShipments: 0,
+    inTransit: 0,
+    deliveryExceptions: 0,
   },
   expiringSoonDays: 30,
   today: '2026-11-03',
@@ -167,6 +173,9 @@ describe('Warehouse receiving and inventory (EP31)', () => {
       'Adjustments',
       'Cycle counts',
       'Pending pick',
+      'Picks',
+      'Packing',
+      'Shipments',
     ]);
     const tile = (name: string) => screen.getByText(name).closest('a')!;
     expect(tile('Draft transfers')).toHaveAttribute(

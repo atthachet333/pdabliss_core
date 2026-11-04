@@ -31,7 +31,15 @@ import {
   type SalesActor,
   type SoAction,
 } from './policy.js';
-import { SoAllocationResult, SoItem, SoRow, SoView } from './views.js';
+import {
+  alreadyDispatched,
+  fulfilmentHold,
+  fulfilmentInProgress,
+  fulfilmentStateOf,
+  lineProgress,
+  type LineProgress,
+} from './fulfilment.js';
+import { SoAllocationResult, SoFulfilment, SoItem, SoRow, SoView } from './views.js';
 
 /*
  * Sales orders (EP33) — docs/SALES_ORDER.md. Commercial demand truth: a
@@ -44,10 +52,13 @@ import { SoAllocationResult, SoItem, SoRow, SoView } from './views.js';
  */
 
 const person = { select: { user: { select: { fullName: true, email: true } } } } as const;
-/** EP34: the order's ACTIVE reservations (quantities only — no location / lot for Sales). */
+/**
+ * EP34: the order's reservations (quantities only — no location / lot for Sales).
+ * EP35: ACTIVE and CONSUMED — a dispatched quantity stays allocated to its line.
+ */
 const ACTIVE = {
-  where: { status: 'ACTIVE' as const },
-  select: { salesOrderLineId: true, quantity: true },
+  where: { status: { in: ['ACTIVE' as const, 'CONSUMED' as const] } },
+  select: { salesOrderLineId: true, quantity: true, status: true },
 };
 const include = {
   branch: { select: { id: true, code: true, name: true } },
@@ -87,6 +98,29 @@ const allocatedByLine = (rows: readonly { salesOrderLineId: string; quantity: De
   for (const r of rows)
     m.set(r.salesOrderLineId, (m.get(r.salesOrderLineId) ?? ZERO).plus(r.quantity));
   return m;
+};
+
+const NONE: LineProgress = {
+  allocated: ZERO,
+  picked: ZERO,
+  packed: ZERO,
+  dispatched: ZERO,
+  delivered: ZERO,
+};
+
+/** EP35: a line's fulfilment milestones (cumulative) and what is outstanding — tracked lines only. */
+const progressView = (l: { quantity: Decimal; inventoryTracked: boolean }, p = NONE) => {
+  const n = (d: Decimal) => (l.inventoryTracked ? d.toString() : null);
+  return {
+    ordered: l.quantity.toString(),
+    allocated: n(p.allocated),
+    picked: n(p.picked),
+    packed: n(p.packed),
+    dispatched: n(p.dispatched),
+    delivered: n(p.delivered),
+    toDispatch: n(Decimal.max(ZERO, l.quantity.minus(p.dispatched))),
+    toDeliver: n(Decimal.max(ZERO, p.dispatched.minus(p.delivered))),
+  };
 };
 
 export class SalesOrderService {
@@ -169,7 +203,7 @@ export class SalesOrderService {
       o.status,
       tracked.map((l) => ({ ordered: l.quantity, allocated: held.get(l.id) ?? ZERO })),
     );
-    return { held, derived, hasActive: o.allocations.length > 0 };
+    return { held, derived, hasActive: o.allocations.some((a) => a.status === 'ACTIVE') };
   }
 
   private async stockForOrders(actor: SalesActor, orders: Pick<Full, 'branchId' | 'lines'>[]) {
@@ -227,9 +261,50 @@ export class SalesOrderService {
     };
   }
 
+  /** EP35: per-line milestones, the derived fulfilment state and the order's shipments. */
+  private async fulfilment(o: Full) {
+    const [lines, shipments] = await Promise.all([
+      lineProgress(this.db, [o.id]),
+      this.db.salesShipment.findMany({
+        where: { salesOrderId: o.id, status: { not: 'CANCELLED' } },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          number: true,
+          status: true,
+          dispatchedAt: true,
+          deliveredAt: true,
+          events: {
+            where: { type: { not: 'DELIVERED' } },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { reason: true },
+          },
+        },
+      }),
+    ]);
+    const tracked = o.lines.filter((l) => l.inventoryTracked);
+    const state = fulfilmentStateOf(
+      o.status,
+      tracked.map((l) => ({ ordered: l.quantity, p: lines.get(l.id) ?? NONE })),
+      shipments.some((s) => s.status === 'DELIVERY_EXCEPTION'),
+    );
+    return {
+      lines,
+      state,
+      shipments: shipments.map((s) => ({
+        number: s.number,
+        status: s.status,
+        dispatchedAt: iso(s.dispatchedAt),
+        deliveredAt: iso(s.deliveredAt),
+        exception: s.status === 'DELIVERY_EXCEPTION' ? (s.events[0]?.reason ?? null) : null,
+      })),
+    };
+  }
+
   private async view(actor: SalesActor, o: Full) {
     const states = this.lineStates(o, await this.stockForOrders(actor, [o]));
     const alloc = this.allocation(o);
+    const ful = await this.fulfilment(o);
     const timeline = await this.db.auditLog.findMany({
       where: {
         companyId: o.companyId,
@@ -305,13 +380,7 @@ export class SalesOrderService {
                     ).toString(),
                   }
                 : null,
-            progress: {
-              ordered: l.quantity.toString(),
-              allocated: l.inventoryTracked ? (alloc.held.get(l.id) ?? ZERO).toString() : null,
-              picked: null,
-              delivered: null,
-              outstanding: null,
-            },
+            progress: progressView(l, ful.lines.get(l.id)),
           };
         }),
         actions: allowedSoActions(actor, o).filter(
@@ -322,6 +391,7 @@ export class SalesOrderService {
             ((x !== 'release' && x !== 'reallocate') || alloc.hasActive),
         ),
       }),
+      fulfilment: SoFulfilment.parse({ state: ful.state, shipments: ful.shipments }),
       timeline: timeline.map((e) => ({
         type: e.action,
         at: e.occurredAt.toISOString(),
@@ -782,6 +852,12 @@ export class SalesOrderService {
       if (o.status !== 'DRAFT' && !reason) {
         throw fail(422, 'REASON_REQUIRED', 'Give a reason for cancelling.', { field: 'reason' });
       }
+      // EP35: issued stock is never silently restored, staged work is unwound first.
+      if (o.status === 'CONFIRMED') {
+        const hold = await fulfilmentHold(tx, id);
+        if (hold.dispatched) throw alreadyDispatched();
+        if (hold.staged) throw fulfilmentInProgress();
+      }
       await tx.salesOrder.update({
         where: { id },
         data: {
@@ -877,6 +953,7 @@ export class SalesOrderService {
     const actor = await loadSalesActor(this.db, ctx);
     await this.db.$transaction(async (tx) => {
       const o = await this.locked(tx, actor, id, 'release');
+      if ((await fulfilmentHold(tx, id)).staged) throw fulfilmentInProgress();
       const n = await releaseOrder(tx, this.allocActor(actor), id, 'RELEASED');
       if (!n) throw fail(409, 'SO_NOT_ALLOCATED', 'This order has no stock reserved.');
       await this.event(tx, actor, meta, 'SALES_ALLOCATION_RELEASED', id, {
@@ -893,6 +970,7 @@ export class SalesOrderService {
     const actor = await loadSalesActor(this.db, ctx);
     const lines = await this.db.$transaction(async (tx) => {
       const o = await this.locked(tx, actor, id, 'reallocate');
+      if ((await fulfilmentHold(tx, id)).staged) throw fulfilmentInProgress();
       const n = await releaseOrder(tx, this.allocActor(actor), id, 'REALLOCATED');
       if (!n) throw fail(409, 'SO_NOT_ALLOCATED', 'This order has no stock reserved.');
       const r = await allocateOrder(tx, this.allocActor(actor), o, this.today(actor));

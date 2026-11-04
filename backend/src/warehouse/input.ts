@@ -170,6 +170,7 @@ export const MOVEMENT_TYPES = [
   'ADJUSTMENT_IN_REVERSAL',
   'ADJUSTMENT_OUT_REVERSAL',
   'COUNT_CORRECTION',
+  'SALES_ISSUE',
 ] as const;
 
 export const MovementQuery = z
@@ -179,7 +180,9 @@ export const MovementQuery = z
     itemId: param(id),
     lotId: param(id),
     type: param(z.enum(MOVEMENT_TYPES)),
-    sourceType: param(z.enum(['GOODS_RECEIPT', 'TRANSFER', 'ADJUSTMENT', 'CYCLE_COUNT'])),
+    sourceType: param(
+      z.enum(['GOODS_RECEIPT', 'TRANSFER', 'ADJUSTMENT', 'CYCLE_COUNT', 'SALES_SHIPMENT']),
+    ),
     from: param(dayValue),
     to: param(dayValue),
     q: param(z.string().trim().min(1).max(100)),
@@ -366,3 +369,126 @@ export type DocListInput = Omit<z.output<typeof TransferListQuery>, 'status'> & 
   status?: string;
   reason?: AdjustmentReason;
 };
+
+// ---------------------------------------------------------------- EP35 sales fulfilment
+// Every quantity is checked against the reservation / pick / pack it comes from and
+// the order line's unit; numbers, statuses, identities (location, lot, item) and the
+// order's branch are the server's. A client never names a lot or location.
+
+export const PICK_DISCREPANCIES = [
+  'SHORT_PICKED',
+  'DAMAGED',
+  'MISSING',
+  'WRONG_ITEM',
+  'OTHER',
+] as const;
+export const DELIVERY_EXCEPTIONS = [
+  'FAILED_ATTEMPT',
+  'RECIPIENT_UNAVAILABLE',
+  'ADDRESS_ISSUE',
+  'DAMAGED_IN_TRANSIT',
+  'LOST_IN_TRANSIT',
+  'OTHER',
+] as const;
+
+const lines100 = <T extends z.ZodType>(line: T) => z.array(line).min(1).max(100);
+
+/** A pick of a confirmed order: every unclaimed reservation, or named ones (allocationId + quantity). */
+export const CreatePickBody = z
+  .object({
+    salesOrderId: id,
+    lines: lines100(z.object({ allocationId: id, quantity: positive }).strict()).optional(),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreatePickInput = z.output<typeof CreatePickBody>;
+
+/** Confirming a pick: what was actually picked per line; less than planned names why. */
+export const ConfirmPickBody = z
+  .object({
+    lines: lines100(
+      z
+        .object({
+          lineId: id,
+          pickedQuantity: amount,
+          discrepancy: opt(z.enum(PICK_DISCREPANCIES)),
+          discrepancyNote: opt(text(300)),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type ConfirmPickInput = z.output<typeof ConfirmPickBody>;
+
+/** A pack: everything picked and not yet packed, or named pick lines + quantity. */
+export const CreatePackBody = z
+  .object({
+    salesOrderId: id,
+    lines: lines100(z.object({ pickLineId: id, quantity: positive }).strict()).optional(),
+    packageCount: z.number().int().min(1).max(9999).optional(),
+    packageReference: opt(text(60)),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreatePackInput = z.output<typeof CreatePackBody>;
+
+/** A shipment: every PACKED pack of the order not yet shipped, or named packs. */
+export const CreateShipmentBody = z
+  .object({
+    salesOrderId: id,
+    packIds: z.array(id).min(1).max(50).optional(),
+    shipToName: opt(text(200)),
+    shipToAddress: opt(text(500)),
+    carrier: opt(text(100)),
+    trackingReference: opt(text(100)),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreateShipmentInput = z.output<typeof CreateShipmentBody>;
+
+export const DispatchBody = z
+  .object({ handedOverTo: opt(text(200)), note: opt(text(1000)) })
+  .strict();
+export type DispatchInput = z.output<typeof DispatchBody>;
+
+/** Delivered now: all that is outstanding, or per shipment line (≤ its outstanding). */
+export const DeliverBody = z
+  .object({
+    lines: lines100(z.object({ lineId: id, quantity: positive }).strict()).optional(),
+    recipientName: opt(text(200)),
+    reference: opt(text(100)),
+    note: opt(text(1000)),
+    deliveredAt: instant.optional(),
+  })
+  .strict();
+export type DeliverInput = z.output<typeof DeliverBody>;
+
+export const DeliveryExceptionBody = z
+  .object({
+    reason: z.enum(DELIVERY_EXCEPTIONS),
+    note: opt(text(1000)),
+    occurredAt: instant.optional(),
+  })
+  .strict();
+export type DeliveryExceptionInput = z.output<typeof DeliveryExceptionBody>;
+
+const fulfilmentList = (statuses: readonly [string, ...string[]]) =>
+  z
+    .object({
+      status: param(z.enum(statuses)),
+      branchId: param(id),
+      salesOrderId: param(id),
+      q,
+      ...page,
+    })
+    .strict();
+export const PickListQuery = fulfilmentList(['DRAFT', 'IN_PROGRESS', 'PICKED', 'CANCELLED']);
+export const PackListQuery = fulfilmentList(['DRAFT', 'PACKED', 'DISPATCHED', 'CANCELLED']);
+export const ShipmentListQuery = fulfilmentList([
+  'READY',
+  'DISPATCHED',
+  'DELIVERED',
+  'DELIVERY_EXCEPTION',
+  'CANCELLED',
+]);
+export type FulfilmentListInput = z.output<typeof PickListQuery>;

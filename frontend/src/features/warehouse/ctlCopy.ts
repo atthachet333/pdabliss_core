@@ -12,13 +12,30 @@ import { whError, type WhCopy } from './whCopy';
  */
 
 const th = {
-  title: { transfers: 'โอนย้ายสต็อก', adjustments: 'ปรับปรุงสต็อก', counts: 'ตรวจนับสต็อก' },
+  title: {
+    transfers: 'โอนย้ายสต็อก',
+    adjustments: 'ปรับปรุงสต็อก',
+    counts: 'ตรวจนับสต็อก',
+    picks: 'ใบหยิบสินค้า',
+    packs: 'แพ็กสินค้า',
+    shipments: 'การจัดส่ง',
+  },
   lead: {
     transfers: 'ย้ายสต็อกระหว่างตำแหน่งในสาขาเดียวกัน ล็อตติดไปด้วย ผู้จัดการเป็นผู้บันทึก',
     adjustments: 'เพิ่มหรือลดสต็อกพร้อมเหตุผล พนักงานส่งขออนุมัติ ผู้จัดการอนุมัติจึงมีผล',
     counts: 'นับสต็อกจริง ระหว่างนับตำแหน่งจะถูกล็อก ผู้จัดการยืนยันส่วนต่าง',
+    picks: 'หยิบสต็อกที่จองไว้ตามตำแหน่งและล็อตที่ระบุ — สต็อกยังไม่ถูกตัด',
+    packs: 'แพ็กสินค้าที่หยิบแล้วเพื่อเตรียมส่ง — สต็อกยังไม่ถูกตัด',
+    shipments: 'ส่งมอบแพ็กให้ผู้ขนส่ง สต็อกถูกตัดเมื่อยืนยันการส่งออก แล้วบันทึกการส่งถึง',
   } satisfies Record<DocKind, string>,
-  newDoc: { transfers: 'สร้างใบโอน', adjustments: 'สร้างใบปรับ', counts: 'สร้างการตรวจนับ' },
+  newDoc: {
+    transfers: 'สร้างใบโอน',
+    adjustments: 'สร้างใบปรับ',
+    counts: 'สร้างการตรวจนับ',
+    picks: 'สร้างใบหยิบ',
+    packs: 'สร้างแพ็ก',
+    shipments: 'สร้างการจัดส่ง',
+  },
   create: 'สร้าง',
   statuses: {
     DRAFT: 'ฉบับร่าง',
@@ -28,6 +45,13 @@ const th = {
     CANCELLED: 'ยกเลิก',
     COUNTING: 'กำลังนับ',
     REVIEW: 'รอตรวจสอบ',
+    IN_PROGRESS: 'กำลังหยิบ',
+    PICKED: 'หยิบแล้ว',
+    PACKED: 'แพ็กแล้ว',
+    READY: 'พร้อมส่งออก',
+    DISPATCHED: 'ส่งออกแล้ว',
+    DELIVERED: 'ส่งถึงแล้ว',
+    DELIVERY_EXCEPTION: 'ส่งไม่สำเร็จ',
   } satisfies Record<DocStatus, string>,
   reasons: {
     DAMAGE: 'ชำรุด',
@@ -106,6 +130,10 @@ const th = {
     STARTED: 'เริ่มนับ',
     REVIEWED: 'ส่งตรวจสอบ',
     REOPENED: 'กลับไปนับ',
+    CONFIRMED: 'ยืนยัน',
+    DISPATCHED: 'ส่งออก (ตัดสต็อก)',
+    DELIVERED: 'บันทึกการส่งถึง',
+    EXCEPTION: 'ส่งไม่สำเร็จ',
   } as Record<string, string>,
   notFound: 'ไม่พบเอกสาร',
   errors: {
@@ -125,19 +153,57 @@ const th = {
     COUNT_OVERLAP: 'มีการตรวจนับอื่นครอบคลุมตำแหน่งนี้อยู่',
     COUNT_INCOMPLETE: 'นับให้ครบทุกรายการก่อน',
     COUNT_STALE: 'สต็อกเปลี่ยนหลังเริ่มนับ ยืนยันไม่ได้ — ยกเลิกแล้วนับใหม่',
+    SO_NOT_CONFIRMED: 'คำสั่งขายนี้ไม่ได้อยู่ในสถานะยืนยันแล้ว',
+    NOTHING_TO_PICK: 'สต็อกที่จองไว้กำลังถูกหยิบครบแล้ว',
+    PICK_EXCEEDS_RESERVATION: 'มากกว่าที่จองไว้และยังไม่ถูกหยิบ',
+    RESERVATION_NOT_ACTIVE: 'การจองนี้ไม่มีผลแล้ว',
+    PICK_EXCEEDS_PLANNED: 'หยิบเกินจำนวนที่กำหนดไม่ได้',
+    DISCREPANCY_REQUIRED: 'หยิบได้น้อยกว่าที่กำหนด ให้ระบุสาเหตุ',
+    LINES_INCOMPLETE: 'กรอกจำนวนที่หยิบได้ให้ครบทุกรายการ (ใส่ 0 ได้)',
+    PICK_ALREADY_PACKED: 'มีบางส่วนถูกแพ็กแล้ว ให้ยกเลิกแพ็กก่อน',
+    NOTHING_TO_PACK: 'ไม่มีสินค้าที่หยิบแล้วรอแพ็ก',
+    PACK_EXCEEDS_PICKED: 'มากกว่าที่หยิบแล้วและยังไม่ได้แพ็ก',
+    PICK_LINE_NOT_PACKABLE: 'แพ็กได้เฉพาะรายการที่หยิบแล้วของคำสั่งขายนี้',
+    PACK_IN_SHIPMENT: 'แพ็กนี้อยู่ในการจัดส่ง ให้ยกเลิกการจัดส่งก่อน',
+    NOTHING_TO_SHIP: 'ไม่มีแพ็กที่รอจัดส่ง',
+    PACK_NOT_SHIPPABLE: 'แพ็กนี้จัดส่งไม่ได้',
+    RESERVATION_MISMATCH: 'การจองของบางรายการไม่ครบแล้ว ยังไม่มีการตัดสต็อก',
+    NOTHING_TO_DELIVER: 'ทุกรายการส่งถึงแล้ว',
+    DELIVERY_EXCEEDS_DISPATCHED: 'มากกว่าที่ส่งออกและยังไม่ส่งถึง',
+    DELIVERY_TIME_INVALID: 'เวลาต้องหลังการส่งออกและไม่เป็นอนาคต',
+    REASON_REQUIRED: 'ต้องระบุเหตุผล',
+    STOCK_RESERVED: 'สต็อกนี้ถูกจองไว้ให้คำสั่งขาย',
+    CONCURRENT_UPDATE: 'มีผู้อื่นแก้ไขสต็อกเดียวกันพร้อมกัน ลองอีกครั้ง',
   } as Record<string, string>,
 };
 
 export type CtlCopy = typeof th;
 
 const en: CtlCopy = {
-  title: { transfers: 'Stock transfers', adjustments: 'Stock adjustments', counts: 'Cycle counts' },
+  title: {
+    transfers: 'Stock transfers',
+    adjustments: 'Stock adjustments',
+    counts: 'Cycle counts',
+    picks: 'Picks',
+    packs: 'Packing',
+    shipments: 'Shipments',
+  },
   lead: {
     transfers: 'Move stock between locations of one branch; the lot moves too. A manager posts.',
     adjustments: 'Increase or decrease stock with a reason. Staff submit; a manager approves.',
     counts: 'Count physical stock. Counted locations are locked; a manager posts the differences.',
+    picks: 'Pick reserved stock from the location and lot shown — stock is not deducted yet.',
+    packs: 'Pack picked goods for handover — stock is not deducted yet.',
+    shipments: 'Hand packs over. Stock is deducted at dispatch; then record delivery.',
   },
-  newDoc: { transfers: 'New transfer', adjustments: 'New adjustment', counts: 'New count' },
+  newDoc: {
+    transfers: 'New transfer',
+    adjustments: 'New adjustment',
+    counts: 'New count',
+    picks: 'New pick',
+    packs: 'New pack',
+    shipments: 'New shipment',
+  },
   create: 'Create',
   statuses: {
     DRAFT: 'Draft',
@@ -147,6 +213,13 @@ const en: CtlCopy = {
     CANCELLED: 'Cancelled',
     COUNTING: 'Counting',
     REVIEW: 'In review',
+    IN_PROGRESS: 'Picking',
+    PICKED: 'Picked',
+    PACKED: 'Packed',
+    READY: 'Ready to dispatch',
+    DISPATCHED: 'Dispatched',
+    DELIVERED: 'Delivered',
+    DELIVERY_EXCEPTION: 'Delivery exception',
   },
   reasons: {
     DAMAGE: 'Damage',
@@ -226,6 +299,10 @@ const en: CtlCopy = {
     STARTED: 'Counting started',
     REVIEWED: 'Sent to review',
     REOPENED: 'Reopened',
+    CONFIRMED: 'Confirmed',
+    DISPATCHED: 'Dispatched (stock deducted)',
+    DELIVERED: 'Delivery recorded',
+    EXCEPTION: 'Delivery exception',
   },
   notFound: 'This document was not found.',
   errors: {
@@ -245,17 +322,55 @@ const en: CtlCopy = {
     COUNT_OVERLAP: 'Another count already covers this stock.',
     COUNT_INCOMPLETE: 'Count every line first.',
     COUNT_STALE: 'Stock changed after counting started — cancel and count again.',
+    SO_NOT_CONFIRMED: 'This sales order is not confirmed.',
+    NOTHING_TO_PICK: 'Everything reserved is already being picked.',
+    PICK_EXCEEDS_RESERVATION: 'More than is reserved and not yet being picked.',
+    RESERVATION_NOT_ACTIVE: 'This reservation is no longer active.',
+    PICK_EXCEEDS_PLANNED: 'You cannot pick more than planned.',
+    DISCREPANCY_REQUIRED: 'Less than planned was picked: say why.',
+    LINES_INCOMPLETE: 'Enter the picked quantity of every line (0 is allowed).',
+    PICK_ALREADY_PACKED: 'Part of this pick is packed. Cancel those packs first.',
+    NOTHING_TO_PACK: 'Nothing picked is waiting to be packed.',
+    PACK_EXCEEDS_PICKED: 'More than was picked and not yet packed.',
+    PICK_LINE_NOT_PACKABLE: 'Only picked lines of this order can be packed.',
+    PACK_IN_SHIPMENT: 'This pack is in a shipment. Cancel the shipment first.',
+    NOTHING_TO_SHIP: 'No packed pack is waiting for a shipment.',
+    PACK_NOT_SHIPPABLE: 'This pack cannot be shipped.',
+    RESERVATION_MISMATCH: 'A line is no longer fully reserved. Nothing was dispatched.',
+    NOTHING_TO_DELIVER: 'Everything in this shipment is delivered.',
+    DELIVERY_EXCEEDS_DISPATCHED: 'More than was dispatched and not yet delivered.',
+    DELIVERY_TIME_INVALID: 'The time must be after dispatch and not in the future.',
+    REASON_REQUIRED: 'A reason is required.',
+    STOCK_RESERVED: 'This stock is reserved for sales orders.',
+    CONCURRENT_UPDATE: 'Someone changed the same stock at the same moment. Try again.',
   },
 };
 
 const zh: CtlCopy = {
-  title: { transfers: '库存调拨', adjustments: '库存调整', counts: '循环盘点' },
+  title: {
+    transfers: '库存调拨',
+    adjustments: '库存调整',
+    counts: '循环盘点',
+    picks: '拣货单',
+    packs: '包装',
+    shipments: '发运',
+  },
   lead: {
     transfers: '在同一分支的库位间移动库存，批次随之移动。由经理过账。',
     adjustments: '按原因增减库存。员工提交，经理审批后生效。',
     counts: '盘点实物库存。盘点中的库位被锁定；差异由经理过账。',
+    picks: '按所示库位和批次拣取已预留库存——此时尚未扣减库存。',
+    packs: '包装已拣货物以便交接——此时尚未扣减库存。',
+    shipments: '交接包裹。确认发运时扣减库存，随后记录送达。',
   },
-  newDoc: { transfers: '新建调拨', adjustments: '新建调整', counts: '新建盘点' },
+  newDoc: {
+    transfers: '新建调拨',
+    adjustments: '新建调整',
+    counts: '新建盘点',
+    picks: '新建拣货单',
+    packs: '新建包裹',
+    shipments: '新建发运',
+  },
   create: '创建',
   statuses: {
     DRAFT: '草稿',
@@ -265,6 +380,13 @@ const zh: CtlCopy = {
     CANCELLED: '已取消',
     COUNTING: '盘点中',
     REVIEW: '待复核',
+    IN_PROGRESS: '拣货中',
+    PICKED: '已拣货',
+    PACKED: '已包装',
+    READY: '待发运',
+    DISPATCHED: '已发运',
+    DELIVERED: '已送达',
+    DELIVERY_EXCEPTION: '送达异常',
   },
   reasons: {
     DAMAGE: '损坏',
@@ -343,6 +465,10 @@ const zh: CtlCopy = {
     STARTED: '开始盘点',
     REVIEWED: '提交复核',
     REOPENED: '返回盘点',
+    CONFIRMED: '确认',
+    DISPATCHED: '发运（已扣减库存）',
+    DELIVERED: '已记录送达',
+    EXCEPTION: '送达异常',
   },
   notFound: '未找到该单据。',
   errors: {
@@ -362,6 +488,27 @@ const zh: CtlCopy = {
     COUNT_OVERLAP: '已有其他盘点覆盖此库存。',
     COUNT_INCOMPLETE: '请先盘点所有明细。',
     COUNT_STALE: '盘点开始后库存已变动——请取消后重新盘点。',
+    SO_NOT_CONFIRMED: '此销售订单未处于已确认状态。',
+    NOTHING_TO_PICK: '已预留的库存均已在拣货中。',
+    PICK_EXCEEDS_RESERVATION: '超过已预留且尚未拣货的数量。',
+    RESERVATION_NOT_ACTIVE: '此预留已失效。',
+    PICK_EXCEEDS_PLANNED: '不能超过计划数量拣货。',
+    DISCREPANCY_REQUIRED: '拣货少于计划：请说明原因。',
+    LINES_INCOMPLETE: '请填写每一行的拣货数量（可填 0）。',
+    PICK_ALREADY_PACKED: '部分已包装，请先取消这些包裹。',
+    NOTHING_TO_PACK: '没有待包装的已拣货物。',
+    PACK_EXCEEDS_PICKED: '超过已拣且尚未包装的数量。',
+    PICK_LINE_NOT_PACKABLE: '只能包装此订单的已拣货行。',
+    PACK_IN_SHIPMENT: '此包裹已在发运中，请先取消发运。',
+    NOTHING_TO_SHIP: '没有待发运的包裹。',
+    PACK_NOT_SHIPPABLE: '此包裹无法发运。',
+    RESERVATION_MISMATCH: '某行的预留已不完整。未发运任何货物。',
+    NOTHING_TO_DELIVER: '此发运已全部送达。',
+    DELIVERY_EXCEEDS_DISPATCHED: '超过已发运且尚未送达的数量。',
+    DELIVERY_TIME_INVALID: '时间须在发运之后且不能是将来。',
+    REASON_REQUIRED: '需要填写原因。',
+    STOCK_RESERVED: '此库存已为销售订单预留。',
+    CONCURRENT_UPDATE: '有人同时修改了相同库存，请重试。',
   },
 };
 
@@ -371,7 +518,10 @@ export const CTL_COPY: Localized<CtlCopy> = { th, en, 'zh-CN': zh };
 export function ctlError(e: unknown, k: CtlCopy, c: WhCopy, control: ControlCopy) {
   if (e instanceof ApiError) {
     if (k.errors[e.code]) return k.errors[e.code]!;
-    if (e.code.endsWith('_NOT_FOUND') && /^(TRANSFER|ADJUSTMENT|COUNT)/.test(e.code))
+    if (
+      e.code.endsWith('_NOT_FOUND') &&
+      /^(TRANSFER|ADJUSTMENT|COUNT|PICK|PACK|SHIPMENT|SALES_ORDER)/.test(e.code)
+    )
       return k.notFound;
   }
   return whError(e, c, control);

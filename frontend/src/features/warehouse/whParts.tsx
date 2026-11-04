@@ -30,6 +30,10 @@ export function WarehouseNav({ ctx }: { ctx: WarehouseContext }) {
       [`${WH}/counts`, c.nav.counts],
       // EP34: confirmed sales demand with stock reserved (read-only until EP35 picking).
       [`${WH}/pending-pick`, c.nav.pendingPick],
+      // EP35: picks, packs and shipments (acting needs the fulfilment codes).
+      [`${WH}/picks`, c.nav.picks],
+      [`${WH}/packs`, c.nav.packs],
+      [`${WH}/shipments`, c.nav.shipments],
     );
   }
   return (

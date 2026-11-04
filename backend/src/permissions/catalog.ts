@@ -73,6 +73,12 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   warehouse.counts.create            create, start, count, send to review, cancel (OPERATE)
  *   warehouse.counts.approve           post a reviewed count — corrections written (MANAGE)
  *
+ * EP35 sales fulfilment (reads: warehouse.inventory.view):
+ *   warehouse.picking.process   create / start / confirm / cancel picks, packs and shipments
+ *                               (OPERATE — no stock moves before dispatch)
+ *   warehouse.dispatch.confirm  dispatch a shipment — SALES_ISSUE, reservation consumed (MANAGE)
+ *   warehouse.delivery.confirm  record delivery or a delivery exception (MANAGE)
+ *
  * EP33 sales orders (EP27 codes, no new ones — backend/src/sales/policy.ts):
  *   sales.orders.view     read the branch's orders (a DRAFT only for its creator and confirmers)
  *   sales.orders.create   draft, edit, submit and discard own orders (submit is part of create)
@@ -201,6 +207,9 @@ export const PERMISSION_CATALOG = [
   def('warehouse.transfers.cancel', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.counts.create', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.counts.approve', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.picking.process', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.dispatch.confirm', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.delivery.confirm', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.items.view', 'WAREHOUSE', 'COMPANY'),
   def('warehouse.locations.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.locations.manage', 'WAREHOUSE', 'BRANCH'),

@@ -219,6 +219,16 @@ noindex, served by the existing `/platform/*` shell rewrite).
   (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
   `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
   Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
+- **EP35 (Sales fulfilment):** see [SALES_FULFILLMENT.md](SALES_FULFILLMENT.md) and
+  [EP35_REPORT.md](EP35_REPORT.md). `/api/v1/warehouse/picks` · `/packs` · `/shipments` (list, detail,
+  create; `/picks/:id/start` · `/confirm {lines}` · `/cancel`; `/packs/:id/confirm` · `/cancel`;
+  `/shipments/:id/cancel` · `/dispatch` · `/deliver` · `/exception`). Dispatch is the only stock write
+  (`SALES_ISSUE`, reservation consumed). Context adds `fulfilment {pick, dispatch, deliver}` and five
+  counts; Pending Pick picks add `toPick`; movements add `source.shipment`. Sales order `progress` is
+  `{ordered, allocated, picked, packed, dispatched, delivered, toDispatch, toDeliver}` and the detail adds
+  `fulfilment {state, shipments}`. Screens: one lazy `FulfilmentArea` (`/core/warehouse/picks|packs|shipments/*`,
+  built on the EP32 `ctlParts` document list / page), Pending Pick "Create pick", Sales progress in
+  `AllocationSection`.
 
 ## 7. Warehouse boundary
 
@@ -277,7 +287,8 @@ purchase requests and EP30 orders, `accounting.demo@pdabliss.com` for deposits a
 (it stays Warehouse **Staff**; `owner.demo@pdabliss.com` posts transfers, approves adjustments, posts
 counts and reverses posted documents). Use `sales.demo@pdabliss.com` for EP33 sales orders (it stays
 Sales **Staff** at the Head Office; `owner.demo@pdabliss.com` confirms and cancels). EP34: `owner.demo`
-allocates / releases; `warehouse.demo` reads Pending Pick for branch 00001.
+allocates / releases; `warehouse.demo` reads Pending Pick for branch 00001. EP35: `warehouse.demo` (still
+Warehouse **Staff**) picks, packs and prepares shipments; `owner.demo` dispatches and records delivery.
 
 ## 12. Localization
 

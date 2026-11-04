@@ -69,7 +69,7 @@ export const ledgerActor = (actor: WarehouseActor, meta: RequestMeta): LedgerAct
 export async function nextNumber(
   tx: Prisma.TransactionClient,
   companyId: string,
-  prefix: 'TR' | 'ADJ' | 'CC',
+  prefix: 'TR' | 'ADJ' | 'CC' | 'PICK' | 'PACK' | 'SHP',
   onDay: string,
 ) {
   const period = onDay.slice(0, 7).replace('-', '');

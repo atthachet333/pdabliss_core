@@ -1,8 +1,9 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import { Atmosphere } from './Atmosphere';
 import { INTRO, QUALITY_SETTINGS } from './constants';
+import { CoreCanvas } from './CoreCanvas';
 import { CoreSphere } from './CoreSphere';
 import { DataConnections } from './DataConnections';
 import { DepartmentNode } from './DepartmentNode';
@@ -266,30 +267,32 @@ export default function CoreWorld(props: CoreWorldProps) {
   const frameloop = !props.active ? 'never' : settings.animate ? 'always' : 'demand';
   return (
     <WebGLBoundary onFail={props.onFail}>
-      <Canvas
-        flat
-        linear
-        dpr={settings.dpr}
-        frameloop={frameloop}
-        camera={{ position: [0, CAMERA.y, 11], fov: CAMERA.fov, near: 0.1, far: 60 }}
-        gl={{
-          antialias: settings.antialias,
-          alpha: true,
-          powerPreference: 'high-performance',
-          stencil: false,
-        }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0);
-          gl.domElement.addEventListener('webglcontextlost', (e) => {
-            e.preventDefault();
-            props.onFail();
-          });
-        }}
-        aria-hidden
+      <CoreCanvas
+        onFail={props.onFail}
         style={{ touchAction: 'pan-y' }}
+        config={{
+          flat: true,
+          linear: true,
+          dpr: settings.dpr,
+          frameloop,
+          camera: { position: [0, CAMERA.y, 11], fov: CAMERA.fov, near: 0.1, far: 60 },
+          gl: {
+            antialias: settings.antialias,
+            alpha: true,
+            powerPreference: 'high-performance',
+            stencil: false,
+          },
+          onCreated: ({ gl }) => {
+            gl.setClearColor(0x000000, 0);
+            gl.domElement.addEventListener('webglcontextlost', (e) => {
+              e.preventDefault();
+              props.onFail();
+            });
+          },
+        }}
       >
         <Scene {...props} />
-      </Canvas>
+      </CoreCanvas>
     </WebGLBoundary>
   );
 }

@@ -15,6 +15,7 @@ import { seedDemoMasterData } from '../master-data/demo.js';
 import { seedDemoPurchaseRequests } from '../purchasing/demo.js';
 import { seedDemoPurchaseOrders } from '../purchasing/order-demo.js';
 import { seedDemoSalesOrders } from '../sales/demo.js';
+import { seedDemoProduction } from '../production/demo.js';
 import { seedDemoFulfilment } from '../warehouse/fulfilment-demo.js';
 import { seedDemoInventoryControl } from '../warehouse/control-demo.js';
 import { seedDemoReceipts } from '../warehouse/demo.js';
@@ -457,6 +458,8 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   const salesOrders = await seedDemoSalesOrders(db, company.id, SEED_META);
   // EP35: picks, packs, shipments (one delivered, one exception) through the real service.
   const fulfilment = await seedDemoFulfilment(db, company.id, SEED_META);
+  // EP36: a BOM (active + retired revision) and production orders — planning only, no stock effect.
+  const production = await seedDemoProduction(db, company.id, SEED_META);
 
   return {
     companyId: company.id,
@@ -472,6 +475,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     inventoryControl,
     salesOrders,
     fulfilment,
+    production,
   };
 }
 

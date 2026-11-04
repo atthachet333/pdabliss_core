@@ -64,6 +64,8 @@ export type CompanyAuditAction =
   // ---- EP33: sales orders (details: number, from → to, line count — never prices or totals)
   | SalesOrderAuditAction
   | SalesFulfilmentAuditAction
+  // ---- EP36: production planning (details: number / code + revision, from → to, counts — never quantities of value)
+  | ProductionAuditAction
   // ---- EP28: operational master data (details: code, name, changed field names,
   // name / tracking from → to — never notes, addresses or contact values)
   | MasterDataAuditAction;
@@ -157,6 +159,20 @@ export type SalesFulfilmentAuditAction =
   | 'SALES_SHIPMENT_DELIVERED'
   | 'SALES_SHIPMENT_EXCEPTION';
 
+/** EP36 production planning (BOM revisions and production orders; no stock effect). */
+export type ProductionAuditAction =
+  | 'PRODUCTION_BOM_CREATED'
+  | 'PRODUCTION_BOM_UPDATED'
+  | 'PRODUCTION_BOM_ACTIVATED'
+  | 'PRODUCTION_BOM_RETIRED'
+  | 'PRODUCTION_ORDER_CREATED'
+  | 'PRODUCTION_ORDER_UPDATED'
+  | 'PRODUCTION_ORDER_SUBMITTED'
+  | 'PRODUCTION_ORDER_APPROVED'
+  | 'PRODUCTION_ORDER_REJECTED'
+  | 'PRODUCTION_ORDER_RELEASED'
+  | 'PRODUCTION_ORDER_CANCELLED';
+
 export type InventoryControlAuditAction =
   | 'TRANSFER_CREATED'
   | 'TRANSFER_UPDATED'
@@ -196,6 +212,8 @@ export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   'SalesPick',
   'SalesPack',
   'SalesShipment',
+  'ProductionBom',
+  'ProductionOrder',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -224,7 +242,9 @@ export type AuditEntityType =
   | 'SalesOrder'
   | 'SalesPick'
   | 'SalesPack'
-  | 'SalesShipment';
+  | 'SalesShipment'
+  | 'ProductionBom'
+  | 'ProductionOrder';
 
 export async function recordCompanyEvent(
   db: DbClient,

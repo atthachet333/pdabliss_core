@@ -234,6 +234,9 @@ records delivery. An order that already has a pick is left alone: a second seed 
 
 - **Production (EP36+)** keeps its own movement types and sources (`PRODUCTION_CONSUMPTION`,
   `PRODUCTION_OUTPUT`) through `applyMovement()`; it never uses sales reservations or SALES_ISSUE.
+  EP36 is planning only ([PRODUCTION_ORDER.md](PRODUCTION_ORDER.md)): it reads dispatched and reserved
+  quantities to compute open sales demand (`ordered − reserved − dispatched`) and touches no pick,
+  pack, shipment, reservation or movement; planned output is never available to allocation.
 - **Returns / reverse logistics (future):** a return will add its own document and a positive movement
   type (e.g. `SALES_RETURN`) referencing the dispatched shipment line; delivered / outstanding
   quantities and exception events are the evidence it starts from. A SALES_ISSUE is never edited or

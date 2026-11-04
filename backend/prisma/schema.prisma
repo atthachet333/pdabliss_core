@@ -102,6 +102,7 @@ model Company {
   items              Item[]
   /// EP29 document numbers (PR-YYYYMM-000001, …).
   documentSequences  DocumentSequence[]
+  productionBoms     ProductionBom[]
 
   @@index([status])
   @@index([onboardingStatus])
@@ -184,71 +185,80 @@ enum CompanyMemberStatus {
 
 /// A user's place in a company. Department access (Membership) comes on top (EP25 foundation).
 model CompanyMember {
-  id                   String                     @id @default(cuid())
-  companyId            String
-  company              Company                    @relation(fields: [companyId], references: [id])
-  userId               String
-  user                 User                       @relation(fields: [userId], references: [id])
-  role                 CompanyRole
+  id                        String                     @id @default(cuid())
+  companyId                 String
+  company                   Company                    @relation(fields: [companyId], references: [id])
+  userId                    String
+  user                      User                       @relation(fields: [userId], references: [id])
+  role                      CompanyRole
   /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
   /// enforced by the database (unique + CHECK, EP24). The owner is always ACTIVE (CHECK, EP25).
-  ownerSlot            Boolean?
-  status               CompanyMemberStatus        @default(ACTIVE)
+  ownerSlot                 Boolean?
+  status                    CompanyMemberStatus        @default(ACTIVE)
   /// Job title inside this company (set by company administration; not a permission).
-  jobTitle             String?
-  deactivatedAt        DateTime?
+  jobTitle                  String?
+  deactivatedAt             DateTime?
   /// Operational branch access (EP26). Administration authority does not depend on it.
-  branchScope          BranchAccessScope          @default(ALL_BRANCHES)
-  createdAt            DateTime                   @default(now())
-  updatedAt            DateTime                   @updatedAt
-  branchAccess         MemberBranchAccess[]
+  branchScope               BranchAccessScope          @default(ALL_BRANCHES)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  branchAccess              MemberBranchAccess[]
   /// Per-member exceptions to the role's operational permissions (EP27).
-  permissionOverrides  MemberPermissionOverride[]
+  permissionOverrides       MemberPermissionOverride[]
   /// EP29 purchase requests raised / decided / cancelled by this member.
-  purchaseRequests     PurchaseRequest[]          @relation("PurchaseRequestRequester")
-  approvedRequests     PurchaseRequest[]          @relation("PurchaseRequestApprover")
-  rejectedRequests     PurchaseRequest[]          @relation("PurchaseRequestRejecter")
-  cancelledRequests    PurchaseRequest[]          @relation("PurchaseRequestCanceller")
+  purchaseRequests          PurchaseRequest[]          @relation("PurchaseRequestRequester")
+  approvedRequests          PurchaseRequest[]          @relation("PurchaseRequestApprover")
+  rejectedRequests          PurchaseRequest[]          @relation("PurchaseRequestRejecter")
+  cancelledRequests         PurchaseRequest[]          @relation("PurchaseRequestCanceller")
   /// EP30 purchase orders created / issued / cancelled, deposits confirmed / waived by this member.
-  createdOrders        PurchaseOrder[]            @relation("PurchaseOrderCreator")
-  issuedOrders         PurchaseOrder[]            @relation("PurchaseOrderIssuer")
-  cancelledOrders      PurchaseOrder[]            @relation("PurchaseOrderCanceller")
-  confirmedDeposits    PurchaseOrder[]            @relation("PurchaseOrderDepositConfirmer")
-  waivedDeposits       PurchaseOrder[]            @relation("PurchaseOrderDepositWaiver")
-  createdReceipts      GoodsReceipt[]             @relation("GoodsReceiptCreator")
-  postedReceipts       GoodsReceipt[]             @relation("GoodsReceiptPoster")
-  cancelledReceipts    GoodsReceipt[]             @relation("GoodsReceiptCanceller")
-  stockMovements       StockMovement[]
-  createdTransfers     InventoryTransfer[]        @relation("TransferCreator")
-  createdSalesOrders   SalesOrder[]               @relation("SalesOrderCreator")
-  submittedSalesOrders SalesOrder[]               @relation("SalesOrderSubmitter")
-  confirmedSalesOrders SalesOrder[]               @relation("SalesOrderConfirmer")
-  cancelledSalesOrders SalesOrder[]               @relation("SalesOrderCanceller")
-  createdAllocations   SalesAllocation[]          @relation("SalesAllocationCreator")
-  releasedAllocations  SalesAllocation[]          @relation("SalesAllocationReleaser")
-  salesPicksCreated    SalesPick[]                @relation("SalesPickCreator")
-  salesPicksStarted    SalesPick[]                @relation("SalesPickStarter")
-  salesPicksConfirmed  SalesPick[]                @relation("SalesPickConfirmer")
-  salesPicksCancelled  SalesPick[]                @relation("SalesPickCanceller")
-  salesPacksCreated    SalesPack[]                @relation("SalesPackCreator")
-  salesPacksPacked     SalesPack[]                @relation("SalesPackPacker")
-  salesPacksCancelled  SalesPack[]                @relation("SalesPackCanceller")
-  shipmentsCreated     SalesShipment[]            @relation("SalesShipmentCreator")
-  shipmentsDispatched  SalesShipment[]            @relation("SalesShipmentDispatcher")
-  shipmentsCancelled   SalesShipment[]            @relation("SalesShipmentCanceller")
-  deliveryEvents       SalesDeliveryEvent[]
-  postedTransfers      InventoryTransfer[]        @relation("TransferPoster")
-  cancelledTransfers   InventoryTransfer[]        @relation("TransferCanceller")
-  createdAdjustments   StockAdjustment[]          @relation("AdjustmentCreator")
-  submittedAdjustments StockAdjustment[]          @relation("AdjustmentSubmitter")
-  approvedAdjustments  StockAdjustment[]          @relation("AdjustmentApprover")
-  rejectedAdjustments  StockAdjustment[]          @relation("AdjustmentRejecter")
-  cancelledAdjustments StockAdjustment[]          @relation("AdjustmentCanceller")
-  createdCounts        CycleCount[]               @relation("CountCreator")
-  startedCounts        CycleCount[]               @relation("CountStarter")
-  postedCounts         CycleCount[]               @relation("CountPoster")
-  cancelledCounts      CycleCount[]               @relation("CountCanceller")
-  countedLines         CycleCountLine[]           @relation("CountLineCounter")
+  createdOrders             PurchaseOrder[]            @relation("PurchaseOrderCreator")
+  issuedOrders              PurchaseOrder[]            @relation("PurchaseOrderIssuer")
+  cancelledOrders           PurchaseOrder[]            @relation("PurchaseOrderCanceller")
+  confirmedDeposits         PurchaseOrder[]            @relation("PurchaseOrderDepositConfirmer")
+  waivedDeposits            PurchaseOrder[]            @relation("PurchaseOrderDepositWaiver")
+  createdReceipts           GoodsReceipt[]             @relation("GoodsReceiptCreator")
+  postedReceipts            GoodsReceipt[]             @relation("GoodsReceiptPoster")
+  cancelledReceipts         GoodsReceipt[]             @relation("GoodsReceiptCanceller")
+  stockMovements            StockMovement[]
+  createdTransfers          InventoryTransfer[]        @relation("TransferCreator")
+  createdSalesOrders        SalesOrder[]               @relation("SalesOrderCreator")
+  submittedSalesOrders      SalesOrder[]               @relation("SalesOrderSubmitter")
+  confirmedSalesOrders      SalesOrder[]               @relation("SalesOrderConfirmer")
+  cancelledSalesOrders      SalesOrder[]               @relation("SalesOrderCanceller")
+  createdAllocations        SalesAllocation[]          @relation("SalesAllocationCreator")
+  releasedAllocations       SalesAllocation[]          @relation("SalesAllocationReleaser")
+  salesPicksCreated         SalesPick[]                @relation("SalesPickCreator")
+  salesPicksStarted         SalesPick[]                @relation("SalesPickStarter")
+  salesPicksConfirmed       SalesPick[]                @relation("SalesPickConfirmer")
+  salesPicksCancelled       SalesPick[]                @relation("SalesPickCanceller")
+  salesPacksCreated         SalesPack[]                @relation("SalesPackCreator")
+  salesPacksPacked          SalesPack[]                @relation("SalesPackPacker")
+  salesPacksCancelled       SalesPack[]                @relation("SalesPackCanceller")
+  shipmentsCreated          SalesShipment[]            @relation("SalesShipmentCreator")
+  shipmentsDispatched       SalesShipment[]            @relation("SalesShipmentDispatcher")
+  shipmentsCancelled        SalesShipment[]            @relation("SalesShipmentCanceller")
+  deliveryEvents            SalesDeliveryEvent[]
+  postedTransfers           InventoryTransfer[]        @relation("TransferPoster")
+  cancelledTransfers        InventoryTransfer[]        @relation("TransferCanceller")
+  createdAdjustments        StockAdjustment[]          @relation("AdjustmentCreator")
+  submittedAdjustments      StockAdjustment[]          @relation("AdjustmentSubmitter")
+  approvedAdjustments       StockAdjustment[]          @relation("AdjustmentApprover")
+  rejectedAdjustments       StockAdjustment[]          @relation("AdjustmentRejecter")
+  cancelledAdjustments      StockAdjustment[]          @relation("AdjustmentCanceller")
+  createdCounts             CycleCount[]               @relation("CountCreator")
+  startedCounts             CycleCount[]               @relation("CountStarter")
+  postedCounts              CycleCount[]               @relation("CountPoster")
+  cancelledCounts           CycleCount[]               @relation("CountCanceller")
+  countedLines              CycleCountLine[]           @relation("CountLineCounter")
+  productionBomsCreated     ProductionBom[]            @relation("ProductionBomCreator")
+  productionBomsActivated   ProductionBom[]            @relation("ProductionBomActivator")
+  productionBomsRetired     ProductionBom[]            @relation("ProductionBomRetirer")
+  productionOrdersCreated   ProductionOrder[]          @relation("ProductionOrderCreator")
+  productionOrdersSubmitted ProductionOrder[]          @relation("ProductionOrderSubmitter")
+  productionOrdersApproved  ProductionOrder[]          @relation("ProductionOrderApprover")
+  productionOrdersReleased  ProductionOrder[]          @relation("ProductionOrderReleaser")
+  productionOrdersRejected  ProductionOrder[]          @relation("ProductionOrderRejecter")
+  productionOrdersCancelled ProductionOrder[]          @relation("ProductionOrderCanceller")
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -372,6 +382,7 @@ model Branch {
   transfers        InventoryTransfer[]
   adjustments      StockAdjustment[]
   cycleCounts      CycleCount[]
+  productionOrders ProductionOrder[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -1040,26 +1051,31 @@ model Supplier {
 /// decimal places a quantity in this unit may carry (0 = whole numbers);
 /// future quantities are exact decimals, never floating point.
 model Unit {
-  id              String                @id @default(cuid())
-  companyId       String
-  company         Company               @relation(fields: [companyId], references: [id])
-  code            String
-  name            String
-  symbol          String?
-  precision       Int                   @default(0)
-  status          MasterStatus          @default(ACTIVE)
-  deactivatedAt   DateTime?
-  createdById     String?
-  updatedById     String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  items           Item[]
+  id                  String                    @id @default(cuid())
+  companyId           String
+  company             Company                   @relation(fields: [companyId], references: [id])
+  code                String
+  name                String
+  symbol              String?
+  precision           Int                       @default(0)
+  status              MasterStatus              @default(ACTIVE)
+  deactivatedAt       DateTime?
+  createdById         String?
+  updatedById         String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  items               Item[]
   /// EP29: request lines counted in this unit.
-  requestLines    PurchaseRequestLine[]
+  requestLines        PurchaseRequestLine[]
   /// EP30: order lines counted in this unit.
-  orderLines      PurchaseOrderLine[]
-  receiptLines    GoodsReceiptLine[]
-  salesOrderLines SalesOrderLine[]
+  orderLines          PurchaseOrderLine[]
+  receiptLines        GoodsReceiptLine[]
+  salesOrderLines     SalesOrderLine[]
+  /// EP36 production planning.
+  productionBoms      ProductionBom[]           @relation("ProductionBomUnit")
+  productionBomLines  ProductionBomLine[]       @relation("ProductionBomLineUnit")
+  productionOrders    ProductionOrder[]         @relation("ProductionOrderUnit")
+  productionMaterials ProductionOrderMaterial[] @relation("ProductionOrderMaterialUnit")
 
   @@unique([companyId, code])
   @@unique([id, companyId])
@@ -1111,48 +1127,53 @@ enum TrackingRequirement {
 /// Base unit and tracking change only through the structure policy
 /// (src/master-data/policy.ts) — the point future Warehouse locks.
 model Item {
-  id               String                  @id @default(cuid())
-  companyId        String
-  company          Company                 @relation(fields: [companyId], references: [id])
+  id                  String                    @id @default(cuid())
+  companyId           String
+  company             Company                   @relation(fields: [companyId], references: [id])
   /// Company-unique, immutable (generated FG-000001 … or entered on creation).
-  code             String
+  code                String
   /// Fixed at creation (it chose the code prefix).
-  type             ItemType
-  name             String
-  description      String?
+  type                ItemType
+  name                String
+  description         String?
   /// Internal reference / SKU, company-unique when given.
-  sku              String?
+  sku                 String?
   /// Barcode (GTIN / EAN / internal), company-unique when given. No scanning yet.
-  barcode          String?
-  baseUnitId       String
-  baseUnit         Unit                    @relation(fields: [baseUnitId, companyId], references: [id, companyId])
-  categoryId       String?
-  category         ItemCategory?           @relation(fields: [categoryId, companyId], references: [id, companyId])
-  inventoryTracked Boolean                 @default(true)
-  lotTracking      TrackingRequirement     @default(NONE)
-  expiryTracking   TrackingRequirement     @default(NONE)
-  status           MasterStatus            @default(ACTIVE)
-  deactivatedAt    DateTime?
-  createdById      String?
-  updatedById      String?
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
+  barcode             String?
+  baseUnitId          String
+  baseUnit            Unit                      @relation(fields: [baseUnitId, companyId], references: [id, companyId])
+  categoryId          String?
+  category            ItemCategory?             @relation(fields: [categoryId, companyId], references: [id, companyId])
+  inventoryTracked    Boolean                   @default(true)
+  lotTracking         TrackingRequirement       @default(NONE)
+  expiryTracking      TrackingRequirement       @default(NONE)
+  status              MasterStatus              @default(ACTIVE)
+  deactivatedAt       DateTime?
+  createdById         String?
+  updatedById         String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
   /// EP29: request lines that name this item (canonical reference).
-  requestLines     PurchaseRequestLine[]
+  requestLines        PurchaseRequestLine[]
   /// EP30: order lines that name this item.
-  orderLines       PurchaseOrderLine[]
+  orderLines          PurchaseOrderLine[]
   /// EP31: receipt lines, lots and stock of this item.
-  receiptLines     GoodsReceiptLine[]
-  lots             InventoryLot[]
-  stockMovements   StockMovement[]
-  stockBalances    StockBalance[]
-  transferLines    InventoryTransferLine[]
-  adjustmentLines  StockAdjustmentLine[]
-  cycleCounts      CycleCount[]
-  countLines       CycleCountLine[]
-  salesOrderLines  SalesOrderLine[]
-  salesAllocations SalesAllocation[]
-  salesPickLines   SalesPickLine[]
+  receiptLines        GoodsReceiptLine[]
+  lots                InventoryLot[]
+  stockMovements      StockMovement[]
+  stockBalances       StockBalance[]
+  transferLines       InventoryTransferLine[]
+  adjustmentLines     StockAdjustmentLine[]
+  cycleCounts         CycleCount[]
+  countLines          CycleCountLine[]
+  salesOrderLines     SalesOrderLine[]
+  salesAllocations    SalesAllocation[]
+  salesPickLines      SalesPickLine[]
+  /// EP36: BOMs that make this item, BOM lines and orders that use it.
+  productionBoms      ProductionBom[]           @relation("ProductionBomOutput")
+  productionBomLines  ProductionBomLine[]       @relation("ProductionBomMaterial")
+  productionOrders    ProductionOrder[]         @relation("ProductionOrderOutput")
+  productionMaterials ProductionOrderMaterial[] @relation("ProductionOrderMaterial")
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -2113,6 +2134,8 @@ model SalesOrder {
   picks               SalesPick[]
   packs               SalesPack[]
   shipments           SalesShipment[]
+  /// EP36: production orders planned for this order (planning only).
+  productionOrders    ProductionOrder[]
 
   @@unique([companyId, number])
   @@unique([id, companyId])
@@ -2158,10 +2181,11 @@ model SalesOrderLine {
   updatedAt        DateTime   @updatedAt
 
   /// EP34
-  allocations   SalesAllocation[]
-  pickLines     SalesPickLine[]
-  packLines     SalesPackLine[]
-  shipmentLines SalesShipmentLine[]
+  allocations      SalesAllocation[]
+  pickLines        SalesPickLine[]
+  packLines        SalesPackLine[]
+  shipmentLines    SalesShipmentLine[]
+  productionOrders ProductionOrder[]
 
   @@unique([salesOrderId, lineNo])
   /// Target of EP34 allocation foreign keys (line, order, company).
@@ -2506,4 +2530,212 @@ model SalesDeliveryEvent {
   createdAt          DateTime                @default(now())
 
   @@index([shipmentId, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Production planning (EP36) — docs/PRODUCTION_BOM.md, docs/PRODUCTION_ORDER.md
+//
+// Planning only, inside the Operations department. A BOM says how much of each
+// material makes a base quantity of one finished item; a production order
+// plans an output quantity in one branch from one ACTIVE BOM revision and
+// freezes its material requirements at approval. Nothing here writes stock,
+// reserves stock or creates output: availability is read from the ledger on
+// every response and never stored. EP37 (material issue) and EP38 (finished
+// goods receipt) will move stock through ledger.ts.
+// ---------------------------------------------------------------------------
+
+/// DRAFT (editable) → ACTIVE (immutable; at most one per finished item) → RETIRED.
+enum ProductionBomStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+/// A single-level bill of materials revision for one finished item.
+model ProductionBom {
+  id                  String              @id @default(cuid())
+  companyId           String
+  company             Company             @relation(fields: [companyId], references: [id])
+  /// The finished item (FINISHED_GOOD, inventory tracked).
+  itemId              String
+  item                Item                @relation("ProductionBomOutput", fields: [itemId, companyId], references: [id, companyId])
+  itemCode            String
+  itemName            String
+  /// BOM-<item code>, the same for every revision of the item.
+  code                String
+  /// 1, 2, 3 … per finished item, never reused.
+  revision            Int
+  /// The quantity of finished item the lines make, in the item's base unit.
+  outputQuantity      Decimal             @db.Decimal(18, 6)
+  unitId              String
+  unit                Unit                @relation("ProductionBomUnit", fields: [unitId, companyId], references: [id, companyId])
+  unitCode            String
+  unitPrecision       Int
+  status              ProductionBomStatus @default(DRAFT)
+  /// TRUE while ACTIVE, NULL otherwise: one ACTIVE revision per finished item.
+  activeSlot          Boolean?
+  note                String?
+  lineCounter         Int                 @default(0)
+  createdByMemberId   String
+  createdBy           CompanyMember       @relation("ProductionBomCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  activatedAt         DateTime?
+  activatedByMemberId String?
+  activatedBy         CompanyMember?      @relation("ProductionBomActivator", fields: [activatedByMemberId, companyId], references: [id, companyId])
+  retiredAt           DateTime?
+  retiredByMemberId   String?
+  retiredBy           CompanyMember?      @relation("ProductionBomRetirer", fields: [retiredByMemberId, companyId], references: [id, companyId])
+  retirementReason    String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  lines               ProductionBomLine[]
+  orders              ProductionOrder[]
+
+  @@unique([companyId, itemId, revision])
+  @@unique([companyId, itemId, activeSlot])
+  @@unique([id, companyId])
+  /// Target of line and production-order foreign keys (the BOM and its finished item).
+  @@unique([id, itemId, companyId])
+  @@index([companyId, status, updatedAt])
+}
+
+/// One material of a BOM revision, in the material's base unit (no conversion).
+model ProductionBomLine {
+  id            String        @id @default(cuid())
+  companyId     String
+  bomId         String
+  /// The BOM's finished item — carried so the database refuses a BOM consuming itself.
+  bomItemId     String
+  bom           ProductionBom @relation(fields: [bomId, bomItemId, companyId], references: [id, itemId, companyId], onDelete: Cascade)
+  lineNo        Int
+  itemId        String
+  item          Item          @relation("ProductionBomMaterial", fields: [itemId, companyId], references: [id, companyId])
+  itemCode      String
+  itemName      String
+  itemType      ItemType
+  unitId        String
+  unit          Unit          @relation("ProductionBomLineUnit", fields: [unitId, companyId], references: [id, companyId])
+  unitCode      String
+  unitPrecision Int
+  /// Needed per `outputQuantity` of the finished item.
+  quantity      Decimal       @db.Decimal(18, 6)
+  note          String?
+  createdAt     DateTime      @default(now())
+
+  @@unique([bomId, lineNo])
+  @@unique([bomId, itemId])
+  @@index([companyId, itemId])
+}
+
+/// DRAFT → SUBMITTED → APPROVED → READY; SUBMITTED → REJECTED; DRAFT / APPROVED / READY → CANCELLED.
+/// IN_PRODUCTION / COMPLETED do not exist yet: they belong to physical execution (EP37+).
+enum ProductionOrderStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  READY
+  REJECTED
+  CANCELLED
+}
+
+enum ProductionOrderSource {
+  MANUAL
+  SALES_DEMAND
+}
+
+enum ProductionPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// A planned output of one finished item in one branch (MO-YYYYMM-NNNNNN). Planning only.
+model ProductionOrder {
+  id                  String                    @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch                    @relation(fields: [branchId, companyId], references: [id, companyId])
+  number              String
+  status              ProductionOrderStatus     @default(DRAFT)
+  source              ProductionOrderSource
+  /// SALES_DEMAND: the confirmed sales order (same branch) and line (same item) it answers.
+  salesOrderId        String?
+  salesOrder          SalesOrder?               @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  salesOrderLineId    String?
+  salesOrderLine      SalesOrderLine?           @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  itemId              String
+  item                Item                      @relation("ProductionOrderOutput", fields: [itemId, companyId], references: [id, companyId])
+  itemCode            String
+  itemName            String
+  unitId              String
+  unit                Unit                      @relation("ProductionOrderUnit", fields: [unitId, companyId], references: [id, companyId])
+  unitCode            String
+  unitPrecision       Int
+  /// The BOM revision used (always one of the order's item); frozen at approval.
+  bomId               String?
+  bom                 ProductionBom?            @relation(fields: [bomId, itemId, companyId], references: [id, itemId, companyId])
+  bomCode             String?
+  bomRevision         Int?
+  bomOutputQuantity   Decimal?                  @db.Decimal(18, 6)
+  /// Target output in the item's base unit.
+  quantity            Decimal                   @db.Decimal(18, 6)
+  plannedStartDate    DateTime?                 @db.Date
+  requiredDate        DateTime?                 @db.Date
+  priority            ProductionPriority        @default(NORMAL)
+  note                String?
+  createdByMemberId   String
+  createdBy           CompanyMember             @relation("ProductionOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  submittedAt         DateTime?
+  submittedByMemberId String?
+  submittedBy         CompanyMember?            @relation("ProductionOrderSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
+  approvedAt          DateTime?
+  approvedByMemberId  String?
+  approvedBy          CompanyMember?            @relation("ProductionOrderApprover", fields: [approvedByMemberId, companyId], references: [id, companyId])
+  releasedAt          DateTime?
+  releasedByMemberId  String?
+  releasedBy          CompanyMember?            @relation("ProductionOrderReleaser", fields: [releasedByMemberId, companyId], references: [id, companyId])
+  rejectedAt          DateTime?
+  rejectedByMemberId  String?
+  rejectedBy          CompanyMember?            @relation("ProductionOrderRejecter", fields: [rejectedByMemberId, companyId], references: [id, companyId])
+  rejectionReason     String?
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?            @relation("ProductionOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  materials           ProductionOrderMaterial[]
+
+  @@unique([companyId, number])
+  @@unique([id, companyId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([companyId, itemId])
+  @@index([salesOrderLineId])
+  @@index([bomId])
+}
+
+/// A material requirement of an order: server-computed from its BOM revision
+/// (target × line quantity ÷ BOM output, rounded UP to the unit's places), frozen at approval.
+model ProductionOrderMaterial {
+  id                String          @id @default(cuid())
+  companyId         String
+  productionOrderId String
+  order             ProductionOrder @relation(fields: [productionOrderId, companyId], references: [id, companyId], onDelete: Cascade)
+  lineNo            Int
+  itemId            String
+  item              Item            @relation("ProductionOrderMaterial", fields: [itemId, companyId], references: [id, companyId])
+  itemCode          String
+  itemName          String
+  unitId            String
+  unit              Unit            @relation("ProductionOrderMaterialUnit", fields: [unitId, companyId], references: [id, companyId])
+  unitCode          String
+  unitPrecision     Int
+  /// The BOM line's quantity per BOM output quantity.
+  bomQuantity       Decimal         @db.Decimal(18, 6)
+  requiredQuantity  Decimal         @db.Decimal(18, 6)
+  createdAt         DateTime        @default(now())
+
+  @@unique([productionOrderId, lineNo])
+  @@unique([productionOrderId, itemId])
+  @@index([companyId, itemId])
 }

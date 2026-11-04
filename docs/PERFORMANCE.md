@@ -208,6 +208,19 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP36 — no budget changed; JS recovered first.** Phase 0 took the total from 4,252.8 to
+  **4,052.2 KiB (200.6 KiB recovered)** before any Production code: `<Canvas>` from
+  @react-three/fiber registers the whole three.js namespace (`extend(THREE)`), which kept every
+  three class in the CORE World chunk. The scene now renders through a small `CoreCanvas`
+  (`features/landing/core-world/CoreCanvas.tsx`, R3F's public `createRoot` / `events` / `extend`)
+  that registers only the ten elements it uses — CORE World chunk 905.3 → 699.9 KB raw, **235.5 →
+  182.5 KiB gzip**; same scene, interactions (hover, select, deselect, drag), resize, remount,
+  StrictMode, fallback on errors — checked in the production build and the dev server. Other audit
+  targets (unused copy keys, duplicated modules, eager imports) showed no safe savings worth
+  taking. Production then adds `ProductionArea` (≈ 31.1 KiB raw / 8.2 KiB gzip), `prodParts` with
+  the TH / EN / ZH copy (≈ 36.9 / 11.5 KiB) and `ShortagesArea` (≈ 1.7 KiB): **+69.7 KiB**. All JS
+  **4,121.8 / 4,300 KiB** (headroom ≈ 178 KiB); initial JS 182.6 KiB gzip and static HTML 528 / 560
+  KiB unchanged.
 - **EP35 — no budget changed.** Sales fulfilment adds one lazy `FulfilmentArea` chunk for the three
   documents (≈ 23.8 KiB raw / 7.4 KiB gzip, its own TH / EN / ZH copy) built on the EP32 `ctlParts`
   list / page (which grows to ≈ 34.2 KiB with the shared statuses, errors and the new kinds); Pending

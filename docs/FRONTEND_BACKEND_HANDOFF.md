@@ -219,6 +219,17 @@ noindex, served by the existing `/platform/*` shell rewrite).
   (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
   `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
   Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
+- **EP36 (Production planning, Operations):** see [PRODUCTION_ORDER.md](PRODUCTION_ORDER.md),
+  [PRODUCTION_BOM.md](PRODUCTION_BOM.md) and [EP36_REPORT.md](EP36_REPORT.md). `/api/v1/production`:
+  `context`, `items?role=OUTPUT|MATERIAL`, `boms` (list, create, detail, PATCH draft, `activate`,
+  `retire {reason?}`, `revise`), `orders` (list with status / branch / item / source / materials /
+  dates / q, create — manual `itemId[, branchId]` or `salesOrderLineId`, detail, PATCH draft,
+  `submit` · `approve` · `release` · `reject {reason}` · `cancel {reason?}`),
+  `requirements/preview?bomId&quantity&branchId`, `requirements`, `demand`; and
+  `/api/v1/purchasing/production-shortages`. Requirements, availability and shortages are the
+  server's; nothing writes stock. Screens: one lazy `ProductionArea` (`/core/production/*`, shared
+  `prodParts`) and `ShortagesArea` (`/core/purchasing/production-shortages`); CORE links Operations
+  to production planning and Purchasing to its shortage list.
 - **EP35 (Sales fulfilment):** see [SALES_FULFILLMENT.md](SALES_FULFILLMENT.md) and
   [EP35_REPORT.md](EP35_REPORT.md). `/api/v1/warehouse/picks` · `/packs` · `/shipments` (list, detail,
   create; `/picks/:id/start` · `/confirm {lines}` · `/cancel`; `/packs/:id/confirm` · `/cancel`;

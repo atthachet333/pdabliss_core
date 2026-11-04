@@ -174,3 +174,18 @@ reservation, then issues: the decrease guard runs unchanged and keeps on hand �
 `SALES_ISSUE_REVERSAL`: issued stock is never restored automatically; returns will add their own
 positive type. Reconciliation after every QA run: balance = Σ movements per identity, nothing
 negative, every SALES_ISSUE matched by a CONSUMED reservation of the same quantity and vice versa.
+
+## 10. EP36 production planning — no ledger effect
+
+Production planning ([PRODUCTION_ORDER.md](PRODUCTION_ORDER.md)) reads the ledger and never writes
+it: creating, editing, submitting, approving, releasing, rejecting or cancelling a production order
+(and every BOM action) produces **no** StockMovement, no StockBalance change and no SalesAllocation
+row — tested before and after every step, and on the real stack. Material availability for planning
+is the EP34 reservation-aware figure (`sales/availability.ts → stockFor`), a snapshot that reserves
+nothing. No production movement type exists yet. Future contracts, both through `applyMovement()`
+with every guard intact:
+
+- **EP37:** production order → material allocation → material issue → `PRODUCTION_CONSUMPTION`
+  (negative), consuming the frozen `ProductionOrderMaterial` requirements.
+- **EP38:** manufacturing completion → finished goods receipt → `PRODUCTION_OUTPUT` (positive); only
+  then does output become stock Sales can allocate.

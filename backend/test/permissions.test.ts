@@ -71,8 +71,9 @@ describe('Permission catalog (EP27)', () => {
       expect(p.namespace).toBe(prefix === 'company' ? 'COMPANY_ADMIN' : prefix.toUpperCase());
       // EP28: canonical master records (customers, suppliers, items) are one per
       // company; everything else operational — locations included — is per branch.
+      // EP36: BOM revisions describe items and are company-wide too.
       const companyWide =
-        p.namespace === 'COMPANY_ADMIN' || /\.(customers|suppliers|items)$/.test(p.resource);
+        p.namespace === 'COMPANY_ADMIN' || /\.(customers|suppliers|items|bom)$/.test(p.resource);
       expect(p.scope).toBe(companyWide ? 'COMPANY' : 'BRANCH');
     }
     expect(codes.some((c) => c.startsWith('platform.'))).toBe(false);

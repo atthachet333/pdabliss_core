@@ -79,6 +79,19 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   warehouse.dispatch.confirm  dispatch a shipment — SALES_ISSUE, reservation consumed (MANAGE)
  *   warehouse.delivery.confirm  record delivery or a delivery exception (MANAGE)
  *
+ * EP36 production planning — Production lives in the Operations department
+ * (docs/PRODUCTION_ORDER.md, docs/PRODUCTION_BOM.md). Planning only: no code
+ * here moves, reserves or creates stock.
+ *   operations.orders.view       production orders, material requirements, sales demand (READ)
+ *   operations.orders.create     draft, edit, submit and cancel own draft production orders
+ *   operations.orders.approve    approve OR reject a submitted order; release it to READY (MANAGE)
+ *   operations.orders.cancel     cancel an approved / ready order (MANAGE, reason required)
+ *   operations.bom.view          BOM revisions (READ, company-wide)
+ *   operations.bom.manage        draft, edit, activate, revise and retire BOMs (MANAGE)
+ *   purchasing.production_shortages.view  read-only material shortages of approved
+ *                                production orders — the Purchasing handoff (READ)
+ *   operations.orders.edit / update_status stay reserved (editing a draft is part of create).
+ *
  * EP33 sales orders (EP27 codes, no new ones — backend/src/sales/policy.ts):
  *   sales.orders.view     read the branch's orders (a DRAFT only for its creator and confirmers)
  *   sales.orders.create   draft, edit, submit and discard own orders (submit is part of create)
@@ -190,6 +203,10 @@ export const PERMISSION_CATALOG = [
   def('operations.orders.create', 'OPERATIONS', 'BRANCH'),
   def('operations.orders.edit', 'OPERATIONS', 'BRANCH'),
   def('operations.orders.update_status', 'OPERATIONS', 'BRANCH'),
+  def('operations.orders.approve', 'OPERATIONS', 'BRANCH'),
+  def('operations.orders.cancel', 'OPERATIONS', 'BRANCH'),
+  def('operations.bom.view', 'OPERATIONS', 'COMPANY'),
+  def('operations.bom.manage', 'OPERATIONS', 'COMPANY'),
   def('operations.items.view', 'OPERATIONS', 'COMPANY'),
   def('operations.items.manage', 'OPERATIONS', 'COMPANY'),
   def('operations.purchase_requests.create', 'OPERATIONS', 'BRANCH'),
@@ -229,6 +246,7 @@ export const PERMISSION_CATALOG = [
   def('purchasing.requests.cancel', 'PURCHASING', 'BRANCH'),
   def('purchasing.orders.edit', 'PURCHASING', 'BRANCH'),
   def('purchasing.orders.cancel', 'PURCHASING', 'BRANCH'),
+  def('purchasing.production_shortages.view', 'PURCHASING', 'BRANCH'),
   // ---- Accounting
   def('accounting.workspace.view', 'ACCOUNTING', 'BRANCH'),
   def('accounting.payments.view', 'ACCOUNTING', 'BRANCH'),

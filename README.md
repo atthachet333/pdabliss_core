@@ -141,7 +141,17 @@ is never a movement ([docs/SALES_ALLOCATION.md](docs/SALES_ALLOCATION.md),
 exact reservation, partial dispatch splitting it) — then records delivery or delivery exceptions as
 evidence only. Sales sees per-line picked / packed / dispatched / delivered / outstanding and its
 shipments; Warehouse sees no money ([docs/SALES_FULFILLMENT.md](docs/SALES_FULFILLMENT.md),
-[docs/EP35_REPORT.md](docs/EP35_REPORT.md)). Next: EP36 (not started).
+[docs/EP35_REPORT.md](docs/EP35_REPORT.md)).
+**EP36** (completed locally, awaiting owner review) adds Production planning in the Operations
+department: versioned single-level bills of materials (draft → active → retired, one active revision
+per item, immutable once active), production orders `MO-YYYYMM-NNNNNN` (draft → submitted → approved →
+ready; rejected / cancelled) for manual or confirmed-sales demand, server-computed material
+requirements frozen at approval, reservation-aware material availability as a snapshot (never a
+reservation), a sales demand queue that counts planned orders once, and a read-only material shortage
+list for Purchasing. Planning only: no stock movement, balance or reservation. Phase 0 first recovered
+200.6 KiB of JS from the CORE World chunk ([docs/PRODUCTION_ORDER.md](docs/PRODUCTION_ORDER.md),
+[docs/PRODUCTION_BOM.md](docs/PRODUCTION_BOM.md), [docs/EP36_REPORT.md](docs/EP36_REPORT.md)).
+Next: EP37 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -165,7 +175,8 @@ Roadmap:
 3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
    receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
    stock adjustment, cycle count** → **EP33 Sales order foundation** → **EP34 Sales allocation, pick
-   readiness** → **EP35 Picking, packing, dispatch and delivery** → Warehouse →
+   readiness** → **EP35 Picking, packing, dispatch and delivery** → **EP36 Production order, BOM and
+   material planning** → EP37 Material issue → EP38 Finished goods receipt → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

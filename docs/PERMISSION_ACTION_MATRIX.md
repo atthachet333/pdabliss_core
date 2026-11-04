@@ -62,6 +62,7 @@ branch access or enabled departments takes effect on the next request of every o
 | **EP33 sales orders** | `sales.orders.view` · `.create` · `.approve` · `.cancel` (EP27, now used); `sales.orders.edit` reserved; customers via `sales.customers.view` |
 | **EP34 sales allocation** | allocate · release · reallocate with `sales.orders.approve` (no new code); Pending Pick with `warehouse.inventory.view` |
 | **EP35 sales fulfilment** | `warehouse.picking.process` (new, OPERATE) · `warehouse.dispatch.confirm` (new, MANAGE) · `warehouse.delivery.confirm` (new, MANAGE); reads with `warehouse.inventory.view` |
+| **EP36 production planning** | `operations.orders.view` · `.create` (EP27, now used) · `operations.orders.approve` · `.cancel` (new, MANAGE) · `operations.bom.view` (new, READ, COMPANY) · `operations.bom.manage` (new, MANAGE, COMPANY) · `purchasing.production_shortages.view` (new, READ); `operations.orders.edit` · `.update_status` reserved |
 | **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
@@ -86,6 +87,16 @@ stock-adjustment code is used yet. System Admin gets none of it unless assigned 
 Executive reads only; Purchasing and Accounting see receive progress on orders, never stock. The
 override CHECK lists 57 operational codes. One policy table: `backend/src/warehouse/policy.ts`; see
 [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).
+
+**EP36 note.** Production lives in the **Operations** department (no new department). Five new
+codes (override CHECK now **70**): `operations.orders.approve` (approve / reject / release),
+`operations.orders.cancel` (cancel approved / ready), `operations.bom.view` and `operations.bom.manage`
+(COMPANY-scoped like items — BOM revisions describe items), and `purchasing.production_shortages.view`
+(the read-only Purchasing handoff). Operations Staff plan (view, create, submit); Operations Managers
+also approve, reject, release, cancel and manage BOMs; Executive reads; System Admin has nothing unless
+assigned to Operations and then never MANAGE; Sales / Warehouse / Accounting hold no Production code;
+Purchasing reads only the shortage handoff. `operations.demo` stays Manager. See
+[PRODUCTION_ORDER.md](PRODUCTION_ORDER.md) §4.
 
 **EP35 note.** Three new BRANCH-scoped Warehouse codes (override CHECK now **65**):
 `warehouse.picking.process` (OPERATE — Staff: picks, packs, shipments; no stock moves),

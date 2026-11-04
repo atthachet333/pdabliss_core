@@ -70,18 +70,31 @@ const PendingPickArea = lazy(() => import('@/features/warehouse/PendingPickArea'
 const FulfilmentArea = lazy(() => import('@/features/warehouse/FulfilmentArea'));
 /** EP33: the Sales workspace and its sales orders — one lazy chunk. */
 const SalesArea = lazy(() => import('@/features/sales/SalesArea'));
+/** EP36: Production planning (Operations) — one lazy chunk; Purchasing's shortage handoff — another. */
+const ProductionArea = lazy(() => import('@/features/production/ProductionArea'));
+const ShortagesArea = lazy(() => import('@/features/production/ShortagesArea'));
 
 /** EP30: a department card's way into its first EP30 screen (presentation only). */
 const DEPARTMENT_LINKS: Partial<
   Record<
     string,
-    { permission: string; to: string; label: 'openDeposits' | 'openReceive' | 'openSales' }
+    {
+      permission: string;
+      to: string;
+      label: 'openDeposits' | 'openReceive' | 'openSales' | 'openProduction';
+    }
   >
 > = {
   SALES: {
     permission: 'sales.orders.view',
     to: '/core/sales',
     label: 'openSales',
+  },
+  // EP36: Production planning lives in the Operations department.
+  OPERATIONS: {
+    permission: 'operations.orders.view',
+    to: '/core/production',
+    label: 'openProduction',
   },
   ACCOUNTING: {
     permission: 'accounting.deposits.view',
@@ -210,6 +223,8 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['warehouse/packs/*', <FulfilmentArea key="fk" kind="packs" />],
             ['warehouse/shipments/*', <FulfilmentArea key="fs" kind="shipments" />],
             ['sales/*', <SalesArea key="so" />],
+            ['production/*', <ProductionArea key="mo" />],
+            ['purchasing/production-shortages', <ShortagesArea key="ps" />],
           ] as const
         ).map(([path, area]) => (
           <Route
@@ -599,6 +614,15 @@ function OperationsHome({ context }: { context: BranchContext }) {
               );
             })}
           </ul>
+        )}
+        {(context.permissions ?? []).includes('purchasing.production_shortages.view') && (
+          <AreaLink
+            to="/core/purchasing/production-shortages"
+            className={buttonClasses('secondary', 'md', 'w-fit')}
+            data-production-shortages-link
+          >
+            {c.core.shortages}
+          </AreaLink>
         )}
         {(context.permissions ?? []).some((x) => REQUESTS.test(x)) && (
           <AreaLink

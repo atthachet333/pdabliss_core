@@ -764,6 +764,57 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(await h.db.salesShipment.count()).toBe(2);
   });
 
+  it('seeds production planning once through the real services — no stock effect (EP36)', async () => {
+    const P = '/api/v1/production';
+    const snapshot = async () =>
+      JSON.stringify({
+        moves: await h.db.stockMovement.count(),
+        balances: (await h.db.stockBalance.findMany({ orderBy: { id: 'asc' } })).map((b) => [
+          b.id,
+          b.quantityOnHand.toString(),
+        ]),
+        allocations: await h.db.salesAllocation.count(),
+        boms: await h.db.productionBom.count(),
+        orders: await h.db.productionOrder.count(),
+        materials: await h.db.productionOrderMaterial.count(),
+        audit: await h.db.auditLog.count(),
+      });
+    const ops = await login('operations.demo@pdabliss.com');
+    const boms = j(await ops.get(`${P}/boms`)).items;
+    expect(boms.map((b: J) => [b.code, b.revision, b.status])).toEqual([
+      ['BOM-FG-000001', 2, 'ACTIVE'],
+      ['BOM-FG-000001', 1, 'RETIRED'],
+    ]);
+    const orders = j(await ops.get(`${P}/orders?pageSize=50`)).items;
+    expect(orders.map((o: J) => [o.status, o.source, o.quantity]).sort()).toEqual(
+      [
+        ['APPROVED', 'MANUAL', '40'],
+        ['APPROVED', 'MANUAL', '8'],
+        ['DRAFT', 'MANUAL', '4'],
+        ['SUBMITTED', 'MANUAL', '6'],
+        ['SUBMITTED', 'SALES_DEMAND', '4'],
+      ].sort(),
+    );
+    const short = orders.find((o: J) => o.quantity === '40');
+    const detail = j(await ops.get(`${P}/orders/${short.id}`)).order;
+    expect(detail.materialState).toBe('MATERIALS_SHORT');
+    expect(detail.materials.map((m: J) => [m.item.code, m.required])).toEqual([
+      ['RM-000001', '10'],
+      ['PK-000001', '40'],
+    ]);
+    // The Operations persona keeps its role (manager) and branches; production is planning only.
+    const ctx = j(await ops.get(`${P}/context`));
+    expect(ctx.orders).toEqual({ view: true, create: true, approve: true, cancel: true });
+    expect(
+      await h.db.stockBalance.count({
+        where: { item: { code: 'FG-000001' }, quantityOnHand: { gt: 30 } },
+      }),
+    ).toBe(0);
+    const before = await snapshot();
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await snapshot()).toBe(before);
+  });
+
   it('the legacy staff account carries the one exception: receiving is denied', async () => {
     const staff = await login('staff.demo@pdabliss.com');
     const res = await staff.get(

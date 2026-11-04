@@ -177,6 +177,13 @@ sequence upsert (unique, gapless).
   reason — no location or lot). A confirmed order with dispatched stock can no longer be cancelled
   (`SO_ALREADY_DISPATCHED`); with staged picks / packs / shipments it is refused until those are
   cancelled (`FULFILMENT_IN_PROGRESS`).
+- **EP36** ([PRODUCTION_ORDER.md](PRODUCTION_ORDER.md) §5): Production reads CONFIRMED lines of
+  stock-tracked finished goods as demand (`open = ordered − reserved − dispatched`) through its own
+  allow-list — order number, status, requested date, line, item, unit and quantities only (no price,
+  discount, tax, total, customer or note). A production order may reference one line; it reserves
+  nothing and never changes the sales order. Sales behaviour is unchanged: cancelling a sales order
+  is still allowed; linked production orders are then refused at approval / release or flagged
+  `SOURCE_CANCELLED` for review.
 
 ## 15. Known limitations (deliberate)
 

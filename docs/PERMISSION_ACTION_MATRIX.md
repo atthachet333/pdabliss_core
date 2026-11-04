@@ -60,6 +60,7 @@ branch access or enabled departments takes effect on the next request of every o
 | **EP31 receiving and inventory** | `warehouse.receiving.view` · `.process` (existing) + `warehouse.receiving.cancel`; `warehouse.inventory.view` (existing) |
 | **EP32 inventory control** | `warehouse.transfers.create` · `.approve` · `.cancel`, `warehouse.counts.create` · `.approve` (new); `warehouse.stock_adjustment.create` · `.approve` (EP27, now used); reads with `warehouse.inventory.view` |
 | **EP33 sales orders** | `sales.orders.view` · `.create` · `.approve` · `.cancel` (EP27, now used); `sales.orders.edit` reserved; customers via `sales.customers.view` |
+| **EP34 sales allocation** | allocate · release · reallocate with `sales.orders.approve` (no new code); Pending Pick with `warehouse.inventory.view` |
 | **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
@@ -84,6 +85,12 @@ stock-adjustment code is used yet. System Admin gets none of it unless assigned 
 Executive reads only; Purchasing and Accounting see receive progress on orders, never stock. The
 override CHECK lists 57 operational codes. One policy table: `backend/src/warehouse/policy.ts`; see
 [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).
+
+**EP34 note.** No new codes (override CHECK still 62). Allocating, releasing and reallocating a
+CONFIRMED order reuse `sales.orders.approve` (MANAGE) — the manager who confirms an order commits stock
+to it; cancelling (`sales.orders.cancel`) also releases its reservations. Staff, Executive and Viewer
+see allocation progress only. Warehouse reads reserved demand at `GET /warehouse/pending-pick` with
+`warehouse.inventory.view` — no customer or money. See [SALES_ALLOCATION.md](SALES_ALLOCATION.md).
 
 **EP33 note.** No new codes, so the override CHECK is unchanged (62). `sales.orders.create`
 (OPERATE) drafts, edits, submits and discards the member's **own** orders (submitting is part of

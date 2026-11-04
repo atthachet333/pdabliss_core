@@ -208,6 +208,11 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP34 — no budget changed.** Sales allocation adds two lazy chunks — `AllocationSection`
+  (≈ 3.2 KiB raw / 1.3 KiB gzip, loaded only on confirmed orders) and `PendingPickArea` (≈ 6.5 / 2.6
+  KiB) — and grows `SalesArea` to ≈ 43.1 KiB raw (allocation copy in TH / EN / ZH) and `InventoryArea`
+  to ≈ 5.7 KiB (reserved / available columns). All JS **4,212.7 / 4,300 KiB** (EP33: 4,195.6; **+17.1
+  KiB**); initial JS unchanged at 182.6 KiB gzip; static HTML 528 / 560 KiB. Headroom ≈ 87 KiB.
 - **EP33 — no budget changed; JS recovered first.** Phase 0 took the total from 4,298.2 to
   4,158.7 KiB (**≈ 139.5 KiB recovered**) before any Sales code: the sign-in gateway no longer ships
   `react-hook-form`, `@hookform/resolvers` or `zod` (the three were removed from the frontend; the

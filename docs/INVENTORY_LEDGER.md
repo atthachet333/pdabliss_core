@@ -145,3 +145,18 @@ transaction after the exclusive location lock.
 - respect open counts (the ledger refuses for them) and never bypass the stale check;
 - reverse with opposite movements, never by editing or deleting.
 
+## 8. EP34 reservations (Sales allocation)
+
+A sales reservation (`SalesAllocation`, [SALES_ALLOCATION.md](SALES_ALLOCATION.md)) claims stock of one
+identity (location, item, lot) for a confirmed order line. **It is not a movement**: no
+`StockMovement` row, no `StockBalance` change, no reservation movement type. Stock views add
+`quantityReserved` (Σ ACTIVE reservations) and `quantityAvailable` (on hand − reserved); FEFO
+candidates expose the same available quantity.
+
+`applyMovement()` keeps the invariant **reserved ≤ on hand**: every decrease now runs
+`takeRespectingReservations()` (`warehouse/reservations.ts`) — lock the balance row, read what is
+reserved, refuse with `409 STOCK_RESERVED` when the decrease would leave less than that (otherwise the
+EP32 shortage refusals). Allocation locks the same balance rows before reading, so the two serialize.
+Transfers and adjustment decreases also check available stock at draft time; cycle-count corrections and
+all reversals are guarded at posting. EP35's sales issue will consume reservations in the same
+transaction as its movement.

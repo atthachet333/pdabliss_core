@@ -75,7 +75,9 @@ snapshot in a request is **400** (strict schemas), never ignored.
 
 ## 6. Availability (informational only)
 
-`backend/src/sales/availability.ts` reads balances and writes nothing.
+`backend/src/sales/availability.ts` reads balances and writes nothing. **EP34:** it also reads
+reservations — `available` is on hand − reserved, and a line compares what it still needs after its own
+reservations; see [SALES_ALLOCATION.md](SALES_ALLOCATION.md) §7.
 
 - `onHand` = Σ balances of the item in the **order's branch** (every location and lot).
 - `available` = Σ of the balances FEFO would offer: on hand > 0 and lot not expired — exactly the
@@ -85,8 +87,8 @@ snapshot in a request is **400** (strict schemas), never ignored.
   `NOT_STOCK_TRACKED` (item not tracked); `shortage = max(0, ordered − available)`.
 - Per order: the worst tracked line; `NOT_STOCK_TRACKED` only when no line is tracked; `null` for a
   cancelled or empty order.
-- Two orders may both "see" the same stock. **It is not a reservation**; the UI says so wherever it
-  shows availability. EP34 allocation decides who gets it.
+- Two orders may both "see" the same stock. **It is not a reservation**; EP34 allocation decides who
+  gets it (the UI note now reads "Only allocation holds stock").
 - `GET /orders?availability=SHORTAGE` and the `withShortage` count consider **open** orders
   (SUBMITTED, CONFIRMED) with a line short now (bounded to the 1,000 most recently updated open
   orders in scope).
@@ -165,6 +167,8 @@ sequence upsert (unique, gapless).
 - Each line's `progress` already carries `ordered`; `allocated`, `picked`, `delivered` and
   `outstanding` are **null** until those episodes fill them — never faked.
 - EP34 may allocate only CONFIRMED lines; cancelling an order with allocations will need a rule there.
+  **Done in EP34** ([SALES_ALLOCATION.md](SALES_ALLOCATION.md)): `progress.allocated` is filled for
+  tracked lines, and cancelling releases every reservation (`ORDER_CANCELLED`) in the same transaction.
 
 ## 15. Known limitations (deliberate)
 

@@ -43,7 +43,8 @@ const th = {
     UNAVAILABLE: 'ไม่มีสต็อก',
     NOT_STOCK_TRACKED: 'ไม่ติดตามสต็อก',
   } satisfies Record<Availability, string>,
-  availNote: 'สต็อกที่แสดงเป็นข้อมูล ณ ขณะนี้ ไม่ใช่การจอง — คำสั่งขายอื่นอาจเห็นสต็อกเดียวกัน',
+  availNote:
+    'พร้อมขาย = คงคลัง − สต็อกที่จองให้คำสั่งขายที่ยืนยันแล้ว ณ ขณะนี้ — สต็อกถูกกันไว้ด้วยการจองสต็อกเท่านั้น',
   f: {
     number: 'เลขที่',
     status: 'สถานะ',
@@ -205,7 +206,7 @@ const en: SalesCopy = {
     NOT_STOCK_TRACKED: 'Not stock-tracked',
   },
   availNote:
-    'Stock shown is information as of now, not a reservation — other orders may see the same stock.',
+    'Available = on hand − stock reserved for confirmed orders, as of now. Only allocation holds stock.',
   f: {
     number: 'Number',
     status: 'Status',
@@ -364,7 +365,7 @@ const zh: SalesCopy = {
     UNAVAILABLE: '无库存',
     NOT_STOCK_TRACKED: '不跟踪库存',
   },
-  availNote: '所示库存为当前信息，并非预留 — 其他订单可能看到同一批库存。',
+  availNote: '可售 = 在库 − 已为已确认订单预留的库存（当前）。只有预留才会占用库存。',
   f: {
     number: '编号',
     status: '状态',

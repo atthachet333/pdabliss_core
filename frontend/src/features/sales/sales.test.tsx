@@ -185,7 +185,7 @@ describe('Sales orders (EP33)', () => {
     expect(within(tiles).getByText('Awaiting confirmation')).toBeInTheDocument();
     expect(within(tiles).getByText('4')).toBeInTheDocument();
     expect(screen.getAllByText('Partly in stock').length).toBeGreaterThan(0);
-    expect(screen.getByText(/not a reservation/)).toBeInTheDocument();
+    expect(screen.getByText(/Only allocation holds stock/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New sales order' })).toBeInTheDocument();
     // A count tile is a filter (pressed state, server query).
     await userEvent.click(within(tiles).getByRole('button', { name: /My drafts/ }));

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField } from '@/features/auth/fields';
 import { CONTROL_COPY } from '@/features/company-center/copy';
-import { CELL, useLoad } from '@/features/company-center/model';
+import { useLoad } from '@/features/company-center/model';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import { AreaLink, Loading, PageTitle } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
@@ -30,6 +30,10 @@ export default function InventoryArea({ view }: { view: 'stock' | 'lots' }) {
   if (state.status === 'error') return <Notice tone="error">{whError(state.error, c, cc)}</Notice>;
   return <StockList key={view} view={view} ctx={state.data} />;
 }
+
+/** EP34: eight columns no longer fit at 768 px — rows stay labelled cards below 1024 px. */
+const SCELL =
+  'block px-0 py-1 align-top lg:table-cell lg:px-3 lg:py-3 lg:first:pl-4 max-lg:before:block max-lg:before:text-caption max-lg:before:text-text-muted max-lg:before:content-[attr(data-label)]';
 
 function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContext }) {
   const c = useCopy(WH_COPY);
@@ -115,8 +119,8 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
           {c.noStock}
         </p>
       ) : (
-        <table className="w-full text-left text-label max-md:block" data-stock-rows>
-          <thead className="max-md:sr-only">
+        <table className="w-full text-left text-label max-lg:block" data-stock-rows>
+          <thead className="max-lg:sr-only">
             <tr className="text-caption text-text-muted">
               {heads.map((h) => (
                 <th
@@ -132,17 +136,17 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
               ))}
             </tr>
           </thead>
-          <tbody className="max-md:grid max-md:grid-cols-1 max-md:gap-2">
+          <tbody className="max-lg:grid max-lg:grid-cols-1 max-lg:gap-2">
             {data.items.map((s) => {
               const cell = (label: string, content: ReactNode, extra = '') => (
-                <td data-label={label} className={cn(CELL, extra)}>
+                <td data-label={label} className={cn(SCELL, extra)}>
                   {content}
                 </td>
               );
               return (
                 <tr
                   key={s.id}
-                  className="border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4"
+                  className="border-t border-white/[0.06] max-lg:grid max-lg:grid-cols-1 max-lg:gap-1 max-lg:rounded-xl max-lg:border-0 max-lg:bg-white/[0.02] max-lg:p-4"
                   data-stock-row={s.lot?.lotNumber ?? s.item.code}
                 >
                   {cell(
@@ -153,7 +157,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                         {s.item.name}
                       </span>
                     </>,
-                    'max-md:before:hidden',
+                    'max-lg:before:hidden',
                   )}
                   {cell(
                     c.f.lot,
@@ -173,7 +177,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                       {s.quantityOnHand}{' '}
                       <span className="font-normal text-text-muted">{s.unit.code}</span>
                     </span>,
-                    'md:text-right md:whitespace-nowrap',
+                    'lg:text-right lg:whitespace-nowrap',
                   )}
                   {cell(
                     c.f.reserved,
@@ -186,7 +190,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                     >
                       {s.quantityReserved}
                     </span>,
-                    'md:text-right md:whitespace-nowrap',
+                    'lg:text-right lg:whitespace-nowrap',
                   )}
                   {cell(
                     c.f.available,
@@ -196,19 +200,19 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                     >
                       {s.quantityAvailable}
                     </span>,
-                    'md:text-right md:whitespace-nowrap',
+                    'lg:text-right lg:whitespace-nowrap',
                   )}
                   {acts && (
                     <td
                       data-label={c.f.actions}
-                      className={cn(CELL, 'max-md:before:hidden md:text-right')}
+                      className={cn(SCELL, 'max-lg:before:hidden lg:text-right')}
                       data-row-actions
                     >
-                      <span className="flex flex-wrap gap-x-4 md:justify-end">
+                      <span className="flex flex-wrap gap-x-4 lg:justify-end">
                         {ctx.transfers.create && (
                           <AreaLink
                             to={`${WH}/transfers/new?location=${encodeURIComponent(s.location.id)}`}
-                            className="inline-flex min-h-11 items-center text-label text-brand-soft hover:underline md:min-h-0"
+                            className="inline-flex min-h-11 items-center text-label whitespace-nowrap text-brand-soft hover:underline lg:min-h-6"
                             aria-label={`${c.nav.transfers} ${s.item.code} ${s.location.code}`}
                           >
                             {c.nav.transfers}
@@ -217,7 +221,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                         {ctx.adjustments.create && (
                           <AreaLink
                             to={`${WH}/adjustments/new`}
-                            className="inline-flex min-h-11 items-center text-label text-brand-soft hover:underline md:min-h-0"
+                            className="inline-flex min-h-11 items-center text-label whitespace-nowrap text-brand-soft hover:underline lg:min-h-6"
                             aria-label={`${c.nav.adjustments} ${s.item.code} ${s.location.code}`}
                           >
                             {c.nav.adjustments}

@@ -129,7 +129,12 @@ the Sales order foundation: customer, items, selling terms and server-computed t
 DRAFT → SUBMITTED → CONFIRMED (manager) with cancellation, snapshots frozen at confirmation, and
 informational availability from the ledger — never a reservation and never a stock write
 ([docs/SALES_ORDER.md](docs/SALES_ORDER.md), [docs/EP33_REPORT.md](docs/EP33_REPORT.md)).
-Next: EP34 (not started).
+**EP34** (completed locally, awaiting owner review) adds Sales allocation: a manager reserves stock
+FEFO for a confirmed order in its branch (allocate / release / reallocate; cancelling releases), the
+inventory shows on hand / reserved / available, every ledger decrease refuses to take reserved stock,
+and Warehouse gets a read-only Pending Pick of reserved demand without commercial data — a reservation
+is never a movement ([docs/SALES_ALLOCATION.md](docs/SALES_ALLOCATION.md),
+[docs/EP34_REPORT.md](docs/EP34_REPORT.md)). Next: EP35 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -152,7 +157,8 @@ Roadmap:
    **EP28 Operational Master Data** → **EP28.1 Department demo personas**
 3. **EP29 Purchasing Request (PR) foundation** → **EP30 Purchase orders, deposits, pending
    receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
-   stock adjustment, cycle count** → **EP33 Sales order foundation** → Warehouse →
+   stock adjustment, cycle count** → **EP33 Sales order foundation** → **EP34 Sales allocation, pick
+   readiness** → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

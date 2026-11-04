@@ -211,6 +211,14 @@ noindex, served by the existing `/platform/*` shell rewrite).
   with `allocated` / `picked` / `delivered` / `outstanding` null — **EP34 allocation and EP35 delivery
   fill them** against the line's `[id, salesOrderId, companyId]` key. Screen: `SalesArea` (one lazy
   chunk) at `/core/sales/*`.
+- **EP34 (Sales allocation):** see [SALES_ALLOCATION.md](SALES_ALLOCATION.md) and
+  [EP34_REPORT.md](EP34_REPORT.md). `SalesAllocation` reservations (never movements) via
+  `POST /api/v1/sales/orders/:id/allocate` · `/release` · `/reallocate` (no body; `sales.orders.approve`);
+  cancel releases them. Orders carry `allocationState` / `pickReadiness`, tracked lines `allocation`
+  and `progress.allocated`; availability subtracts reservations. Warehouse: `GET /warehouse/pending-pick`
+  (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
+  `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
+  Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
 
 ## 7. Warehouse boundary
 
@@ -268,7 +276,8 @@ purchase requests and EP30 orders, `accounting.demo@pdabliss.com` for deposits a
 `warehouse.demo@pdabliss.com` for Warehouse privacy checks, EP31 receiving and EP32 drafting / counting
 (it stays Warehouse **Staff**; `owner.demo@pdabliss.com` posts transfers, approves adjustments, posts
 counts and reverses posted documents). Use `sales.demo@pdabliss.com` for EP33 sales orders (it stays
-Sales **Staff** at the Head Office; `owner.demo@pdabliss.com` confirms and cancels).
+Sales **Staff** at the Head Office; `owner.demo@pdabliss.com` confirms and cancels). EP34: `owner.demo`
+allocates / releases; `warehouse.demo` reads Pending Pick for branch 00001.
 
 ## 12. Localization
 

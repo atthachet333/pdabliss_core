@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Pill, Section } from '@/features/company-center/parts';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
@@ -28,6 +28,12 @@ export default function AllocationSection({
 }) {
   const a = useCopy(SALES_COPY).alloc;
   const [open, setOpen] = useState<Step | null>(null);
+  // Focus returns here when the confirm box closes (it unmounts with the focused button).
+  const top = useRef<HTMLParagraphElement>(null);
+  const close = () => {
+    setOpen(null);
+    top.current?.focus();
+  };
   const lines = o.lines.filter((l) => l.allocation);
   if (!o.allocationState || !lines.length) return null;
   const steps = (['allocate', 'reallocate', 'release'] as const).filter((s) =>
@@ -50,7 +56,7 @@ export default function AllocationSection({
       },
       () => text,
     );
-    if (ok) setOpen(null);
+    if (ok) close();
   };
   return (
     <Section
@@ -75,7 +81,9 @@ export default function AllocationSection({
         </span>
       }
     >
-      <p className="mb-3 text-caption text-text-muted">{a.lead}</p>
+      <p ref={top} tabIndex={-1} className="mb-3 text-caption text-text-muted outline-none">
+        {a.lead}
+      </p>
       {short.length > 0 && (
         <p
           className="mb-3 rounded-lg bg-warning/[0.08] px-3 py-2 text-label text-[#f3cf8a]"
@@ -128,7 +136,7 @@ export default function AllocationSection({
             <ConfirmBox
               question={a.ask[open]}
               goLabel={a.act[open]}
-              onCancel={() => setOpen(null)}
+              onCancel={close}
               onConfirm={() => go(open)}
             />
           ) : (

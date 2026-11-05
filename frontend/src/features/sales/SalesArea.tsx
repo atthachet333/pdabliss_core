@@ -72,7 +72,7 @@ const CARD = 'rounded-xl bg-white/[0.02] p-4';
 function useSales() {
   const c = useCopy(SALES_COPY);
   const cc = useCopy(CONTROL_COPY);
-  return { c, err: (e: unknown) => salesError(e, c, cc) };
+  return { c, cc, err: (e: unknown) => salesError(e, c, cc) };
 }
 
 export default function SalesArea() {
@@ -500,7 +500,7 @@ function HeaderFields({
 }
 
 function NewOrder({ ctx }: { ctx: SalesContext }) {
-  const { c, err } = useSales();
+  const { c, cc, err } = useSales();
   const navigate = useNavigate();
   const { locale } = useLocale();
   const [v, setV] = useState<HeaderValues>({
@@ -535,6 +535,23 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
     <>
       <BackLink />
       <PageTitle title={c.newOrder} lead={c.lead} />
+      {/* The order is created in the working branch — said here, and changed only explicitly. */}
+      {ctx.selectedBranch && (
+        <div className="flex flex-wrap items-center gap-3" data-order-branch>
+          <Pill tone="teal" wrap>
+            {`${c.f.branch}: ${ctx.selectedBranch.code} · ${ctx.selectedBranch.name}`}
+          </Pill>
+          {ctx.branches.length > 1 && (
+            <AreaLink
+              to="/core/branch"
+              className={buttonClasses('secondary', 'md')}
+              data-change-branch
+            >
+              {cc.core.changeBranch}
+            </AreaLink>
+          )}
+        </div>
+      )}
       {error && <Notice tone="error">{error}</Notice>}
       <form
         noValidate

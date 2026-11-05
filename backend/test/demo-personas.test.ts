@@ -316,7 +316,12 @@ describeDb('Demo personas (EP28.1)', () => {
         branches: ['00000', '00001'],
         selected: null,
       },
-      'sales.demo@pdabliss.com': { departments: ['SALES'], branches: ['00000'], selected: '00000' },
+      // EP38.2: Head Office + the demo inventory branch (selector), still Sales Staff.
+      'sales.demo@pdabliss.com': {
+        departments: ['SALES'],
+        branches: ['00000', '00001'],
+        selected: null,
+      },
       'operations.demo@pdabliss.com': {
         departments: ['OPERATIONS'],
         branches: ['00000', '00001'],
@@ -412,6 +417,12 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(code(await sales.post(`${MD}/customers`, { name: 'x' }))).toBe('PERMISSION_DENIED');
     expect(code(await sales.get(`${MD}/locations`))).toBe('PERMISSION_DENIED');
     expect(code(await sales.post(`${MD}/suppliers`, { name: 'x' }))).toBe('PERMISSION_DENIED');
+    // EP38.2: two branches — the workspace waits for an explicit branch choice.
+    expect(code(await sales.get('/api/v1/operations/workspaces/sales'))).toBe('BRANCH_REQUIRED');
+    const salesCtx = j(await sales.get(`${C}/context`));
+    await sales.post(`${C}/context/branch`, {
+      branchId: salesCtx.branches.find((b: J) => b.code === '00000').id,
+    });
     expect((await sales.get('/api/v1/operations/workspaces/sales')).statusCode).toBe(200);
     expect(code(await sales.get('/api/v1/operations/workspaces/purchasing'))).toBe(
       'PERMISSION_DENIED',
@@ -721,11 +732,13 @@ describeDb('Demo personas (EP28.1)', () => {
       ['PK-000001', undefined, 'MAIN', '6'],
       ['RM-000001', 'RM-DEMO-01', 'MAIN', '5'],
     ]);
-    // The demo sales persona stays staff at the Head Office: no demo-branch orders, no allocation.
+    // EP38.2: the demo sales persona works in both branches (it sees the demo branch's orders)
+    // but stays staff — no confirmation, allocation or release.
     const sales = await login('sales.demo@pdabliss.com');
-    const mine = j(await sales.get(`${S}/orders`)).items;
-    expect(mine.map((o: J) => o.status).sort()).toEqual(['CANCELLED', 'DRAFT', 'SUBMITTED']);
-    expect((await sales.post(`${S}/orders/${full.id}/release`)).statusCode).toBe(404);
+    const mine = j(await sales.get(`${S}/orders?pageSize=50`)).items;
+    expect(new Set(mine.map((o: J) => o.branch.code))).toEqual(new Set(['00000', '00001']));
+    expect(code(await sales.post(`${S}/orders/${full.id}/release`))).toBe('PERMISSION_DENIED');
+    expect(code(await sales.post(`${S}/orders/${full.id}/allocate`, {}))).toBe('PERMISSION_DENIED');
     // Warehouse never reaches Sales, but sees the demo branch's Pending Pick (no money).
     const wh = await login('warehouse.demo@pdabliss.com');
     expect((await wh.get(`${S}/orders`)).statusCode).toBe(403);

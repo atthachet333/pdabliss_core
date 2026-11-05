@@ -176,7 +176,8 @@ your dev data.
 
 ## 8. Remaining demo limitations (by design, not changed)
 
-- **Sales Staff works in Head Office; Warehouse Staff works in branch 00001; all demo stock is in
+- *(Resolved in EP38.2: `sales.demo` now also has branch `00001`; see `docs/DEMO_PERSONAS.md`.)*
+  **Sales Staff works in Head Office; Warehouse Staff works in branch 00001; all demo stock is in
   `00001`** (EP28.1 persona design, `docs/DEMO_PERSONAS.md`). So an order `sales.demo` creates can
   be confirmed but **not allocated** (no Head Office stock), and Warehouse Staff never sees Head
   Office orders. The persona design was preserved, and no branch access was widened. To demo the

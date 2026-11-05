@@ -17,7 +17,7 @@ and resolver, given the persona's role, departments and branches.
 | Owner | `owner.demo` | Company Owner | — (owner reaches all) | all | Managing Director |
 | System Admin | `admin.demo` | System Admin | — | all | IT & System Administrator |
 | Executive | `executive.demo` | Executive | — (reads all enabled) | all | Executive Director |
-| Sales | `sales.demo` | Department Staff | Sales | Head Office `00000` | Sales Coordinator |
+| Sales | `sales.demo` | Department Staff | Sales | Head Office `00000` + Demo Branch `00001` (EP38.2) | Sales Coordinator |
 | Operations | `operations.demo` | Department Manager | Operations | `00000` + `00001` | Operations Manager |
 | Warehouse | `warehouse.demo` | Department Staff | Warehouse | Demo Branch `00001` | Warehouse Officer |
 | Purchasing | `purchasing.demo` | Department Manager | Purchasing | `00000` + `00001` | Purchasing Manager |
@@ -76,3 +76,35 @@ Warehouse staff profile plus one exception, so the exception screens have someth
 - Passwords are set when an account is created and never reset by a normal seed run.
 - No schema change: personas are ordinary users, memberships, assignments, branch grants and one
   exception. Demo-ness stays in the fixture (`Company.isDemo`, the persona file).
+
+## EP38.2 — Sales demo branch alignment
+
+All demo stock lives in the demo branch `00001`, where `warehouse.demo` works. `sales.demo` therefore
+also has `00001`, so its orders can be allocated and fulfilled by Warehouse Staff.
+
+- **What stays the same:**
+  - Head Office access;
+  - role Department Staff, the Sales department only, no exception;
+  - confirm, allocate, dispatch and delivery stay Manager actions;
+  - `warehouse.demo` (`00001`) and `accounting.demo` (`00000`) are unchanged.
+- **Branch choice is explicit.** With two branches, CORE asks for a working branch first. An order
+  is created in the working branch, and the server refuses with `BRANCH_SELECTION_REQUIRED` when
+  none is chosen; nothing is assigned silently. The new-order screen states
+  "Branch: <code> · <name>" and offers **Change branch**.
+- **Fresh databases** get both branches from the seed.
+- **Existing local databases** — a persona is applied once and later changes are never overwritten
+  (above) — need a one-time refresh through the supported Company Control Center:
+  1. Sign in as `owner.demo`.
+  2. Open Company → Users → Demo Sales → Branch access, and keep **Selected branches**.
+  3. Tick `00000` and `00001`, then save. This records `MEMBER_BRANCH_ACCESS_CHANGED` and clears
+     a stale session branch.
+
+  Equivalent API, as the owner: `PUT /api/v1/company/current/members/:id/branches`
+  `{ "branchScope": "SELECTED_BRANCHES", "branchIds": [<00000>, <00001>] }`. A later
+  `npm run db:seed:demo` leaves it as it is.
+- **Demo flow:**
+  1. `sales.demo` chooses `00001`, then creates and submits an order.
+  2. `owner.demo` confirms and allocates.
+  3. `warehouse.demo` picks, packs and prepares the shipment.
+  4. `owner.demo` dispatches and records delivery.
+  5. `sales.demo` sees "delivered".

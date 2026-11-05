@@ -102,8 +102,10 @@ export const DEMO_PERSONAS: readonly DemoPersona[] = [
     jobTitle: 'Sales Coordinator',
     role: 'DEPARTMENT_STAFF',
     departments: ['SALES'],
-    branches: ['00000'],
-    purpose: 'Sales staff at the Head Office: customers and items to read, Sales workspace only.',
+    // EP38.2: also the demo inventory branch, so its orders can be fulfilled by warehouse.demo.
+    branches: ['00000', '00001'],
+    purpose:
+      'Sales staff at the Head Office and the demo branch (branch selector): customers and items to read, Sales workspace only.',
   },
   {
     key: 'OPERATIONS',

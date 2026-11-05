@@ -252,6 +252,51 @@ describe('Sales orders (EP33)', () => {
     expect(screen.getByText(/No lines yet/)).toBeInTheDocument();
   });
 
+  it('a new order says which working branch it goes to; with two branches it links to the explicit change', async () => {
+    const DEMO = { id: 'b1', code: '00001', name: 'Demo Branch' };
+    fakeApi(
+      as(false, {
+        [`GET ${S}/context`]: ok({
+          ...ctx(false),
+          branches: [
+            { ...REF, type: 'HEAD_OFFICE' },
+            { ...DEMO, type: 'BRANCH' },
+          ],
+          selectedBranch: { ...DEMO, type: 'BRANCH' },
+        }),
+        'GET /api/v1/master-data/customers': ok({
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 20,
+          hasMore: false,
+        }),
+      }),
+    );
+    const { unmount } = renderRoute('/core/sales/orders/new?lang=en');
+    expect(await screen.findByText('Branch: 00001 · Demo Branch')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change branch' })).toHaveAttribute(
+      'href',
+      '/core/branch',
+    );
+    unmount();
+    // One branch: the branch is still stated, with nothing to change.
+    fakeApi(
+      as(false, {
+        'GET /api/v1/master-data/customers': ok({
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 20,
+          hasMore: false,
+        }),
+      }),
+    );
+    renderRoute('/core/sales/orders/new?lang=en');
+    expect(await screen.findByText('Branch: 00000 · Head Office')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Change branch' })).toBeNull();
+  });
+
   it('edits draft lines with exact strings, checks precision, never sends a total', async () => {
     const draft = order({ status: 'DRAFT', actions: ['edit', 'submit', 'cancel'] });
     const api = fakeApi(

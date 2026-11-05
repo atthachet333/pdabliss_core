@@ -401,20 +401,40 @@ function CustomerPicker({
   onChange: (v: CustomerOption | null) => void;
 }) {
   const { c } = useSales();
+  const k = c.compose;
   const [q, setQ] = useState('');
   const debounced = useDebounced(q);
   const [options, setOptions] = useState<CustomerOption[]>([]);
+  // The query the shown options answer: while it differs from the current one, a search is running.
+  const [answered, setAnswered] = useState<string | null>(null);
+  const searching = answered !== debounced;
   useEffect(() => {
     let live = true;
     salesApi.customers(debounced).then(
-      (r) => live && setOptions(r.items),
-      () => live && setOptions([]),
+      (r) => {
+        if (!live) return;
+        setOptions(r.items);
+        setAnswered(debounced);
+      },
+      () => {
+        if (!live) return;
+        setOptions([]);
+        setAnswered(debounced);
+      },
     );
     return () => {
       live = false;
     };
   }, [debounced]);
   const list = value && !options.some((o) => o.id === value.id) ? [value, ...options] : options;
+  // Said in words, politely: searching, nothing found, or how many matched a search.
+  const status = searching
+    ? k.searching
+    : debounced && !options.length
+      ? k.noMatch
+      : debounced
+        ? k.matches(options.length)
+        : '';
   return (
     <>
       <TextField
@@ -426,18 +446,28 @@ function CustomerPicker({
         maxLength={100}
         onChange={(e) => setQ(e.target.value)}
       />
-      <SelectField
-        id={id}
-        label={c.f.customer}
-        value={value?.id ?? ''}
-        onChange={(e) => onChange(list.find((o) => o.id === e.target.value) ?? null)}
-        data-customer-select
-      >
-        <option value="">—</option>
-        {list.map((o) => (
-          <option key={o.id} value={o.id}>{`${o.code} · ${o.name}`}</option>
-        ))}
-      </SelectField>
+      <div>
+        <SelectField
+          id={id}
+          label={c.f.customer}
+          value={value?.id ?? ''}
+          onChange={(e) => onChange(list.find((o) => o.id === e.target.value) ?? null)}
+          aria-busy={searching}
+          data-customer-select
+        >
+          <option value="">—</option>
+          {list.map((o) => (
+            <option key={o.id} value={o.id}>{`${o.code} · ${o.name}`}</option>
+          ))}
+        </SelectField>
+        <p
+          role="status"
+          className="mt-1.5 min-h-5 text-caption text-text-muted"
+          data-customer-status
+        >
+          {status}
+        </p>
+      </div>
     </>
   );
 }
@@ -499,10 +529,54 @@ function HeaderFields({
   );
 }
 
+/** The document surface: a hairline frame, no glow, a quiet fill. */
+const DOC = 'rounded-2xl bg-white/[0.015] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]';
+
+/** One numbered section of the new-order document. */
+function DocSection({
+  n,
+  id,
+  title,
+  hint,
+  children,
+}: {
+  n: number;
+  id: string;
+  title: string;
+  hint: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-labelledby={id}
+      className="grid gap-4 border-t border-white/[0.07] px-5 py-6 first:border-t-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6 sm:px-7 lg:grid-cols-[12.5rem_minmax(0,1fr)]"
+    >
+      <div className="flex gap-3 sm:block">
+        <span
+          aria-hidden
+          className="grid size-7 shrink-0 place-items-center rounded-full text-caption font-semibold text-brand-glow tabular-nums shadow-[inset_0_0_0_1px_rgb(62_240_192/0.35)] sm:mb-3"
+        >
+          {n}
+        </span>
+        <div>
+          <h2 id={id} className="text-body font-semibold text-text-primary">
+            {title}
+          </h2>
+          <p className="mt-1 text-caption leading-relaxed text-text-muted">{hint}</p>
+        </div>
+      </div>
+      <div className="grid min-w-0 content-start gap-4">{children}</div>
+    </section>
+  );
+}
+
 function NewOrder({ ctx }: { ctx: SalesContext }) {
   const { c, cc, err } = useSales();
+  const k = c.compose;
+  const { date } = useDateFormat();
   const navigate = useNavigate();
   const { locale } = useLocale();
+  const base = useId();
   const [v, setV] = useState<HeaderValues>({
     customer: null,
     orderDate: ctx.today,
@@ -512,9 +586,11 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const dateBad = !!v.requestedDate && !!v.orderDate && v.requestedDate < v.orderDate;
+  const ready = !!v.customer && !dateBad;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!v.customer) return;
+    if (!v.customer || dateBad) return;
     setBusy(true);
     setError(null);
     try {
@@ -531,44 +607,218 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
       setBusy(false);
     }
   };
+  const branch = ctx.selectedBranch;
+  const facts: [string, string | null][] = [
+    [c.f.branch, branch ? `${branch.code} · ${branch.name}` : null],
+    [c.f.customer, v.customer ? `${v.customer.code} · ${v.customer.name}` : null],
+    [c.f.orderDate, v.orderDate ? date(v.orderDate) : null],
+    [c.f.requestedDate, v.requestedDate ? date(v.requestedDate) : null],
+    [c.f.reference, v.reference.trim() || null],
+  ];
   return (
-    <>
+    <div className="grid grid-cols-1 gap-6" data-new-order-page>
       <BackLink />
-      <PageTitle title={c.newOrder} lead={c.lead} />
-      {/* The order is created in the working branch — said here, and changed only explicitly. */}
-      {ctx.selectedBranch && (
-        <div className="flex flex-wrap items-center gap-3" data-order-branch>
-          <Pill tone="teal" wrap>
-            {`${c.f.branch}: ${ctx.selectedBranch.code} · ${ctx.selectedBranch.name}`}
-          </Pill>
-          {ctx.branches.length > 1 && (
-            <AreaLink
-              to="/core/branch"
-              className={buttonClasses('secondary', 'md')}
-              data-change-branch
-            >
-              {cc.core.changeBranch}
-            </AreaLink>
-          )}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="max-w-3xl min-w-0">
+          <p className="text-caption font-semibold tracking-[0.14em] text-brand-glow uppercase">
+            {k.eyebrow}
+          </p>
+          <h1 className="mt-2 text-[clamp(1.5rem,1.2rem+1vw,2.125rem)] font-semibold tracking-tight text-text-primary">
+            {c.newOrder}
+          </h1>
+          <p className="mt-2 text-label leading-relaxed text-text-secondary">{k.lead}</p>
         </div>
-      )}
-      {error && <Notice tone="error">{error}</Notice>}
-      <form
-        noValidate
-        onSubmit={(e) => void submit(e)}
-        className="grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2"
-        data-new-order
-      >
-        <HeaderFields v={v} set={setV} />
-        <button
-          type="submit"
-          disabled={busy || !v.customer}
-          className={buttonClasses('primary', 'md', 'w-fit sm:col-span-2')}
+        <dl className={cn(DOC, 'grid min-w-56 gap-3 px-4 py-3 text-label')} data-document-facts>
+          <div className="flex items-center justify-between gap-6">
+            <dt className="text-caption text-text-muted">{k.number}</dt>
+            <dd className="text-text-secondary">{k.numberPending}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-6">
+            <dt className="text-caption text-text-muted">{k.status}</dt>
+            <dd>
+              <Pill tone="neutral">{c.statuses.DRAFT}</Pill>
+            </dd>
+          </div>
+        </dl>
+      </header>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_23rem]">
+        <form
+          noValidate
+          onSubmit={(e) => void submit(e)}
+          className={cn(DOC, 'min-w-0')}
+          aria-busy={busy}
+          data-new-order
         >
-          {busy ? c.saving : c.create}
-        </button>
-      </form>
-    </>
+          <div aria-live="polite">
+            {error && (
+              <div className="px-5 pt-5 sm:px-7">
+                <Notice tone="error">{error}</Notice>
+              </div>
+            )}
+          </div>
+          <DocSection n={1} id={`${base}-s1`} title={k.branchTitle} hint={k.branchHint}>
+            {/* The order is created in the working branch — said here, changed only explicitly. */}
+            {branch && (
+              <div className="flex flex-wrap items-center gap-3" data-order-branch>
+                <Pill tone="teal" wrap>
+                  {`${c.f.branch}: ${branch.code} · ${branch.name}`}
+                </Pill>
+                {ctx.branches.length > 1 && (
+                  <AreaLink
+                    to="/core/branch"
+                    className={buttonClasses('secondary', 'md')}
+                    data-change-branch
+                  >
+                    {cc.core.changeBranch}
+                  </AreaLink>
+                )}
+              </div>
+            )}
+          </DocSection>
+          <DocSection n={2} id={`${base}-s2`} title={k.customerTitle} hint={k.customerHint}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <CustomerPicker
+                id={`${base}-customer`}
+                value={v.customer}
+                onChange={(customer) => setV((x) => ({ ...x, customer }))}
+              />
+            </div>
+            {v.customer && (
+              <div
+                className="flex items-center gap-3 rounded-xl bg-brand-primary/[0.06] px-4 py-3 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.18)]"
+                data-selected-customer
+              >
+                <span className="text-caption text-text-muted">{k.selectedCustomer}</span>
+                <span className="min-w-0 text-label text-text-primary">
+                  <span className="font-mono">{v.customer.code}</span>
+                  {` · ${v.customer.name}`}
+                </span>
+              </div>
+            )}
+          </DocSection>
+          <DocSection n={3} id={`${base}-s3`} title={k.datesTitle} hint={k.datesHint}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                id={`${base}-od`}
+                type="date"
+                label={c.f.orderDate}
+                value={v.orderDate}
+                onChange={(e) => setV((x) => ({ ...x, orderDate: e.target.value }))}
+              />
+              <TextField
+                id={`${base}-rd`}
+                type="date"
+                label={c.f.requestedDate}
+                value={v.requestedDate}
+                min={v.orderDate || undefined}
+                error={dateBad ? k.dateError : null}
+                onChange={(e) => setV((x) => ({ ...x, requestedDate: e.target.value }))}
+              />
+            </div>
+          </DocSection>
+          <DocSection n={4} id={`${base}-s4`} title={k.referenceTitle} hint={k.referenceHint}>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+              <TextField
+                id={`${base}-ref`}
+                label={c.f.reference}
+                value={v.reference}
+                maxLength={60}
+                onChange={(e) => setV((x) => ({ ...x, reference: e.target.value }))}
+              />
+              <TextField
+                id={`${base}-note`}
+                label={c.f.note}
+                value={v.note}
+                maxLength={1000}
+                onChange={(e) => setV((x) => ({ ...x, note: e.target.value }))}
+              />
+            </div>
+          </DocSection>
+          <div className="flex flex-col gap-4 border-t border-white/[0.07] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <p
+              id={`${base}-why`}
+              className={cn('text-caption', ready ? 'text-text-secondary' : 'text-text-muted')}
+              data-create-hint
+            >
+              {!v.customer ? k.needCustomer : dateBad ? k.dateError : k.ready}
+            </p>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              <AreaLink to={BASE} className={buttonClasses('ghost', 'md')}>
+                {k.cancel}
+              </AreaLink>
+              <button
+                type="submit"
+                disabled={busy || !ready}
+                aria-describedby={`${base}-why`}
+                className={buttonClasses('primary', 'md')}
+              >
+                {busy ? c.saving : c.create}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <aside
+          aria-labelledby={`${base}-sum`}
+          className={cn(DOC, 'grid gap-6 p-5 sm:p-6 lg:sticky lg:top-6')}
+          data-order-summary
+        >
+          <div>
+            <h2 id={`${base}-sum`} className="text-body font-semibold text-text-primary">
+              {k.summary}
+            </h2>
+            <dl className="mt-4 grid gap-3">
+              {facts.map(([term, value]) => (
+                <div key={term} className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3 text-label">
+                  <dt className="text-text-muted">{term}</dt>
+                  <dd
+                    className={cn(
+                      'min-w-0 break-words',
+                      value ? 'text-text-primary' : 'text-text-muted',
+                    )}
+                  >
+                    {value ?? k.notSet}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div className="border-t border-white/[0.07] pt-5">
+            <h3 className="text-label font-semibold text-text-primary">{k.linesTitle}</h3>
+            <p className="mt-2 text-caption leading-relaxed text-text-muted">{k.linesNote}</p>
+          </div>
+          <div className="border-t border-white/[0.07] pt-5">
+            <h3 className="text-label font-semibold text-text-primary">{k.workflow}</h3>
+            <ol className="mt-3 grid gap-2.5" data-workflow>
+              {k.steps.map((step, i) => (
+                <li
+                  key={step}
+                  aria-current={i === 0 ? 'step' : undefined}
+                  className="flex items-start gap-3 text-label"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold tabular-nums',
+                      i === 0
+                        ? 'bg-brand-primary/20 text-brand-glow shadow-[inset_0_0_0_1px_rgb(62_240_192/0.45)]'
+                        : 'text-text-muted shadow-[inset_0_0_0_1px_rgb(190_235_222/0.14)]',
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className={i === 0 ? 'text-text-primary' : 'text-text-secondary'}>
+                    {step}
+                    {i === 0 && <span className="sr-only">{` (${k.current})`}</span>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
+      </div>
+    </div>
   );
 }
 

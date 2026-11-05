@@ -252,6 +252,61 @@ describe('Sales orders (EP33)', () => {
     expect(screen.getByText(/No lines yet/)).toBeInTheDocument();
   });
 
+  it('new order document: disabled until a customer, live summary, date check, honest lines note, TH / ZH', async () => {
+    const customers = (items: unknown[]) =>
+      ok({ items, total: items.length, page: 1, pageSize: 20, hasMore: false });
+    fakeApi(
+      as(false, {
+        'GET /api/v1/master-data/customers': (_body: unknown, query: URLSearchParams) =>
+          query.get('q') === 'zzz'
+            ? customers([])
+            : customers([{ id: 'cu1', code: 'CUS-000001', name: 'Demo Shop', status: 'ACTIVE' }]),
+      }),
+    );
+    const { unmount } = renderRoute('/core/sales/orders/new?lang=en');
+    const create = await screen.findByRole('button', { name: 'Create draft' });
+    expect(create).toBeDisabled();
+    expect(create).toHaveAccessibleDescription('Choose a customer to create the draft.');
+    const summary = document.querySelector('[data-order-summary]')!;
+    expect(summary.textContent).toMatch(/CustomerNot set/);
+    // Lines and totals are not pretended: they come after the draft exists.
+    expect(summary.textContent).toMatch(/added after the draft is created/);
+    expect(summary.querySelector('[aria-current="step"]')!.textContent).toMatch('Create the draft');
+    expect(screen.getByText('Assigned when the draft is created')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'CUS-000001 · Demo Shop' })).toBeInTheDocument(),
+    );
+    await userEvent.selectOptions(screen.getByLabelText('Customer'), 'cu1');
+    expect(summary.textContent).toMatch(/CustomerCUS-000001 · Demo Shop/);
+    expect(create).toBeEnabled();
+    expect(create).toHaveAccessibleDescription('Ready — creating the draft reserves no stock.');
+    // A requested date before the order date is refused here (and by the server).
+    await userEvent.type(screen.getByLabelText('Requested date'), '2026-11-01');
+    expect(
+      screen.getAllByText('The requested date is before the order date.').length,
+    ).toBeGreaterThan(0);
+    expect(create).toBeDisabled();
+    // A search with no match says so in words.
+    await userEvent.type(screen.getByLabelText('Find a customer'), 'zzz');
+    expect(await screen.findByText('No customer matches this search.')).toBeInTheDocument();
+    unmount();
+    fakeApi(as(false, { 'GET /api/v1/master-data/customers': customers([]) }));
+    const th = renderRoute('/core/sales/orders/new?lang=th');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'สร้างคำสั่งขาย' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('สรุปคำสั่งขาย')).toBeInTheDocument();
+    expect(screen.getByText('เลือกลูกค้าเพื่อสร้างฉบับร่าง')).toBeInTheDocument();
+    th.unmount();
+    fakeApi(as(false, { 'GET /api/v1/master-data/customers': customers([]) }));
+    renderRoute('/core/sales/orders/new?lang=zh');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '新建销售订单' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('订单摘要')).toBeInTheDocument();
+    expect(screen.getByText('创建草稿时分配')).toBeInTheDocument();
+  });
+
   it('a new order says which working branch it goes to; with two branches it links to the explicit change', async () => {
     const DEMO = { id: 'b1', code: '00001', name: 'Demo Branch' };
     fakeApi(

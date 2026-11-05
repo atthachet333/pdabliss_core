@@ -4,6 +4,7 @@ import type { Db } from '../db/client.js';
 import { AdjustmentService } from '../warehouse/adjustments.js';
 import { BomService } from './bom.js';
 import { MaterialIssueService } from './issues.js';
+import { seedDemoOutput } from './output-demo.js';
 import { loadProductionActor } from './policy.js';
 import { ProductionOrderService } from './service.js';
 
@@ -165,6 +166,21 @@ export async function seedDemoProduction(db: Db, companyId: string, meta: Reques
     changed = true;
   }
   if (await seedDemoExecution(db, companyId, meta, { actor, ctx, owner, branch, fg, rm, plus })) {
+    changed = true;
+  }
+  const orderOf = async (key: string) => {
+    const marker = await db.auditLog.findFirst({
+      where: {
+        companyId,
+        action: 'PRODUCTION_ORDER_CREATED',
+        changes: { path: ['demo'], equals: key },
+      },
+    });
+    return marker ? db.productionOrder.findUnique({ where: { id: marker.entityId } }) : null;
+  };
+  if (
+    await seedDemoOutput(db, companyId, meta, { ctx, owner, branch, fg, rm, pk, plus, orderOf })
+  ) {
     changed = true;
   }
   return changed ? ('created' as const) : ('unchanged' as const);

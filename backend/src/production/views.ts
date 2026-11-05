@@ -145,6 +145,18 @@ const demand = z
   })
   .nullable();
 
+/** EP38: an order's output progress. */
+export const OutputProgress = z.object({
+  target: z.string(),
+  goodReported: z.string(),
+  pendingReview: z.string(),
+  accepted: z.string(),
+  rejected: z.string(),
+  received: z.string(),
+  awaitingReceipt: z.string(),
+  remaining: z.string(),
+});
+
 export const MoView = MoRow.extend({
   note: z.string().nullable(),
   bomOutputQuantity: z.string().nullable(),
@@ -195,6 +207,61 @@ export const MoView = MoRow.extend({
       lineCount: z.number(),
     }),
   ),
+  /** EP38: output, finished goods receipts, completion and traceability (order unit throughout). */
+  output: OutputProgress.nullable(),
+  outputReports: z.array(
+    z.object({
+      id: z.string(),
+      number: z.string(),
+      status: z.enum(['DRAFT', 'SUBMITTED', 'ACCEPTED', 'REJECTED', 'CANCELLED']),
+      productionDate: z.string(),
+      good: z.string(),
+      defective: z.string(),
+      pending: z.string(),
+      accepted: z.string().nullable(),
+      rejected: z.string().nullable(),
+      received: z.string(),
+    }),
+  ),
+  receipts: z.array(
+    z.object({
+      id: z.string(),
+      number: z.string(),
+      status: z.enum(['DRAFT', 'POSTED', 'CANCELLED', 'REVERSED']),
+      outputNumber: z.string(),
+      quantity: z.string(),
+      postedAt: z.string().nullable(),
+    }),
+  ),
+  completion: z.object({
+    reviewRequestedAt: z.string().nullable(),
+    reviewRequestedBy: person,
+    completedAt: z.string().nullable(),
+    completedBy: person,
+    outcome: z.enum(['COMPLETED', 'SHORT_CLOSED']).nullable(),
+    reason: z.string().nullable(),
+    /** What blocks completion now (empty = nothing). */
+    blockers: z.array(z.string()),
+  }),
+  traceability: z.object({
+    outputLots: z.array(
+      z.object({
+        lotNumber: z.string(),
+        expiryDate: z.string().nullable(),
+        receipt: z.string(),
+        quantity: z.string(),
+      }),
+    ),
+    materialLots: z.array(
+      z.object({
+        item: z.string(),
+        lotNumber: z.string().nullable(),
+        issue: z.string(),
+        quantity: z.string(),
+        unit: z.string(),
+      }),
+    ),
+  }),
 });
 
 /** EP37: what an allocation / reallocation did, per material. */

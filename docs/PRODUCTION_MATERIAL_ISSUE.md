@@ -121,4 +121,5 @@ events next to order events.
 - No return of unused material to stock (a return / reversal document is future work); variance is
   recorded as usage evidence only.
 - No posting reversal; a posted issue is final.
-- No finished goods output (EP38: `PRODUCTION_OUTPUT`).
+- Finished goods output is EP38's finished goods receipt (`PRODUCTION_OUTPUT`); a COMPLETED order
+  accepts no further material issue. Unused issued material stays `unrecorded` at completion.

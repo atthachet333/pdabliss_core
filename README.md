@@ -168,7 +168,21 @@ Transfers, adjustments, counts and receipt reversals refuse reserved stock. Docs
 [docs/PRODUCTION_MATERIAL_ISSUE.md](docs/PRODUCTION_MATERIAL_ISSUE.md),
 [docs/PRODUCTION_EXECUTION.md](docs/PRODUCTION_EXECUTION.md),
 [docs/EP37_REPORT.md](docs/EP37_REPORT.md).
-Next: EP38 (not started).
+**EP38** (completed locally, awaiting owner review) completes the physical production lifecycle:
+- output reports `OUT-YYYYMM-NNNNNN` (good / defective / pending quality → a quality decision; never
+  stock);
+- finished goods receipts `FGR-YYYYMM-NNNNNN` by Warehouse — posting writes `PRODUCTION_OUTPUT`
+  through the ledger with lot / expiry rules. Partial receipts are allowed, and there is no double
+  post or over-receipt. Reversal is controlled and refused when the goods are reserved or gone;
+- completion review → COMPLETED or SHORT_CLOSED (reason, shortfall kept, reservations released);
+- order-level traceability;
+- received goods become ordinary stock that Sales allocates explicitly.
+
+Docs: [docs/PRODUCTION_OUTPUT.md](docs/PRODUCTION_OUTPUT.md),
+[docs/PRODUCTION_FINISHED_GOODS_RECEIPT.md](docs/PRODUCTION_FINISHED_GOODS_RECEIPT.md),
+[docs/PRODUCTION_COMPLETION.md](docs/PRODUCTION_COMPLETION.md),
+[docs/EP38_REPORT.md](docs/EP38_REPORT.md).
+Next: EP39 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -193,7 +207,7 @@ Roadmap:
    receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
    stock adjustment, cycle count** → **EP33 Sales order foundation** → **EP34 Sales allocation, pick
    readiness** → **EP35 Picking, packing, dispatch and delivery** → **EP36 Production order, BOM and
-   material planning** → **EP37 Material reservation, issue and production execution** → EP38 Finished goods receipt → Warehouse →
+   material planning** → **EP37 Material reservation, issue and production execution** → **EP38 Finished goods receipt and production completion** → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

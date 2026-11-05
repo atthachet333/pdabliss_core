@@ -90,7 +90,7 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   operations.bom.manage        draft, edit, activate, revise and retire BOMs (MANAGE)
  *   purchasing.production_shortages.view  read-only material shortages of approved
  *                                production orders — the Purchasing handoff (READ)
- *   operations.orders.edit / update_status stay reserved (editing a draft is part of create).
+ *   operations.orders.edit stays reserved (editing a draft is part of create); update_status is used from EP38.
  *
  * EP37 material reservation, material issue and execution (Operations; reads: operations.orders.view):
  *   operations.materials.manage        reserve (FEFO), release, reallocate, authorize excess (MANAGE)
@@ -99,6 +99,16 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   operations.material_usage.create   record actual material usage — never a movement (OPERATE)
  *   operations.execution.manage        start, pause and resume production (MANAGE)
  *   warehouse.material_issues.view     the Warehouse read-only material issue handoff (READ)
+ *
+ * EP38 finished goods output, receipt and completion:
+ *   operations.output.create           draft, edit, submit and cancel output reports (OPERATE)
+ *   operations.output.approve          accept / reject output (quality decision), cancel accepted
+ *                                      output not yet received (MANAGE)
+ *   operations.orders.update_status    the EP27 code, now used: completion review, reopen,
+ *                                      complete and short close (MANAGE)
+ *   warehouse.finished_goods.view      pending finished goods and their receipts (READ)
+ *   warehouse.finished_goods.process   draft, edit and cancel finished goods receipts (OPERATE)
+ *   warehouse.finished_goods.confirm   POST a receipt (PRODUCTION_OUTPUT) or reverse a posted one (MANAGE)
  *
  * EP33 sales orders (EP27 codes, no new ones — backend/src/sales/policy.ts):
  *   sales.orders.view     read the branch's orders (a DRAFT only for its creator and confirmers)
@@ -220,6 +230,8 @@ export const PERMISSION_CATALOG = [
   def('operations.material_issues.approve', 'OPERATIONS', 'BRANCH'),
   def('operations.material_usage.create', 'OPERATIONS', 'BRANCH'),
   def('operations.execution.manage', 'OPERATIONS', 'BRANCH'),
+  def('operations.output.create', 'OPERATIONS', 'BRANCH'),
+  def('operations.output.approve', 'OPERATIONS', 'BRANCH'),
   def('operations.items.view', 'OPERATIONS', 'COMPANY'),
   def('operations.items.manage', 'OPERATIONS', 'COMPANY'),
   def('operations.purchase_requests.create', 'OPERATIONS', 'BRANCH'),
@@ -241,6 +253,9 @@ export const PERMISSION_CATALOG = [
   def('warehouse.dispatch.confirm', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.delivery.confirm', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.material_issues.view', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.finished_goods.view', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.finished_goods.process', 'WAREHOUSE', 'BRANCH'),
+  def('warehouse.finished_goods.confirm', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.items.view', 'WAREHOUSE', 'COMPANY'),
   def('warehouse.locations.view', 'WAREHOUSE', 'BRANCH'),
   def('warehouse.locations.manage', 'WAREHOUSE', 'BRANCH'),

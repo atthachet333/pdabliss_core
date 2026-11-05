@@ -255,6 +255,7 @@ describe('Production planning (EP36)', () => {
       'Material reservations',
       'Material issues',
       'Production execution',
+      'Output & completion', // EP38
     ]);
     expect(document.querySelector('[data-count="materialsShort"]')!.textContent).toMatch(
       /Materials short\s*4/,

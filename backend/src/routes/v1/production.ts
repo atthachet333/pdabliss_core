@@ -6,9 +6,23 @@ import { parseInput } from '../../lib/validation.js';
 import { z } from 'zod';
 import { BomService } from '../../production/bom.js';
 import { MaterialIssueService } from '../../production/issues.js';
+import { OutputService } from '../../production/output.js';
+import { FinishedGoodsService } from '../../production/receipts.js';
 import {
+  AcceptOutputBody,
   BomListQuery,
   BranchQuery,
+  CompleteBody,
+  CreateFgReceiptBody,
+  CreateOutputBody,
+  FgLinesBody,
+  FgPendingQuery,
+  FgReceiptListQuery,
+  OptionalReasonBody,
+  OutputListQuery,
+  ReasonBody,
+  ReviewBody,
+  UpdateOutputBody,
   CreateBomBody,
   CreateIssueBody,
   ExcessBody,
@@ -84,6 +98,7 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
   const s = new ProductionOrderService(db);
   const b = new BomService(db);
   const mi = new MaterialIssueService(db);
+  const out = new OutputService(db);
   const auth = requireAuth;
   const meta = requestMeta;
   const idOf = (params: unknown) => parseInput(IdParams, params).id;
@@ -185,6 +200,52 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
     return mi.post(auth(r), idOf(r.params), meta(r));
   });
 
+  // EP38: completion of an order
+  app.post(`${O}/:id/review`, small, async (r) =>
+    s.review(auth(r), idOf(r.params), parseInput(ReviewBody, r.body ?? {}).note ?? null, meta(r)),
+  );
+  app.post(`${O}/:id/reopen`, small, async (r) =>
+    s.reopen(auth(r), idOf(r.params), parseInput(ReviewBody, r.body ?? {}).note ?? null, meta(r)),
+  );
+  app.post(`${O}/:id/complete`, small, async (r) =>
+    s.complete(auth(r), idOf(r.params), parseInput(CompleteBody, r.body ?? {}), meta(r)),
+  );
+  // EP38: output reports
+  const P = '/outputs';
+  app.get(P, async (r) => out.list(auth(r), parseInput(OutputListQuery, r.query)));
+  app.post(P, small, async (r, reply) =>
+    reply
+      .status(201)
+      .send(await out.create(auth(r), parseInput(CreateOutputBody, r.body), meta(r))),
+  );
+  app.get(`${P}/:id`, async (r) => out.get(auth(r), idOf(r.params)));
+  app.patch(`${P}/:id`, small, async (r) =>
+    out.update(auth(r), idOf(r.params), parseInput(UpdateOutputBody, r.body ?? {}), meta(r)),
+  );
+  app.post(`${P}/:id/submit`, small, async (r) => {
+    none(r);
+    return out.submit(auth(r), idOf(r.params), meta(r));
+  });
+  app.post(`${P}/:id/accept`, small, async (r) =>
+    out.accept(
+      auth(r),
+      idOf(r.params),
+      parseInput(AcceptOutputBody, r.body ?? {}).pendingGood,
+      meta(r),
+    ),
+  );
+  app.post(`${P}/:id/reject`, small, async (r) =>
+    out.reject(auth(r), idOf(r.params), parseInput(ReasonBody, r.body ?? {}).reason, meta(r)),
+  );
+  app.post(`${P}/:id/cancel`, small, async (r) =>
+    out.cancel(
+      auth(r),
+      idOf(r.params),
+      parseInput(OptionalReasonBody, r.body ?? {}).reason ?? null,
+      meta(r),
+    ),
+  );
+
   app.get('/requirements/preview', async (r) =>
     s.preview(auth(r), parseInput(PreviewQuery, r.query)),
   );
@@ -198,6 +259,48 @@ export const productionShortageRoutes: FastifyPluginAsync<{ db: Db }> = async (a
   app.addHook('preHandler', requireSession);
   const s = new ProductionOrderService(db);
   app.get('/', async (r) => s.shortages(requireAuth(r), parseInput(BranchQuery, r.query)));
+  return Promise.resolve();
+};
+
+/**
+ * EP38: Warehouse finished goods — pending accepted output and the receipts that
+ * put it into stock (the only Production stock increase). No Operations route
+ * is opened to Warehouse; no price, cost or customer is in any response.
+ */
+export const finishedGoodsRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db }) => {
+  app.addHook('preHandler', requireSession);
+  const fg = new FinishedGoodsService(db);
+  const auth = requireAuth;
+  const meta = requestMeta;
+  const idOf = (params: unknown) => parseInput(IdParams, params).id;
+  const body = { bodyLimit: 64 * 1024 };
+  const small = { bodyLimit: 4 * 1024 };
+  app.get('/', async (r) => fg.pending(auth(r), parseInput(FgPendingQuery, r.query)));
+  app.get('/receipts', async (r) => fg.list(auth(r), parseInput(FgReceiptListQuery, r.query)));
+  app.post('/receipts', body, async (r, reply) =>
+    reply
+      .status(201)
+      .send(await fg.create(auth(r), parseInput(CreateFgReceiptBody, r.body), meta(r))),
+  );
+  app.get('/receipts/:id', async (r) => fg.get(auth(r), idOf(r.params)));
+  app.put('/receipts/:id/lines', body, async (r) =>
+    fg.updateLines(auth(r), idOf(r.params), parseInput(FgLinesBody, r.body), meta(r)),
+  );
+  app.post('/receipts/:id/post', small, async (r) => {
+    parseInput(MoNoBody, r.body ?? {});
+    return fg.post(auth(r), idOf(r.params), meta(r));
+  });
+  app.post('/receipts/:id/cancel', small, async (r) =>
+    fg.cancel(
+      auth(r),
+      idOf(r.params),
+      parseInput(OptionalReasonBody, r.body ?? {}).reason ?? null,
+      meta(r),
+    ),
+  );
+  app.post('/receipts/:id/reverse', small, async (r) =>
+    fg.reverse(auth(r), idOf(r.params), parseInput(ReasonBody, r.body ?? {}).reason, meta(r)),
+  );
   return Promise.resolve();
 };
 

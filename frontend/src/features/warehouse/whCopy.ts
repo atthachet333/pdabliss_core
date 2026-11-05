@@ -27,6 +27,7 @@ const th = {
     packs: 'แพ็กสินค้า',
     shipments: 'จัดส่ง',
     materialIssues: 'เบิกวัตถุดิบผลิต',
+    finishedGoods: 'รับสินค้าสำเร็จรูป',
   },
   tiles: {
     pending: 'ใบสั่งซื้อรอรับ',
@@ -232,6 +233,7 @@ const en: WhCopy = {
     packs: 'Packing',
     shipments: 'Shipments',
     materialIssues: 'Production issues',
+    finishedGoods: 'Finished goods',
   },
   tiles: {
     pending: 'Orders to receive',
@@ -426,6 +428,7 @@ const zh: WhCopy = {
     packs: '包装',
     shipments: '发运',
     materialIssues: '生产领料',
+    finishedGoods: '成品入库',
   },
   tiles: {
     pending: '待收货订单',

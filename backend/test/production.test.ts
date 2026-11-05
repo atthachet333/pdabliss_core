@@ -1159,7 +1159,9 @@ describeDb('Production planning (EP36)', () => {
     expect((await ok(staff.get(`${P}/orders?source=SALES_DEMAND`))).total).toBe(0);
     expect((await ok(staff.get(`${P}/orders?from=${shift(2)}&to=${shift(4)}`))).total).toBe(3);
     expect((await ok(staff.get(`${P}/orders?q=FG-1`))).total).toBe(5);
-    expect((await staff.get(`${P}/orders?status=COMPLETED`)).statusCode).toBe(400);
+    // EP38: COMPLETED is a real status now; an unknown one is still refused.
+    expect((await staff.get(`${P}/orders?status=COMPLETED`)).statusCode).toBe(200);
+    expect((await staff.get(`${P}/orders?status=FINISHED`)).statusCode).toBe(400);
     expect((await staff.get(`${P}/orders?pageSize=500`)).statusCode).toBe(400);
   });
 });

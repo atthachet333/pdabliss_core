@@ -575,12 +575,16 @@ describeDb('Demo personas (EP28.1)', () => {
     const fefo = j(await wh.get(`${W}/stock/fefo?itemId=${fg.id}`)).candidates;
     // EP32 moved 4 of lot B from RECEIVING to MAIN; EP34 demo orders then reserved all
     // of B and A and 2 of C — the FEFO list offers only what is still available.
+    // EP38: the demo finished goods receipts added two produced lots (2 pieces each).
     expect(fefo.map((c: J) => [c.lot.lotNumber, c.quantityOnHand, c.quantityAvailable])).toEqual([
       ['FG-DEMO-C', '12', '10'],
+      ['FG-DEMO-OUT-A', '2', '2'],
+      ['FG-DEMO-OUT-B', '2', '2'],
     ]);
     const stock = await wh.get(`${W}/stock`);
-    // EP37: + the labelled raw-material lot RM-DEMO-02 the production demo adds through an adjustment.
-    expect(j(stock).total).toBe(8);
+    // EP37: + the labelled raw-material lot RM-DEMO-02 the production demo adds through an adjustment;
+    // EP38: + the two produced finished-goods lots received by the demo receipts.
+    expect(j(stock).total).toBe(10);
     expect(stock.body).not.toMatch(/price|amount|cost|deposit|\b120\b|12\.5/i);
     // Ledger = balances.
     const balances = await h.db.stockBalance.findMany();
@@ -606,6 +610,7 @@ describeDb('Demo personas (EP28.1)', () => {
       ['DAMAGE', 'POSTED'],
       ['FOUND', 'POSTED'],
       ['OTHER', 'POSTED'], // EP37: demo raw material for production execution (the owner)
+      ['OTHER', 'POSTED'], // EP38: materials of the demo completed order (the owner)
     ]);
     expect(
       adjustments
@@ -625,10 +630,16 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(types.filter((t) => t !== 'PURCHASE_RECEIPT')).toEqual([
       'ADJUSTMENT_IN',
       'ADJUSTMENT_IN', // EP37: demo raw material for production
+      'ADJUSTMENT_IN', // EP38: materials of the demo completed order (two lines)
+      'ADJUSTMENT_IN',
       'ADJUSTMENT_OUT',
       'COUNT_CORRECTION',
       'PRODUCTION_CONSUMPTION', // EP37: the posted demo material issue (two lines)
       'PRODUCTION_CONSUMPTION',
+      'PRODUCTION_CONSUMPTION', // EP38: the completed order's issue (two lines)
+      'PRODUCTION_CONSUMPTION',
+      'PRODUCTION_OUTPUT', // EP38: the two posted finished goods receipts
+      'PRODUCTION_OUTPUT',
       'SALES_ISSUE', // EP35: the two demo dispatches
       'SALES_ISSUE',
       'TRANSFER_IN',
@@ -645,7 +656,7 @@ describeDb('Demo personas (EP28.1)', () => {
     const body = (await wh.get(`${W}/movements`)).body;
     expect(body).not.toMatch(/price|amount|cost|deposit/i);
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.stockMovement.count()).toBe(15); // EP35: 2 SALES_ISSUE; EP37: +1 adjustment, 2 consumptions
+    expect(await h.db.stockMovement.count()).toBe(21); // EP35: 2 SALES_ISSUE; EP37: +1 adjustment, 2 consumptions; EP38: +2 adjustment lines, 2 consumptions, 2 outputs
     expect(await h.db.inventoryTransfer.count()).toBe(2);
   });
 
@@ -800,6 +811,7 @@ describeDb('Demo personas (EP28.1)', () => {
         ['APPROVED', 'MANUAL', '40'],
         ['APPROVED', 'MANUAL', '8'],
         ['APPROVED', 'MANUAL', '6'], // EP37 MO_PARTIAL
+        ['COMPLETED', 'MANUAL', '2'], // EP38 MO_DONE
         ['DRAFT', 'MANUAL', '4'],
         ['IN_PRODUCTION', 'MANUAL', '10'], // EP37 MO_EXEC
         ['SUBMITTED', 'MANUAL', '6'],

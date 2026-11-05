@@ -43,6 +43,8 @@ export interface WarehouseActor {
   fulfilment: { pick: boolean; dispatch: boolean; deliver: boolean };
   /** EP37: the read-only production material issue handoff */
   materialIssues: { view: boolean };
+  /** EP38: pending finished goods and their receipts. */
+  finishedGoods: { view: boolean; process: boolean; confirm: boolean };
 }
 
 export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<WarehouseActor> {
@@ -82,6 +84,11 @@ export async function loadWarehouseActor(db: Db, ctx: AuthContext): Promise<Ware
       deliver: has('warehouse.delivery.confirm'),
     },
     materialIssues: { view: has('warehouse.material_issues.view') },
+    finishedGoods: {
+      view: has('warehouse.finished_goods.view'),
+      process: has('warehouse.finished_goods.process'),
+      confirm: has('warehouse.finished_goods.confirm'),
+    },
   };
 }
 

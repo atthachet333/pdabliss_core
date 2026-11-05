@@ -219,6 +219,21 @@ noindex, served by the existing `/platform/*` shell rewrite).
   (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
   `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
   Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
+- **EP38 (Output, finished goods receipt, completion):** see [PRODUCTION_OUTPUT.md](PRODUCTION_OUTPUT.md),
+  [PRODUCTION_FINISHED_GOODS_RECEIPT.md](PRODUCTION_FINISHED_GOODS_RECEIPT.md),
+  [PRODUCTION_COMPLETION.md](PRODUCTION_COMPLETION.md) and [EP38_REPORT.md](EP38_REPORT.md).
+  - `/api/v1/production`: `outputs` (list, create, detail, PATCH draft, `submit`,
+    `accept {pendingGood?}`, `reject {reason}`, `cancel {reason?}`) and
+    `orders/:id/review` · `reopen {note?}` · `complete {outcome, reason?, materialsReviewed: true}`.
+  - `/api/v1/warehouse/finished-goods`: pending queue, `receipts` (list, create, detail,
+    `PUT :id/lines`, `post`, `cancel {reason?}`, `reverse {reason}`).
+  - The order detail adds `output` (target / goodReported / pendingReview / accepted / rejected /
+    received / awaitingReceipt / remaining), `outputReports`, `receipts`, `completion` (facts and
+    `blockers`) and `traceability`.
+  - Only a posted receipt writes stock (`PRODUCTION_OUTPUT`).
+  - Screens: lazy `OutputArea` (`/core/production/output/*`), `OutputPanel` (order detail) and
+    `FinishedGoodsArea` (`/core/warehouse/finished-goods/*`), sharing `outParts` / `outCopy`
+    (TH / EN / ZH) and `outputApi`.
 - **EP37 (Material reservation, issue and execution, Operations):** see
   [PRODUCTION_MATERIAL_RESERVATION.md](PRODUCTION_MATERIAL_RESERVATION.md),
   [PRODUCTION_MATERIAL_ISSUE.md](PRODUCTION_MATERIAL_ISSUE.md),

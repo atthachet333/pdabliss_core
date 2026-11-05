@@ -1,4 +1,11 @@
 import { apiRequest } from '@/lib/api';
+import type {
+  Completion,
+  OrderOutputRow,
+  OrderReceiptRow,
+  OutputProgress,
+  Traceability,
+} from './outputApi';
 
 /*
  * Typed client for EP36 production planning (/api/v1/production) and the
@@ -15,6 +22,8 @@ export type MoStatus =
   | 'READY'
   | 'IN_PRODUCTION'
   | 'PAUSED'
+  | 'COMPLETION_REVIEW'
+  | 'COMPLETED'
   | 'REJECTED'
   | 'CANCELLED';
 export type MoAction =
@@ -32,7 +41,11 @@ export type MoAction =
   | 'pause'
   | 'resume'
   | 'issue'
-  | 'usage';
+  | 'usage'
+  | 'output'
+  | 'review'
+  | 'reopen'
+  | 'complete';
 /** EP37: the order's material commitment, derived by the server. */
 export type ReservationState =
   'NOT_RESERVED' | 'PARTIALLY_RESERVED' | 'FULLY_RESERVED' | 'PARTIALLY_ISSUED' | 'ISSUED';
@@ -74,7 +87,11 @@ export interface ProductionContext {
     inProduction: number;
     paused: number;
     draftIssues: number;
+    outputToReview?: number;
+    inReview?: number;
   };
+  output?: { create: boolean; approve: boolean };
+  completion?: { manage: boolean };
   execution: {
     materials: boolean;
     issueCreate: boolean;
@@ -213,6 +230,12 @@ export interface Mo extends MoRow {
     postedAt: string | null;
     lineCount: number;
   }[];
+  /** EP38 (types only — the calls live in outputApi.ts). */
+  output?: OutputProgress | null;
+  outputReports?: OrderOutputRow[];
+  receipts?: OrderReceiptRow[];
+  completion?: Completion;
+  traceability?: Traceability;
 }
 export interface Reservation {
   id: string;

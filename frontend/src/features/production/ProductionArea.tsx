@@ -80,6 +80,8 @@ const PRIORITIES: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
 /** EP37: the execution part of an order page and the material issues — their own lazy chunks. */
 const ExecutionPanel = lazy(() => import('./ExecutionPanel'));
 const IssuesArea = lazy(() => import('./IssuesArea'));
+const OutputArea = lazy(() => import('./OutputArea'));
+const OutputPanel = lazy(() => import('./OutputPanel'));
 const EXECUTING: readonly string[] = ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'];
 const CARD = 'rounded-xl bg-white/[0.02] p-4';
 
@@ -97,6 +99,14 @@ export default function ProductionArea() {
         <Route path="orders" element={<OrderList ctx={ctx} />} />
         <Route path="reservations" element={<OrderList key="r" ctx={ctx} stage="RESERVATION" />} />
         <Route path="execution" element={<OrderList key="e" ctx={ctx} stage="EXECUTION" />} />
+        <Route
+          path="output/*"
+          element={
+            <Suspense fallback={<Loading label={c.loading} />}>
+              <OutputArea ctx={ctx} />
+            </Suspense>
+          }
+        />
         <Route
           path="issues/*"
           element={
@@ -143,6 +153,8 @@ function Overview({ ctx }: { ctx: ProductionContext }) {
     ['inProduction', `${PROD}/execution`],
     ['paused', `${PROD}/orders?status=PAUSED`],
     ['draftIssues', `${PROD}/issues`],
+    ['outputToReview', `${PROD}/output?status=SUBMITTED`],
+    ['inReview', `${PROD}/orders?status=COMPLETION_REVIEW`],
   ];
   return (
     <>
@@ -816,6 +828,12 @@ function OrderPage({ id }: { id: string }) {
       {(EXECUTING.includes(o.status) || o.reservations.length > 0 || o.issues.length > 0) && (
         <Suspense fallback={<Loading label={c.loading} />}>
           <ExecutionPanel o={o} run={run} focusHeading={() => heading.current?.focus()} />
+        </Suspense>
+      )}
+
+      {o.output && (
+        <Suspense fallback={<Loading label={c.loading} />}>
+          <OutputPanel o={o} run={run} focusHeading={() => heading.current?.focus()} />
         </Suspense>
       )}
 

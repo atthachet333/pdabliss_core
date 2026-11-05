@@ -184,7 +184,24 @@ export type ProductionAuditAction =
   | 'MATERIAL_ISSUE_CREATED'
   | 'MATERIAL_ISSUE_UPDATED'
   | 'MATERIAL_ISSUE_POSTED'
-  | 'MATERIAL_ISSUE_CANCELLED';
+  | 'MATERIAL_ISSUE_CANCELLED'
+  // ---- EP38 (output, finished goods receipt, completion — counts and transitions only)
+  | 'PRODUCTION_OUTPUT_CREATED'
+  | 'PRODUCTION_OUTPUT_UPDATED'
+  | 'PRODUCTION_OUTPUT_SUBMITTED'
+  | 'PRODUCTION_OUTPUT_ACCEPTED'
+  | 'PRODUCTION_OUTPUT_REJECTED'
+  | 'PRODUCTION_OUTPUT_CANCELLED'
+  | 'FINISHED_GOODS_RECEIPT_CREATED'
+  | 'FINISHED_GOODS_RECEIPT_UPDATED'
+  | 'FINISHED_GOODS_RECEIPT_POSTED'
+  | 'FINISHED_GOODS_RECEIPT_CANCELLED'
+  | 'FINISHED_GOODS_RECEIPT_REVERSED'
+  | 'PRODUCTION_ORDER_REVIEW_REQUESTED'
+  | 'PRODUCTION_ORDER_REOPENED'
+  | 'PRODUCTION_ORDER_COMPLETED'
+  | 'PRODUCTION_ORDER_SHORT_CLOSED'
+  | 'INVENTORY_LOT_CREATED';
 
 export type InventoryControlAuditAction =
   | 'TRANSFER_CREATED'
@@ -228,6 +245,8 @@ export const BUSINESS_AUDIT_ENTITIES: readonly string[] = [
   'ProductionBom',
   'ProductionOrder',
   'ProductionMaterialIssue',
+  'ProductionOutputReport',
+  'ProductionGoodsReceipt',
 ];
 
 export const masterEvent = (entity: MasterAuditEntity, verb: MasterVerb): MasterDataAuditAction =>
@@ -259,7 +278,9 @@ export type AuditEntityType =
   | 'SalesShipment'
   | 'ProductionBom'
   | 'ProductionOrder'
-  | 'ProductionMaterialIssue';
+  | 'ProductionMaterialIssue'
+  | 'ProductionOutputReport'
+  | 'ProductionGoodsReceipt';
 
 export async function recordCompanyEvent(
   db: DbClient,

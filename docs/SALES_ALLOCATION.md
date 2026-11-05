@@ -66,6 +66,12 @@ second takes only what is still free: 7 + 7 requested on 10 gives exactly 10 res
 real stack, three rounds). `reservedBreakdown()` separates the two for screens. Sales never releases
 or consumes a production reservation, and the reverse also holds.
 
+**EP38: finished goods from production** become allocatable only when a finished goods receipt is
+**posted** (`PRODUCTION_OUTPUT`). Reported or accepted output is never stock, and Sales never sees it
+(tested: an allocation before the receipt reserves nothing). Completion allocates nothing. Sales
+allocates the received goods explicitly, under the same FEFO and reservation guard. A posted receipt
+can be reversed only while its stock is neither reserved nor gone.
+
 What respects reservations: transfers (draft check + posting), adjustment decreases (draft check +
 posting), cycle-count corrections, and every reversal (receipt, transfer, adjustment). Inventory screens
 and the transfer / adjustment stock pickers offer **available** stock, not on hand.

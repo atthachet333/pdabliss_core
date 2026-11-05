@@ -185,87 +185,98 @@ enum CompanyMemberStatus {
 
 /// A user's place in a company. Department access (Membership) comes on top (EP25 foundation).
 model CompanyMember {
-  id                            String                         @id @default(cuid())
-  companyId                     String
-  company                       Company                        @relation(fields: [companyId], references: [id])
-  userId                        String
-  user                          User                           @relation(fields: [userId], references: [id])
-  role                          CompanyRole
+  id                              String                         @id @default(cuid())
+  companyId                       String
+  company                         Company                        @relation(fields: [companyId], references: [id])
+  userId                          String
+  user                            User                           @relation(fields: [userId], references: [id])
+  role                            CompanyRole
   /// TRUE only for the COMPANY_OWNER (NULL otherwise): one owner per company,
   /// enforced by the database (unique + CHECK, EP24). The owner is always ACTIVE (CHECK, EP25).
-  ownerSlot                     Boolean?
-  status                        CompanyMemberStatus            @default(ACTIVE)
+  ownerSlot                       Boolean?
+  status                          CompanyMemberStatus            @default(ACTIVE)
   /// Job title inside this company (set by company administration; not a permission).
-  jobTitle                      String?
-  deactivatedAt                 DateTime?
+  jobTitle                        String?
+  deactivatedAt                   DateTime?
   /// Operational branch access (EP26). Administration authority does not depend on it.
-  branchScope                   BranchAccessScope              @default(ALL_BRANCHES)
-  createdAt                     DateTime                       @default(now())
-  updatedAt                     DateTime                       @updatedAt
-  branchAccess                  MemberBranchAccess[]
+  branchScope                     BranchAccessScope              @default(ALL_BRANCHES)
+  createdAt                       DateTime                       @default(now())
+  updatedAt                       DateTime                       @updatedAt
+  branchAccess                    MemberBranchAccess[]
   /// Per-member exceptions to the role's operational permissions (EP27).
-  permissionOverrides           MemberPermissionOverride[]
+  permissionOverrides             MemberPermissionOverride[]
   /// EP29 purchase requests raised / decided / cancelled by this member.
-  purchaseRequests              PurchaseRequest[]              @relation("PurchaseRequestRequester")
-  approvedRequests              PurchaseRequest[]              @relation("PurchaseRequestApprover")
-  rejectedRequests              PurchaseRequest[]              @relation("PurchaseRequestRejecter")
-  cancelledRequests             PurchaseRequest[]              @relation("PurchaseRequestCanceller")
+  purchaseRequests                PurchaseRequest[]              @relation("PurchaseRequestRequester")
+  approvedRequests                PurchaseRequest[]              @relation("PurchaseRequestApprover")
+  rejectedRequests                PurchaseRequest[]              @relation("PurchaseRequestRejecter")
+  cancelledRequests               PurchaseRequest[]              @relation("PurchaseRequestCanceller")
   /// EP30 purchase orders created / issued / cancelled, deposits confirmed / waived by this member.
-  createdOrders                 PurchaseOrder[]                @relation("PurchaseOrderCreator")
-  issuedOrders                  PurchaseOrder[]                @relation("PurchaseOrderIssuer")
-  cancelledOrders               PurchaseOrder[]                @relation("PurchaseOrderCanceller")
-  confirmedDeposits             PurchaseOrder[]                @relation("PurchaseOrderDepositConfirmer")
-  waivedDeposits                PurchaseOrder[]                @relation("PurchaseOrderDepositWaiver")
-  createdReceipts               GoodsReceipt[]                 @relation("GoodsReceiptCreator")
-  postedReceipts                GoodsReceipt[]                 @relation("GoodsReceiptPoster")
-  cancelledReceipts             GoodsReceipt[]                 @relation("GoodsReceiptCanceller")
-  stockMovements                StockMovement[]
-  createdTransfers              InventoryTransfer[]            @relation("TransferCreator")
-  createdSalesOrders            SalesOrder[]                   @relation("SalesOrderCreator")
-  submittedSalesOrders          SalesOrder[]                   @relation("SalesOrderSubmitter")
-  confirmedSalesOrders          SalesOrder[]                   @relation("SalesOrderConfirmer")
-  cancelledSalesOrders          SalesOrder[]                   @relation("SalesOrderCanceller")
-  createdAllocations            SalesAllocation[]              @relation("SalesAllocationCreator")
-  releasedAllocations           SalesAllocation[]              @relation("SalesAllocationReleaser")
-  salesPicksCreated             SalesPick[]                    @relation("SalesPickCreator")
-  salesPicksStarted             SalesPick[]                    @relation("SalesPickStarter")
-  salesPicksConfirmed           SalesPick[]                    @relation("SalesPickConfirmer")
-  salesPicksCancelled           SalesPick[]                    @relation("SalesPickCanceller")
-  salesPacksCreated             SalesPack[]                    @relation("SalesPackCreator")
-  salesPacksPacked              SalesPack[]                    @relation("SalesPackPacker")
-  salesPacksCancelled           SalesPack[]                    @relation("SalesPackCanceller")
-  shipmentsCreated              SalesShipment[]                @relation("SalesShipmentCreator")
-  shipmentsDispatched           SalesShipment[]                @relation("SalesShipmentDispatcher")
-  shipmentsCancelled            SalesShipment[]                @relation("SalesShipmentCanceller")
-  deliveryEvents                SalesDeliveryEvent[]
-  postedTransfers               InventoryTransfer[]            @relation("TransferPoster")
-  cancelledTransfers            InventoryTransfer[]            @relation("TransferCanceller")
-  createdAdjustments            StockAdjustment[]              @relation("AdjustmentCreator")
-  submittedAdjustments          StockAdjustment[]              @relation("AdjustmentSubmitter")
-  approvedAdjustments           StockAdjustment[]              @relation("AdjustmentApprover")
-  rejectedAdjustments           StockAdjustment[]              @relation("AdjustmentRejecter")
-  cancelledAdjustments          StockAdjustment[]              @relation("AdjustmentCanceller")
-  createdCounts                 CycleCount[]                   @relation("CountCreator")
-  startedCounts                 CycleCount[]                   @relation("CountStarter")
-  postedCounts                  CycleCount[]                   @relation("CountPoster")
-  cancelledCounts               CycleCount[]                   @relation("CountCanceller")
-  countedLines                  CycleCountLine[]               @relation("CountLineCounter")
-  productionBomsCreated         ProductionBom[]                @relation("ProductionBomCreator")
-  productionBomsActivated       ProductionBom[]                @relation("ProductionBomActivator")
-  productionBomsRetired         ProductionBom[]                @relation("ProductionBomRetirer")
-  productionOrdersCreated       ProductionOrder[]              @relation("ProductionOrderCreator")
-  productionOrdersSubmitted     ProductionOrder[]              @relation("ProductionOrderSubmitter")
-  productionOrdersApproved      ProductionOrder[]              @relation("ProductionOrderApprover")
-  productionOrdersReleased      ProductionOrder[]              @relation("ProductionOrderReleaser")
-  productionOrdersRejected      ProductionOrder[]              @relation("ProductionOrderRejecter")
-  productionOrdersCancelled     ProductionOrder[]              @relation("ProductionOrderCanceller")
-  productionOrdersStarted       ProductionOrder[]              @relation("ProductionOrderStarter")
-  productionAllocationsCreated  ProductionMaterialAllocation[] @relation("ProductionAllocationCreator")
-  productionAllocationsReleased ProductionMaterialAllocation[] @relation("ProductionAllocationReleaser")
-  materialIssuesCreated         ProductionMaterialIssue[]      @relation("MaterialIssueCreator")
-  materialIssuesPosted          ProductionMaterialIssue[]      @relation("MaterialIssuePoster")
-  materialIssuesCancelled       ProductionMaterialIssue[]      @relation("MaterialIssueCanceller")
-  materialUsageRecorded         ProductionMaterialUsage[]      @relation("MaterialUsageRecorder")
+  createdOrders                   PurchaseOrder[]                @relation("PurchaseOrderCreator")
+  issuedOrders                    PurchaseOrder[]                @relation("PurchaseOrderIssuer")
+  cancelledOrders                 PurchaseOrder[]                @relation("PurchaseOrderCanceller")
+  confirmedDeposits               PurchaseOrder[]                @relation("PurchaseOrderDepositConfirmer")
+  waivedDeposits                  PurchaseOrder[]                @relation("PurchaseOrderDepositWaiver")
+  createdReceipts                 GoodsReceipt[]                 @relation("GoodsReceiptCreator")
+  postedReceipts                  GoodsReceipt[]                 @relation("GoodsReceiptPoster")
+  cancelledReceipts               GoodsReceipt[]                 @relation("GoodsReceiptCanceller")
+  stockMovements                  StockMovement[]
+  createdTransfers                InventoryTransfer[]            @relation("TransferCreator")
+  createdSalesOrders              SalesOrder[]                   @relation("SalesOrderCreator")
+  submittedSalesOrders            SalesOrder[]                   @relation("SalesOrderSubmitter")
+  confirmedSalesOrders            SalesOrder[]                   @relation("SalesOrderConfirmer")
+  cancelledSalesOrders            SalesOrder[]                   @relation("SalesOrderCanceller")
+  createdAllocations              SalesAllocation[]              @relation("SalesAllocationCreator")
+  releasedAllocations             SalesAllocation[]              @relation("SalesAllocationReleaser")
+  salesPicksCreated               SalesPick[]                    @relation("SalesPickCreator")
+  salesPicksStarted               SalesPick[]                    @relation("SalesPickStarter")
+  salesPicksConfirmed             SalesPick[]                    @relation("SalesPickConfirmer")
+  salesPicksCancelled             SalesPick[]                    @relation("SalesPickCanceller")
+  salesPacksCreated               SalesPack[]                    @relation("SalesPackCreator")
+  salesPacksPacked                SalesPack[]                    @relation("SalesPackPacker")
+  salesPacksCancelled             SalesPack[]                    @relation("SalesPackCanceller")
+  shipmentsCreated                SalesShipment[]                @relation("SalesShipmentCreator")
+  shipmentsDispatched             SalesShipment[]                @relation("SalesShipmentDispatcher")
+  shipmentsCancelled              SalesShipment[]                @relation("SalesShipmentCanceller")
+  deliveryEvents                  SalesDeliveryEvent[]
+  postedTransfers                 InventoryTransfer[]            @relation("TransferPoster")
+  cancelledTransfers              InventoryTransfer[]            @relation("TransferCanceller")
+  createdAdjustments              StockAdjustment[]              @relation("AdjustmentCreator")
+  submittedAdjustments            StockAdjustment[]              @relation("AdjustmentSubmitter")
+  approvedAdjustments             StockAdjustment[]              @relation("AdjustmentApprover")
+  rejectedAdjustments             StockAdjustment[]              @relation("AdjustmentRejecter")
+  cancelledAdjustments            StockAdjustment[]              @relation("AdjustmentCanceller")
+  createdCounts                   CycleCount[]                   @relation("CountCreator")
+  startedCounts                   CycleCount[]                   @relation("CountStarter")
+  postedCounts                    CycleCount[]                   @relation("CountPoster")
+  cancelledCounts                 CycleCount[]                   @relation("CountCanceller")
+  countedLines                    CycleCountLine[]               @relation("CountLineCounter")
+  productionBomsCreated           ProductionBom[]                @relation("ProductionBomCreator")
+  productionBomsActivated         ProductionBom[]                @relation("ProductionBomActivator")
+  productionBomsRetired           ProductionBom[]                @relation("ProductionBomRetirer")
+  productionOrdersCreated         ProductionOrder[]              @relation("ProductionOrderCreator")
+  productionOrdersSubmitted       ProductionOrder[]              @relation("ProductionOrderSubmitter")
+  productionOrdersApproved        ProductionOrder[]              @relation("ProductionOrderApprover")
+  productionOrdersReleased        ProductionOrder[]              @relation("ProductionOrderReleaser")
+  productionOrdersRejected        ProductionOrder[]              @relation("ProductionOrderRejecter")
+  productionOrdersCancelled       ProductionOrder[]              @relation("ProductionOrderCanceller")
+  productionOrdersStarted         ProductionOrder[]              @relation("ProductionOrderStarter")
+  productionAllocationsCreated    ProductionMaterialAllocation[] @relation("ProductionAllocationCreator")
+  productionAllocationsReleased   ProductionMaterialAllocation[] @relation("ProductionAllocationReleaser")
+  materialIssuesCreated           ProductionMaterialIssue[]      @relation("MaterialIssueCreator")
+  materialIssuesPosted            ProductionMaterialIssue[]      @relation("MaterialIssuePoster")
+  materialIssuesCancelled         ProductionMaterialIssue[]      @relation("MaterialIssueCanceller")
+  materialUsageRecorded           ProductionMaterialUsage[]      @relation("MaterialUsageRecorder")
+  /// EP38
+  productionOrdersReviewRequested ProductionOrder[]              @relation("ProductionOrderReviewRequester")
+  productionOrdersCompleted       ProductionOrder[]              @relation("ProductionOrderCompleter")
+  outputReportsCreated            ProductionOutputReport[]       @relation("OutputReportCreator")
+  outputReportsSubmitted          ProductionOutputReport[]       @relation("OutputReportSubmitter")
+  outputReportsReviewed           ProductionOutputReport[]       @relation("OutputReportReviewer")
+  outputReportsCancelled          ProductionOutputReport[]       @relation("OutputReportCanceller")
+  fgReceiptsCreated               ProductionGoodsReceipt[]       @relation("FgReceiptCreator")
+  fgReceiptsPosted                ProductionGoodsReceipt[]       @relation("FgReceiptPoster")
+  fgReceiptsCancelled             ProductionGoodsReceipt[]       @relation("FgReceiptCanceller")
+  fgReceiptsReversed              ProductionGoodsReceipt[]       @relation("FgReceiptReverser")
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
@@ -392,6 +403,8 @@ model Branch {
   productionOrders      ProductionOrder[]
   productionAllocations ProductionMaterialAllocation[]
   materialIssues        ProductionMaterialIssue[]
+  outputReports         ProductionOutputReport[]
+  finishedGoodsReceipts ProductionGoodsReceipt[]
 
   @@unique([companyId, code])
   @@unique([companyId, headOfficeSlot])
@@ -1185,6 +1198,8 @@ model Item {
   productionMaterials   ProductionOrderMaterial[]      @relation("ProductionOrderMaterial")
   productionAllocations ProductionMaterialAllocation[] @relation("ProductionAllocationItem")
   materialIssueLines    ProductionMaterialIssueLine[]  @relation("ProductionIssueLineItem")
+  /// EP38
+  fgReceiptLines        ProductionGoodsReceiptLine[]   @relation("FgReceiptLineItem")
 
   @@unique([companyId, code])
   @@unique([companyId, sku])
@@ -1237,6 +1252,8 @@ model WarehouseLocation {
   /// EP37: production reservations and material issue lines here.
   productionAllocations ProductionMaterialAllocation[] @relation("ProductionAllocationLocation")
   materialIssueLines    ProductionMaterialIssueLine[]  @relation("ProductionIssueLineLocation")
+  /// EP38: finished goods receipt lines into this location.
+  fgReceiptLines        ProductionGoodsReceiptLine[]   @relation("FgReceiptLineLocation")
 
   @@unique([branchId, code])
   @@unique([branchId, defaultSlot])
@@ -1597,6 +1614,10 @@ enum StockMovementType {
   SALES_ISSUE
   /// EP37: materials leave for production when a material issue is posted (negative).
   PRODUCTION_CONSUMPTION
+  /// EP38: finished goods enter stock when a finished goods receipt is posted (positive).
+  PRODUCTION_OUTPUT
+  /// EP38: a posted finished goods receipt reversed (negative, reservation-guarded).
+  PRODUCTION_OUTPUT_REVERSAL
 }
 
 model GoodsReceipt {
@@ -1730,6 +1751,8 @@ model InventoryLot {
   /// EP37
   productionAllocations ProductionMaterialAllocation[] @relation("ProductionAllocationLot")
   materialIssueLines    ProductionMaterialIssueLine[]  @relation("ProductionIssueLineLot")
+  /// EP38
+  fgReceiptLines        ProductionGoodsReceiptLine[]   @relation("FgReceiptLineLot")
 
   @@unique([companyId, itemId, lotNumber])
   @@unique([id, itemId, companyId])
@@ -1779,6 +1802,11 @@ model StockMovement {
   productionMaterialIssue       ProductionMaterialIssue?     @relation(fields: [productionMaterialIssueId, branchId, companyId], references: [id, branchId, companyId])
   productionMaterialIssueLineId String?
   productionMaterialIssueLine   ProductionMaterialIssueLine? @relation(fields: [productionMaterialIssueLineId], references: [id])
+  /// EP38: the posted (or reversed) finished goods receipt line (PRODUCTION_OUTPUT / _REVERSAL).
+  productionGoodsReceiptId      String?
+  productionGoodsReceipt        ProductionGoodsReceipt?      @relation(fields: [productionGoodsReceiptId, branchId, companyId], references: [id, branchId, companyId])
+  productionGoodsReceiptLineId  String?
+  productionGoodsReceiptLine    ProductionGoodsReceiptLine?  @relation(fields: [productionGoodsReceiptLineId], references: [id])
   /// Business time of the change (the receipt's receivedAt, or the cancellation time).
   occurredAt                    DateTime
   actorMemberId                 String
@@ -1792,11 +1820,13 @@ model StockMovement {
   @@unique([cycleCountLineId, type])
   @@unique([salesShipmentLineId, type])
   @@unique([productionMaterialIssueLineId, type])
+  @@unique([productionGoodsReceiptLineId, type])
   @@index([companyId, branchId, itemId, occurredAt])
   @@index([transferId])
   @@index([adjustmentId])
   @@index([salesShipmentId])
   @@index([productionMaterialIssueId])
+  @@index([productionGoodsReceiptId])
   @@index([cycleCountId])
   @@index([locationId, lotId, occurredAt])
   @@index([goodsReceiptId])
@@ -2653,7 +2683,8 @@ model ProductionBomLine {
 }
 
 /// DRAFT → SUBMITTED → APPROVED → READY; SUBMITTED → REJECTED; DRAFT / APPROVED / READY → CANCELLED.
-/// EP37: READY → IN_PRODUCTION ⇄ PAUSED (execution). COMPLETED arrives with output (EP38).
+/// EP37: READY → IN_PRODUCTION ⇄ PAUSED (execution).
+/// EP38: IN_PRODUCTION / PAUSED → COMPLETION_REVIEW → COMPLETED (or back to IN_PRODUCTION).
 enum ProductionOrderStatus {
   DRAFT
   SUBMITTED
@@ -2661,6 +2692,8 @@ enum ProductionOrderStatus {
   READY
   IN_PRODUCTION
   PAUSED
+  COMPLETION_REVIEW
+  COMPLETED
   REJECTED
   CANCELLED
 }
@@ -2679,68 +2712,79 @@ enum ProductionPriority {
 
 /// A planned output of one finished item in one branch (MO-YYYYMM-NNNNNN). Planning only.
 model ProductionOrder {
-  id                  String                         @id @default(cuid())
-  companyId           String
-  branchId            String
-  branch              Branch                         @relation(fields: [branchId, companyId], references: [id, companyId])
-  number              String
-  status              ProductionOrderStatus          @default(DRAFT)
-  source              ProductionOrderSource
+  id                        String                         @id @default(cuid())
+  companyId                 String
+  branchId                  String
+  branch                    Branch                         @relation(fields: [branchId, companyId], references: [id, companyId])
+  number                    String
+  status                    ProductionOrderStatus          @default(DRAFT)
+  source                    ProductionOrderSource
   /// SALES_DEMAND: the confirmed sales order (same branch) and line (same item) it answers.
-  salesOrderId        String?
-  salesOrder          SalesOrder?                    @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
-  salesOrderLineId    String?
-  salesOrderLine      SalesOrderLine?                @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
-  itemId              String
-  item                Item                           @relation("ProductionOrderOutput", fields: [itemId, companyId], references: [id, companyId])
-  itemCode            String
-  itemName            String
-  unitId              String
-  unit                Unit                           @relation("ProductionOrderUnit", fields: [unitId, companyId], references: [id, companyId])
-  unitCode            String
-  unitPrecision       Int
+  salesOrderId              String?
+  salesOrder                SalesOrder?                    @relation(fields: [salesOrderId, branchId, companyId], references: [id, branchId, companyId])
+  salesOrderLineId          String?
+  salesOrderLine            SalesOrderLine?                @relation(fields: [salesOrderLineId, salesOrderId, companyId], references: [id, salesOrderId, companyId])
+  itemId                    String
+  item                      Item                           @relation("ProductionOrderOutput", fields: [itemId, companyId], references: [id, companyId])
+  itemCode                  String
+  itemName                  String
+  unitId                    String
+  unit                      Unit                           @relation("ProductionOrderUnit", fields: [unitId, companyId], references: [id, companyId])
+  unitCode                  String
+  unitPrecision             Int
   /// The BOM revision used (always one of the order's item); frozen at approval.
-  bomId               String?
-  bom                 ProductionBom?                 @relation(fields: [bomId, itemId, companyId], references: [id, itemId, companyId])
-  bomCode             String?
-  bomRevision         Int?
-  bomOutputQuantity   Decimal?                       @db.Decimal(18, 6)
+  bomId                     String?
+  bom                       ProductionBom?                 @relation(fields: [bomId, itemId, companyId], references: [id, itemId, companyId])
+  bomCode                   String?
+  bomRevision               Int?
+  bomOutputQuantity         Decimal?                       @db.Decimal(18, 6)
   /// Target output in the item's base unit.
-  quantity            Decimal                        @db.Decimal(18, 6)
-  plannedStartDate    DateTime?                      @db.Date
-  requiredDate        DateTime?                      @db.Date
-  priority            ProductionPriority             @default(NORMAL)
-  note                String?
-  createdByMemberId   String
-  createdBy           CompanyMember                  @relation("ProductionOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
-  submittedAt         DateTime?
-  submittedByMemberId String?
-  submittedBy         CompanyMember?                 @relation("ProductionOrderSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
-  approvedAt          DateTime?
-  approvedByMemberId  String?
-  approvedBy          CompanyMember?                 @relation("ProductionOrderApprover", fields: [approvedByMemberId, companyId], references: [id, companyId])
-  releasedAt          DateTime?
-  releasedByMemberId  String?
-  releasedBy          CompanyMember?                 @relation("ProductionOrderReleaser", fields: [releasedByMemberId, companyId], references: [id, companyId])
-  rejectedAt          DateTime?
-  rejectedByMemberId  String?
-  rejectedBy          CompanyMember?                 @relation("ProductionOrderRejecter", fields: [rejectedByMemberId, companyId], references: [id, companyId])
-  rejectionReason     String?
-  cancelledAt         DateTime?
-  cancelledByMemberId String?
-  cancelledBy         CompanyMember?                 @relation("ProductionOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
-  cancellationReason  String?
+  quantity                  Decimal                        @db.Decimal(18, 6)
+  plannedStartDate          DateTime?                      @db.Date
+  requiredDate              DateTime?                      @db.Date
+  priority                  ProductionPriority             @default(NORMAL)
+  note                      String?
+  createdByMemberId         String
+  createdBy                 CompanyMember                  @relation("ProductionOrderCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  submittedAt               DateTime?
+  submittedByMemberId       String?
+  submittedBy               CompanyMember?                 @relation("ProductionOrderSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
+  approvedAt                DateTime?
+  approvedByMemberId        String?
+  approvedBy                CompanyMember?                 @relation("ProductionOrderApprover", fields: [approvedByMemberId, companyId], references: [id, companyId])
+  releasedAt                DateTime?
+  releasedByMemberId        String?
+  releasedBy                CompanyMember?                 @relation("ProductionOrderReleaser", fields: [releasedByMemberId, companyId], references: [id, companyId])
+  rejectedAt                DateTime?
+  rejectedByMemberId        String?
+  rejectedBy                CompanyMember?                 @relation("ProductionOrderRejecter", fields: [rejectedByMemberId, companyId], references: [id, companyId])
+  rejectionReason           String?
+  cancelledAt               DateTime?
+  cancelledByMemberId       String?
+  cancelledBy               CompanyMember?                 @relation("ProductionOrderCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason        String?
   /// EP37 execution: started (READY → IN_PRODUCTION), paused now (PAUSED), the latest work note.
-  startedAt           DateTime?
-  startedByMemberId   String?
-  startedBy           CompanyMember?                 @relation("ProductionOrderStarter", fields: [startedByMemberId, companyId], references: [id, companyId])
-  pausedAt            DateTime?
-  executionNote       String?
-  createdAt           DateTime                       @default(now())
-  updatedAt           DateTime                       @updatedAt
-  materials           ProductionOrderMaterial[]
-  allocations         ProductionMaterialAllocation[]
-  issues              ProductionMaterialIssue[]
+  startedAt                 DateTime?
+  startedByMemberId         String?
+  startedBy                 CompanyMember?                 @relation("ProductionOrderStarter", fields: [startedByMemberId, companyId], references: [id, companyId])
+  pausedAt                  DateTime?
+  executionNote             String?
+  /// EP38 completion: review requested, then closed (COMPLETED or SHORT_CLOSED; a short close has a reason).
+  reviewRequestedAt         DateTime?
+  reviewRequestedByMemberId String?
+  reviewRequestedBy         CompanyMember?                 @relation("ProductionOrderReviewRequester", fields: [reviewRequestedByMemberId, companyId], references: [id, companyId])
+  completedAt               DateTime?
+  completedByMemberId       String?
+  completedBy               CompanyMember?                 @relation("ProductionOrderCompleter", fields: [completedByMemberId, companyId], references: [id, companyId])
+  completionOutcome         ProductionCompletionOutcome?
+  completionReason          String?
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  materials                 ProductionOrderMaterial[]
+  allocations               ProductionMaterialAllocation[]
+  issues                    ProductionMaterialIssue[]
+  outputReports             ProductionOutputReport[]
+  fgReceipts                ProductionGoodsReceipt[]
 
   @@unique([companyId, number])
   @@unique([id, companyId])
@@ -2807,6 +2851,8 @@ enum ProductionAllocationRelease {
   RELEASED
   REALLOCATED
   ORDER_CANCELLED
+  /// EP38: released when the order was short-closed.
+  ORDER_CLOSED
 }
 
 /// A reservation of ONE stock identity (branch, location, item, lot) for one material of a production order.
@@ -2943,4 +2989,135 @@ model ProductionMaterialUsage {
   recordedAt         DateTime                @default(now())
 
   @@index([productionOrderId, materialId])
+}
+
+// Finished goods output, receipt and production completion (EP38) —
+// docs/PRODUCTION_OUTPUT.md, docs/PRODUCTION_FINISHED_GOODS_RECEIPT.md,
+// docs/PRODUCTION_COMPLETION.md. Reporting output moves nothing; only a POSTED
+// finished goods receipt writes PRODUCTION_OUTPUT through ledger.ts.
+
+enum ProductionOutputStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum FinishedGoodsReceiptStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
+enum ProductionCompletionOutcome {
+  COMPLETED
+  SHORT_CLOSED
+}
+
+/// One production result of an order (its finished item and unit): good, defective, pending quality.
+model ProductionOutputReport {
+  id                  String                   @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch                   @relation(fields: [branchId, companyId], references: [id, companyId])
+  productionOrderId   String
+  order               ProductionOrder          @relation(fields: [productionOrderId, branchId, companyId], references: [id, branchId, companyId])
+  number              String
+  status              ProductionOutputStatus   @default(DRAFT)
+  productionDate      DateTime                 @db.Date
+  goodQuantity        Decimal                  @db.Decimal(18, 6)
+  defectiveQuantity   Decimal                  @default(0) @db.Decimal(18, 6)
+  pendingQuantity     Decimal                  @default(0) @db.Decimal(18, 6)
+  /// Set at acceptance: good + the pending part judged good / defective + the rest.
+  acceptedQuantity    Decimal?                 @db.Decimal(18, 6)
+  rejectedQuantity    Decimal?                 @db.Decimal(18, 6)
+  note                String?
+  createdByMemberId   String
+  createdBy           CompanyMember            @relation("OutputReportCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  submittedAt         DateTime?
+  submittedByMemberId String?
+  submittedBy         CompanyMember?           @relation("OutputReportSubmitter", fields: [submittedByMemberId, companyId], references: [id, companyId])
+  reviewedAt          DateTime?
+  reviewedByMemberId  String?
+  reviewedBy          CompanyMember?           @relation("OutputReportReviewer", fields: [reviewedByMemberId, companyId], references: [id, companyId])
+  rejectionReason     String?
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?           @relation("OutputReportCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  receipts            ProductionGoodsReceipt[]
+
+  @@unique([companyId, number])
+  @@unique([id, productionOrderId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([productionOrderId, status])
+}
+
+/// Warehouse receipt of accepted good output into stock: FGR-YYYYMM-NNNNNN.
+model ProductionGoodsReceipt {
+  id                  String                       @id @default(cuid())
+  companyId           String
+  branchId            String
+  branch              Branch                       @relation(fields: [branchId, companyId], references: [id, companyId])
+  productionOrderId   String
+  order               ProductionOrder              @relation(fields: [productionOrderId, branchId, companyId], references: [id, branchId, companyId])
+  outputReportId      String
+  outputReport        ProductionOutputReport       @relation(fields: [outputReportId, productionOrderId], references: [id, productionOrderId])
+  number              String
+  status              FinishedGoodsReceiptStatus   @default(DRAFT)
+  note                String?
+  lineCounter         Int                          @default(0)
+  createdByMemberId   String
+  createdBy           CompanyMember                @relation("FgReceiptCreator", fields: [createdByMemberId, companyId], references: [id, companyId])
+  postedAt            DateTime?
+  postedByMemberId    String?
+  postedBy            CompanyMember?               @relation("FgReceiptPoster", fields: [postedByMemberId, companyId], references: [id, companyId])
+  cancelledAt         DateTime?
+  cancelledByMemberId String?
+  cancelledBy         CompanyMember?               @relation("FgReceiptCanceller", fields: [cancelledByMemberId, companyId], references: [id, companyId])
+  cancellationReason  String?
+  reversedAt          DateTime?
+  reversedByMemberId  String?
+  reversedBy          CompanyMember?               @relation("FgReceiptReverser", fields: [reversedByMemberId, companyId], references: [id, companyId])
+  reversalReason      String?
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  lines               ProductionGoodsReceiptLine[]
+  movements           StockMovement[]
+
+  @@unique([companyId, number])
+  @@unique([id, branchId, companyId])
+  @@unique([id, productionOrderId])
+  @@index([companyId, branchId, status, updatedAt])
+  @@index([outputReportId, status])
+}
+
+model ProductionGoodsReceiptLine {
+  id                String                 @id @default(cuid())
+  companyId         String
+  branchId          String
+  receiptId         String
+  productionOrderId String
+  receipt           ProductionGoodsReceipt @relation(fields: [receiptId, productionOrderId], references: [id, productionOrderId], onDelete: Cascade)
+  lineNo            Int
+  itemId            String
+  item              Item                   @relation("FgReceiptLineItem", fields: [itemId, companyId], references: [id, companyId])
+  locationId        String
+  location          WarehouseLocation      @relation("FgReceiptLineLocation", fields: [locationId, branchId], references: [id, branchId])
+  lotNumber         String?
+  expiryDate        DateTime?              @db.Date
+  manufacturedDate  DateTime?              @db.Date
+  /// The lot, resolved (or created) when the receipt is posted.
+  lotId             String?
+  lot               InventoryLot?          @relation("FgReceiptLineLot", fields: [lotId, itemId, companyId], references: [id, itemId, companyId])
+  quantity          Decimal                @db.Decimal(18, 6)
+  createdAt         DateTime               @default(now())
+  movements         StockMovement[]
+
+  @@unique([receiptId, lineNo])
+  @@index([lotId])
 }

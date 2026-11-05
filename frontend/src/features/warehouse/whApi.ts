@@ -57,6 +57,8 @@ export interface WarehouseContext {
   fulfilment: { pick: boolean; dispatch: boolean; deliver: boolean };
   /** EP37: the read-only production material issue handoff. */
   materialIssues?: { view: boolean };
+  /** EP38: pending finished goods and their receipts. */
+  finishedGoods?: { view: boolean; process: boolean; confirm: boolean };
   branches: (Ref & { type: string })[];
   selectedBranch: (Ref & { type: string }) | null;
   locations: (Ref & { branchId: string; isDefault: boolean })[];

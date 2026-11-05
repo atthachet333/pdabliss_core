@@ -14,7 +14,8 @@ import {
   reservationStateOf,
   type MaterialResult,
 } from './allocation.js';
-import type { CreateMoInput, MoListInput, UpdateMoInput } from './input.js';
+import type { CompleteInput, CreateMoInput, MoListInput, UpdateMoInput } from './input.js';
+import { outputProgress, progressJson, receivedByReport } from './output.js';
 import {
   allowedMoActions,
   assertMo,
@@ -74,6 +75,8 @@ const include = {
   rejectedBy: person,
   cancelledBy: person,
   startedBy: person,
+  reviewRequestedBy: person,
+  completedBy: person,
   materials: { orderBy: { lineNo: 'asc' as const } },
   salesOrder: { select: { id: true, number: true, status: true, requestedDate: true } },
   salesOrderLine: { select: { lineNo: true, quantity: true } },
@@ -97,6 +100,10 @@ const TIMELINE: ProductionAuditAction[] = [
   'PRODUCTION_ORDER_PAUSED',
   'PRODUCTION_ORDER_RESUMED',
   'PRODUCTION_MATERIAL_USAGE_RECORDED',
+  'PRODUCTION_ORDER_REVIEW_REQUESTED',
+  'PRODUCTION_ORDER_REOPENED',
+  'PRODUCTION_ORDER_COMPLETED',
+  'PRODUCTION_ORDER_SHORT_CLOSED',
 ];
 /** Orders that still plan output (they count as planned demand). */
 export const OPEN = ['DRAFT', 'SUBMITTED', 'APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'] as const;
@@ -104,11 +111,15 @@ export const OPEN = ['DRAFT', 'SUBMITTED', 'APPROVED', 'READY', 'IN_PRODUCTION',
 const COMMITTED = ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'] as const;
 /** EP37: statuses whose requirements are being reserved / issued. */
 const EXECUTING = ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'] as const;
+/** EP38: statuses whose reservation / issue / output progress is shown. */
+const TRACKED: readonly string[] = [...EXECUTING, 'COMPLETION_REVIEW', 'COMPLETED'];
 const FROZEN: readonly string[] = [
   'APPROVED',
   'READY',
   'IN_PRODUCTION',
   'PAUSED',
+  'COMPLETION_REVIEW',
+  'COMPLETED',
   'REJECTED',
   'CANCELLED',
 ];
@@ -319,7 +330,7 @@ export class ProductionOrderService {
     const state = assessed
       ? orderMaterialState(lines.map((l) => l.state as MaterialAvailability))
       : 'NOT_ASSESSED';
-    const reservation = (EXECUTING as readonly string[]).includes(o.status)
+    const reservation = TRACKED.includes(o.status)
       ? reservationStateOf(
           o.materials.map((m) => ({
             required: m.requiredQuantity,
@@ -447,6 +458,7 @@ export class ProductionOrderService {
     ]);
     const a = this.assess(o, stock, progress);
     const claimed = new Map(claims.map((c) => [c.allocationId, c._sum.quantity ?? ZERO]));
+    const ep38 = await this.outputOf(o);
     const demand = await this.demandOf(o);
     const timeline = await this.db.auditLog.findMany({
       where: {
@@ -509,6 +521,7 @@ export class ProductionOrderService {
           postedAt: iso(i.postedAt),
           lineCount: i._count.lines,
         })),
+        ...ep38,
       }),
       timeline: timeline.map((e) => ({
         type: e.action,
@@ -544,6 +557,15 @@ export class ProductionOrderService {
       actor.branches.find((b) => b.id === ctx.session.branchId) ??
       (actor.branches.length === 1 ? actor.branches[0]! : null);
     const where = this.visibleWhere(actor, selected?.id);
+    const scopeWhere = {
+      companyId: actor.access.company.id,
+      branchId: { in: this.branchFilter(actor, selected?.id) },
+    };
+    const [outputToReview, inReview, completed] = await Promise.all([
+      this.db.productionOutputReport.count({ where: { ...scopeWhere, status: 'SUBMITTED' } }),
+      this.db.productionOrder.count({ where: { ...where, status: 'COMPLETION_REVIEW' } }),
+      this.db.productionOrder.count({ where: { ...where, status: 'COMPLETED' } }),
+    ]);
     const [drafts, submitted, approved, ready, states, demand, inProduction, paused, draftIssues] =
       await Promise.all([
         this.db.productionOrder.count({
@@ -578,6 +600,8 @@ export class ProductionOrderService {
         usage: actor.usage,
         manage: actor.execution,
       },
+      output: { create: actor.outputCreate, approve: actor.outputApprove },
+      completion: { manage: actor.complete },
       bom: { view: actor.bomView, manage: actor.bomManage },
       branches: actor.branches,
       selectedBranch: selected,
@@ -592,6 +616,9 @@ export class ProductionOrderService {
         inProduction,
         paused,
         draftIssues,
+        outputToReview,
+        inReview,
+        completed,
       },
       today: this.today(actor),
     };
@@ -605,7 +632,12 @@ export class ProductionOrderService {
     if (q.stage) {
       and.push({
         status: {
-          in: q.stage === 'EXECUTION' ? ['IN_PRODUCTION', 'PAUSED'] : [...EXECUTING],
+          in:
+            q.stage === 'EXECUTION'
+              ? ['IN_PRODUCTION', 'PAUSED', 'COMPLETION_REVIEW']
+              : q.stage === 'COMPLETED'
+                ? ['COMPLETED']
+                : [...EXECUTING],
         },
       });
     }
@@ -1440,6 +1472,35 @@ export class ProductionOrderService {
             'Material was already issued to this order; it cannot be cancelled.',
           );
         }
+        // EP38: accepted or received output is a production fact — never cancelled away.
+        const recorded = await tx.productionOutputReport.count({
+          where: { productionOrderId: id, status: 'ACCEPTED' },
+        });
+        if (recorded) {
+          throw fail(
+            409,
+            'OUTPUT_ALREADY_RECORDED',
+            'Output of this order was already accepted; it cannot be cancelled.',
+          );
+        }
+        await tx.productionGoodsReceipt.updateMany({
+          where: { productionOrderId: id, status: 'DRAFT' },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: now,
+            cancelledByMemberId: by,
+            cancellationReason: 'Production order cancelled',
+          },
+        });
+        await tx.productionOutputReport.updateMany({
+          where: { productionOrderId: id, status: { in: ['DRAFT', 'SUBMITTED'] } },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: now,
+            cancelledByMemberId: by,
+            cancellationReason: 'Production order cancelled',
+          },
+        });
         const released = await releaseMaterials(
           tx,
           { companyId: o.companyId, memberId: by },
@@ -1499,6 +1560,270 @@ export class ProductionOrderService {
         (x !== 'issue' || hasActive) &&
         (x !== 'usage' || a.lines.some((l) => l.issued !== '0')),
     );
+  }
+
+  // ------------------------------------------------------------------ EP38 output + completion
+
+  /** Output progress, reports, receipts, completion facts and blockers, traceability. */
+  private async outputOf(o: Full) {
+    const tracked = ['IN_PRODUCTION', 'PAUSED', 'COMPLETION_REVIEW', 'COMPLETED'].includes(
+      o.status,
+    );
+    const [reports, receipts, consumed] = await Promise.all([
+      this.db.productionOutputReport.findMany({
+        where: { productionOrderId: o.id },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.db.productionGoodsReceipt.findMany({
+        where: { productionOrderId: o.id },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          outputReport: { select: { number: true } },
+          lines: {
+            include: { lot: { select: { lotNumber: true, expiryDate: true } } },
+          },
+        },
+      }),
+      this.db.stockMovement.findMany({
+        where: {
+          type: 'PRODUCTION_CONSUMPTION',
+          productionMaterialIssue: { productionOrderId: o.id },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          quantityDelta: true,
+          item: { select: { code: true } },
+          lot: { select: { lotNumber: true } },
+          productionMaterialIssue: { select: { number: true } },
+          productionMaterialIssueLine: {
+            select: { allocation: { select: { material: { select: { unitCode: true } } } } },
+          },
+        },
+      }),
+    ]);
+    const received = await receivedByReport(
+      this.db,
+      reports.map((r) => r.id),
+    );
+    const progress = tracked ? await outputProgress(this.db, o) : null;
+    return {
+      output: progress ? progressJson(progress) : null,
+      outputReports: reports.map((r) => ({
+        id: r.id,
+        number: r.number,
+        status: r.status,
+        productionDate: day(r.productionDate)!,
+        good: r.goodQuantity.toString(),
+        defective: r.defectiveQuantity.toString(),
+        pending: r.pendingQuantity.toString(),
+        accepted: r.acceptedQuantity?.toString() ?? null,
+        rejected: r.rejectedQuantity?.toString() ?? null,
+        received: (received.get(r.id) ?? ZERO).toString(),
+      })),
+      receipts: receipts.map((x) => ({
+        id: x.id,
+        number: x.number,
+        status: x.status,
+        outputNumber: x.outputReport.number,
+        quantity: x.lines.reduce((t, l) => t.plus(l.quantity), ZERO).toString(),
+        postedAt: iso(x.postedAt),
+      })),
+      completion: {
+        reviewRequestedAt: iso(o.reviewRequestedAt),
+        reviewRequestedBy: who(o.reviewRequestedBy),
+        completedAt: iso(o.completedAt),
+        completedBy: who(o.completedBy),
+        outcome: o.completionOutcome,
+        reason: o.completionReason,
+        blockers:
+          o.status === 'COMPLETION_REVIEW' ? await this.blockersOf(this.db, o, progress!) : [],
+      },
+      traceability: {
+        outputLots: receipts
+          .filter((x) => x.status === 'POSTED')
+          .flatMap((x) =>
+            x.lines
+              .filter((l) => l.lot)
+              .map((l) => ({
+                lotNumber: l.lot!.lotNumber,
+                expiryDate: day(l.lot!.expiryDate),
+                receipt: x.number,
+                quantity: l.quantity.toString(),
+              })),
+          ),
+        materialLots: consumed.map((m) => ({
+          item: m.item.code,
+          lotNumber: m.lot?.lotNumber ?? null,
+          issue: m.productionMaterialIssue!.number,
+          quantity: m.quantityDelta.neg().toString(),
+          unit: m.productionMaterialIssueLine!.allocation.material.unitCode,
+        })),
+      },
+    };
+  }
+
+  /**
+   * What still blocks closing the order (shared by the view and `complete`):
+   * output waiting for review, draft receipts, accepted output not yet in stock,
+   * draft material issues. Reservations and the outcome are checked by complete.
+   */
+  private async blockersOf(
+    tx: Prisma.TransactionClient | Db,
+    o: { id: string },
+    p: Awaited<ReturnType<typeof outputProgress>>,
+  ) {
+    const [reports, receipts, issues] = await Promise.all([
+      tx.productionOutputReport.count({
+        where: { productionOrderId: o.id, status: { in: ['DRAFT', 'SUBMITTED'] } },
+      }),
+      tx.productionGoodsReceipt.count({ where: { productionOrderId: o.id, status: 'DRAFT' } }),
+      tx.productionMaterialIssue.count({ where: { productionOrderId: o.id, status: 'DRAFT' } }),
+    ]);
+    const out: string[] = [];
+    if (reports) out.push('OUTPUT_REVIEW_PENDING');
+    if (receipts) out.push('RECEIPT_PENDING');
+    if (p.awaitingReceipt.gt(0)) out.push('OUTPUT_NOT_RECEIVED');
+    if (issues) out.push('MATERIAL_ISSUE_PENDING');
+    return out;
+  }
+
+  /** IN_PRODUCTION / PAUSED → COMPLETION_REVIEW (no draft output report may be left behind). */
+  async review(ctx: AuthContext, id: string, note: string | null, meta: RequestMeta) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.reviewAs(actor, id, note, meta);
+    return this.get(ctx, id);
+  }
+
+  async reviewAs(actor: ProductionActor, id: string, note: string | null, meta: RequestMeta) {
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'review');
+      const drafts = await tx.productionOutputReport.count({
+        where: { productionOrderId: id, status: 'DRAFT' },
+      });
+      if (drafts) {
+        throw fail(
+          409,
+          'OUTPUT_DRAFT_PENDING',
+          'A draft output report is still open: submit or cancel it first.',
+        );
+      }
+      await tx.productionOrder.update({
+        where: { id },
+        data: {
+          status: 'COMPLETION_REVIEW',
+          pausedAt: null,
+          reviewRequestedAt: new Date(),
+          reviewRequestedByMemberId: actor.memberId,
+          ...(note !== null ? { executionNote: note } : {}),
+        },
+      });
+      await this.event(tx, actor, meta, 'PRODUCTION_ORDER_REVIEW_REQUESTED', o, {
+        from: o.status,
+        to: 'COMPLETION_REVIEW',
+      });
+    });
+  }
+
+  /** COMPLETION_REVIEW → IN_PRODUCTION: production continues (more output, more material). */
+  async reopen(ctx: AuthContext, id: string, note: string | null, meta: RequestMeta) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'reopen');
+      await tx.productionOrder.update({
+        where: { id },
+        data: { status: 'IN_PRODUCTION', ...(note !== null ? { executionNote: note } : {}) },
+      });
+      await this.event(tx, actor, meta, 'PRODUCTION_ORDER_REOPENED', o, {
+        from: 'COMPLETION_REVIEW',
+        to: 'IN_PRODUCTION',
+      });
+    });
+    return this.get(ctx, id);
+  }
+
+  /**
+   * COMPLETION_REVIEW → COMPLETED, outcome COMPLETED (accepted good ≥ target) or
+   * SHORT_CLOSED (less, with a reason). Either way: every output reviewed, every
+   * accepted unit in stock, no draft receipt or material issue, the material
+   * review confirmed. A full completion refuses remaining reservations (release
+   * them first); a short close releases them (ORDER_CLOSED). Consumed material is
+   * never restored; issued-but-unused material stays visible as unrecorded.
+   */
+  async complete(ctx: AuthContext, id: string, input: CompleteInput, meta: RequestMeta) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.completeAs(actor, id, input, meta);
+    return this.get(ctx, id);
+  }
+
+  async completeAs(actor: ProductionActor, id: string, input: CompleteInput, meta: RequestMeta) {
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'complete');
+      const p = await outputProgress(tx, o);
+      const blockers = await this.blockersOf(tx, o, p);
+      if (blockers.length) {
+        throw fail(409, blockers[0]!, 'This order cannot be closed yet.', { blockers });
+      }
+      const short = p.accepted.lt(o.quantity);
+      if (input.outcome === 'COMPLETED' && short) {
+        throw fail(
+          409,
+          'SHORT_CLOSE_REQUIRED',
+          'Less good output was accepted than targeted: close it short, with a reason.',
+          { target: o.quantity.toString(), accepted: p.accepted.toString() },
+        );
+      }
+      if (input.outcome === 'SHORT_CLOSED' && !short) {
+        throw fail(409, 'NOT_SHORT', 'The target was reached: complete the order instead.');
+      }
+      if (input.outcome === 'SHORT_CLOSED' && !input.reason) {
+        throw fail(422, 'REASON_REQUIRED', 'Give a reason for closing the order short.', {
+          field: 'reason',
+        });
+      }
+      const active = await tx.productionMaterialAllocation.count({
+        where: { productionOrderId: id, status: 'ACTIVE' },
+      });
+      let released = 0;
+      if (active && input.outcome === 'COMPLETED') {
+        throw fail(
+          409,
+          'RESERVATIONS_ACTIVE',
+          'Material is still reserved for this order: release it before completing.',
+        );
+      }
+      if (active) {
+        released = await releaseMaterials(
+          tx,
+          { companyId: o.companyId, memberId: actor.memberId },
+          id,
+          'ORDER_CLOSED',
+        );
+        await this.event(tx, actor, meta, 'PRODUCTION_MATERIALS_RELEASED', o, {
+          reason: 'ORDER_CLOSED',
+          reservations: released,
+        });
+      }
+      await tx.productionOrder.update({
+        where: { id },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          completedByMemberId: actor.memberId,
+          completionOutcome: input.outcome,
+          completionReason: input.reason ?? null,
+        },
+      });
+      await this.event(
+        tx,
+        actor,
+        meta,
+        input.outcome === 'COMPLETED'
+          ? 'PRODUCTION_ORDER_COMPLETED'
+          : 'PRODUCTION_ORDER_SHORT_CLOSED',
+        o,
+        { from: 'COMPLETION_REVIEW', to: 'COMPLETED', outcome: input.outcome, released },
+      );
+    });
   }
 
   private allocResult(lines: MaterialResult[]) {

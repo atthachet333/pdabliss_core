@@ -232,3 +232,32 @@ type in EP37; a return of unused material will add its own positive type. Usage 
 - every PRODUCTION_CONSUMPTION is matched by exactly one CONSUMED production reservation of the same
   quantity, and every SALES_ISSUE by its sales reservation;
 - no movement consumed the other side's reservation.
+
+## 12. EP38 PRODUCTION_OUTPUT (finished goods receipt)
+
+`PRODUCTION_OUTPUT` (positive) is the only way finished goods enter stock
+([PRODUCTION_FINISHED_GOODS_RECEIPT.md](PRODUCTION_FINISHED_GOODS_RECEIPT.md)):
+
+- `sourceType = 'PRODUCTION_RECEIPT'` with `productionGoodsReceiptId` and
+  `productionGoodsReceiptLineId` (composite FK to the receipt's branch and company);
+- one per receipt line (unique `(productionGoodsReceiptLineId, type)`);
+- written through `applyMovement()` when Warehouse **posts** the receipt — never at output report,
+  acceptance or completion;
+- the balance grows with the single-statement upsert, under the shared location lock (an open count
+  refuses with `COUNT_IN_PROGRESS`); the location must be ACTIVE;
+- the lot comes from `resolveLot` (one row per company, item, number; one expiry and one production
+  date).
+
+`PRODUCTION_OUTPUT_REVERSAL` (negative) undoes a posted receipt line through the same decrease guard.
+It never takes stock that is reserved for sales or production (`STOCK_RESERVED`) or no longer on
+hand (`FGR_STOCK_GONE`). Both enum values are added in their own migration
+(`20261110090000_ep38_enum_values`), and `StockMovement_check` was re-stated as a superset.
+
+**Reconciliation** (backend tests and real stack, after every race):
+
+- balance = Σ movements;
+- nothing negative;
+- no duplicate output movement per line;
+- every output movement belongs to a POSTED / REVERSED receipt line of the same quantity;
+- received ≤ accepted per output report;
+- reserved ≤ on hand.

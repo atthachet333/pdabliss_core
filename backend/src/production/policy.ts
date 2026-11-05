@@ -30,8 +30,12 @@ import { permissionDenied } from '../permissions/guard.js';
  *   pause / resume IN_PRODUCTION ⇄ PAUSED   operations.execution.manage
  *   issue         IN_PRODUCTION        operations.material_issues.create (draft); posting needs .approve
  *   usage         IN_PRODUCTION, PAUSED      operations.material_usage.create (no stock effect)
- *   REJECTED and CANCELLED are terminal. IN_PRODUCTION / COMPLETED do not exist
- *   in EP36 — they belong to physical execution (EP37+).
+ *   output        IN_PRODUCTION, PAUSED      operations.output.create (report; acceptance needs .approve) (EP38)
+ *   review        IN_PRODUCTION, PAUSED      operations.orders.update_status → COMPLETION_REVIEW (EP38)
+ *   reopen        COMPLETION_REVIEW          same → IN_PRODUCTION
+ *   complete      COMPLETION_REVIEW          same → COMPLETED (outcome COMPLETED or SHORT_CLOSED)
+ *   COMPLETION_REVIEW still allows release of reservations and usage records; COMPLETED,
+ *   REJECTED and CANCELLED are terminal.
  *
  *   BOM action    from                 who
  *   edit          DRAFT                operations.bom.manage
@@ -63,6 +67,11 @@ export const MO_ACTIONS = [
   'resume',
   'issue',
   'usage',
+  // EP38: output and completion
+  'output',
+  'review',
+  'reopen',
+  'complete',
 ] as const;
 export type MoAction = (typeof MO_ACTIONS)[number];
 export const BOM_ACTIONS = ['edit', 'activate', 'retire', 'revise'] as const;
@@ -87,6 +96,13 @@ export interface ProductionActor {
   usage: boolean;
   execution: boolean;
   warehouseIssues: boolean;
+  /** EP38 */
+  outputCreate: boolean;
+  outputApprove: boolean;
+  complete: boolean;
+  fgView: boolean;
+  fgProcess: boolean;
+  fgConfirm: boolean;
 }
 
 export async function loadProductionActor(db: Db, ctx: AuthContext): Promise<ProductionActor> {
@@ -114,6 +130,12 @@ export async function loadProductionActor(db: Db, ctx: AuthContext): Promise<Pro
     usage: has('operations.material_usage.create'),
     execution: has('operations.execution.manage'),
     warehouseIssues: has('warehouse.material_issues.view'),
+    outputCreate: has('operations.output.create'),
+    outputApprove: has('operations.output.approve'),
+    complete: has('operations.orders.update_status'),
+    fgView: has('warehouse.finished_goods.view'),
+    fgProcess: has('warehouse.finished_goods.process'),
+    fgConfirm: has('warehouse.finished_goods.confirm'),
   };
 }
 
@@ -136,14 +158,18 @@ const FROM: Record<MoAction, readonly ProductionOrderStatus[]> = {
   release: ['APPROVED'],
   cancel: ['DRAFT', 'APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
   allocate: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
-  unreserve: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
+  unreserve: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED', 'COMPLETION_REVIEW'],
   reallocate: ['APPROVED', 'READY', 'IN_PRODUCTION', 'PAUSED'],
   excess: ['IN_PRODUCTION', 'PAUSED'],
   start: ['READY'],
   pause: ['IN_PRODUCTION'],
   resume: ['PAUSED'],
   issue: ['IN_PRODUCTION'],
-  usage: ['IN_PRODUCTION', 'PAUSED'],
+  usage: ['IN_PRODUCTION', 'PAUSED', 'COMPLETION_REVIEW'],
+  output: ['IN_PRODUCTION', 'PAUSED'],
+  review: ['IN_PRODUCTION', 'PAUSED'],
+  reopen: ['COMPLETION_REVIEW'],
+  complete: ['COMPLETION_REVIEW'],
 };
 
 const CODE: Record<MoAction, PermissionCode> = {
@@ -162,6 +188,10 @@ const CODE: Record<MoAction, PermissionCode> = {
   resume: 'operations.execution.manage',
   issue: 'operations.material_issues.create',
   usage: 'operations.material_usage.create',
+  output: 'operations.output.create',
+  review: 'operations.orders.update_status',
+  reopen: 'operations.orders.update_status',
+  complete: 'operations.orders.update_status',
 };
 
 /** Why `action` is refused, or null. Without authority nothing about the state is revealed. */
@@ -187,7 +217,11 @@ export function moRefusal(
               ? actor.issueCreate
               : action === 'usage'
                 ? actor.usage
-                : own;
+                : action === 'output'
+                  ? actor.outputCreate
+                  : action === 'review' || action === 'reopen' || action === 'complete'
+                    ? actor.complete
+                    : own;
   if (!authority) return 'authority';
   if (!FROM[action].includes(o.status)) return 'status';
   if (!inBranch(actor, o.branchId)) return 'branch';
@@ -219,9 +253,11 @@ export function assertMo(actor: ProductionActor, action: MoAction, o: OrderFacts
           ? 'MO_NOT_EDITABLE'
           : action === 'start' && (o.status === 'IN_PRODUCTION' || o.status === 'PAUSED')
             ? 'MO_ALREADY_STARTED'
-            : action === 'issue'
+            : action === 'issue' || action === 'output'
               ? 'MO_NOT_IN_PRODUCTION'
-              : 'MO_INVALID_TRANSITION';
+              : o.status === 'COMPLETED'
+                ? 'MO_COMPLETED'
+                : 'MO_INVALID_TRANSITION';
     throw new AppError(
       409,
       code,
@@ -259,4 +295,8 @@ export const orderNotFound = () =>
   new AppError(404, 'MO_NOT_FOUND', 'This production order was not found.');
 export const issueNotFound = () =>
   new AppError(404, 'MI_NOT_FOUND', 'This material issue was not found.');
+export const outputNotFound = () =>
+  new AppError(404, 'OUTPUT_NOT_FOUND', 'This output report was not found.');
+export const receiptNotFound = () =>
+  new AppError(404, 'FGR_NOT_FOUND', 'This finished goods receipt was not found.');
 export const bomNotFound = () => new AppError(404, 'BOM_NOT_FOUND', 'This BOM was not found.');

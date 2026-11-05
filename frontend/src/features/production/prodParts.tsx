@@ -33,6 +33,8 @@ const MO_TONE: Record<MoStatus, 'neutral' | 'teal' | 'muted' | 'warning'> = {
   APPROVED: 'teal',
   READY: 'teal',
   IN_PRODUCTION: 'teal',
+  COMPLETION_REVIEW: 'warning',
+  COMPLETED: 'teal',
   PAUSED: 'warning',
   REJECTED: 'muted',
   CANCELLED: 'muted',
@@ -99,6 +101,7 @@ export function ProductionNav({ ctx }: { ctx: ProductionContext }) {
     [`${PROD}/reservations`, c.nav.reservations, false],
     [`${PROD}/issues`, c.nav.issues, false],
     [`${PROD}/execution`, c.nav.execution, false],
+    [`${PROD}/output`, c.nav.output, false],
   ];
   return (
     <nav

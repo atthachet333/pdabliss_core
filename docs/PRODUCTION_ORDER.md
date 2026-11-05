@@ -9,13 +9,17 @@ inventory. BOMs: [PRODUCTION_BOM.md](PRODUCTION_BOM.md). Report: [EP36_REPORT.md
 [PRODUCTION_MATERIAL_RESERVATION.md](PRODUCTION_MATERIAL_RESERVATION.md),
 [PRODUCTION_MATERIAL_ISSUE.md](PRODUCTION_MATERIAL_ISSUE.md),
 [PRODUCTION_EXECUTION.md](PRODUCTION_EXECUTION.md), [EP37_REPORT.md](EP37_REPORT.md). Planning
-itself (this document) still writes nothing to inventory.
+itself (this document) still writes nothing to inventory. **EP38** closes the lifecycle: output
+reports, finished goods receipts (`PRODUCTION_OUTPUT`) and completion / short close —
+[PRODUCTION_OUTPUT.md](PRODUCTION_OUTPUT.md),
+[PRODUCTION_FINISHED_GOODS_RECEIPT.md](PRODUCTION_FINISHED_GOODS_RECEIPT.md),
+[PRODUCTION_COMPLETION.md](PRODUCTION_COMPLETION.md), [EP38_REPORT.md](EP38_REPORT.md).
 
 ```
 Sales demand / manual need → production order (DRAFT) → BOM → material requirements
 → availability (snapshot) → SUBMITTED → APPROVED (frozen) → READY
 → EP37 reservation (FEFO) → IN_PRODUCTION ⇄ PAUSED → material issue (PRODUCTION_CONSUMPTION)
-→ EP38 finished goods receipt
+→ EP38 output report → finished goods receipt (PRODUCTION_OUTPUT) → COMPLETION_REVIEW → COMPLETED
 ```
 
 ## 1. Model
@@ -40,13 +44,14 @@ No price, cost, value, customer or commercial field exists on either table.
 
 ```
 DRAFT → SUBMITTED → APPROVED → READY → IN_PRODUCTION ⇄ PAUSED            (EP37)
+IN_PRODUCTION / PAUSED → COMPLETION_REVIEW → COMPLETED | IN_PRODUCTION     (EP38)
 DRAFT → CANCELLED · SUBMITTED → REJECTED · APPROVED / READY / IN_PRODUCTION / PAUSED → CANCELLED
 ```
 
 Transitions are defined once (`backend/src/production/policy.ts`) and enforced again by a database
 trigger (any other move, a changed number / branch / source / item, or a changed plan after approval
-is refused). EP37 added `IN_PRODUCTION` / `PAUSED` (PRODUCTION_EXECUTION.md); `COMPLETED` does not
-exist yet — it belongs to finished goods receipt (EP38).
+is refused). EP37 added `IN_PRODUCTION` / `PAUSED` (PRODUCTION_EXECUTION.md); EP38 added
+`COMPLETION_REVIEW` / `COMPLETED` (PRODUCTION_COMPLETION.md) — COMPLETED is terminal.
 REJECTED and CANCELLED are terminal and stay in history (no deletes; approval facts are kept).
 
 | Action | From | Who | Notes |
@@ -202,7 +207,9 @@ of EP34) → material issue → `PRODUCTION_CONSUMPTION` (negative) through `led
 count locks and the reserved-stock guard intact; frozen `ProductionOrderMaterial` rows are the issue
 targets.
 
-**Future contract (not implemented):**
+**Implemented in EP38** (the contract below): output report → finished goods receipt →
+`PRODUCTION_OUTPUT` (positive) through `applyMovement()`; only then is output stock Sales can
+allocate (PRODUCTION_FINISHED_GOODS_RECEIPT.md).
 
 - **EP38 finished goods receipt:** manufacturing completion → finished goods receipt →
   `PRODUCTION_OUTPUT` (positive) through `applyMovement()`, lots / expiry per EP31 rules; only then
@@ -247,8 +254,8 @@ Material requirements · Sales demand (create from a line). Purchasing: `/core/p
 
 ## 14. Known limitations (deliberate)
 
-- No completion or finished goods receipt (EP37 added reservation, issue, consumption and
-  start / pause / resume).
+- EP37 added reservation, issue, consumption and start / pause / resume; EP38 added output,
+  finished goods receipt and completion. Still no returns, rework, scrap, costing or routing.
 - No capacity, routing, work centre, labour, machine or scheduling logic; dates are plain plan dates.
 - Single-level BOMs only; no unit conversion; no scrap / yield.
 - No automatic production orders and no automatic purchase requests.

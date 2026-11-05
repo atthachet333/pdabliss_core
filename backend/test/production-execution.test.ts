@@ -590,7 +590,7 @@ describeDb('Production execution (EP37)', () => {
 
   // ---------------------------------------------------------------- execution
 
-  it('start needs READY and every material reserved; pause / resume change no stock; no COMPLETED', async () => {
+  it('start needs READY and every material reserved; pause / resume change no stock; completion only from review', async () => {
     await activeBom(it_.fg, [[it_.rm, '1']]);
     await stockIn(it_.rm, '5');
     const o = await approved('10');
@@ -628,7 +628,16 @@ describeDb('Production execution (EP37)', () => {
     await expect(
       h.db.productionOrder.update({ where: { id: o.id }, data: { startedAt: new Date() } }),
     ).rejects.toThrow(/keeps its start/);
-    expect((await m.post(`${P}/orders/${o.id}/complete`, {})).statusCode).toBe(404);
+    // EP38: completion exists, but only from COMPLETION_REVIEW (and with the material review confirmed).
+    expect((await m.post(`${P}/orders/${o.id}/complete`, {})).statusCode).toBe(400);
+    expect(
+      code(
+        await m.post(`${P}/orders/${o.id}/complete`, {
+          outcome: 'COMPLETED',
+          materialsReviewed: true,
+        }),
+      ),
+    ).toBe('MO_INVALID_TRANSITION');
     const tl = (await ok(m.get(`${P}/orders/${o.id}`))).timeline.map((t: J) => t.type);
     expect(tl).toEqual(
       expect.arrayContaining([

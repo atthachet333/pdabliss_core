@@ -44,7 +44,9 @@ import { assertKnownLots, assertLocations, normalizeLine } from './rules.js';
  * stock (reservations.ts `takeRespectingReservations`, STOCK_RESERVED) — a
  * reservation is not a movement, but no movement may eat into one. EP37: the
  * same guard counts production reservations too, and a posted material issue
- * writes PRODUCTION_CONSUMPTION here, like every other stock change.
+ * writes PRODUCTION_CONSUMPTION here, like every other stock change. EP38: a
+ * posted finished goods receipt writes PRODUCTION_OUTPUT (and its reversal
+ * PRODUCTION_OUTPUT_REVERSAL, reservation-guarded) here too.
  */
 
 export interface LedgerActor {
@@ -222,6 +224,12 @@ export type MovementSource =
       sourceType: 'PRODUCTION_ISSUE';
       productionMaterialIssueId: string;
       productionMaterialIssueLineId: string;
+    }
+  /** EP38: a posted (or reversed) finished goods receipt line (PRODUCTION_OUTPUT / _REVERSAL). */
+  | {
+      sourceType: 'PRODUCTION_RECEIPT';
+      productionGoodsReceiptId: string;
+      productionGoodsReceiptLineId: string;
     };
 
 /**

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { quantityValue } from '../purchasing/input.js';
-import { dayValue } from '../warehouse/input.js';
+import { AllocationBody, dayValue } from '../warehouse/input.js';
 
 /*
  * Request schemas for Production planning (EP36). Strict objects: what the
@@ -42,6 +42,8 @@ export const MO_STATUSES = [
   'READY',
   'IN_PRODUCTION',
   'PAUSED',
+  'COMPLETION_REVIEW',
+  'COMPLETED',
   'REJECTED',
   'CANCELLED',
 ] as const;
@@ -144,7 +146,7 @@ export const MoListQuery = z
     /** SHORT: open orders whose materials are short now; AVAILABLE: covered now. */
     materials: param(z.enum(['SHORT', 'AVAILABLE'])),
     /** EP37: RESERVATION = approved … paused (materials being reserved / issued); EXECUTION = in production or paused. */
-    stage: param(z.enum(['RESERVATION', 'EXECUTION'])),
+    stage: param(z.enum(['RESERVATION', 'EXECUTION', 'COMPLETED'])),
     /** Planned start between from and to (inclusive). */
     from: param(dayValue),
     to: param(dayValue),
@@ -214,3 +216,75 @@ export const IssueListQuery = z
   })
   .strict();
 export type IssueListInput = z.output<typeof IssueListQuery>;
+
+// ---------------------------------------------------------------- EP38
+
+/** A quantity that may be zero (a report may have no defective or no pending part). */
+const amount = z
+  .string()
+  .trim()
+  .regex(/^\d{1,12}(\.\d{1,6})?$/, 'invalid quantity');
+
+const outputFields = {
+  productionDate: dayValue,
+  goodQuantity: amount,
+  defectiveQuantity: amount.optional(),
+  pendingQuantity: amount.optional(),
+  note: opt(text(1000)),
+};
+/** A production result of one order: good, defective, pending quality — reported, never stock. */
+export const CreateOutputBody = z.object({ productionOrderId: id, ...outputFields }).strict();
+export type CreateOutputInput = z.output<typeof CreateOutputBody>;
+export const UpdateOutputBody = z.object(outputFields).partial().strict();
+export type UpdateOutputInput = z.output<typeof UpdateOutputBody>;
+/** The quality decision: how much of the pending quantity is good (the rest is rejected). */
+export const AcceptOutputBody = z.object({ pendingGood: amount.optional() }).strict();
+export const OUTPUT_STATUSES = ['DRAFT', 'SUBMITTED', 'ACCEPTED', 'REJECTED', 'CANCELLED'] as const;
+export const OutputListQuery = z
+  .object({
+    status: param(z.enum(OUTPUT_STATUSES)),
+    productionOrderId: param(id),
+    branchId: param(id),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type OutputListInput = z.output<typeof OutputListQuery>;
+
+/** Review / reopen: an optional note. Complete: the outcome, its reason, the material review. */
+export const ReviewBody = z.object({ note: opt(text(500)) }).strict();
+export const CompleteBody = z
+  .object({
+    outcome: z.enum(['COMPLETED', 'SHORT_CLOSED']),
+    reason: opt(text(500)),
+    materialsReviewed: z.literal(true),
+  })
+  .strict();
+export type CompleteInput = z.output<typeof CompleteBody>;
+
+/** Finished goods receipt lines: the warehouse allocation shape (location, lot, expiry, quantity). */
+export const FgLinesBody = z
+  .object({ lines: z.array(AllocationBody).min(1).max(50), note: opt(text(1000)) })
+  .strict();
+export const CreateFgReceiptBody = z
+  .object({
+    outputReportId: id,
+    lines: z.array(AllocationBody).min(1).max(50),
+    note: opt(text(1000)),
+  })
+  .strict();
+export type CreateFgReceiptInput = z.output<typeof CreateFgReceiptBody>;
+export const FG_RECEIPT_STATUSES = ['DRAFT', 'POSTED', 'CANCELLED', 'REVERSED'] as const;
+export const FgReceiptListQuery = z
+  .object({
+    status: param(z.enum(FG_RECEIPT_STATUSES)),
+    outputReportId: param(id),
+    productionOrderId: param(id),
+    q: param(z.string().trim().min(1).max(100)),
+    ...page,
+  })
+  .strict();
+export type FgReceiptListInput = z.output<typeof FgReceiptListQuery>;
+export const ReasonBody = z.object({ reason: text(500) }).strict();
+export const OptionalReasonBody = z.object({ reason: opt(text(500)) }).strict();
+export const FgPendingQuery = z.object({ ...page }).strict();

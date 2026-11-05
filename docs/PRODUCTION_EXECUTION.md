@@ -18,7 +18,8 @@ cancel: DRAFT (creator) · APPROVED · READY · IN_PRODUCTION · PAUSED (only wh
 migration, `20261109090000_ep37_enum_values`, because PostgreSQL cannot use an enum value in the
 transaction that adds it. The `production_order_guard` trigger enforces the same transitions as
 `production/policy.ts`. `startedAt` / `startedByMemberId`, `pausedAt` and `executionNote` are new
-nullable columns. `COMPLETED` does not exist yet.
+nullable columns. EP38 continues the lifecycle with `COMPLETION_REVIEW` → `COMPLETED`
+([PRODUCTION_COMPLETION.md](PRODUCTION_COMPLETION.md)): release and usage stay possible under review.
 
 | Action | From | Code | Rule |
 | --- | --- | --- | --- |
@@ -89,6 +90,7 @@ changes nothing. No demo persona was elevated: `operations.demo` stays Departmen
 
 ## 6. Known limitations (deliberate)
 
-- No completion, finished goods receipt or `PRODUCTION_OUTPUT` (EP38).
+- Completion, output and finished goods receipt arrived in EP38 (PRODUCTION_OUTPUT.md,
+  PRODUCTION_FINISHED_GOODS_RECEIPT.md, PRODUCTION_COMPLETION.md).
 - No material return, scrap or yield documents; variance is evidence only.
 - No costing, labour, machine time, routing or work centres; no GL / payroll effect.

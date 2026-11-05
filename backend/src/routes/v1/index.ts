@@ -21,6 +21,7 @@ import { platformRoutes } from './platform.js';
 import { depositRoutes, pendingReceiveRoutes, purchaseOrderRoutes } from './purchase-orders.js';
 import {
   materialIssueHandoffRoutes,
+  finishedGoodsRoutes,
   productionRoutes,
   productionShortageRoutes,
 } from './production.js';
@@ -115,6 +116,11 @@ export const v1Routes: FastifyPluginAsync<{
     // EP37: Warehouse's read-only view of material issues (explicit permission).
     await app.register(materialIssueHandoffRoutes, {
       prefix: '/warehouse/material-issues',
+      db: services.db,
+    });
+    // EP38: Warehouse finished goods (pending accepted output, receipts into stock).
+    await app.register(finishedGoodsRoutes, {
+      prefix: '/warehouse/finished-goods',
       db: services.db,
     });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });

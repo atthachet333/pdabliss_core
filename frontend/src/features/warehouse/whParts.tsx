@@ -38,6 +38,8 @@ export function WarehouseNav({ ctx }: { ctx: WarehouseContext }) {
   }
   // EP37: the read-only production material issue handoff (explicit permission).
   if (ctx.materialIssues?.view) links.push([`${WH}/material-issues`, c.nav.materialIssues]);
+  // EP38: finished goods receipts (accepted production output into stock).
+  if (ctx.finishedGoods?.view) links.push([`${WH}/finished-goods`, c.nav.finishedGoods]);
   return (
     <nav
       aria-label={c.workspace}

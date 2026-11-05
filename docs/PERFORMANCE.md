@@ -208,6 +208,18 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP38 — no budget changed; no recovery needed.** The chunk graph was inspected first: every EP38
+  screen is lazy, inside the existing Production and Warehouse routes, and adds no dependency.
+  - New chunks:
+    - `OutputArea`: ≈ 10.9 KiB raw / 3.7 KiB gzip;
+    - `OutputPanel`: ≈ 5.4 / 1.9 (order detail only);
+    - `FinishedGoodsArea`: ≈ 11.2 / 3.6;
+    - shared `outParts`, with the TH / EN / ZH output copy and API: ≈ 28.3 / 8.3.
+  - Existing chunks grow: `ProductionArea` 32.3 → 33.1 KiB and `prodParts` 40.1 → 41.1 KiB
+    (statuses, nav, tiles).
+  - All JS **4,167.0 → 4,225.6 / 4,300 KiB (+58.6)**; headroom ≈ 74 KiB. The next large screens
+    should recover JS first.
+  - Initial JS 182.6 / 205 KiB gzip and static HTML 528 / 560 KiB are unchanged.
 - **EP37 — no budget changed; no recovery needed.** The chunk graph was inspected before building:
   every new screen is lazy, inside the Production route, and has no eager Warehouse / Sales import
   and no new dependency. The EP36 `CoreCanvas` optimization is untouched.

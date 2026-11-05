@@ -5,10 +5,17 @@ how much material that needs, whether it is available now, and which orders are 
 only** — no production order creates, edits, submits, approves, releases or cancels anything in
 inventory. BOMs: [PRODUCTION_BOM.md](PRODUCTION_BOM.md). Report: [EP36_REPORT.md](EP36_REPORT.md).
 
+**EP37** adds material reservation, material issue and execution on top of the frozen plan:
+[PRODUCTION_MATERIAL_RESERVATION.md](PRODUCTION_MATERIAL_RESERVATION.md),
+[PRODUCTION_MATERIAL_ISSUE.md](PRODUCTION_MATERIAL_ISSUE.md),
+[PRODUCTION_EXECUTION.md](PRODUCTION_EXECUTION.md), [EP37_REPORT.md](EP37_REPORT.md). Planning
+itself (this document) still writes nothing to inventory.
+
 ```
 Sales demand / manual need → production order (DRAFT) → BOM → material requirements
 → availability (snapshot) → SUBMITTED → APPROVED (frozen) → READY
-→ EP37 material allocation / issue → EP37+ execution → EP38 finished goods receipt
+→ EP37 reservation (FEFO) → IN_PRODUCTION ⇄ PAUSED → material issue (PRODUCTION_CONSUMPTION)
+→ EP38 finished goods receipt
 ```
 
 ## 1. Model
@@ -32,13 +39,14 @@ No price, cost, value, customer or commercial field exists on either table.
 ## 2. Lifecycle
 
 ```
-DRAFT → SUBMITTED → APPROVED → READY
-DRAFT → CANCELLED · SUBMITTED → REJECTED · APPROVED → CANCELLED · READY → CANCELLED
+DRAFT → SUBMITTED → APPROVED → READY → IN_PRODUCTION ⇄ PAUSED            (EP37)
+DRAFT → CANCELLED · SUBMITTED → REJECTED · APPROVED / READY / IN_PRODUCTION / PAUSED → CANCELLED
 ```
 
 Transitions are defined once (`backend/src/production/policy.ts`) and enforced again by a database
 trigger (any other move, a changed number / branch / source / item, or a changed plan after approval
-is refused). `IN_PRODUCTION` / `COMPLETED` do not exist yet — they belong to physical execution.
+is refused). EP37 added `IN_PRODUCTION` / `PAUSED` (PRODUCTION_EXECUTION.md); `COMPLETED` does not
+exist yet — it belongs to finished goods receipt (EP38).
 REJECTED and CANCELLED are terminal and stay in history (no deletes; approval facts are kept).
 
 | Action | From | Who | Notes |
@@ -48,11 +56,12 @@ REJECTED and CANCELLED are terminal and stay in history (no deletes; approval fa
 | approve | SUBMITTED | `operations.orders.approve` | re-validates (below) and **freezes** the plan |
 | reject | SUBMITTED | same | reason required |
 | release | APPROVED | same | → READY only if every material is available **now** (`MATERIALS_SHORT` 409 otherwise) |
-| cancel | APPROVED, READY | `operations.orders.cancel` | reason required |
+| cancel | APPROVED, READY, IN_PRODUCTION, PAUSED (EP37) | `operations.orders.cancel` | reason required; refused once material was issued (`MATERIAL_ALREADY_ISSUED`); releases ACTIVE reservations and cancels draft issues |
 
 **READY policy.** READY means "released for execution with all materials available at release
-time". It is a snapshot: nothing is reserved, so later stock changes can make a READY order short
-again — its material state is always recomputed and shown.
+time". Release itself reserves nothing, so later stock changes can make a READY order short
+again — its material state is always recomputed and shown. Since EP37 the order can hold real
+reservations (allocate from APPROVED on), and start requires every material reserved.
 
 **Submit / approve re-validation.** The output item is still an active manufacturable finished good,
 the BOM revision is still ACTIVE (locked FOR SHARE, so a concurrent retirement waits), every material
@@ -78,6 +87,11 @@ submitted until the active revision is chosen.
 | `operations.orders.cancel` (EP36) | MANAGE | cancel approved / ready orders |
 | `operations.bom.view` / `.manage` (EP36) | READ / MANAGE | BOM revisions |
 | `purchasing.production_shortages.view` (EP36) | READ | Purchasing shortage handoff |
+| `operations.materials.manage` (EP37) | MANAGE | reserve, release, reallocate, excess |
+| `operations.material_issues.create` / `.approve` (EP37) | OPERATE / MANAGE | draft / post material issues |
+| `operations.material_usage.create` (EP37) | OPERATE | record usage |
+| `operations.execution.manage` (EP37) | MANAGE | start / pause / resume |
+| `warehouse.material_issues.view` (EP37) | READ | Warehouse read-only issue handoff |
 | `operations.orders.edit`, `.update_status` | — | reserved (editing a draft is part of create) |
 
 Role defaults (EP27 tiers): **Department Staff** in Operations = Production Staff (view, create,
@@ -150,19 +164,19 @@ without saving anything (the editor shows it before submission).
 
 ```
 available = Σ over the order's branch balances of the material that FEFO would offer
-            (on hand > 0, lot not expired): on hand − ACTIVE sales reservations
+            (on hand > 0, lot not expired): on hand − ACTIVE sales AND production reservations
 ```
 
-— exactly the EP34 reservation-aware figure Sales uses (`sales/availability.ts → stockFor`), so it is
-never raw on hand. Other branches' stock never counts; expired lots never count. Per material:
+— exactly the reservation-aware figure Sales uses (`sales/availability.ts → stockFor`, through the
+shared `warehouse/reservations.ts` guard since EP37), so it is never raw on hand. Other branches' stock never counts; expired lots never count. Per material:
 `AVAILABLE` (available ≥ required) · `PARTIALLY_AVAILABLE` · `UNAVAILABLE` (none), shortage =
 max(0, required − available). Per order: `MATERIALS_AVAILABLE` · `MATERIALS_SHORT` · `NOT_ASSESSED`
 (no BOM yet, or REJECTED / CANCELLED). Recomputed on every read, never stored.
 
-**A snapshot, not a claim.** Two approved orders may both show the same available stock; EP36 does
-not pretend materials are reserved for production (the screens say so). Cycle-count locks do not
-change availability (they block movements, which EP36 never writes); EP37's material issue will go
-through `applyMovement()` and meet them there.
+**A snapshot, not a claim — until reserved.** Two approved orders may both show the same available
+stock; only an EP37 allocation turns availability into a claim (PRODUCTION_MATERIAL_RESERVATION.md). Cycle-count locks do not
+change availability (they block movements, which EP36 never writes); EP37's material issue goes
+through `applyMovement()` and meets them there.
 
 `GET /production/requirements?branchId` aggregates the branch's SUBMITTED / APPROVED / READY orders
 per material: required, available, shortage, state, order count, earliest required date.
@@ -177,17 +191,19 @@ created — tested). Purchasing cannot open production orders or BOMs.
 
 ## 9. Inventory integrity
 
-Production planning writes **no** StockMovement, StockBalance or SalesAllocation row (tested before
+Production **planning** writes **no** StockMovement, StockBalance or SalesAllocation row (tested before
 and after every step: movement count, every balance and reservation with its `updatedAt`, purchase
-requests and orders all identical). No production movement type exists yet; finished goods appear
-in stock only through a future receipt.
+requests and orders all identical). Since EP37 the only Production stock writer is a posted
+material issue (`PRODUCTION_CONSUMPTION`); finished goods appear in stock only through a future
+receipt.
 
-**Future contracts (not implemented):**
+**Implemented in EP37:** production order → material reservation (FEFO, the production counterpart
+of EP34) → material issue → `PRODUCTION_CONSUMPTION` (negative) through `ledger.ts applyMovement()`,
+count locks and the reserved-stock guard intact; frozen `ProductionOrderMaterial` rows are the issue
+targets.
 
-- **EP37 material issue:** production order → material allocation (a production reservation, the
-  production counterpart of EP34) → material issue → `PRODUCTION_CONSUMPTION` (negative) through
-  `ledger.ts applyMovement()`, FEFO, count locks and the reserved-stock guard intact; frozen
-  `ProductionOrderMaterial` rows are the issue targets.
+**Future contract (not implemented):**
+
 - **EP38 finished goods receipt:** manufacturing completion → finished goods receipt →
   `PRODUCTION_OUTPUT` (positive) through `applyMovement()`, lots / expiry per EP31 rules; only then
   does output become stock that Sales can allocate.
@@ -205,13 +221,19 @@ consecutive. BOM activation and sales cancellation races: see above and PRODUCTI
 `PRODUCTION_ORDER_CREATED / UPDATED / SUBMITTED / APPROVED / REJECTED / RELEASED / CANCELLED` on
 entity `ProductionOrder` (number, source, from → to, changed field names, material count — never
 quantities or reasons' values), shown as each order's timeline and redacted on the Platform explorer.
+EP37 adds `PRODUCTION_MATERIALS_ALLOCATED / RELEASED / REALLOCATED`, `PRODUCTION_EXCESS_ALLOCATED`,
+`PRODUCTION_ORDER_STARTED / PAUSED / RESUMED`, `PRODUCTION_MATERIAL_USAGE_RECORDED` and the
+`MATERIAL_ISSUE_*` events on `ProductionMaterialIssue` (shown in the same timeline).
 
 ## 12. API (`/api/v1/production`)
 
 `GET /context` · `GET /orders` (status, branchId, itemId, source, materials=SHORT|AVAILABLE, from / to
 planned start, q, page, pageSize ≤ 100) · `POST /orders` · `GET /orders/:id` · `PATCH /orders/:id` ·
 `POST /orders/:id/submit|approve|release` (no body) · `POST /orders/:id/reject|cancel {reason?}` ·
-`GET /requirements/preview` · `GET /requirements` · `GET /demand`.
+`GET /requirements/preview` · `GET /requirements` · `GET /demand`. EP37: `stage=RESERVATION|EXECUTION`
+on `GET /orders` · `POST /orders/:id/materials/allocate|release|reallocate` ·
+`POST /orders/:id/materials/:materialId/excess` · `POST /orders/:id/start|pause|resume {note?}` ·
+`POST /orders/:id/usage` · `/issues` (PRODUCTION_MATERIAL_ISSUE.md §7).
 
 ## 13. Screens (`/core/production`, one lazy chunk)
 
@@ -225,7 +247,8 @@ Material requirements · Sales demand (create from a line). Purchasing: `/core/p
 
 ## 14. Known limitations (deliberate)
 
-- No material reservation, issue, consumption, execution, completion or finished goods receipt.
+- No completion or finished goods receipt (EP37 added reservation, issue, consumption and
+  start / pause / resume).
 - No capacity, routing, work centre, labour, machine or scheduling logic; dates are plain plan dates.
 - Single-level BOMs only; no unit conversion; no scrap / yield.
 - No automatic production orders and no automatic purchase requests.

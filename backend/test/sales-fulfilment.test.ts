@@ -718,7 +718,13 @@ describeDb('Sales fulfilment (EP35)', () => {
       ]);
       expect(d.statusCode, d.body).toBe(200);
       expect(x.statusCode).toBe(409);
-      expect(['FULFILMENT_IN_PROGRESS', 'SO_ALREADY_DISPATCHED']).toContain(code(x));
+      // Either the staged work blocks it, or the dispatch committed first and nothing is
+      // left: release / reallocate then find no ACTIVE reservation (nothing written).
+      expect([
+        'FULFILMENT_IN_PROGRESS',
+        'SO_ALREADY_DISPATCHED',
+        ...(other === 'cancel' ? [] : ['SO_NOT_ALLOCATED']),
+      ]).toContain(code(x));
       expect((await ok(owner.get(`${SO}/${o.id}`))).order.status).toBe('CONFIRMED');
     }
     // vs a transfer / adjustment of the same stock: the free part may move, the reserved part never.

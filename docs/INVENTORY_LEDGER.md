@@ -182,10 +182,53 @@ it: creating, editing, submitting, approving, releasing, rejecting or cancelling
 (and every BOM action) produces **no** StockMovement, no StockBalance change and no SalesAllocation
 row — tested before and after every step, and on the real stack. Material availability for planning
 is the EP34 reservation-aware figure (`sales/availability.ts → stockFor`), a snapshot that reserves
-nothing. No production movement type exists yet. Future contracts, both through `applyMovement()`
-with every guard intact:
+nothing. EP37 implemented the first contract (§11). Remaining future contract, through
+`applyMovement()` with every guard intact:
 
-- **EP37:** production order → material allocation → material issue → `PRODUCTION_CONSUMPTION`
-  (negative), consuming the frozen `ProductionOrderMaterial` requirements.
 - **EP38:** manufacturing completion → finished goods receipt → `PRODUCTION_OUTPUT` (positive); only
   then does output become stock Sales can allocate.
+
+## 11. EP37 PRODUCTION_CONSUMPTION (material issue)
+
+**Production reservations.** A `ProductionMaterialAllocation` is a reservation exactly like a sales
+one: no movement, no balance change
+([PRODUCTION_MATERIAL_RESERVATION.md](PRODUCTION_MATERIAL_RESERVATION.md)). `warehouse/reservations.ts`
+now sums **both** kinds:
+
+```
+reserved = Σ ACTIVE SalesAllocation + Σ ACTIVE ProductionMaterialAllocation
+```
+
+Every reader and the `applyMovement()` decrease guard (`takeRespectingReservations`) therefore keep
+**reserved (sales + production) ≤ on hand**. Transfers, adjustments, count corrections and reversals
+refuse to take reserved stock (`409 STOCK_RESERVED`, "reserved (for sales or production)").
+
+**The movement.** `PRODUCTION_CONSUMPTION` is the only movement Production writes:
+
+- negative, `sourceType = 'PRODUCTION_ISSUE'`;
+- carries `productionMaterialIssueId` and `productionMaterialIssueLineId` (composite FKs to the
+  issue's branch and company);
+- one per issue line (unique `(productionMaterialIssueLineId, type)`);
+- written through `applyMovement()` when a material issue is **posted**, never at reservation,
+  draft or usage ([PRODUCTION_MATERIAL_ISSUE.md](PRODUCTION_MATERIAL_ISSUE.md) §3).
+
+**Posting.** It follows the dispatch pattern:
+
+1. Lock the order row, then the issue row.
+2. Take the location locks shared (an open count refuses with `COUNT_IN_PROGRESS`).
+3. Lock balances, then production reservations, in id order.
+4. Consume the exact reservation (whole row, or a CONSUMED split row).
+5. Write the movement.
+
+The enum value is added in its own migration (`20261109090000_ep37_enum_values`), and
+`StockMovement_check` was re-stated as a superset that existing rows satisfy. There is no reversal
+type in EP37; a return of unused material will add its own positive type. Usage records
+(`ProductionMaterialUsage`) are evidence only and never touch the ledger.
+
+**Reconciliation** (after every QA section and race, on the real stack):
+
+- balance = Σ movements per identity;
+- nothing negative;
+- every PRODUCTION_CONSUMPTION is matched by exactly one CONSUMED production reservation of the same
+  quantity, and every SALES_ISSUE by its sales reservation;
+- no movement consumed the other side's reservation.

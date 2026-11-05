@@ -208,6 +208,18 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP37 — no budget changed; no recovery needed.** The chunk graph was inspected before building:
+  every new screen is lazy, inside the Production route, and has no eager Warehouse / Sales import
+  and no new dependency. The EP36 `CoreCanvas` optimization is untouched.
+  - Production execution adds:
+    - `ExecutionPanel`: ≈ 8.1 KiB raw / 2.8 KiB gzip (order detail only);
+    - `IssuesArea`: ≈ 7.2 / 2.7;
+    - `execCopy`: TH / EN / ZH execution copy, ≈ 20.0 / 6.3, loaded with those two;
+    - the Warehouse `MaterialIssueHandoff`: ≈ 2.5 / 1.1.
+  - Existing chunks grow: `ProductionArea` 31.2 → 32.3 KiB (reservation / execution lists, tiles)
+    and `prodParts` 37.5 → 40.1 KiB (nav, statuses).
+  - All JS **4,122.4 → 4,167.0 / 4,300 KiB (+44.6)**; headroom ≈ 133 KiB.
+  - Initial JS 182.6 / 205 KiB gzip and static HTML 528 / 560 KiB are unchanged.
 - **EP36 — no budget changed; JS recovered first.** Phase 0 took the total from 4,252.8 to
   **4,052.2 KiB (200.6 KiB recovered)** before any Production code: `<Canvas>` from
   @react-three/fiber registers the whole three.js namespace (`extend(THREE)`), which kept every

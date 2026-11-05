@@ -65,7 +65,9 @@ refused with 400 (strict schemas).
 **Immutability.** An ACTIVE or RETIRED revision cannot change: the service refuses
 (`BOM_NOT_EDITABLE`) and database triggers refuse it too (header fields, lines, status going back,
 deletes). A change is a new revision. Production orders keep their own frozen copy, so retiring or
-superseding a revision never alters approved history.
+superseding a revision never alters approved history. EP37 reservations, issues and usage are
+always tied to those frozen `ProductionOrderMaterial` rows, never to the BOM, so a new revision
+never changes what is reserved or issued for an existing order.
 
 **Selection rule (deterministic).** At most one ACTIVE revision per finished item. A new order uses
 the BOM named by the planner only if it is ACTIVE and makes the order's item; with none named, the

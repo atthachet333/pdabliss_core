@@ -63,6 +63,7 @@ branch access or enabled departments takes effect on the next request of every o
 | **EP34 sales allocation** | allocate · release · reallocate with `sales.orders.approve` (no new code); Pending Pick with `warehouse.inventory.view` |
 | **EP35 sales fulfilment** | `warehouse.picking.process` (new, OPERATE) · `warehouse.dispatch.confirm` (new, MANAGE) · `warehouse.delivery.confirm` (new, MANAGE); reads with `warehouse.inventory.view` |
 | **EP36 production planning** | `operations.orders.view` · `.create` (EP27, now used) · `operations.orders.approve` · `.cancel` (new, MANAGE) · `operations.bom.view` (new, READ, COMPANY) · `operations.bom.manage` (new, MANAGE, COMPANY) · `purchasing.production_shortages.view` (new, READ); `operations.orders.edit` · `.update_status` reserved |
+| **EP37 production execution** | `operations.materials.manage` (new, MANAGE: reserve / release / reallocate / excess) · `operations.material_issues.create` (new, OPERATE: draft / edit / cancel issues) · `operations.material_issues.approve` (new, MANAGE: post — stock leaves) · `operations.material_usage.create` (new, OPERATE: usage evidence) · `operations.execution.manage` (new, MANAGE: start / pause / resume) · `warehouse.material_issues.view` (new, READ: Warehouse handoff); all BRANCH-scoped |
 | **EP30 purchase orders** | `purchasing.orders.view` · `.create` · `.approve` (existing) + `purchasing.orders.edit` · `.cancel`; `accounting.deposits.view` · `.confirm`; `warehouse.receiving.view` (existing) |
 
 **EP29 note.** No `submit` / `reject` action words were added: submitting is part of `create`
@@ -87,6 +88,14 @@ stock-adjustment code is used yet. System Admin gets none of it unless assigned 
 Executive reads only; Purchasing and Accounting see receive progress on orders, never stock. The
 override CHECK lists 57 operational codes. One policy table: `backend/src/warehouse/policy.ts`; see
 [WAREHOUSE_RECEIVING.md](WAREHOUSE_RECEIVING.md).
+
+**EP37 note.** Six new BRANCH-scoped codes (override CHECK now **76**), see the EP37 catalog row.
+Operations Staff draft material issues and record usage (OPERATE); Operations Managers also reserve,
+release, reallocate, authorize excess, post issues and start / pause / resume production (MANAGE);
+the Owner holds everything; Executive reads; an Operations-assigned System Admin never gets MANAGE;
+Warehouse roles read only the material issue handoff (`warehouse.material_issues.view`) and cannot open
+production orders; Sales / Purchasing / Accounting hold no execution code. No demo persona was
+elevated. See [PRODUCTION_EXECUTION.md](PRODUCTION_EXECUTION.md) §1.
 
 **EP36 note.** Production lives in the **Operations** department (no new department). Five new
 codes (override CHECK now **70**): `operations.orders.approve` (approve / reject / release),

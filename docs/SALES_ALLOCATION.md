@@ -41,7 +41,7 @@ indexes). Hand-written guards: `SalesAllocation_quantity_check` (quantity > 0, `
 
 ```
 on hand   = StockBalance.quantityOnHand        (physical truth, unchanged by reservations)
-reserved  = Σ ACTIVE SalesAllocation of the identity
+reserved  = Σ ACTIVE SalesAllocation + Σ ACTIVE ProductionMaterialAllocation of the identity (EP37)
 available = on hand − reserved                 (never below 0 — the invariant keeps it so)
 ```
 
@@ -57,6 +57,14 @@ available = on hand − reserved                 (never below 0 — the invarian
 Reads after the lock are separate statements, so under READ COMMITTED they see every reservation or
 decrease that committed while waiting. If PostgreSQL still aborts one side (deadlock / serialization
 failure), the API answers `409 CONCURRENT_UPDATE` ("try again") — nothing was written.
+
+**Since EP37 the guard is shared with Production**
+([PRODUCTION_MATERIAL_RESERVATION.md](PRODUCTION_MATERIAL_RESERVATION.md) §2). Sales availability and
+FEFO allocation subtract production reservations too, and a Production allocation locks the same
+balance rows. A Sales and a Production allocation on the same stock therefore serialize, and the
+second takes only what is still free: 7 + 7 requested on 10 gives exactly 10 reserved (tested on the
+real stack, three rounds). `reservedBreakdown()` separates the two for screens. Sales never releases
+or consumes a production reservation, and the reverse also holds.
 
 What respects reservations: transfers (draft check + posting), adjustment decreases (draft check +
 posting), cycle-count corrections, and every reversal (receipt, transfer, adjustment). Inventory screens

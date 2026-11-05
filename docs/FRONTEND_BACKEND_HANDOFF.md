@@ -219,6 +219,28 @@ noindex, served by the existing `/platform/*` shell rewrite).
   (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
   `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
   Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
+- **EP37 (Material reservation, issue and execution, Operations):** see
+  [PRODUCTION_MATERIAL_RESERVATION.md](PRODUCTION_MATERIAL_RESERVATION.md),
+  [PRODUCTION_MATERIAL_ISSUE.md](PRODUCTION_MATERIAL_ISSUE.md),
+  [PRODUCTION_EXECUTION.md](PRODUCTION_EXECUTION.md) and [EP37_REPORT.md](EP37_REPORT.md).
+  `/api/v1/production`:
+  - `orders?stage=RESERVATION|EXECUTION`;
+  - `orders/:id/materials/allocate` · `release` · `reallocate` (no body; the response adds
+    `allocation`);
+  - `orders/:id/materials/:materialId/excess {quantity, reason}`;
+  - `orders/:id/start` · `pause` · `resume {note?}`;
+  - `orders/:id/usage {materialId, quantity, note?}`;
+  - `issues` (list, create `{productionOrderId, lines?, note?}`, detail, `PUT :id/lines`, `post`,
+    `cancel {reason?}`);
+  - `/api/v1/warehouse/material-issues?status` (read-only).
+
+  The order detail adds `reservations`, `issues`, `execution` and per-material `required` /
+  `reserved` / `issued` / `used` / `stillNeeded` / `excess` / `usageVariance` / `unrecorded` /
+  `available` / `shortage`. Every figure is the server's. Only a posted issue writes stock
+  (`PRODUCTION_CONSUMPTION`). Screens are lazy `ExecutionPanel` (order detail), `IssuesArea`
+  (`/core/production/issues/*`) and `MaterialIssueHandoff` (`/core/warehouse/material-issues`);
+  `/core/production/reservations` and `/execution` are lists in `ProductionArea`. The copy is
+  `execCopy.ts` (TH / EN / ZH).
 - **EP36 (Production planning, Operations):** see [PRODUCTION_ORDER.md](PRODUCTION_ORDER.md),
   [PRODUCTION_BOM.md](PRODUCTION_BOM.md) and [EP36_REPORT.md](EP36_REPORT.md). `/api/v1/production`:
   `context`, `items?role=OUTPUT|MATERIAL`, `boms` (list, create, detail, PATCH draft, `activate`,

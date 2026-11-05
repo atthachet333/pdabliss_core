@@ -151,7 +151,24 @@ reservation), a sales demand queue that counts planned orders once, and a read-o
 list for Purchasing. Planning only: no stock movement, balance or reservation. Phase 0 first recovered
 200.6 KiB of JS from the CORE World chunk ([docs/PRODUCTION_ORDER.md](docs/PRODUCTION_ORDER.md),
 [docs/PRODUCTION_BOM.md](docs/PRODUCTION_BOM.md), [docs/EP36_REPORT.md](docs/EP36_REPORT.md)).
-Next: EP37 (not started).
+**EP37** (completed locally, awaiting owner review) adds material reservation and production
+execution:
+- FEFO production reservations on one shared guard with Sales, so neither can take the other's
+  stock;
+- partial reservation, release / reallocate, and manager-authorized excess with a reason;
+- start / pause / resume (start only when every material is reserved);
+- material issues `MI-YYYYMM-NNNNNN` (draft → posted / cancelled). Posting consumes the exact
+  production reservation and writes `PRODUCTION_CONSUMPTION` through the ledger: no double issue,
+  no negative stock;
+- usage evidence with variance (never a movement);
+- a read-only Warehouse issue handoff.
+
+Transfers, adjustments, counts and receipt reversals refuse reserved stock. Docs:
+[docs/PRODUCTION_MATERIAL_RESERVATION.md](docs/PRODUCTION_MATERIAL_RESERVATION.md),
+[docs/PRODUCTION_MATERIAL_ISSUE.md](docs/PRODUCTION_MATERIAL_ISSUE.md),
+[docs/PRODUCTION_EXECUTION.md](docs/PRODUCTION_EXECUTION.md),
+[docs/EP37_REPORT.md](docs/EP37_REPORT.md).
+Next: EP38 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -176,7 +193,7 @@ Roadmap:
    receive** → **EP31 Goods receipt, lots, expiry, stock ledger, FEFO** → **EP32 Inventory transfer,
    stock adjustment, cycle count** → **EP33 Sales order foundation** → **EP34 Sales allocation, pick
    readiness** → **EP35 Picking, packing, dispatch and delivery** → **EP36 Production order, BOM and
-   material planning** → EP37 Material issue → EP38 Finished goods receipt → Warehouse →
+   material planning** → **EP37 Material reservation, issue and production execution** → EP38 Finished goods receipt → Warehouse →
    Operations → Accounting Operations → Executive (episode numbers after EP29 are set when
    scheduled; the engines below shift accordingly)
 4. EP35 Workflow → EP36 Approval → EP37 Exception → EP38 Human Error Engine → EP39 Notification

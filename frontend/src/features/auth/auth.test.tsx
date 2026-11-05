@@ -23,8 +23,11 @@ import { destinationFor, safeNext, withPlan } from './session';
 const PASSWORD = 'a long and memorable phrase';
 const TOKEN = 'tok_'.padEnd(43, 'x');
 
+/** usePageMeta sets the robots tag in an effect after render — wait for it (no timing assumption). */
 const noindex = () =>
-  expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+  waitFor(() =>
+    expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex'),
+  );
 
 describe('register', () => {
   /** Step 1 with valid values (labels carry a visible "*" and a hidden "(required)"). */
@@ -40,7 +43,7 @@ describe('register', () => {
     const api = fakeApi({});
     renderRoute('/register?plan=business');
     await screen.findByRole('heading', { level: 1, name: 'เริ่มต้นกับ PDA BLISS CORE' });
-    noindex();
+    await noindex();
     expect(document.querySelector('[data-plan="business"]')).toHaveTextContent('Business');
     expect(document.querySelector('[data-steps="1"]')).toBeInTheDocument();
 
@@ -178,7 +181,7 @@ describe('verify email', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'ยืนยันอีเมลเรียบร้อย' }),
     ).toBeInTheDocument();
-    noindex();
+    await noindex();
     expect(api.called('POST /api/v1/auth/verify-email')).toHaveLength(1);
     expect(api.called('POST /api/v1/auth/verify-email')[0]!.body).toEqual({ token: TOKEN });
     expect(window.location.hash).toBe('');
@@ -221,7 +224,7 @@ describe('forgot and reset password', () => {
     fakeApi({ 'POST /api/v1/auth/password/forgot': { status: 202, body: { status: 'accepted' } } });
     renderRoute('/forgot-password');
     await screen.findByRole('heading', { level: 1, name: 'ตั้งรหัสผ่านใหม่' });
-    noindex();
+    await noindex();
     await userEvent.type(screen.getByLabelText('อีเมล'), 'who@example.com');
     await userEvent.click(screen.getByRole('button', { name: 'ส่งลิงก์ตั้งรหัสผ่าน' }));
     expect(await screen.findByRole('status')).toHaveTextContent('ถ้ามีบัญชีสำหรับอีเมลนี้');
@@ -284,7 +287,7 @@ describe('Account Portal', () => {
     });
     renderRoute('/account');
     await screen.findByRole('heading', { level: 1, name: 'บัญชีของคุณ' });
-    noindex();
+    await noindex();
     // EP24: the onboarding progress, the package step, and no charge.
     const progress = await screen.findByRole('navigation', { name: 'ขั้นตอนการเริ่มใช้งาน' });
     expect(within(progress).getByText('ยืนยันบัญชีแล้ว')).toBeInTheDocument();

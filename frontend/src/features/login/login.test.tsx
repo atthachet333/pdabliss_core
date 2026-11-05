@@ -413,7 +413,9 @@ describe('ways out and around', () => {
 
   it('keeps sign-in out of search results while it is open', async () => {
     const { router } = await open();
-    expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    await waitFor(() =>
+      expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex'),
+    );
     await router.navigate('/');
     await waitFor(() => expect(document.querySelector('meta[name="robots"]')).toBeNull());
   });

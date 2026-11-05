@@ -87,14 +87,21 @@ export type SignedInAreaId = 'account' | 'platform' | 'company' | 'core';
  * The areas an identity may open, its home first (EP25):
  * - platform operators: the Platform Control Center only;
  * - an active member of an active company: the Company Control Center, CORE
- *   Operations and their Account Portal (profile, devices);
+ *   Operations and their Account Portal (profile, devices) — CORE first for
+ *   department roles (EP38.4), the Control Center first for administrators;
  * - everyone else (no company yet, pending activation, deactivated): the
  *   Account Portal, which shows where they stand.
  * Rendering only — the API checks the same facts on every request.
  */
 export function areasFor(identity: Identity): SignedInAreaId[] {
   if (identity.platformRole) return ['platform'];
-  if (identity.company?.canEnterCore) return ['company', 'core', 'account'];
+  // EP38.4: people who work in departments land in CORE; the company's
+  // administrators (Owner, System Admin) land in the Company Control Center.
+  if (identity.company?.canEnterCore) {
+    return ['COMPANY_OWNER', 'SYSTEM_ADMIN'].includes(identity.company.role)
+      ? ['company', 'core', 'account']
+      : ['core', 'company', 'account'];
+  }
   return ['account'];
 }
 

@@ -4,15 +4,42 @@
     {
       "name": "backend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "backend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "backend",
+        "run",
+        "dev"
+      ],
       "port": 1112,
       "url": "http://localhost:1112"
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 1111
+    },
+    {
+      "name": "qanav-backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/User/AppData/Local/Temp/claude/6371fdf4941c4155/67267cf6-590a-41b6-80c4-f8f8e277224b/scratchpad/qa-backend.mjs"
+      ],
+      "port": 2112,
+      "url": "http://localhost:2112"
+    },
+    {
+      "name": "qanav-frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/User/AppData/Local/Temp/claude/6371fdf4941c4155/67267cf6-590a-41b6-80c4-f8f8e277224b/scratchpad/qa-frontend.mjs"
+      ],
+      "port": 2111
     }
   ]
 }

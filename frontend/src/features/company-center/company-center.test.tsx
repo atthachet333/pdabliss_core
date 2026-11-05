@@ -207,9 +207,15 @@ afterEach(() => {
 });
 
 describe('Company Control Center routing (EP25)', () => {
-  it('sends an active company member to /company, everyone else where they belong', () => {
+  it('sends department roles to CORE, administrators to /company, everyone else where they belong', () => {
     const active = member('DEPARTMENT_STAFF');
-    expect(homeFor(active)).toBe('/company');
+    // EP38.4: people who work in departments land in CORE …
+    expect(homeFor(active)).toBe('/core');
+    expect(homeFor(member('DEPARTMENT_MANAGER'))).toBe('/core');
+    expect(homeFor(member('EXECUTIVE'))).toBe('/core');
+    // … the company's administrators in the Company Control Center.
+    expect(homeFor(member('COMPANY_OWNER'))).toBe('/company');
+    expect(homeFor(member('SYSTEM_ADMIN'))).toBe('/company');
     const pending = identity({
       company: { id: 'c1', name: 'Alpha', isDemo: false, role: 'COMPANY_OWNER' },
     });
@@ -223,7 +229,8 @@ describe('Company Control Center routing (EP25)', () => {
     expect(destinationFor(identity({ platformRole: 'PLATFORM_OWNER' }), '/company')).toBe(
       '/platform',
     );
-    expect(destinationFor(active, '/platform')).toBe('/company');
+    // A `next` the identity may not open falls back to its home (CORE for department roles).
+    expect(destinationFor(active, '/platform')).toBe('/core');
     expect(safeNext('/core/branch')).toBe('/core/branch');
     expect(safeNext('//evil.example/company')).toBeNull();
   });

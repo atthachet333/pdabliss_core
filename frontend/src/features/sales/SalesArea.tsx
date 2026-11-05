@@ -6,10 +6,12 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 import { Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
+import { controlClass } from '@/components/ui/fieldStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
 import { CONTROL_COPY } from '@/features/company-center/copy';
@@ -391,21 +393,35 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
 
 // ------------------------------------------------------------------ customer + header
 
+const customerLabel = (o: CustomerOption) => `${o.code} · ${o.name}`;
+
+/**
+ * One searchable customer field (EP38.4): an ARIA 1.2 combobox with a listbox
+ * popup. The server searches (code, name or tax ID — the member's company
+ * only); arrow keys move, Enter chooses, Escape closes, typing again clears the
+ * choice (a customer is always one the server listed, never free text).
+ */
 function CustomerPicker({
   id,
   value,
   onChange,
+  className,
 }: {
   id: string;
   value: CustomerOption | null;
   onChange: (v: CustomerOption | null) => void;
+  className?: string;
 }) {
   const { c } = useSales();
   const k = c.compose;
-  const [q, setQ] = useState('');
-  const debounced = useDebounced(q);
+  const [text, setText] = useState(value ? customerLabel(value) : '');
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  // While the field shows the chosen customer, the list offers everyone again.
+  const term = value && text === customerLabel(value) ? '' : text.trim();
+  const debounced = useDebounced(term);
   const [options, setOptions] = useState<CustomerOption[]>([]);
-  // The query the shown options answer: while it differs from the current one, a search is running.
+  // The query the shown options answer: while it differs from the current one, a search runs.
   const [answered, setAnswered] = useState<string | null>(null);
   const searching = answered !== debounced;
   useEffect(() => {
@@ -426,8 +442,14 @@ function CustomerPicker({
       live = false;
     };
   }, [debounced]);
-  const list = value && !options.some((o) => o.id === value.id) ? [value, ...options] : options;
-  // Said in words, politely: searching, nothing found, or how many matched a search.
+  const listId = `${id}-list`;
+  const optionId = (i: number) => `${id}-o${i}`;
+  const choose = (o: CustomerOption) => {
+    onChange(o);
+    setText(customerLabel(o));
+    setOpen(false);
+    setActive(-1);
+  };
   const status = searching
     ? k.searching
     : debounced && !options.length
@@ -435,40 +457,103 @@ function CustomerPicker({
       : debounced
         ? k.matches(options.length)
         : '';
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setOpen(true);
+      setActive((a) => Math.min(a + 1, options.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive((a) => Math.max(a - 1, 0));
+    } else if (e.key === 'Enter' && open && active >= 0 && options[active]) {
+      e.preventDefault(); // choose — never submit the form from the list
+      choose(options[active]);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      setOpen(false);
+      setActive(-1);
+    }
+  };
   return (
-    <>
-      <TextField
-        id={`${id}-q`}
-        type="search"
-        label={c.f.customerSearch}
+    <div className={cn('relative min-w-0', className)} data-customer-combobox>
+      <label htmlFor={id} className="mb-2 block text-label font-medium text-text-primary">
+        {c.f.customer}
+      </label>
+      <input
+        id={id}
+        type="text"
+        role="combobox"
+        autoComplete="off"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
+        aria-describedby={`${id}-status`}
         placeholder={c.f.customerHint}
-        value={q}
         maxLength={100}
-        onChange={(e) => setQ(e.target.value)}
+        value={text}
+        className={controlClass(false)}
+        onChange={(e) => {
+          setText(e.target.value);
+          setOpen(true);
+          setActive(-1);
+          if (value) onChange(null);
+        }}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+        onBlur={() => {
+          setOpen(false);
+          setActive(-1);
+        }}
+        onKeyDown={onKeyDown}
+        data-customer-input
       />
-      <div>
-        <SelectField
-          id={id}
-          label={c.f.customer}
-          value={value?.id ?? ''}
-          onChange={(e) => onChange(list.find((o) => o.id === e.target.value) ?? null)}
-          aria-busy={searching}
-          data-customer-select
-        >
-          <option value="">—</option>
-          {list.map((o) => (
-            <option key={o.id} value={o.id}>{`${o.code} · ${o.name}`}</option>
-          ))}
-        </SelectField>
-        <p
-          role="status"
-          className="mt-1.5 text-caption text-text-muted empty:hidden"
-          data-customer-status
-        >
-          {status}
-        </p>
-      </div>
-    </>
+      <ul
+        id={listId}
+        role="listbox"
+        aria-label={c.f.customer}
+        hidden={!open}
+        className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl bg-surface-raised p-1 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.7),inset_0_0_0_1px_rgb(190_235_222/0.14)]"
+      >
+        {searching ? (
+          <li role="presentation" className="px-3 py-2.5 text-label text-text-muted">
+            {k.searching}
+          </li>
+        ) : options.length === 0 ? (
+          <li role="presentation" className="px-3 py-2.5 text-label text-text-muted">
+            {k.noMatch}
+          </li>
+        ) : (
+          options.map((o, i) => (
+            <li
+              key={o.id}
+              id={optionId(i)}
+              role="option"
+              aria-selected={value?.id === o.id}
+              // Keep the focus in the field: choosing happens on click, not on blur.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(o)}
+              className={cn(
+                'flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-label',
+                i === active ? 'bg-brand-primary/[0.16] text-text-primary' : 'text-text-secondary',
+                value?.id === o.id && 'font-semibold text-text-primary',
+              )}
+            >
+              <span className="font-mono text-brand-glow">{o.code}</span>
+              <span className="min-w-0 truncate">{o.name}</span>
+            </li>
+          ))
+        )}
+      </ul>
+      <p
+        id={`${id}-status`}
+        role="status"
+        className="mt-1.5 text-caption text-text-muted empty:hidden"
+        data-customer-status
+      >
+        {status}
+      </p>
+    </div>
   );
 }
 
@@ -670,6 +755,7 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
               id={`${base}-customer`}
               value={v.customer}
               onChange={(customer) => setV((x) => ({ ...x, customer }))}
+              className="sm:col-span-2"
             />
             <TextField
               id={`${base}-od`}

@@ -189,7 +189,15 @@ describe('Sales orders (EP33)', () => {
     expect(within(tiles).getByText('4')).toBeInTheDocument();
     expect(screen.getAllByText('Partly in stock').length).toBeGreaterThan(0);
     expect(screen.getByText(/Only allocation holds stock/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New sales order' })).toBeInTheDocument();
+    // The page action — and the same entry in the CORE menu (EP38.4).
+    expect(
+      within(document.getElementById('main')!).getByRole('link', { name: 'New sales order' }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getAllByRole('navigation', { name: 'CORE menu' })[0]!).getByRole('link', {
+        name: 'New sales order',
+      }),
+    ).toHaveAttribute('href', '/core/sales/orders/new');
     // A count tile is a filter (pressed state, server query).
     await userEvent.click(within(tiles).getByRole('button', { name: /My drafts/ }));
     await waitFor(() => expect(screen.getByText('No sales orders match.')).toBeInTheDocument());
@@ -232,10 +240,13 @@ describe('Sales orders (EP33)', () => {
     renderRoute('/core/sales/orders/new?lang=en');
     const create = await screen.findByRole('button', { name: 'Create draft' });
     expect(create).toBeDisabled();
-    await waitFor(() =>
-      expect(screen.getByRole('option', { name: 'CUS-000001 · Demo Shop' })).toBeInTheDocument(),
-    );
-    await userEvent.selectOptions(screen.getByLabelText('Customer'), 'cu1');
+    // One combobox: focus opens the server list, arrow + Enter choose (no form submit).
+    const customer = screen.getByRole('combobox', { name: 'Customer' });
+    await userEvent.click(customer);
+    expect(await screen.findByRole('option', { name: /CUS-000001/ })).toBeInTheDocument();
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    expect(customer).toHaveValue('CUS-000001 · Demo Shop');
+    expect(customer).toHaveAttribute('aria-expanded', 'false');
     await userEvent.type(screen.getByLabelText('Customer reference'), 'PO-778');
     await userEvent.click(create);
     expect(
@@ -277,10 +288,8 @@ describe('Sales orders (EP33)', () => {
     expect(
       screen.getByText('Document number: Assigned when the draft is created'),
     ).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByRole('option', { name: 'CUS-000001 · Demo Shop' })).toBeInTheDocument(),
-    );
-    await userEvent.selectOptions(screen.getByLabelText('Customer'), 'cu1');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Customer' }));
+    await userEvent.click(await screen.findByRole('option', { name: /CUS-000001/ }));
     expect(summary.querySelector('[data-summary-customer]')!.textContent).toBe(
       'CUS-000001Demo Shop',
     );
@@ -293,8 +302,19 @@ describe('Sales orders (EP33)', () => {
     ).toBeGreaterThan(0);
     expect(create).toBeDisabled();
     // A search with no match says so in words.
-    await userEvent.type(screen.getByLabelText('Find a customer'), 'zzz');
-    expect(await screen.findByText('No customer matches this search.')).toBeInTheDocument();
+    // Typing again clears the choice; no match says so, in the list and to assistive tech.
+    const box = screen.getByRole('combobox', { name: 'Customer' });
+    await userEvent.clear(box);
+    await userEvent.type(box, 'zzz');
+    await waitFor(() =>
+      expect(document.querySelector('[data-customer-status]')!.textContent).toBe(
+        'No customer matches this search.',
+      ),
+    );
+    expect(create).toBeDisabled();
+    expect(create).toHaveAccessibleDescription('Choose a customer to create the draft.');
+    await userEvent.keyboard('{Escape}');
+    expect(box).toHaveAttribute('aria-expanded', 'false');
     unmount();
     fakeApi(as(false, { 'GET /api/v1/master-data/customers': customers([]) }));
     const th = renderRoute('/core/sales/orders/new?lang=th');

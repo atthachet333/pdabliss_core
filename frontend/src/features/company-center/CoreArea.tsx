@@ -4,12 +4,11 @@ import {
   Building,
   LogOut,
   MapPin,
-  Repeat2,
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { getDepartment } from '@/config/departments';
@@ -29,6 +28,7 @@ import { ADMIN_COPY } from './adminCopy';
 import { BranchCode } from './adminParts';
 import { controlApi, type BranchContext } from './api';
 import { CONTROL_COPY } from './copy';
+import { CoreMenuButton, CoreSidebar, QuickActions } from './CoreNav';
 import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, locationSummary, oneLineAddress, useLoad } from './model';
 import { AreaLink, Loading, Pill } from './parts';
@@ -115,6 +115,24 @@ const DEPARTMENT_LINKS: Partial<
 const REQUESTS =
   /^(purchasing\.requests\.(view|create|approve)|[a-z]+\.purchase_requests\.(create|approve))$/;
 
+/**
+ * EP38.4: to the branch choice, remembering the CORE page that was asked for —
+ * the selector returns there (never outside CORE) instead of the CORE home.
+ */
+function ToBranch() {
+  const { locale } = useLocale();
+  const { pathname, search } = useLocation();
+  return <Navigate to="/core/branch" replace state={{ locale, from: `${pathname}${search}` }} />;
+}
+
+/** Only a CORE page other than the selector itself is a place to return to. */
+const returnTo = (state: unknown) => {
+  const from = (state as { from?: unknown } | null)?.from;
+  return typeof from === 'string' && /^\/core(\/|$)/.test(from) && !from.startsWith('/core/branch')
+    ? from
+    : '/core';
+};
+
 function useBranchLabel() {
   const a = useCopy(ADMIN_COPY);
   return (b: Pick<BranchInfo, 'type' | 'name' | 'code'>) =>
@@ -179,7 +197,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ctx.blocked ? (
               <Blocked />
             ) : ctx.needsSelection ? (
-              <Navigate to="/core/branch" replace {...withLocale(locale)} />
+              <ToBranch />
             ) : (
               <OperationsHome context={ctx} />
             )
@@ -201,7 +219,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ctx.blocked ? (
               <Blocked />
             ) : ctx.needsSelection ? (
-              <Navigate to="/core/branch" replace {...withLocale(locale)} />
+              <ToBranch />
             ) : (
               <Suspense fallback={<Loading label={c.shell.loading} />}>
                 <PurchasingArea />
@@ -239,7 +257,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
               ctx.blocked ? (
                 <Blocked />
               ) : ctx.needsSelection ? (
-                <Navigate to="/core/branch" replace {...withLocale(locale)} />
+                <ToBranch />
               ) : (
                 <Suspense fallback={<Loading label={c.shell.loading} />}>{area}</Suspense>
               )
@@ -268,6 +286,9 @@ function CoreFrame({
   const navigate = useNavigate();
   const branchLabel = useBranchLabel();
   const [error, setError] = useState<string | null>(null);
+  // EP38.4: the CORE menu appears once a working branch is set (before, every route asks for one).
+  const navigable = !!context && !context.blocked && !!context.selected;
+  const branchText = context?.selected ? branchLabel(context.selected) : null;
 
   useEffect(() => {
     const active = document.activeElement;
@@ -309,14 +330,18 @@ function CoreFrame({
             <LogoMark className="size-9 md:hidden" />
           </AreaLink>
           <span aria-hidden className="h-7 w-px bg-white/[0.1]" />
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="font-mono text-[0.6875rem] tracking-[0.16em] text-brand-soft uppercase">
+          <AreaLink
+            to="/core"
+            className="min-w-0 flex-1 rounded-md leading-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            data-core-home-link
+          >
+            <span className="block font-mono text-[0.6875rem] tracking-[0.16em] text-brand-soft uppercase">
               CORE
-            </p>
-            <p className="truncate text-label font-semibold text-text-primary">
+            </span>
+            <span className="block truncate text-label font-semibold text-text-primary">
               {context?.company.displayName ?? identity.company?.name}
-            </p>
-          </div>
+            </span>
+          </AreaLink>
           {context?.selected && (
             <p
               className="flex min-w-0 items-center gap-2 text-caption text-text-secondary max-md:order-last max-md:w-full"
@@ -332,6 +357,7 @@ function CoreFrame({
             </p>
           )}
           <div className="flex items-center gap-2">
+            {navigable && <CoreMenuButton context={context} branchLabel={branchText} />}
             <AreaLink to="/company" className={buttonClasses('ghost', 'md', 'px-3.5')}>
               <ArrowLeft aria-hidden className="size-4" />
               <span className="max-lg:sr-only">{c.core.controlCenter}</span>
@@ -347,18 +373,26 @@ function CoreFrame({
           </div>
         </div>
       </header>
-      <main
-        id="main"
-        tabIndex={-1}
-        className="mx-auto w-full max-w-[100rem] px-4 pt-8 pb-20 outline-none sm:px-6 lg:px-8"
-      >
-        {error && (
-          <div className="mb-4">
-            <Notice tone="error">{error}</Notice>
-          </div>
+      <div
+        className={cn(
+          'mx-auto w-full max-w-[100rem]',
+          navigable && 'lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]',
         )}
-        {children}
-      </main>
+      >
+        {navigable && <CoreSidebar context={context} branchLabel={branchText} />}
+        <main
+          id="main"
+          tabIndex={-1}
+          className="min-w-0 px-4 pt-8 pb-20 outline-none sm:px-6 lg:px-8"
+        >
+          {error && (
+            <div className="mb-4">
+              <Notice tone="error">{error}</Notice>
+            </div>
+          )}
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
@@ -379,6 +413,7 @@ function BranchSelector({
   const c = useCopy(CONTROL_COPY);
   const { locale } = useLocale();
   const navigate = useNavigate();
+  const location = useLocation();
   const [choice, setChoice] = useState<string | null>(context.selected?.id ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -400,7 +435,7 @@ function BranchSelector({
     setError(null);
     try {
       onSelected(await controlApi.selectBranch(choice));
-      navigate('/core', { replace: true, ...withLocale(locale) });
+      navigate(returnTo(location.state), { replace: true, ...withLocale(locale) });
     } catch (err) {
       setError(errorText(err, c));
       setBusy(false);
@@ -541,17 +576,9 @@ function OperationsHome({ context }: { context: BranchContext }) {
             <Pill tone="muted">{a.roles[context.role]}</Pill>
           </p>
         </div>
-        {context.branches.length > 1 && (
-          <AreaLink
-            to="/core/branch"
-            className={buttonClasses('secondary', 'md')}
-            data-change-branch
-          >
-            <Repeat2 aria-hidden className="size-4" />
-            {c.core.changeBranch}
-          </AreaLink>
-        )}
       </div>
+
+      <QuickActions context={context} />
 
       <section aria-labelledby="core-departments-title" className="grid gap-4">
         <h2 id="core-departments-title" className="text-body font-semibold text-text-primary">

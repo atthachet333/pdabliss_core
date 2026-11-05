@@ -268,16 +268,22 @@ describe('Sales orders (EP33)', () => {
     expect(create).toBeDisabled();
     expect(create).toHaveAccessibleDescription('Choose a customer to create the draft.');
     const summary = document.querySelector('[data-order-summary]')!;
-    expect(summary.textContent).toMatch(/CustomerNot set/);
+    expect(summary.querySelector('[data-summary-customer]')!.textContent).toBe(
+      'No customer chosen yet',
+    );
     // Lines and totals are not pretended: they come after the draft exists.
     expect(summary.textContent).toMatch(/added after the draft is created/);
     expect(summary.querySelector('[aria-current="step"]')!.textContent).toMatch('Create the draft');
-    expect(screen.getByText('Assigned when the draft is created')).toBeInTheDocument();
+    expect(
+      screen.getByText('Document number: Assigned when the draft is created'),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'CUS-000001 · Demo Shop' })).toBeInTheDocument(),
     );
     await userEvent.selectOptions(screen.getByLabelText('Customer'), 'cu1');
-    expect(summary.textContent).toMatch(/CustomerCUS-000001 · Demo Shop/);
+    expect(summary.querySelector('[data-summary-customer]')!.textContent).toBe(
+      'CUS-000001Demo Shop',
+    );
     expect(create).toBeEnabled();
     expect(create).toHaveAccessibleDescription('Ready — creating the draft reserves no stock.');
     // A requested date before the order date is refused here (and by the server).
@@ -304,7 +310,7 @@ describe('Sales orders (EP33)', () => {
       await screen.findByRole('heading', { level: 1, name: '新建销售订单' }),
     ).toBeInTheDocument();
     expect(screen.getByText('订单摘要')).toBeInTheDocument();
-    expect(screen.getByText('创建草稿时分配')).toBeInTheDocument();
+    expect(screen.getByText('单据编号: 创建草稿时分配')).toBeInTheDocument();
   });
 
   it('a new order says which working branch it goes to; with two branches it links to the explicit change', async () => {
@@ -329,7 +335,10 @@ describe('Sales orders (EP33)', () => {
       }),
     );
     const { unmount } = renderRoute('/core/sales/orders/new?lang=en');
-    expect(await screen.findByText('Branch: 00001 · Demo Branch')).toBeInTheDocument();
+    await screen.findByRole('heading', { level: 2, name: 'Document header' });
+    expect(document.querySelector('[data-order-branch]')!.textContent).toMatch(
+      '00001 · Demo Branch',
+    );
     expect(screen.getByRole('link', { name: 'Change branch' })).toHaveAttribute(
       'href',
       '/core/branch',
@@ -348,7 +357,10 @@ describe('Sales orders (EP33)', () => {
       }),
     );
     renderRoute('/core/sales/orders/new?lang=en');
-    expect(await screen.findByText('Branch: 00000 · Head Office')).toBeInTheDocument();
+    await screen.findByRole('heading', { level: 2, name: 'Document header' });
+    expect(document.querySelector('[data-order-branch]')!.textContent).toMatch(
+      '00000 · Head Office',
+    );
     expect(screen.queryByRole('link', { name: 'Change branch' })).toBeNull();
   });
 

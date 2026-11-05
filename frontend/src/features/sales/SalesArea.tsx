@@ -462,7 +462,7 @@ function CustomerPicker({
         </SelectField>
         <p
           role="status"
-          className="mt-1.5 min-h-5 text-caption text-text-muted"
+          className="mt-1.5 text-caption text-text-muted empty:hidden"
           data-customer-status
         >
           {status}
@@ -529,44 +529,30 @@ function HeaderFields({
   );
 }
 
-/** The document surface: a hairline frame, no glow, a quiet fill. */
+/** The document surface: a hairline frame, a quiet fill — no glow, no extra borders. */
 const DOC = 'rounded-2xl bg-white/[0.015] shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]';
-
-/** One numbered section of the new-order document. */
-function DocSection({
-  n,
-  id,
-  title,
-  hint,
-  children,
+/** A label above its value (summary facts). */
+function SummaryFact({
+  term,
+  value,
+  empty,
 }: {
-  n: number;
-  id: string;
-  title: string;
-  hint: string;
-  children: ReactNode;
+  term: string;
+  value: string | null;
+  empty: string;
 }) {
   return (
-    <section
-      aria-labelledby={id}
-      className="grid gap-4 border-t border-white/[0.07] px-5 py-6 first:border-t-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6 sm:px-7 lg:grid-cols-[12.5rem_minmax(0,1fr)]"
-    >
-      <div className="flex gap-3 sm:block">
-        <span
-          aria-hidden
-          className="grid size-7 shrink-0 place-items-center rounded-full text-caption font-semibold text-brand-glow tabular-nums shadow-[inset_0_0_0_1px_rgb(62_240_192/0.35)] sm:mb-3"
-        >
-          {n}
-        </span>
-        <div>
-          <h2 id={id} className="text-body font-semibold text-text-primary">
-            {title}
-          </h2>
-          <p className="mt-1 text-caption leading-relaxed text-text-muted">{hint}</p>
-        </div>
-      </div>
-      <div className="grid min-w-0 content-start gap-4">{children}</div>
-    </section>
+    <div className="min-w-0">
+      <dt className="text-caption text-text-muted">{term}</dt>
+      <dd
+        className={cn(
+          'mt-0.5 text-label break-words',
+          value ? 'text-text-primary' : 'text-text-muted',
+        )}
+      >
+        {value ?? empty}
+      </dd>
+    </div>
   );
 }
 
@@ -608,134 +594,116 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
     }
   };
   const branch = ctx.selectedBranch;
-  const facts: [string, string | null][] = [
-    [c.f.branch, branch ? `${branch.code} · ${branch.name}` : null],
-    [c.f.customer, v.customer ? `${v.customer.code} · ${v.customer.name}` : null],
-    [c.f.orderDate, v.orderDate ? date(v.orderDate) : null],
-    [c.f.requestedDate, v.requestedDate ? date(v.requestedDate) : null],
-    [c.f.reference, v.reference.trim() || null],
-  ];
+  const branchText = branch ? `${branch.code} · ${branch.name}` : null;
   return (
-    <div className="grid grid-cols-1 gap-6" data-new-order-page>
+    <div className="grid grid-cols-1 gap-5" data-new-order-page>
       <BackLink />
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="max-w-3xl min-w-0">
-          <p className="text-caption font-semibold tracking-[0.14em] text-brand-glow uppercase">
-            {k.eyebrow}
-          </p>
-          <h1 className="mt-2 text-[clamp(1.5rem,1.2rem+1vw,2.125rem)] font-semibold tracking-tight text-text-primary">
+      <header className="grid gap-2">
+        <p className="text-caption font-semibold tracking-[0.14em] text-brand-glow uppercase">
+          {k.eyebrow}
+        </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="text-[clamp(1.375rem,1.15rem+0.8vw,1.875rem)] font-semibold tracking-tight text-text-primary">
             {c.newOrder}
           </h1>
-          <p className="mt-2 text-label leading-relaxed text-text-secondary">{k.lead}</p>
+          <Pill tone="neutral">{c.statuses.DRAFT}</Pill>
         </div>
-        <dl className={cn(DOC, 'grid min-w-56 gap-3 px-4 py-3 text-label')} data-document-facts>
-          <div className="flex items-center justify-between gap-6">
-            <dt className="text-caption text-text-muted">{k.number}</dt>
-            <dd className="text-text-secondary">{k.numberPending}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-6">
-            <dt className="text-caption text-text-muted">{k.status}</dt>
-            <dd>
-              <Pill tone="neutral">{c.statuses.DRAFT}</Pill>
-            </dd>
-          </div>
-        </dl>
+        <p className="max-w-3xl text-label leading-relaxed text-text-secondary">{k.lead}</p>
+        <p className="text-caption text-text-muted" data-document-number>
+          {`${k.number}: ${k.numberPending}`}
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_21rem]">
         <form
           noValidate
           onSubmit={(e) => void submit(e)}
-          className={cn(DOC, 'min-w-0')}
+          aria-labelledby={`${base}-head`}
           aria-busy={busy}
+          className={cn(DOC, 'min-w-0')}
           data-new-order
         >
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-white/[0.07] px-5 py-4 sm:px-6">
+            <h2 id={`${base}-head`} className="text-body font-semibold text-text-primary">
+              {k.headerTitle}
+            </h2>
+            <p className="text-caption text-text-muted">{k.headerHint}</p>
+          </div>
           <div aria-live="polite">
             {error && (
-              <div className="px-5 pt-5 sm:px-7">
+              <div className="px-5 pt-5 sm:px-6">
                 <Notice tone="error">{error}</Notice>
               </div>
             )}
           </div>
-          <DocSection n={1} id={`${base}-s1`} title={k.branchTitle} hint={k.branchHint}>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-2 sm:px-6 xl:grid-cols-3">
             {/* The order is created in the working branch — said here, changed only explicitly. */}
-            {branch && (
-              <div className="flex flex-wrap items-center gap-3" data-order-branch>
-                <Pill tone="teal" wrap>
-                  {`${c.f.branch}: ${branch.code} · ${branch.name}`}
-                </Pill>
+            <div className="min-w-0 sm:col-span-2 xl:col-span-1" data-order-branch>
+              <p id={`${base}-br`} className="mb-2 text-label font-medium text-text-primary">
+                {c.f.branch}
+              </p>
+              <div
+                aria-labelledby={`${base}-br`}
+                aria-describedby={`${base}-br-hint`}
+                role="group"
+                className="flex h-12 items-center justify-between gap-3 rounded-control bg-brand-primary/[0.06] px-4 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.22)]"
+              >
+                <span className="min-w-0 truncate text-label text-text-primary">
+                  {branchText ?? '—'}
+                </span>
                 {ctx.branches.length > 1 && (
                   <AreaLink
                     to="/core/branch"
-                    className={buttonClasses('secondary', 'md')}
+                    aria-label={cc.core.changeBranch}
+                    className="inline-flex h-8 shrink-0 items-center rounded-md px-2 text-label font-medium text-brand-glow underline-offset-4 hover:underline"
                     data-change-branch
                   >
-                    {cc.core.changeBranch}
+                    {k.change}
                   </AreaLink>
                 )}
               </div>
-            )}
-          </DocSection>
-          <DocSection n={2} id={`${base}-s2`} title={k.customerTitle} hint={k.customerHint}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <CustomerPicker
-                id={`${base}-customer`}
-                value={v.customer}
-                onChange={(customer) => setV((x) => ({ ...x, customer }))}
-              />
+              <p id={`${base}-br-hint`} className="mt-1.5 text-caption text-text-muted">
+                {k.branchHint}
+              </p>
             </div>
-            {v.customer && (
-              <div
-                className="flex items-center gap-3 rounded-xl bg-brand-primary/[0.06] px-4 py-3 shadow-[inset_0_0_0_1px_rgb(62_240_192/0.18)]"
-                data-selected-customer
-              >
-                <span className="text-caption text-text-muted">{k.selectedCustomer}</span>
-                <span className="min-w-0 text-label text-text-primary">
-                  <span className="font-mono">{v.customer.code}</span>
-                  {` · ${v.customer.name}`}
-                </span>
-              </div>
-            )}
-          </DocSection>
-          <DocSection n={3} id={`${base}-s3`} title={k.datesTitle} hint={k.datesHint}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField
-                id={`${base}-od`}
-                type="date"
-                label={c.f.orderDate}
-                value={v.orderDate}
-                onChange={(e) => setV((x) => ({ ...x, orderDate: e.target.value }))}
-              />
-              <TextField
-                id={`${base}-rd`}
-                type="date"
-                label={c.f.requestedDate}
-                value={v.requestedDate}
-                min={v.orderDate || undefined}
-                error={dateBad ? k.dateError : null}
-                onChange={(e) => setV((x) => ({ ...x, requestedDate: e.target.value }))}
-              />
-            </div>
-          </DocSection>
-          <DocSection n={4} id={`${base}-s4`} title={k.referenceTitle} hint={k.referenceHint}>
-            <div className="grid gap-4 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-              <TextField
-                id={`${base}-ref`}
-                label={c.f.reference}
-                value={v.reference}
-                maxLength={60}
-                onChange={(e) => setV((x) => ({ ...x, reference: e.target.value }))}
-              />
-              <TextField
-                id={`${base}-note`}
-                label={c.f.note}
-                value={v.note}
-                maxLength={1000}
-                onChange={(e) => setV((x) => ({ ...x, note: e.target.value }))}
-              />
-            </div>
-          </DocSection>
-          <div className="flex flex-col gap-4 border-t border-white/[0.07] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <CustomerPicker
+              id={`${base}-customer`}
+              value={v.customer}
+              onChange={(customer) => setV((x) => ({ ...x, customer }))}
+            />
+            <TextField
+              id={`${base}-od`}
+              type="date"
+              label={c.f.orderDate}
+              value={v.orderDate}
+              onChange={(e) => setV((x) => ({ ...x, orderDate: e.target.value }))}
+            />
+            <TextField
+              id={`${base}-rd`}
+              type="date"
+              label={c.f.requestedDate}
+              value={v.requestedDate}
+              min={v.orderDate || undefined}
+              error={dateBad ? k.dateError : null}
+              onChange={(e) => setV((x) => ({ ...x, requestedDate: e.target.value }))}
+            />
+            <TextField
+              id={`${base}-ref`}
+              label={c.f.reference}
+              value={v.reference}
+              maxLength={60}
+              onChange={(e) => setV((x) => ({ ...x, reference: e.target.value }))}
+            />
+            <TextField
+              id={`${base}-note`}
+              label={c.f.note}
+              value={v.note}
+              maxLength={1000}
+              className="xl:col-span-3"
+              onChange={(e) => setV((x) => ({ ...x, note: e.target.value }))}
+            />
+          </div>
+          <div className="flex flex-col gap-3 border-t border-white/[0.07] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <p
               id={`${base}-why`}
               className={cn('text-caption', ready ? 'text-text-secondary' : 'text-text-muted')}
@@ -743,7 +711,7 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
             >
               {!v.customer ? k.needCustomer : dateBad ? k.dateError : k.ready}
             </p>
-            <div className="flex flex-wrap gap-2 sm:justify-end">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <AreaLink to={BASE} className={buttonClasses('ghost', 'md')}>
                 {k.cancel}
               </AreaLink>
@@ -751,7 +719,7 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
                 type="submit"
                 disabled={busy || !ready}
                 aria-describedby={`${base}-why`}
-                className={buttonClasses('primary', 'md')}
+                className={buttonClasses('primary', 'md', 'min-w-36')}
               >
                 {busy ? c.saving : c.create}
               </button>
@@ -761,46 +729,75 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
 
         <aside
           aria-labelledby={`${base}-sum`}
-          className={cn(DOC, 'grid gap-6 p-5 sm:p-6 lg:sticky lg:top-6')}
+          className={cn(DOC, 'min-w-0 md:grid md:grid-cols-2 lg:sticky lg:top-6 lg:block')}
           data-order-summary
         >
-          <div>
-            <h2 id={`${base}-sum`} className="text-body font-semibold text-text-primary">
-              {k.summary}
-            </h2>
-            <dl className="mt-4 grid gap-3">
-              {facts.map(([term, value]) => (
-                <div key={term} className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3 text-label">
-                  <dt className="text-text-muted">{term}</dt>
-                  <dd
-                    className={cn(
-                      'min-w-0 break-words',
-                      value ? 'text-text-primary' : 'text-text-muted',
-                    )}
-                  >
-                    {value ?? k.notSet}
-                  </dd>
-                </div>
-              ))}
+          <h2
+            id={`${base}-sum`}
+            className="border-b border-white/[0.07] px-5 py-4 text-body font-semibold text-text-primary md:col-span-2"
+          >
+            {k.summary}
+          </h2>
+          <div className="grid content-start gap-4 px-5 py-4 md:row-span-2 md:border-r md:border-white/[0.07] lg:border-r-0">
+            <div>
+              <p className="text-caption text-text-muted">{c.f.customer}</p>
+              <p
+                className={cn(
+                  'mt-0.5 text-body font-semibold break-words',
+                  v.customer ? 'text-text-primary' : 'text-text-muted',
+                )}
+                data-summary-customer
+              >
+                {v.customer ? (
+                  <>
+                    <span className="font-mono text-label text-brand-glow">{v.customer.code}</span>
+                    <span className="block">{v.customer.name}</span>
+                  </>
+                ) : (
+                  k.noCustomer
+                )}
+              </p>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <SummaryFact
+                term={c.f.orderDate}
+                value={v.orderDate ? date(v.orderDate) : null}
+                empty={k.notSet}
+              />
+              <SummaryFact
+                term={c.f.requestedDate}
+                value={v.requestedDate ? date(v.requestedDate) : null}
+                empty={k.notSet}
+              />
+              <div className="col-span-2">
+                <SummaryFact term={c.f.branch} value={branchText} empty={k.notSet} />
+              </div>
+              <div className="col-span-2">
+                <SummaryFact
+                  term={c.f.reference}
+                  value={v.reference.trim() || null}
+                  empty={k.notSet}
+                />
+              </div>
             </dl>
           </div>
-          <div className="border-t border-white/[0.07] pt-5">
+          <div className="border-t border-white/[0.07] px-5 py-4 md:border-t-0 lg:border-t">
             <h3 className="text-label font-semibold text-text-primary">{k.linesTitle}</h3>
-            <p className="mt-2 text-caption leading-relaxed text-text-muted">{k.linesNote}</p>
+            <p className="mt-1.5 text-caption leading-relaxed text-text-muted">{k.linesNote}</p>
           </div>
-          <div className="border-t border-white/[0.07] pt-5">
+          <div className="border-t border-white/[0.07] px-5 py-4">
             <h3 className="text-label font-semibold text-text-primary">{k.workflow}</h3>
-            <ol className="mt-3 grid gap-2.5" data-workflow>
+            <ol className="mt-3 grid gap-2" data-workflow>
               {k.steps.map((step, i) => (
                 <li
                   key={step}
                   aria-current={i === 0 ? 'step' : undefined}
-                  className="flex items-start gap-3 text-label"
+                  className="flex items-start gap-2.5 text-caption leading-relaxed"
                 >
                   <span
                     aria-hidden
                     className={cn(
-                      'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold tabular-nums',
+                      'mt-px grid size-[1.125rem] shrink-0 place-items-center rounded-full text-[0.625rem] font-semibold tabular-nums',
                       i === 0
                         ? 'bg-brand-primary/20 text-brand-glow shadow-[inset_0_0_0_1px_rgb(62_240_192/0.45)]'
                         : 'text-text-muted shadow-[inset_0_0_0_1px_rgb(190_235_222/0.14)]',
@@ -808,7 +805,9 @@ function NewOrder({ ctx }: { ctx: SalesContext }) {
                   >
                     {i + 1}
                   </span>
-                  <span className={i === 0 ? 'text-text-primary' : 'text-text-secondary'}>
+                  <span
+                    className={i === 0 ? 'font-medium text-text-primary' : 'text-text-secondary'}
+                  >
                     {step}
                     {i === 0 && <span className="sr-only">{` (${k.current})`}</span>}
                   </span>

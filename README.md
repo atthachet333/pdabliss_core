@@ -196,7 +196,27 @@ Demo readiness is not production readiness. Docs:
 [docs/DEMO_ACCOUNT_MATRIX.md](docs/DEMO_ACCOUNT_MATRIX.md),
 [docs/DEMO_DATA_CATALOG.md](docs/DEMO_DATA_CATALOG.md),
 [docs/DEMO_WORKFLOW_GUIDE.md](docs/DEMO_WORKFLOW_GUIDE.md).
-Next: EP40 (not started).
+**EP40** (completed locally, not pushed) is a senior security, concurrency, stress and
+reliability audit of the whole platform:
+- sweeps over all 285 routes;
+- 18 race scenarios × 5 rounds;
+- fault-injected rollback;
+- bounded local load (33k requests, 0 errors);
+- backup → restore → full workflow suite;
+- migration drift and constraint review.
+
+It fixed three P2 defects:
+- the demo surface failed open without `NODE_ENV`;
+- a removed working branch was silently replaced on create;
+- a NUL character in a URL returned 500.
+
+Separation of duties remains a documented production blocker. Development-stage pass; **not a
+production approval**. Docs: [docs/EP40_FINAL_REPORT.md](docs/EP40_FINAL_REPORT.md),
+[docs/EP40_FINDINGS_REGISTER.md](docs/EP40_FINDINGS_REGISTER.md),
+[docs/EP40_SECURITY_AUDIT.md](docs/EP40_SECURITY_AUDIT.md),
+[docs/EP40_STRESS_REPORT.md](docs/EP40_STRESS_REPORT.md),
+[docs/EP40_RELIABILITY_REPORT.md](docs/EP40_RELIABILITY_REPORT.md).
+Next: EP41 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -484,6 +504,11 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP24_1_REPORT.md](docs/EP24_1_REPORT.md) — Platform Control Center, Company Explorer, Platform Inspection, account profile, About S2 chapter
 - [docs/EP24_1_2_REPORT.md](docs/EP24_1_2_REPORT.md) — operator-first Platform Control Center: customer/demo separation, attention rules, activity, operators
 - [docs/EP39_INTEGRATION_REPORT.md](docs/EP39_INTEGRATION_REPORT.md) — cross-department contract audit, demo readiness, integration results
+- [docs/EP40_FINAL_REPORT.md](docs/EP40_FINAL_REPORT.md) — security, concurrency, stress and reliability audit: verdict and results
+- [docs/EP40_FINDINGS_REGISTER.md](docs/EP40_FINDINGS_REGISTER.md) — every EP40 finding: evidence, root cause, fix, test, residual risk
+- [docs/EP40_SECURITY_AUDIT.md](docs/EP40_SECURITY_AUDIT.md) — attack surface, auth, isolation, privacy, input and dependency security
+- [docs/EP40_STRESS_REPORT.md](docs/EP40_STRESS_REPORT.md) — local load baselines and the race matrix
+- [docs/EP40_RELIABILITY_REPORT.md](docs/EP40_RELIABILITY_REPORT.md) — migrations, constraints, ledger, rollback, backup / restore
 - [docs/DEMO_ACCOUNT_MATRIX.md](docs/DEMO_ACCOUNT_MATRIX.md) — every demo account: branches, workspaces, allowed and forbidden actions
 - [docs/DEMO_DATA_CATALOG.md](docs/DEMO_DATA_CATALOG.md) — every demo record the seed creates, by department and state
 - [docs/DEMO_WORKFLOW_GUIDE.md](docs/DEMO_WORKFLOW_GUIDE.md) — how to test each demo account later, step by step

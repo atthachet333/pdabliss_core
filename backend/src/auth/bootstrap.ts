@@ -54,7 +54,8 @@ const optional = z
   .transform((v) => (v?.trim() ? v.trim() : undefined));
 
 const SeedEnvSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  /** EP40: no default — the demo seed needs an explicit non-production environment. */
+  NODE_ENV: z.enum(['development', 'test', 'production']).optional(),
   PLATFORM_OWNER_EMAIL: optional,
   PLATFORM_OWNER_INITIAL_PASSWORD: optional,
   PLATFORM_ADMIN_EMAIL: optional,
@@ -319,6 +320,9 @@ const DEMO_HEAD_OFFICE = {
 export async function seedDemo(db: Db, env: SeedEnv) {
   if (env.NODE_ENV === 'production') {
     throw new SeedError('The demo seed never runs in production.');
+  }
+  if (!env.NODE_ENV) {
+    throw new SeedError('Set NODE_ENV=development (or test) to seed the demo company.');
   }
   // EP28.1: the personas come from src/demo/personas.ts. The four EP23 accounts
   // need a password; the department personas are seeded when theirs is set.

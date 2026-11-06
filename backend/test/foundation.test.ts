@@ -12,10 +12,18 @@ const PRODUCTION = {
 
 describe('environment validation', () => {
   it('applies defaults for local development', () => {
-    const env = parseEnv({});
+    const env = parseEnv({ NODE_ENV: 'development' });
     expect(env.PORT).toBe(1112);
     expect(env.CORS_ORIGINS).toEqual(['http://localhost:1111']);
     expect(env.ENABLE_DEMO_ROUTES).toBe(true);
+  });
+
+  it('EP40: without an explicit NODE_ENV the demo surface stays off, whatever else is set', () => {
+    expect(parseEnv({}).ENABLE_DEMO_ROUTES).toBe(false);
+    expect(parseEnv({ ENABLE_DEMO_ROUTES: 'true' }).ENABLE_DEMO_ROUTES).toBe(false);
+    expect(parseEnv({ NODE_ENV: 'test', ENABLE_DEMO_ROUTES: 'true' }).ENABLE_DEMO_ROUTES).toBe(
+      true,
+    );
   });
 
   it('disables demo routes by default in production', () => {

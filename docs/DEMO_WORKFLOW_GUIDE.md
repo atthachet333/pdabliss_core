@@ -11,7 +11,9 @@ seed; on an older database look for the same item / customer / state).
 ## 0. Before you start
 
 1. Start the stack (README → *Local development*): PostgreSQL on 5432, backend on **1112**,
-   frontend on **1111**. Development mode with `ENABLE_DEMO_ROUTES=true` in `backend/.env`.
+   frontend on **1111**. Development mode: `NODE_ENV=development` and `ENABLE_DEMO_ROUTES=true` in
+   `backend/.env` (both are in `.env.example`). Since EP40 the demo accounts, persona list and
+   bypass stay off when `NODE_ENV` is not set explicitly, and `db:seed:demo` refuses.
 2. Make sure the demo data is current: `npm --prefix backend run db:seed:demo`. It only ever
    adds what is missing; a second run reports `unchanged` everywhere.
 3. Open `http://localhost:1111/login`. The development persona list fills the e-mail of the

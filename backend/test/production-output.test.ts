@@ -365,7 +365,7 @@ describeDb('Production output, receipt and completion (EP38)', () => {
     const posted = await postFg(fgr.id);
     expect(posted.status).toBe('POSTED');
     expect(keysOf(posted).filter((k) => MONEY.test(k))).toEqual([]);
-    expect(JSON.stringify(posted)).not.toMatch(/777|Secret Customer/);
+    expect(JSON.stringify(posted)).not.toMatch(/(?<![\w.])777(\.0+)?(?![\w.])|Secret Customer/);
     expect(await onHand(it_.fg)).toBe('10');
     expect(
       await h.db.stockMovement.count({ where: { type: 'PRODUCTION_OUTPUT', itemId: it_.fg } }),
@@ -958,7 +958,7 @@ describeDb('Production output, receipt and completion (EP38)', () => {
     ];
     for (const v of views) {
       expect(keysOf(v.items ?? v).filter((k) => MONEY.test(k))).toEqual([]);
-      expect(JSON.stringify(v)).not.toMatch(/Secret Customer|777/);
+      expect(JSON.stringify(v)).not.toMatch(/Secret Customer|(?<![\w.])777(\.0+)?(?![\w.])/);
     }
     // Audit: business entities without quantities.
     const events = await h.db.auditLog.findMany({

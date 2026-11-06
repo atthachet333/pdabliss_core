@@ -87,9 +87,11 @@ export const lockRow = (tx: Prisma.TransactionClient, table: string, id: string)
 
 /** The branch a new adjustment / count works in: the selected one, or the member's only one. */
 export function workingBranch(actor: WarehouseActor, ctx: AuthContext) {
+  // EP40: the member's only branch stands in only when none was chosen. A chosen branch since
+  // taken away is never silently replaced by another (the request asks for a choice again).
   const id =
     actor.branches.find((b) => b.id === ctx.session.branchId)?.id ??
-    (actor.branches.length === 1 ? actor.branches[0]!.id : null);
+    (!ctx.session.branchId && actor.branches.length === 1 ? actor.branches[0]!.id : null);
   if (!id) {
     throw new AppError(409, 'BRANCH_SELECTION_REQUIRED', 'Choose the branch you work in first.');
   }

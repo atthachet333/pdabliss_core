@@ -152,9 +152,11 @@ export class ProductionOrderService {
       if (!b) throw fail(403, 'BRANCH_NOT_ALLOWED', 'You do not have access to this branch.');
       return b;
     }
+    // EP40: the member's only branch stands in only when none was chosen. A chosen branch since
+    // taken away is never silently replaced by another (the request asks for a choice again).
     const b =
       actor.branches.find((x) => x.id === ctx.session.branchId) ??
-      (actor.branches.length === 1 ? actor.branches[0] : undefined);
+      (!ctx.session.branchId && actor.branches.length === 1 ? actor.branches[0] : undefined);
     if (!b) throw fail(409, 'BRANCH_SELECTION_REQUIRED', 'Choose the branch you work in first.');
     return b;
   }

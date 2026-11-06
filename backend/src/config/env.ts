@@ -107,6 +107,10 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
       result.error.issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`),
     );
   }
+  // EP40 fail-closed: the demo surface (mock routes, the persona list, the sign-in bypass) needs an
+  // EXPLICIT non-production NODE_ENV. A host that forgot NODE_ENV gets the defaults of local
+  // development everywhere else, but never the demo shortcuts.
+  if (!present.NODE_ENV) return { ...result.data, ENABLE_DEMO_ROUTES: false };
   return result.data;
 }
 

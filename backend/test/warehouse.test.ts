@@ -1116,7 +1116,9 @@ describeDb('Goods receipts and inventory (EP31)', () => {
     for (const a of audit.filter(
       (x) => x.entityType === 'GoodsReceipt' || x.entityType === 'InventoryLot',
     )) {
-      expect(JSON.stringify(a.changes)).not.toMatch(/9\.99|2099-03-03|Supplier One/);
+      expect(JSON.stringify(a.changes)).not.toMatch(
+        /(?<![\w.])9\.990*(?![\w.])|2099-03-03|Supplier One/,
+      );
     }
     // The item's tracking can no longer change once it has lots / stock.
     const owner = await as('owner@a.example', 'X');

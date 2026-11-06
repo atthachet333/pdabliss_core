@@ -200,6 +200,12 @@ describeDb('demo seed (EP23)', () => {
     await expect(
       seedDemo(h.db, parseSeedEnv({ ...BASE, ...DEMO, NODE_ENV: 'production' })),
     ).rejects.toThrow(/never runs in production/);
+    // EP40 fail-closed: no NODE_ENV at all is not "development".
+    const noEnv: Record<string, string> = { ...BASE };
+    delete noEnv.NODE_ENV;
+    await expect(seedDemo(h.db, parseSeedEnv({ ...noEnv, ...DEMO }))).rejects.toThrow(
+      /Set NODE_ENV=development/,
+    );
     await expect(
       seedDemo(h.db, parseSeedEnv({ ...BASE, ...DEMO, DEMO_STAFF_PASSWORD: '' })),
     ).rejects.toThrow(/DEMO_STAFF_PASSWORD is not set/);

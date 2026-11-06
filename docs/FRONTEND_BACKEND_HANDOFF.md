@@ -219,6 +219,13 @@ noindex, served by the existing `/platform/*` shell rewrite).
   (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
   `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
   Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
+- **EP40 (Security / reliability audit, no schema change):** see [EP40_FINAL_REPORT.md](EP40_FINAL_REPORT.md).
+  - A NUL character anywhere in a URL is refused with `400 INVALID_CHARACTERS` (it was a
+    database 500).
+  - Create in a working branch the member has since lost → `409 BRANCH_SELECTION_REQUIRED`
+    (Sales, Production, Warehouse), never a silent move to their remaining branch.
+  - The demo surface (mock routes, persona list, sign-in bypass) needs an explicit
+    non-production `NODE_ENV`; without `NODE_ENV` it is off and the demo seed refuses.
 - **EP39 (Operational integration, no schema change):** see [EP39_INTEGRATION_REPORT.md](EP39_INTEGRATION_REPORT.md).
   - Sales list rows add `fulfilmentState` (same derivation as the order's `fulfilment.state`;
     null until confirmed). The list shows it once picking has started, so "delivered" reaches

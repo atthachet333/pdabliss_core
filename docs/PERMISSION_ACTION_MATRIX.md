@@ -289,3 +289,23 @@ Rules for module authors:
 - **Known v1 rule, not changed:** a department manager may decide their own department's purchase
   request (EP29: no separation-of-duties rule). It is listed as a release consideration in
   `EP39_INTEGRATION_REPORT.md`.
+
+## EP40 — security audit (enforcement sweeps)
+
+- **No role default or permission changed.** `backend/test/ep40-security.test.ts` sweeps the
+  *real* route table (285 routes):
+  - anonymous → 401;
+  - a foreign Origin → 403 on all 172 state-changing routes;
+  - another company's owner with this company's ids → nothing;
+  - Executive → no successful write;
+  - System Admin → no operational access;
+  - per-department money privacy, checked with sentinel prices.
+- **Working branch (EP40-02):**
+  - a member's only branch stands in only when no branch was ever chosen;
+  - a chosen branch an administrator has since removed answers `409 BRANCH_SELECTION_REQUIRED`
+    on create (Sales, Production, Warehouse adjustments and counts), as purchase requests already
+    did. It is never silently replaced.
+- **Separation of duties (EP40-04, open by policy):** no module stops the originator from
+  deciding their own document when they hold the approve / manage permission. It is a production
+  release blocker; the EP41 proposal (`approvalPolicy`, a `SELF_APPROVAL_NOT_ALLOWED` refusal and
+  an audited owner override) is in `EP40_FINDINGS_REGISTER.md`.

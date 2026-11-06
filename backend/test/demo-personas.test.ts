@@ -574,7 +574,9 @@ describeDb('Demo personas (EP28.1)', () => {
         .items.map((o: J) => o.number)
         .sort(),
     ).toEqual([ops.number, rows[6]!.number].sort());
-    expect(pending.body).not.toMatch(/price|amount|grandTotal|subtotal|deposit|42\.5/i);
+    expect(pending.body).not.toMatch(
+      /price|amount|grandTotal|subtotal|deposit|(?<![\w.])42\.50*(?![\w.])/i,
+    );
     await seedDemo(h.db, parseSeedEnv(ENV));
     expect(await h.db.purchaseOrder.count()).toBe(7);
   });

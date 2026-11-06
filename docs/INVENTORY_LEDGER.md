@@ -282,3 +282,21 @@ hand (`FGR_STOCK_GONE`). Both enum values are added in their own migration
   - no consumed reservation without its shipment line / issue line;
   - no output movement without a posted (or reversed) receipt.
 - No movement type, rule or quantity semantics changed in EP39.
+
+## EP40 — reliability audit
+
+- **One writer confirmed:** only `applyMovement` (with its helpers) writes `StockMovement` and
+  `StockBalance`; every decrease is reservation-guarded (Sales + Production).
+- **Database guarantees confirmed:**
+  - `quantityOnHand >= 0`;
+  - UNIQUE (source line, type) on every movement source, so a double post is impossible at the
+    database level;
+  - movements immutable by trigger;
+  - one active reservation slot per identity;
+  - lots unique per company and item.
+- **Races:** 18 scenarios × 5 rounds of real concurrent HTTP — 0 failing rounds, 0 HTTP 5xx,
+  invariants zero after every round (`EP40_STRESS_REPORT.md`).
+- **Rollback:** failures injected inside the posting transactions leave no movement, balance,
+  lot, reservation or status change (`backend/test/ep40-rollback.test.ts`).
+- **Gap (EP40-06, recommendation):** posted goods receipts, transfers, adjustments, counts and
+  `AuditLog` rows have no database immutability trigger. The application never changes them.

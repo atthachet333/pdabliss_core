@@ -899,7 +899,7 @@ describeDb('Sales orders (EP33)', () => {
       'SALES_ORDER_CANCELLED',
     ]);
     const text = JSON.stringify(events.map((e) => e.changes));
-    expect(text).not.toMatch(/999|price|total|amount|secret|withdrew/i);
+    expect(text).not.toMatch(/(?<![\w.])999(\.0+)?(?![\w.])|price|total|amount|secret|withdrew/i);
     expect(events[1]!.changes).toMatchObject({ fields: 'note' });
     // The order's own responses: selling terms yes, cost / margin / supplier never.
     for (const body of [

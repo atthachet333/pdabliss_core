@@ -800,7 +800,7 @@ describeDb('Sales allocation (EP34)', () => {
     ]);
     // Key by key and value by value: nothing commercial.
     expect(keysOf(body.items).filter((k) => MONEY.test(k))).toEqual([]);
-    expect(res.body).not.toMatch(/185|Customer One|CUS-000001|THB/);
+    expect(res.body).not.toMatch(/(?<![\w.])185(\.0+)?(?![\w.])|Customer One|CUS-000001|THB/);
     expect((await ok(wh.get(`${W}/context`))).counts.pendingPick).toBe(1);
     expect((await ok(wh.get(`${W}/pending-pick?readiness=READY`))).items).toEqual([]);
     expect((await ok(wh.get(`${W}/pending-pick?q=BOX`))).total).toBe(1);

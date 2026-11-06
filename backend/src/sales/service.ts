@@ -146,9 +146,11 @@ export class SalesOrderService {
 
   /** The order's branch for a new order: the selected one, or the member's only one. */
   private workingBranch(actor: SalesActor, ctx: AuthContext) {
+    // EP40: the member's only branch stands in only when none was chosen. A chosen branch since
+    // taken away is never silently replaced by another (the request asks for a choice again).
     const b =
       actor.branches.find((x) => x.id === ctx.session.branchId) ??
-      (actor.branches.length === 1 ? actor.branches[0] : undefined);
+      (!ctx.session.branchId && actor.branches.length === 1 ? actor.branches[0] : undefined);
     if (!b) throw fail(409, 'BRANCH_SELECTION_REQUIRED', 'Choose the branch you work in first.');
     return b;
   }

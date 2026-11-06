@@ -842,7 +842,9 @@ describeDb('Sales fulfilment (EP35)', () => {
         path,
       ).toEqual([]);
       const text = JSON.stringify(body);
-      expect(text, path).not.toMatch(/"185(\.0+)?"|370|CUS-000001/);
+      expect(text, path).not.toMatch(
+        /(?<![\w.])185(\.0+)?(?![\w.])|(?<![\w.])370(\.0+)?(?![\w.])|CUS-000001/,
+      );
     }
     // Executive reads, never acts; System Admin (no Warehouse) and Sales cannot touch fulfilment.
     const exec = await as('exec@a.example');

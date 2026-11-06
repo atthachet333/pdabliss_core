@@ -208,6 +208,10 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP40 — no budget changed; no frontend change.** EP40 added backend tests, a URL guard and
+  branch rules only; the frontend bundle is unchanged (all JS 4,249.1 / 4,300 KiB, initial JS
+  182.7 / 205 KiB gzip, static HTML 526.9 / 560 KiB — re-measured in the EP40 gates). API load
+  baselines (local, development mode) are in [EP40_STRESS_REPORT.md](EP40_STRESS_REPORT.md).
 - **EP39 — no budget changed; no recovery needed.** The chunk graph was inspected first. There is
   no new chunk or dependency: production movement labels (TH / EN / ZH) in the Warehouse chunk, a
   fulfilment pill in the Sales list, link sizes, and CORE focus / branch-return logic.

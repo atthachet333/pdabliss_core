@@ -66,6 +66,19 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
 
   app.addHook('onRequest', (request, reply, done) => {
     void reply.header(REQUEST_ID_HEADER, request.id);
+    // EP40: a NUL character can never be stored or compared by PostgreSQL text — in a path or
+    // query it is refused up front (it used to surface as a 500 from the database). JSON bodies
+    // already refuse control characters field by field.
+    if (/%00/i.test(request.url) || request.url.includes(String.fromCharCode(0))) {
+      void reply.status(400).send({
+        error: {
+          code: 'INVALID_CHARACTERS',
+          message: 'The address contains a character that is not allowed.',
+          requestId: request.id,
+        },
+      });
+      return;
+    }
     done();
   });
 

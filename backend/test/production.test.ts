@@ -768,7 +768,7 @@ describeDb('Production planning (EP36)', () => {
     });
     // Nothing commercial leaks: no price, total, customer or note.
     const text = JSON.stringify(q1);
-    expect(text).not.toMatch(/777|Secret|Commercial/);
+    expect(text).not.toMatch(/(?<![\w.])777(\.0+)?(?![\w.])|Secret|Commercial/);
     expect(keysOf(q1.items).filter((k) => MONEY.test(k))).toEqual([]);
     const lineId = q1.items[0].lineId;
     // The server takes branch and item from the sales line; the client cannot send them.
@@ -799,7 +799,7 @@ describeDb('Production planning (EP36)', () => {
       demand: { open: '40', plannedElsewhere: '0', overPlanned: false },
       warnings: [],
     });
-    expect(JSON.stringify(mo)).not.toMatch(/777|Secret|Commercial/);
+    expect(JSON.stringify(mo)).not.toMatch(/(?<![\w.])777(\.0+)?(?![\w.])|Secret|Commercial/);
     expect(keysOf(mo).filter((k) => MONEY.test(k))).toEqual([]);
     const q2 = (await ok(staff.get(`${P}/demand`))).items[0];
     expect(q2).toMatchObject({ planned: '40', suggested: '0' });

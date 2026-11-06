@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import { recordCompanyEvent, type ProductionAuditAction } from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
@@ -536,17 +537,43 @@ export class MaterialIssueService {
   }
 
   /** DRAFT → POSTED: the one production stock writer (see the header for the transaction). */
-  async post(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async post(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadProductionActor(this.db, ctx);
-    await this.postAs(actor, id, meta);
+    await this.postAs(actor, id, meta, override);
     return this.get(ctx, id);
   }
 
-  async postAs(actor: ProductionActor, id: string, meta: RequestMeta) {
+  async postAs(
+    actor: ProductionActor,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     if (!actor.view) throw permissionDenied('operations.orders.view');
     await this.db.$transaction(async (tx) => {
       const { i, o } = await this.lockedIssue(tx, actor, id);
       if (!actor.issuePost) throw permissionDenied('operations.material_issues.approve');
+      // EP41: posting is independent of who drafted the issue, when required.
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'post',
+          entityType: 'ProductionMaterialIssue',
+          entityId: id,
+          number: i.number,
+          branchId: i.branchId,
+          originators: [{ role: 'creator', memberId: i.createdByMemberId }],
+        },
+        override,
+        this.scope,
+      );
       if (o.status !== 'IN_PRODUCTION') {
         throw fail(
           409,

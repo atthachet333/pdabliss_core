@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OwnerOverrideBody } from '../company/approval.js';
 import { quantityValue } from '../purchasing/input.js';
 import { AllocationBody, dayValue } from '../warehouse/input.js';
 
@@ -238,7 +239,10 @@ export type CreateOutputInput = z.output<typeof CreateOutputBody>;
 export const UpdateOutputBody = z.object(outputFields).partial().strict();
 export type UpdateOutputInput = z.output<typeof UpdateOutputBody>;
 /** The quality decision: how much of the pending quantity is good (the rest is rejected). */
-export const AcceptOutputBody = z.object({ pendingGood: amount.optional() }).strict();
+/** EP41: and, when independent approval needs it, an owner override. */
+export const AcceptOutputBody = z
+  .object({ pendingGood: amount.optional(), ownerOverride: OwnerOverrideBody.optional() })
+  .strict();
 export const OUTPUT_STATUSES = ['DRAFT', 'SUBMITTED', 'ACCEPTED', 'REJECTED', 'CANCELLED'] as const;
 export const OutputListQuery = z
   .object({

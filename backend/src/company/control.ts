@@ -1191,6 +1191,9 @@ export class CompanyControlService {
     return {
       timezone: access.company.timezone,
       defaultLocale: toApiLocale(access.company.defaultLocale),
+      /** EP41: docs/EP41_APPROVAL_POLICY.md. */
+      approvalPolicy: access.company.approvalPolicy,
+      canChangeApprovalPolicy: access.member.role === 'COMPANY_OWNER',
     };
   }
 
@@ -1210,10 +1213,36 @@ export class CompanyControlService {
       data.defaultLocale = locale;
       fields.push('defaultLocale');
     }
-    if (fields.length) {
+    // EP41: a business control — only the owner changes it (a System Admin administers people,
+    // it does not weaken controls). Audited on its own, with what it was and what it became.
+    const policy =
+      input.approvalPolicy && input.approvalPolicy !== c.approvalPolicy
+        ? input.approvalPolicy
+        : null;
+    if (policy && access.member.role !== 'COMPANY_OWNER') {
+      throw new AppError(
+        403,
+        'OWNER_ONLY',
+        'Only the company owner may change the approval policy.',
+      );
+    }
+    if (fields.length || policy) {
       await this.db.$transaction(async (tx) => {
-        await tx.company.update({ where: { id: c.id }, data });
-        await this.event(tx, meta, access, 'COMPANY_SETTINGS_UPDATED', 'Company', c.id, { fields });
+        await tx.company.update({
+          where: { id: c.id },
+          data: { ...data, ...(policy ? { approvalPolicy: policy } : {}) },
+        });
+        if (fields.length) {
+          await this.event(tx, meta, access, 'COMPANY_SETTINGS_UPDATED', 'Company', c.id, {
+            fields,
+          });
+        }
+        if (policy) {
+          await this.event(tx, meta, access, 'APPROVAL_POLICY_CHANGED', 'Company', c.id, {
+            from: c.approvalPolicy,
+            to: policy,
+          });
+        }
       });
     }
     return this.settings(ctx);

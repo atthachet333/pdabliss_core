@@ -89,6 +89,15 @@ const th = {
     PERMISSION_NOT_OVERRIDABLE: 'การดูแลบริษัทเป็นไปตามบทบาท กำหนดรายบุคคลไม่ได้',
     PERMISSION_NOT_ELIGIBLE: 'ผู้ใช้นี้ไม่อยู่ในแผนกนี้ หรือแผนกไม่ได้เปิดใช้ / ไม่อยู่ในแพ็กเกจ',
     FORBIDDEN: 'บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้',
+    // EP41: separation of duties, request time-outs, invalid characters
+    SELF_APPROVAL_NOT_ALLOWED:
+      'บริษัทกำหนดให้อนุมัติโดยผู้อื่น — ผู้สร้างหรือผู้ส่งเอกสารนี้อนุมัติเองไม่ได้ ให้ผู้มีสิทธิ์อนุมัติคนอื่นดำเนินการ',
+    OVERRIDE_NOT_ALLOWED: 'เฉพาะเจ้าของบริษัทเท่านั้นที่ยกเว้นการอนุมัติโดยผู้อื่นได้',
+    OVERRIDE_NOT_NEEDED: 'รายการนี้ไม่จำเป็นต้องใช้การยกเว้นโดยเจ้าของบริษัท',
+    OWNER_ONLY: 'เฉพาะเจ้าของบริษัทเท่านั้นที่เปลี่ยนนโยบายการอนุมัติได้',
+    TIMEOUT: 'ระบบตอบกลับช้าเกินไป ตรวจสอบรายการก่อนลองอีกครั้ง — คำขออาจทำสำเร็จแล้ว',
+    NETWORK_ERROR: 'เชื่อมต่อระบบไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง',
+    INVALID_CHARACTERS: 'ที่อยู่หรือคำค้นมีอักขระที่ใช้ไม่ได้',
   },
   overview: {
     kicker: 'บริษัทของคุณ',
@@ -339,6 +348,8 @@ const th = {
     },
     events: {
       DEMO_PERSONA_APPLIED: 'ตั้งค่าบัญชีสาธิตตามบทบาท (ข้อมูลสาธิต)',
+      APPROVAL_POLICY_CHANGED: 'เปลี่ยนนโยบายการอนุมัติ',
+      SELF_APPROVAL_OVERRIDE: 'เจ้าของบริษัทยกเว้นการอนุมัติโดยผู้อื่น',
       COMPANY_CREATED: 'สร้างบริษัท',
       HEAD_OFFICE_CREATED: 'สร้างสำนักงานใหญ่',
       COMPANY_OWNER_ASSIGNED: 'กำหนดเจ้าของบริษัท',
@@ -503,6 +514,16 @@ const en: Copy = {
     PERMISSION_NOT_ELIGIBLE:
       'This person is not in that department, or the department is not enabled or not in the package.',
     FORBIDDEN: 'Your role cannot do this',
+    // EP41: separation of duties, request time-outs, invalid characters
+    SELF_APPROVAL_NOT_ALLOWED:
+      'This company requires independent approval — whoever created or submitted the document cannot approve it. Another person with approval rights must decide.',
+    OVERRIDE_NOT_ALLOWED: 'Only the company owner may override independent approval.',
+    OVERRIDE_NOT_NEEDED: 'No owner override is needed here.',
+    OWNER_ONLY: 'Only the company owner may change the approval policy.',
+    TIMEOUT:
+      'The service took too long to answer. Check the record before trying again — the request may have gone through.',
+    NETWORK_ERROR: 'The service could not be reached. Check your connection and try again.',
+    INVALID_CHARACTERS: 'The address or search contains a character that is not allowed.',
   },
   overview: {
     kicker: 'Your company',
@@ -758,6 +779,8 @@ const en: Copy = {
     },
     events: {
       DEMO_PERSONA_APPLIED: 'Demo persona set up (demo data)',
+      APPROVAL_POLICY_CHANGED: 'Approval policy changed',
+      SELF_APPROVAL_OVERRIDE: 'Owner override of independent approval',
       COMPANY_CREATED: 'Company created',
       HEAD_OFFICE_CREATED: 'Head Office created',
       COMPANY_OWNER_ASSIGNED: 'Company Owner assigned',
@@ -917,6 +940,15 @@ const zh: Copy = {
     PERMISSION_NOT_OVERRIDABLE: '公司管理权限随角色而定，不能按个人设置',
     PERMISSION_NOT_ELIGIBLE: '该人员不在此部门，或该部门未启用、不在套餐内',
     FORBIDDEN: '您的角色无法执行此操作',
+    // EP41: separation of duties, request time-outs, invalid characters
+    SELF_APPROVAL_NOT_ALLOWED:
+      '本公司要求独立审批——单据的创建人或提交人不能自行审批，请由其他有审批权限的人处理。',
+    OVERRIDE_NOT_ALLOWED: '只有公司所有者可以豁免独立审批。',
+    OVERRIDE_NOT_NEEDED: '此处无需所有者豁免。',
+    OWNER_ONLY: '只有公司所有者可以更改审批政策。',
+    TIMEOUT: '服务响应超时。请先检查该记录再重试——请求可能已经完成。',
+    NETWORK_ERROR: '无法连接服务，请检查网络后重试。',
+    INVALID_CHARACTERS: '地址或搜索内容包含不允许的字符。',
   },
   overview: {
     kicker: '您的公司',
@@ -1164,6 +1196,8 @@ const zh: Copy = {
     },
     events: {
       DEMO_PERSONA_APPLIED: '演示角色已配置（演示数据）',
+      APPROVAL_POLICY_CHANGED: '审批政策已更改',
+      SELF_APPROVAL_OVERRIDE: '所有者豁免独立审批',
       COMPANY_CREATED: '创建公司',
       HEAD_OFFICE_CREATED: '创建总部',
       COMPANY_OWNER_ASSIGNED: '指定公司所有者',

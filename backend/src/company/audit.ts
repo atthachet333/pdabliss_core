@@ -51,6 +51,9 @@ export type CompanyAuditAction =
   | 'MEMBER_PERMISSION_OVERRIDE_REMOVED'
   // ---- EP28.1: the demo seed applied a demo persona to a membership (once; seed only)
   | 'DEMO_PERSONA_APPLIED'
+  // EP41: separation of duties
+  | 'APPROVAL_POLICY_CHANGED'
+  | 'SELF_APPROVAL_OVERRIDE'
   // ---- EP29: purchase requests (details: number, from / to, field names, line no, item code)
   | PurchaseRequestAuditAction
   // ---- EP30: purchase orders (details: number, from / to, field names, line no,

@@ -50,8 +50,19 @@ enum CompanyOnboardingStatus {
   COMPLETED
 }
 
+/// EP41 separation of duties (docs/EP41_APPROVAL_POLICY.md).
+enum ApprovalPolicy {
+  /// Pre-EP41: the decision's permission alone decides.
+  SELF_APPROVAL_ALLOWED
+  /// A consequential decision is made by someone other than the document's originators
+  /// (the owner may override, audited).
+  INDEPENDENT_APPROVAL
+}
+
 model Company {
   id                 String                  @id @default(cuid())
+  /// EP41: existing companies keep SELF_APPROVAL_ALLOWED; onboarding sets INDEPENDENT_APPROVAL.
+  approvalPolicy     ApprovalPolicy          @default(SELF_APPROVAL_ALLOWED)
   /// Display name (how the company is shown in CORE).
   name               String
   /// Registered legal name (Thai or any script, UTF-8).

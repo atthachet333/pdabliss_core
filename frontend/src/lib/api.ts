@@ -14,13 +14,30 @@ export class ApiError extends Error {
 
 /** The request never reached the API (offline, server down, blocked). */
 export const NETWORK_ERROR = 'NETWORK_ERROR';
+/** EP41: the API did not answer in time. For a write, the outcome is unknown — never retried. */
+export const TIMEOUT = 'TIMEOUT';
+/** EP41: the bounded wait for any API answer. */
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 type Method = 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT';
+
+/**
+ * EP41 owner override of independent approval. The CORE shell registers a
+ * handler that asks the owner — explicitly, with a reason — whether to decide
+ * anyway. Only then is the SAME request sent once more, carrying
+ * `ownerOverride` (the refused attempt wrote nothing). Never automatic.
+ */
+type OverrideHandler = (details: Record<string, unknown>) => Promise<string | null>;
+let overrideHandler: OverrideHandler | null = null;
+export function setOwnerOverrideHandler(handler: OverrideHandler | null) {
+  overrideHandler = handler;
+}
 
 /**
  * Minimal JSON client. Credentials are included so the HttpOnly session
  * cookie (EP23) travels with every call; the browser adds the Origin header
  * the API checks on state-changing requests. Nothing here stores a token.
+ * There is no automatic retry: a consequential request is sent once.
  */
 export async function apiRequest<T>(
   method: Method,
@@ -28,6 +45,16 @@ export async function apiRequest<T>(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
+  // The caller's own abort stays an AbortError; our time limit becomes TIMEOUT.
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener('abort', onAbort, { once: true });
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -38,22 +65,40 @@ export async function apiRequest<T>(
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
+      signal: controller.signal,
     });
   } catch (e) {
+    if (timedOut) throw new ApiError(0, TIMEOUT, 'The service took too long to answer.');
     if (e instanceof DOMException && e.name === 'AbortError') throw e;
     throw new ApiError(0, NETWORK_ERROR, 'The service could not be reached.');
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
   }
   if (!res.ok) {
     const parsed = (await res.json().catch(() => null)) as {
       error?: { code?: string; message?: string; details?: Record<string, unknown> };
     } | null;
-    throw new ApiError(
-      res.status,
-      parsed?.error?.code ?? (res.status === 429 ? 'RATE_LIMITED' : 'HTTP_ERROR'),
-      parsed?.error?.message ?? res.statusText,
-      parsed?.error?.details,
-    );
+    const code = parsed?.error?.code ?? (res.status === 429 ? 'RATE_LIMITED' : 'HTTP_ERROR');
+    const details = parsed?.error?.details;
+    if (
+      code === 'SELF_APPROVAL_NOT_ALLOWED' &&
+      details?.overridable === true &&
+      method === 'POST' &&
+      overrideHandler &&
+      !(body && typeof body === 'object' && 'ownerOverride' in body)
+    ) {
+      const reason = await overrideHandler(details);
+      if (reason) {
+        return apiRequest<T>(
+          method,
+          path,
+          { ...(body && typeof body === 'object' ? body : {}), ownerOverride: { reason } },
+          signal,
+        );
+      }
+    }
+    throw new ApiError(res.status, code, parsed?.error?.message ?? res.statusText, details);
   }
   return (await res.json()) as T;
 }

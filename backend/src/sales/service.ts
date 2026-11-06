@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import {
   recordCompanyEvent,
@@ -878,10 +879,34 @@ export class SalesOrderService {
   }
 
   /** SUBMITTED → CONFIRMED: snapshots refreshed one last time, then frozen. No stock effect. */
-  async confirm(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async confirm(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadSalesActor(this.db, ctx);
     await this.db.$transaction(async (tx) => {
       const o = await this.locked(tx, actor, id, 'confirm');
+      // EP41: confirmation is independent of who wrote and submitted the order, when required.
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'confirm',
+          entityType: 'SalesOrder',
+          entityId: id,
+          number: o.number,
+          branchId: o.branchId,
+          originators: [
+            { role: 'creator', memberId: o.createdByMemberId },
+            { role: 'submitter', memberId: o.submittedByMemberId },
+          ],
+        },
+        override,
+        this.scope,
+      );
       const n = await this.refresh(tx, actor, o);
       await tx.salesOrder.update({
         where: { id },

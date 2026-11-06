@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import {
   recordCompanyEvent,
@@ -718,8 +719,13 @@ export class PurchaseRequestService {
     return this.get(ctx, id);
   }
 
-  async approve(ctx: AuthContext, id: string, meta: RequestMeta) {
-    return this.decide(ctx, id, 'approve', null, meta);
+  async approve(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
+    return this.decide(ctx, id, 'approve', null, meta, override);
   }
 
   async reject(ctx: AuthContext, id: string, reason: string, meta: RequestMeta) {
@@ -741,6 +747,7 @@ export class PurchaseRequestService {
     action: Exclude<PrAction, 'edit' | 'submit'>,
     reason: string | null,
     meta: RequestMeta,
+    override: OwnerOverride | null = null,
   ) {
     const actor = await loadActor(this.db, ctx);
     const r = await this.load(actor, id);
@@ -783,6 +790,26 @@ export class PurchaseRequestService {
             'This request has purchase orders. Cancel those orders first.',
           );
         }
+      }
+      // EP41: an approval is independent of the requester (when the company requires it).
+      if (action === 'approve') {
+        await requireIndependentDecision(
+          tx,
+          meta,
+          actor.access,
+          {
+            decision: 'approve',
+            entityType: 'PurchaseRequest',
+            entityId: id,
+            number: r.number,
+            branchId: r.branchId,
+            originators: [{ role: 'requester', memberId: r.requesterMemberId }],
+          },
+          override,
+          this.scope,
+        );
+      } else if (override) {
+        throw new AppError(400, 'OVERRIDE_NOT_NEEDED', 'No owner override is needed here.');
       }
       // Conditional on the status we decided from: a concurrent decision wins once.
       const changed = await tx.purchaseRequest.updateMany({

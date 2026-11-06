@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import { recordCompanyEvent, type ProductionAuditAction } from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
@@ -628,18 +629,44 @@ export class FinishedGoodsService {
     };
   }
 
-  async post(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async post(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadProductionActor(this.db, ctx);
-    await this.postAs(actor, id, meta);
+    await this.postAs(actor, id, meta, override);
     return this.get(ctx, id);
   }
 
   /** DRAFT → POSTED: the one moment finished goods enter stock (see the header). */
-  async postAs(actor: ProductionActor, id: string, meta: RequestMeta) {
+  async postAs(
+    actor: ProductionActor,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     if (!actor.fgView) throw permissionDenied('warehouse.finished_goods.view');
     await this.db.$transaction(async (tx) => {
       const { o, report, r } = await this.lockReceipt(tx, actor, id);
       if (!actor.fgConfirm) throw permissionDenied('warehouse.finished_goods.confirm');
+      // EP41: posting is independent of who drafted the receipt, when required.
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'post',
+          entityType: 'ProductionGoodsReceipt',
+          entityId: id,
+          number: r.number,
+          branchId: r.branchId,
+          originators: [{ role: 'creator', memberId: r.createdByMemberId }],
+        },
+        override,
+        this.scope,
+      );
       if (r.status !== 'DRAFT') {
         throw fail(
           409,

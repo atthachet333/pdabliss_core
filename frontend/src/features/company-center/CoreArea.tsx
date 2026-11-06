@@ -20,7 +20,7 @@ import { clearIdentity } from '@/features/auth/session';
 import { departmentId } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
-import { ApiError } from '@/lib/api';
+import { ApiError, setOwnerOverrideHandler } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
 import type { BranchInfo } from '@/features/company/api';
@@ -289,6 +289,14 @@ function CoreFrame({
   // EP38.4: the CORE menu appears once a working branch is set (before, every route asks for one).
   const navigable = !!context && !context.blocked && !!context.selected;
   const branchText = context?.selected ? branchLabel(context.selected) : null;
+  // EP41: the owner-override step of independent approval (its dialog is a lazy chunk).
+  const [override, setOverride] = useState<((reason: string | null) => void) | null>(null);
+  useEffect(() => {
+    setOwnerOverrideHandler(
+      () => new Promise<string | null>((resolve) => setOverride(() => resolve)),
+    );
+    return () => setOwnerOverrideHandler(null);
+  }, []);
 
   // On entering CORE and after every page change (EP39): focus is never left lost on <body>
   // — e.g. when the branch choice closes and its button unmounts — it moves to the content.
@@ -399,9 +407,22 @@ function CoreFrame({
           {children}
         </main>
       </div>
+      {override && (
+        <Suspense fallback={null}>
+          <OwnerOverrideDialog
+            onDone={(reason) => {
+              override(reason);
+              setOverride(null);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
+
+/** EP41: asked only when an owner meets independent approval on their own document. */
+const OwnerOverrideDialog = lazy(() => import('./OwnerOverrideDialog'));
 
 /** Refusals that mean the branch list on screen is out of date. */
 const STALE_BRANCH = new Set(['BRANCH_NOT_ALLOWED', 'BRANCH_INACTIVE', 'BRANCH_NOT_FOUND']);

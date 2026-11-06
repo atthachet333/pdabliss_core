@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import type { Db, Prisma } from '../db/client.js';
 import { permissionDenied } from '../permissions/guard.js';
@@ -521,11 +522,40 @@ export class CountService {
    * REVIEW → POSTED: under exclusive location locks, refuse a stale count
    * (COUNT_STALE), then one signed COUNT_CORRECTION per differing line.
    */
-  async post(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async post(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadWarehouseActor(this.db, ctx);
     await this.find(actor, id);
     await this.db.$transaction(async (tx) => {
       const c = await this.locked(tx, actor, id, 'post');
+      // EP41: the poster must not have raised, started or counted it, when independence is required.
+      const counters = await tx.cycleCountLine.findMany({
+        where: { cycleCountId: id, countedByMemberId: { not: null } },
+        select: { countedByMemberId: true },
+        distinct: ['countedByMemberId'],
+      });
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'post',
+          entityType: 'CycleCount',
+          entityId: id,
+          number: c.number,
+          branchId: c.branchId,
+          originators: [
+            { role: 'creator', memberId: c.createdByMemberId },
+            { role: 'starter', memberId: c.startedByMemberId },
+            ...counters.map((x) => ({ role: 'counter' as const, memberId: x.countedByMemberId })),
+          ],
+        },
+        override,
+      );
       const locationIds = c.locations.map((s) => s.locationId);
       await lockLocations(tx, locationIds, 'exclusive');
       const lines = await tx.cycleCountLine.findMany({

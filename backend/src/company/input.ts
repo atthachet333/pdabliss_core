@@ -391,6 +391,8 @@ export const SettingsBody = z
       .refine((v) => TIME_ZONES.has(v), 'unknown time zone')
       .optional(),
     defaultLocale: z.enum(API_LOCALES).optional(),
+    /** EP41: separation of duties — the owner alone may change it. */
+    approvalPolicy: z.enum(['SELF_APPROVAL_ALLOWED', 'INDEPENDENT_APPROVAL']).optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, 'nothing to update');

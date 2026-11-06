@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import type { Db, Prisma } from '../db/client.js';
 import { permissionDenied } from '../permissions/guard.js';
@@ -437,11 +438,34 @@ export class AdjustmentService {
    * SUBMITTED → POSTED in one transaction: approve, re-check every line under
    * the location locks, write the movements (a decrease only if on hand).
    */
-  async approve(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async approve(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadWarehouseActor(this.db, ctx);
     await this.find(actor, id);
     await this.db.$transaction(async (tx) => {
       const d = await this.locked(tx, actor, id, 'approve');
+      // EP41: approving (posting) is independent of who raised and submitted it, when required.
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'approve',
+          entityType: 'StockAdjustment',
+          entityId: id,
+          number: d.number,
+          branchId: d.branchId,
+          originators: [
+            { role: 'creator', memberId: d.createdByMemberId },
+            { role: 'submitter', memberId: d.submittedByMemberId },
+          ],
+        },
+        override,
+      );
       const lines = await tx.stockAdjustmentLine.findMany({
         where: { adjustmentId: id },
         orderBy: { lineNo: 'asc' },

@@ -253,6 +253,8 @@ export class CompanyService {
             status: 'PENDING_SUBSCRIPTION',
             onboardingStatus: completed ? 'COMPLETED' : 'IN_PROGRESS',
             createdById: ctx.user.id,
+            // EP41: new companies start with independent approval (the owner may relax it).
+            approvalPolicy: 'INDEPENDENT_APPROVAL',
           },
         });
         const member = await tx.companyMember.create({

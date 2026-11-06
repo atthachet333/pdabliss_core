@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import {
   recordCompanyEvent,
@@ -1367,11 +1368,36 @@ export class PurchaseOrderService {
    * at once for the same remaining quantity only one can succeed. Supplier,
    * branch and item snapshots are refreshed now and frozen from here on.
    */
-  async issue(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async issue(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadPoActor(this.db, ctx);
     await this.actionable(actor, id, 'issue');
     await this.db.$transaction(async (tx) => {
       await this.locked(tx, actor, id, 'issue');
+      const head = await tx.purchaseOrder.findUniqueOrThrow({
+        where: { id },
+        select: { number: true, branchId: true, createdByMemberId: true },
+      });
+      // EP41: issuing is the order's approval — independent of its creator when required.
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'issue',
+          entityType: 'PurchaseOrder',
+          entityId: id,
+          number: head.number,
+          branchId: head.branchId,
+          originators: [{ role: 'creator', memberId: head.createdByMemberId }],
+        },
+        override,
+        this.scope,
+      );
       const o = await tx.purchaseOrder.findUniqueOrThrow({
         where: { id },
         include: {

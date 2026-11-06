@@ -468,6 +468,19 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   // EP39: the cross-department chain (purchasing → receipt → production → sales → delivery, and a
   // sales demand waiting on a material) through the real services, on the EP39 master data.
   const integration = await seedDemoIntegration(db, company.id, SEED_META);
+  // EP41: a demo company created by THIS run starts the demo under independent approval, once
+  // its historical fixtures (which keep their recorded actors) exist. An existing demo company's
+  // setting is the owner's and is never overwritten.
+  if (companyOutcome === 'created') {
+    await db.company.update({
+      where: { id: company.id },
+      data: { approvalPolicy: 'INDEPENDENT_APPROVAL' },
+    });
+    await seedEvent(company.id, 'APPROVAL_POLICY_CHANGED', 'Company', company.id, {
+      from: 'SELF_APPROVAL_ALLOWED',
+      to: 'INDEPENDENT_APPROVAL',
+    });
+  }
 
   return {
     companyId: company.id,

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { requestMeta, requireAuth, requireSession } from '../../auth/http.js';
+import { DecisionBody } from '../../company/approval.js';
 import { IdParams } from '../../company/input.js';
 import type { Db } from '../../db/client.js';
 import { parseInput } from '../../lib/validation.js';
@@ -139,12 +140,21 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
   app.patch(`${O}/:id`, small, async (r) =>
     s.update(auth(r), idOf(r.params), parseInput(UpdateMoBody, r.body), meta(r)),
   );
-  for (const action of ['submit', 'approve', 'release'] as const) {
+  for (const action of ['submit', 'release'] as const) {
     app.post(`${O}/:id/${action}`, small, async (r) => {
       none(r);
       return s[action](auth(r), idOf(r.params), meta(r));
     });
   }
+  // EP41: approval takes an empty body, or an owner override of independent approval.
+  app.post(`${O}/:id/approve`, small, async (r) =>
+    s.approve(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
   app.post(`${O}/:id/reject`, small, async (r) =>
     s.reject(auth(r), idOf(r.params), reason(r), meta(r)),
   );
@@ -195,10 +205,14 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
   app.post(`${I}/:id/cancel`, small, async (r) =>
     mi.cancel(auth(r), idOf(r.params), reason(r), meta(r)),
   );
-  app.post(`${I}/:id/post`, small, async (r) => {
-    none(r);
-    return mi.post(auth(r), idOf(r.params), meta(r));
-  });
+  app.post(`${I}/:id/post`, small, async (r) =>
+    mi.post(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
 
   // EP38: completion of an order
   app.post(`${O}/:id/review`, small, async (r) =>
@@ -226,14 +240,10 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
     none(r);
     return out.submit(auth(r), idOf(r.params), meta(r));
   });
-  app.post(`${P}/:id/accept`, small, async (r) =>
-    out.accept(
-      auth(r),
-      idOf(r.params),
-      parseInput(AcceptOutputBody, r.body ?? {}).pendingGood,
-      meta(r),
-    ),
-  );
+  app.post(`${P}/:id/accept`, small, async (r) => {
+    const b = parseInput(AcceptOutputBody, r.body ?? {});
+    return out.accept(auth(r), idOf(r.params), b.pendingGood, meta(r), b.ownerOverride ?? null);
+  });
   app.post(`${P}/:id/reject`, small, async (r) =>
     out.reject(auth(r), idOf(r.params), parseInput(ReasonBody, r.body ?? {}).reason, meta(r)),
   );
@@ -286,10 +296,14 @@ export const finishedGoodsRoutes: FastifyPluginAsync<{ db: Db }> = async (app, {
   app.put('/receipts/:id/lines', body, async (r) =>
     fg.updateLines(auth(r), idOf(r.params), parseInput(FgLinesBody, r.body), meta(r)),
   );
-  app.post('/receipts/:id/post', small, async (r) => {
-    parseInput(MoNoBody, r.body ?? {});
-    return fg.post(auth(r), idOf(r.params), meta(r));
-  });
+  app.post('/receipts/:id/post', small, async (r) =>
+    fg.post(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
   app.post('/receipts/:id/cancel', small, async (r) =>
     fg.cancel(
       auth(r),

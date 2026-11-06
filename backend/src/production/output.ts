@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import { recordCompanyEvent, type ProductionAuditAction } from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
@@ -553,9 +554,15 @@ export class OutputService {
     });
   }
 
-  async accept(ctx: AuthContext, id: string, pendingGood: string | undefined, meta: RequestMeta) {
+  async accept(
+    ctx: AuthContext,
+    id: string,
+    pendingGood: string | undefined,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadProductionActor(this.db, ctx);
-    await this.acceptAs(actor, id, pendingGood, meta);
+    await this.acceptAs(actor, id, pendingGood, meta, override);
     return this.get(ctx, id);
   }
 
@@ -564,10 +571,30 @@ export class OutputService {
     id: string,
     pendingGood: string | undefined,
     meta: RequestMeta,
+    override: OwnerOverride | null = null,
   ) {
     await this.db.$transaction(async (tx) => {
       const { o, r } = await this.lockedReport(tx, actor, id);
       if (!actor.outputApprove) throw permissionDenied('operations.output.approve');
+      // EP41: the quality decision is independent of who reported the output, when required.
+      await requireIndependentDecision(
+        tx,
+        meta,
+        actor.access,
+        {
+          decision: 'accept',
+          entityType: 'ProductionOutputReport',
+          entityId: id,
+          number: r.number,
+          branchId: r.branchId,
+          originators: [
+            { role: 'creator', memberId: r.createdByMemberId },
+            { role: 'submitter', memberId: r.submittedByMemberId },
+          ],
+        },
+        override,
+        this.scope,
+      );
       if (r.status !== 'SUBMITTED') {
         throw fail(
           409,

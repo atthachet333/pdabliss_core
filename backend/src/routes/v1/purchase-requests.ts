@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { requestMeta, requireAuth, requireSession } from '../../auth/http.js';
+import { DecisionBody } from '../../company/approval.js';
 import { IdParams } from '../../company/input.js';
 import type { Db } from '../../db/client.js';
 import { parseInput } from '../../lib/validation.js';
@@ -72,7 +73,15 @@ export const purchaseRequestRoutes: FastifyPluginAsync<{ db: Db }> = async (app,
   });
 
   app.post('/:id/submit', async (r) => pr.submit(auth(r), idOf(r.params), meta(r)));
-  app.post('/:id/approve', async (r) => pr.approve(auth(r), idOf(r.params), meta(r)));
+  // EP41: an empty body, or an owner override of independent approval.
+  app.post('/:id/approve', async (r) =>
+    pr.approve(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
   app.post('/:id/reject', { bodyLimit: 4 * 1024 }, async (r) =>
     pr.reject(auth(r), idOf(r.params), parseInput(ReasonBody, r.body).reason, meta(r)),
   );

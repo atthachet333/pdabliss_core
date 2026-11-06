@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { requestMeta, requireAuth, requireSession } from '../../auth/http.js';
+import { DecisionBody } from '../../company/approval.js';
 import { IdParams } from '../../company/input.js';
 import type { Db } from '../../db/client.js';
 import { parseInput } from '../../lib/validation.js';
@@ -192,7 +193,14 @@ export const warehouseRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db 
     ),
   );
   app.post('/adjustments/:id/submit', async (r) => adj.submit(auth(r), idOf(r.params), meta(r)));
-  app.post('/adjustments/:id/approve', async (r) => adj.approve(auth(r), idOf(r.params), meta(r)));
+  app.post('/adjustments/:id/approve', async (r) =>
+    adj.approve(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
   app.post('/adjustments/:id/reject', small, async (r) =>
     adj.reject(auth(r), idOf(r.params), parseInput(ReasonBody, r.body).reason, meta(r)),
   );
@@ -220,7 +228,14 @@ export const warehouseRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db 
   );
   app.post('/counts/:id/review', async (r) => cc.review(auth(r), idOf(r.params), false, meta(r)));
   app.post('/counts/:id/reopen', async (r) => cc.review(auth(r), idOf(r.params), true, meta(r)));
-  app.post('/counts/:id/post', async (r) => cc.post(auth(r), idOf(r.params), meta(r)));
+  app.post('/counts/:id/post', async (r) =>
+    cc.post(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
   app.post('/counts/:id/cancel', small, async (r) =>
     cc.cancel(auth(r), idOf(r.params), optReason(r.body), meta(r)),
   );

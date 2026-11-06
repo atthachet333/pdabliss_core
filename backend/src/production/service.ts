@@ -1,4 +1,5 @@
 import type { RequestMeta } from '../auth/audit.js';
+import { requireIndependentDecision, type OwnerOverride } from '../company/approval.js';
 import type { AuthContext } from '../auth/sessions.js';
 import { recordCompanyEvent, type ProductionAuditAction } from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
@@ -1339,9 +1340,14 @@ export class ProductionOrderService {
     return this.get(ctx, id);
   }
 
-  async approve(ctx: AuthContext, id: string, meta: RequestMeta) {
+  async approve(
+    ctx: AuthContext,
+    id: string,
+    meta: RequestMeta,
+    override: OwnerOverride | null = null,
+  ) {
     const actor = await loadProductionActor(this.db, ctx);
-    await this.transition(actor, id, 'approve', meta);
+    await this.transition(actor, id, 'approve', meta, null, override);
     return this.get(ctx, id);
   }
 
@@ -1370,9 +1376,33 @@ export class ProductionOrderService {
     action: 'submit' | 'approve' | 'reject' | 'release' | 'cancel',
     meta: RequestMeta,
     reason: string | null = null,
+    override: OwnerOverride | null = null,
   ) {
     await this.db.$transaction(async (tx) => {
       const o = await this.locked(tx, actor, id, action);
+      if (action === 'approve') {
+        // EP41: approval is independent of who planned and submitted the order, when required.
+        await requireIndependentDecision(
+          tx,
+          meta,
+          actor.access,
+          {
+            decision: 'approve',
+            entityType: 'ProductionOrder',
+            entityId: id,
+            number: o.number,
+            branchId: o.branchId,
+            originators: [
+              { role: 'creator', memberId: o.createdByMemberId },
+              { role: 'submitter', memberId: o.submittedByMemberId },
+            ],
+          },
+          override,
+          this.scope,
+        );
+      } else if (override) {
+        throw fail(400, 'OVERRIDE_NOT_NEEDED', 'No owner override is needed here.');
+      }
       const now = new Date();
       const by = actor.memberId;
       if (action === 'submit') {

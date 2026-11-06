@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { requestMeta, requireAuth, requireSession } from '../../auth/http.js';
+import { DecisionBody } from '../../company/approval.js';
 import { IdParams } from '../../company/input.js';
 import type { Db } from '../../db/client.js';
 import { parseInput } from '../../lib/validation.js';
@@ -62,7 +63,14 @@ export const salesRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db }) =
     s.saveLines(auth(r), idOf(r.params), parseInput(SoLinesBody, r.body).lines, meta(r)),
   );
   app.post(`${O}/:id/submit`, async (r) => s.submit(auth(r), idOf(r.params), meta(r)));
-  app.post(`${O}/:id/confirm`, async (r) => s.confirm(auth(r), idOf(r.params), meta(r)));
+  app.post(`${O}/:id/confirm`, async (r) =>
+    s.confirm(
+      auth(r),
+      idOf(r.params),
+      meta(r),
+      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+    ),
+  );
   // EP34: no body — a client never names a quantity, location, lot or status (400 if it tries).
   const none = (r: { body: unknown }) => parseInput(SoNoBody, r.body ?? {});
   app.post(`${O}/:id/allocate`, small, async (r) => {

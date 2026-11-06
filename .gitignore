@@ -33,3 +33,6 @@ Thumbs.db
 
 # Local Claude Code settings
 .claude/settings.local.json
+
+# Local git backup bundles (never committed)
+/EP37-backup.bundle

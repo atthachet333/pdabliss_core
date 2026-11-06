@@ -332,7 +332,7 @@ function CoreFrame({
           <span aria-hidden className="h-7 w-px bg-white/[0.1]" />
           <AreaLink
             to="/core"
-            className="min-w-0 flex-1 rounded-md leading-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            className="min-w-28 flex-1 rounded-md leading-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             data-core-home-link
           >
             <span className="block font-mono text-[0.6875rem] tracking-[0.16em] text-brand-soft uppercase">
@@ -376,7 +376,7 @@ function CoreFrame({
       <div
         className={cn(
           'mx-auto w-full max-w-[100rem]',
-          navigable && 'lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]',
+          navigable && 'xl:grid xl:grid-cols-[15.5rem_minmax(0,1fr)]',
         )}
       >
         {navigable && <CoreSidebar context={context} branchLabel={branchText} />}

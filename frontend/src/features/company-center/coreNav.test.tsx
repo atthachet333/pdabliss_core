@@ -120,6 +120,13 @@ describe('CORE navigation (EP38.4)', () => {
     const dialog = screen.getByRole('dialog', { name: 'CORE menu' });
     expect(within(dialog).getByRole('link', { name: 'New sales order' })).toBeInTheDocument();
     expect(dialog.contains(document.activeElement)).toBe(true);
+    // Focus stays in the modal: Shift+Tab from the first control wraps to the last, Tab back again.
+    const focusable = [...dialog.querySelectorAll<HTMLElement>('a[href], button')];
+    expect(document.activeElement).toBe(focusable[0]);
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(document.activeElement).toBe(focusable[focusable.length - 1]);
+    await user.keyboard('{Tab}');
+    expect(document.activeElement).toBe(focusable[0]);
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(menu).toHaveFocus();

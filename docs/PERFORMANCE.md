@@ -208,6 +208,11 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP38.4 — no budget changed; no recovery needed.** The CORE menu (`CoreNav.tsx`, TH / EN / ZH)
+  joins the existing lazy CORE shell chunk, and the customer combobox replaces the old picker in
+  `SalesArea` (59.7 KiB raw / 17.5 gzip); no new dependency, nothing on public routes.
+  - All JS **4,236.7 (EP38.3.1) → 4,247.4 / 4,300 KiB (+10.7)**; headroom ≈ 53 KiB.
+  - Initial JS 182.7 / 205 KiB gzip and static HTML 526.9 / 560 KiB.
 - **EP38 — no budget changed; no recovery needed.** The chunk graph was inspected first: every EP38
   screen is lazy, inside the existing Production and Warehouse routes, and adds no dependency.
   - New chunks:

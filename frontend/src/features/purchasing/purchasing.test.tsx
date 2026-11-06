@@ -177,7 +177,9 @@ describe('Purchasing workspace and requests (EP29)', () => {
     renderRoute('/core?lang=en');
     const open = await screen.findByRole('link', { name: 'Open the Purchasing workspace' });
     expect(open).toHaveAttribute('href', '/core/purchasing');
-    expect(screen.getByRole('link', { name: 'Purchase requests' })).toHaveAttribute(
+    // On the CORE home itself (the EP38.4 menu carries the same entry).
+    const home = within(document.querySelector<HTMLElement>('#main')!);
+    expect(home.getByRole('link', { name: 'Purchase requests' })).toHaveAttribute(
       'href',
       '/core/purchasing/requests',
     );
@@ -190,10 +192,11 @@ describe('Purchasing workspace and requests (EP29)', () => {
     );
     expect(document.querySelector('[data-tile="queue"]')).toHaveTextContent('2');
     expect(document.querySelector('[data-tile="approved"]')).toHaveTextContent('5');
-    expect(screen.getByRole('link', { name: 'New purchase request' })).toHaveAttribute(
-      'href',
-      '/core/purchasing/requests/new',
-    );
+    expect(
+      within(document.querySelector<HTMLElement>('#main')!).getByRole('link', {
+        name: 'New purchase request',
+      }),
+    ).toHaveAttribute('href', '/core/purchasing/requests/new');
     expect(api.called(`GET ${PR}`).map((c) => c.query.pageSize)).toEqual(['1', '1', '1']);
   });
 
@@ -271,7 +274,12 @@ describe('Purchasing workspace and requests (EP29)', () => {
     );
     renderRoute('/core/purchasing/requests?lang=en');
     expect(await screen.findByText(PR_COPY.en.readOnly)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'New purchase request' })).toBeNull();
+    // The page offers no create (the server's request context decides it).
+    expect(
+      within(document.querySelector<HTMLElement>('#main')!).queryByRole('link', {
+        name: 'New purchase request',
+      }),
+    ).toBeNull();
   });
 
   it('creates a draft: one department is fixed, only filled fields are sent', async () => {

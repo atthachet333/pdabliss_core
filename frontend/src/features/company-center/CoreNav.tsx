@@ -294,7 +294,7 @@ export function CoreSidebar(props: { context: BranchContext; branchLabel: string
   return (
     <nav
       aria-label={n.label}
-      className="sticky top-0 hidden max-h-dvh overflow-y-auto border-r border-white/[0.06] px-4 py-6 lg:block"
+      className="sticky top-0 hidden max-h-dvh overflow-y-auto border-r border-white/[0.06] px-4 py-6 xl:block"
       data-core-sidebar
     >
       <NavList {...props} />
@@ -320,6 +320,19 @@ export function CoreMenuButton(props: { context: BranchContext; branchLabel: str
       if (e.key === 'Escape') {
         setOpen(false);
         button.current?.focus();
+      } else if (e.key === 'Tab' && panel.current) {
+        // A modal drawer: Tab and Shift+Tab wrap inside it, never into the page behind.
+        const items = [...panel.current.querySelectorAll<HTMLElement>('a[href], button')];
+        const first = items[0];
+        const last = items[items.length - 1];
+        const inside = panel.current.contains(document.activeElement);
+        if (e.shiftKey && (!inside || document.activeElement === first)) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+          e.preventDefault();
+          first?.focus();
+        }
       }
     };
     document.addEventListener('keydown', onKey);
@@ -333,14 +346,14 @@ export function CoreMenuButton(props: { context: BranchContext; branchLabel: str
         onClick={() => setOpen(true)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={buttonClasses('secondary', 'md', 'px-3.5 lg:hidden')}
+        className={buttonClasses('secondary', 'md', 'px-3.5 xl:hidden')}
         data-core-menu
       >
         <Menu aria-hidden className="size-4" />
         <span className="max-sm:sr-only">{n.menu}</span>
       </button>
       {open && (
-        <div className="fixed inset-0 z-80 lg:hidden">
+        <div className="fixed inset-0 z-80 xl:hidden">
           <div aria-hidden className="absolute inset-0 bg-black/60" onClick={close} />
           <div
             ref={panel}

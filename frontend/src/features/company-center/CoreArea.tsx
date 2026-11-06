@@ -290,11 +290,17 @@ function CoreFrame({
   const navigable = !!context && !context.blocked && !!context.selected;
   const branchText = context?.selected ? branchLabel(context.selected) : null;
 
+  // On entering CORE and after every page change (EP39): focus is never left lost on <body>
+  // — e.g. when the branch choice closes and its button unmounts — it moves to the content.
+  const { pathname } = useLocation();
   useEffect(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body)
-      document.getElementById('main')?.focus({ preventScroll: true });
-  }, []);
+    const frame = requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body)
+        document.getElementById('main')?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
 
   const signOut = async () => {
     try {

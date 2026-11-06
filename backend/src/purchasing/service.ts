@@ -1,6 +1,10 @@
 import type { RequestMeta } from '../auth/audit.js';
 import type { AuthContext } from '../auth/sessions.js';
-import { recordCompanyEvent, type PurchaseRequestAuditAction } from '../company/audit.js';
+import {
+  recordCompanyEvent,
+  type ActorScope,
+  type PurchaseRequestAuditAction,
+} from '../company/audit.js';
 import { requireOperationsContext } from '../company/context.js';
 import type { Db, Prisma } from '../db/client.js';
 import type { PurchaseRequestStatus } from '../generated/prisma/enums.js';
@@ -160,7 +164,11 @@ const LIFECYCLE: PurchaseRequestAuditAction[] = [
 ];
 
 export class PurchaseRequestService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    /** EP39: 'seed' when the demo seed drives this service (the audit scope of its events). */
+    private readonly scope: ActorScope = 'customer',
+  ) {}
 
   private event(
     tx: Prisma.TransactionClient,
@@ -173,7 +181,7 @@ export class PurchaseRequestService {
     return recordCompanyEvent(tx, meta, {
       action,
       actorId: actor.access.actor.userId,
-      actorScope: 'customer',
+      actorScope: this.scope,
       companyId: actor.access.company.id,
       entityType: 'PurchaseRequest',
       entityId: id,
@@ -460,7 +468,13 @@ export class PurchaseRequestService {
    * department the member may raise requests from; the member is the
    * requester. Number, request, lines and audit in one transaction.
    */
-  async create(ctx: AuthContext, input: CreateInput, meta: RequestMeta) {
+  /** EP39: additional details for the CREATED audit entry (the demo seed's stable fixture key). */
+  async create(
+    ctx: AuthContext,
+    input: CreateInput,
+    meta: RequestMeta,
+    extra: Record<string, string> = {},
+  ) {
     // The branch is the session's selected branch, validated (EP26) — never a client id.
     const op = await requireOperationsContext(this.db, ctx);
     const actor = await loadActor(this.db, ctx);
@@ -501,6 +515,7 @@ export class PurchaseRequestService {
         department: input.department,
         branch: op.branch.code,
         lines: lines.length,
+        ...extra,
       });
       return r;
     });

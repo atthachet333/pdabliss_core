@@ -1,6 +1,6 @@
 import type { RequestMeta } from '../auth/audit.js';
 import type { AuthContext } from '../auth/sessions.js';
-import { recordCompanyEvent } from '../company/audit.js';
+import { recordCompanyEvent, type ActorScope } from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
 import { AppError } from '../lib/errors.js';
 import { permissionDenied } from '../permissions/guard.js';
@@ -100,14 +100,18 @@ type FullReceipt = Prisma.GoodsReceiptGetPayload<{ include: typeof receiptInclud
 const TIMELINE = ['GOODS_RECEIPT_CREATED', 'GOODS_RECEIPT_POSTED', 'GOODS_RECEIPT_CANCELLED'];
 
 export class ReceivingService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    /** EP39: 'seed' when the demo seed drives this service (the audit scope of its events). */
+    private readonly scope: ActorScope = 'customer',
+  ) {}
 
   private ledgerActor(actor: WarehouseActor, meta: RequestMeta): LedgerActor {
     return {
       companyId: actor.access.company.id,
       memberId: actor.memberId,
       userId: actor.access.actor.userId,
-      scope: 'customer',
+      scope: this.scope,
       meta,
     };
   }
@@ -442,7 +446,13 @@ export class ReceivingService {
    * A DRAFT receipt for a PENDING_RECEIVE order: one line per receivable
    * order line with something left, nothing accepted yet. Number GR-YYYYMM-NNNNNN.
    */
-  async create(ctx: AuthContext, input: CreateReceiptInput, meta: RequestMeta) {
+  /** EP39: additional details for the CREATED audit entry (the demo seed's stable fixture key). */
+  async create(
+    ctx: AuthContext,
+    input: CreateReceiptInput,
+    meta: RequestMeta,
+    extra: Record<string, string> = {},
+  ) {
     const actor = await loadWarehouseActor(this.db, ctx);
     if (!actor.receiving.process) throw permissionDenied('warehouse.receiving.process');
     const companyId = actor.access.company.id;
@@ -534,11 +544,11 @@ export class ReceivingService {
       await recordCompanyEvent(tx, meta, {
         action: 'GOODS_RECEIPT_CREATED',
         actorId: actor.access.actor.userId,
-        actorScope: 'customer',
+        actorScope: this.scope,
         companyId,
         entityType: 'GoodsReceipt',
         entityId: r.id,
-        details: { number, order: o.number, lines: open.length },
+        details: { number, order: o.number, lines: open.length, ...extra },
       });
       return r.id;
     });
@@ -593,7 +603,7 @@ export class ReceivingService {
       await recordCompanyEvent(tx, meta, {
         action: 'GOODS_RECEIPT_UPDATED',
         actorId: actor.access.actor.userId,
-        actorScope: 'customer',
+        actorScope: this.scope,
         companyId: r.companyId,
         entityType: 'GoodsReceipt',
         entityId: id,
@@ -660,7 +670,7 @@ export class ReceivingService {
       await recordCompanyEvent(tx, meta, {
         action: 'GOODS_RECEIPT_CANCELLED',
         actorId: actor.access.actor.userId,
-        actorScope: 'customer',
+        actorScope: this.scope,
         companyId: fresh.companyId,
         entityType: 'GoodsReceipt',
         entityId: id,
@@ -843,6 +853,8 @@ export class ReceivingService {
           adjustment: { select: { id: true, number: true } },
           cycleCount: { select: { id: true, number: true } },
           salesShipment: { select: { id: true, number: true } },
+          productionMaterialIssue: { select: { id: true, number: true } },
+          productionGoodsReceipt: { select: { id: true, number: true } },
           actor: person,
         },
       }),
@@ -868,6 +880,8 @@ export class ReceivingService {
             adjustment: m.adjustment,
             count: m.cycleCount,
             shipment: m.salesShipment,
+            issue: m.productionMaterialIssue,
+            finishedGoodsReceipt: m.productionGoodsReceipt,
           },
           actor: who(m.actor),
         }),

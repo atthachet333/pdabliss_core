@@ -19,6 +19,17 @@ const allocationState = z
   .nullable();
 const pickReadiness = z.enum(['NOT_READY', 'PARTIALLY_READY', 'READY']).nullable();
 
+export const FULFILMENT_STATES = [
+  'NOT_STARTED',
+  'PARTIALLY_PICKED',
+  'PICKED',
+  'PARTIALLY_DISPATCHED',
+  'DISPATCHED',
+  'PARTIALLY_DELIVERED',
+  'DELIVERED',
+  'EXCEPTION',
+] as const;
+
 export const SoRow = z.object({
   id: z.string(),
   number: z.string(),
@@ -34,6 +45,8 @@ export const SoRow = z.object({
   availability: availability.nullable(),
   allocationState,
   pickReadiness,
+  /** EP39: the order's physical fulfilment (as on the order); null until confirmed. */
+  fulfilmentState: z.enum(FULFILMENT_STATES).nullable().optional(),
   createdBy: person,
   updatedAt: z.string(),
 });
@@ -115,17 +128,6 @@ export const SoView = SoRow.extend({
     z.enum(['edit', 'submit', 'confirm', 'cancel', 'allocate', 'release', 'reallocate']),
   ),
 });
-
-export const FULFILMENT_STATES = [
-  'NOT_STARTED',
-  'PARTIALLY_PICKED',
-  'PICKED',
-  'PARTIALLY_DISPATCHED',
-  'DISPATCHED',
-  'PARTIALLY_DELIVERED',
-  'DELIVERED',
-  'EXCEPTION',
-] as const;
 
 /** EP35: the order's physical fulfilment for Sales — shipment numbers, states and dates only. */
 export const SoFulfilment = z.object({

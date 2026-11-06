@@ -378,7 +378,7 @@ describeDb('Demo personas (EP28.1)', () => {
     );
     const wh = await login('warehouse.demo@pdabliss.com');
     const items = await wh.get(`${MD}/items`);
-    expect(j(items).total).toBe(3);
+    expect(j(items).total).toBe(8); // EP28: 3 + EP39: 5
     const walk = (v: unknown): void => {
       if (Array.isArray(v)) v.forEach(walk);
       else if (v && typeof v === 'object')
@@ -391,8 +391,7 @@ describeDb('Demo personas (EP28.1)', () => {
       const res = await wh.get(url);
       expect(res.statusCode, url).toBe(200);
       walk(res.json());
-      expect(res.body).not.toContain('SUP-000001');
-      expect(res.body).not.toContain('CUS-000001');
+      expect(res.body).not.toMatch(/SUP-00000[1-3]|CUS-00000[1-3]/);
     }
     expect(
       j(await wh.get(`${MD}/locations`)).items.every((l: J) => l.branch.code === '00001'),
@@ -411,8 +410,8 @@ describeDb('Demo personas (EP28.1)', () => {
 
   it('Sales, Operations, Purchasing and Accounting stay inside their domain', async () => {
     const sales = await login('sales.demo@pdabliss.com');
-    expect(j(await sales.get(`${MD}/customers`)).total).toBe(1);
-    expect(j(await sales.get(`${MD}/items`)).total).toBe(3);
+    expect(j(await sales.get(`${MD}/customers`)).total).toBe(3); // EP28: 1 + EP39: 2
+    expect(j(await sales.get(`${MD}/items`)).total).toBe(8); // EP28: 3 + EP39: 5
     expect(code(await sales.get(`${MD}/suppliers`))).toBe('PERMISSION_DENIED');
     expect(code(await sales.post(`${MD}/customers`, { name: 'x' }))).toBe('PERMISSION_DENIED');
     expect(code(await sales.get(`${MD}/locations`))).toBe('PERMISSION_DENIED');
@@ -440,8 +439,8 @@ describeDb('Demo personas (EP28.1)', () => {
     const buyer = await login('purchasing.demo@pdabliss.com');
     expect(
       j(await buyer.post(`${MD}/suppliers`, { name: 'Packaging Supplier' })).supplier.code,
-    ).toBe('SUP-000002');
-    expect(j(await buyer.get(`${MD}/items`)).total).toBe(4);
+    ).toBe('SUP-000004'); // the code counter follows the seeded SUP-000001…3
+    expect(j(await buyer.get(`${MD}/items`)).total).toBe(9);
     expect(
       code(await buyer.post(`${MD}/items`, { type: 'CONSUMABLE', name: 'x', baseUnitId: pcs.id })),
     ).toBe('PERMISSION_DENIED');
@@ -457,8 +456,8 @@ describeDb('Demo personas (EP28.1)', () => {
     ).toBe(403);
 
     const acct = await login('accounting.demo@pdabliss.com');
-    expect(j(await acct.get(`${MD}/customers`)).total).toBe(1);
-    expect(j(await acct.get(`${MD}/suppliers`)).total).toBe(2);
+    expect(j(await acct.get(`${MD}/customers`)).total).toBe(3);
+    expect(j(await acct.get(`${MD}/suppliers`)).total).toBe(4);
     expect(code(await acct.post(`${MD}/customers`, { name: 'x' }))).toBe('PERMISSION_DENIED');
     expect(code(await acct.get(`${MD}/items`))).toBe('PERMISSION_DENIED');
     expect(code(await acct.get(`${MD}/locations`))).toBe('PERMISSION_DENIED');
@@ -513,12 +512,13 @@ describeDb('Demo personas (EP28.1)', () => {
       ['PURCHASING', 'APPROVED'],
       ['WAREHOUSE', 'APPROVED'],
       ['PURCHASING', 'REJECTED'],
+      ['OPERATIONS', 'APPROVED'], // EP39 PR_EP39_MATERIALS (approved by purchasing.demo)
     ]);
     const PR = '/api/v1/purchase-requests';
     const buyer = await login('purchasing.demo@pdabliss.com');
     const queue = j(await buyer.get(`${PR}?view=queue`)).items;
     expect(queue.map((r: J) => r.department)).toEqual(['SALES']);
-    expect(j(await buyer.get(PR)).total).toBe(5); // others' drafts stay private
+    expect(j(await buyer.get(PR)).total).toBe(6); // others' drafts stay private
     const wh = await login('warehouse.demo@pdabliss.com');
     expect(
       j(await wh.get(PR))
@@ -528,11 +528,11 @@ describeDb('Demo personas (EP28.1)', () => {
     const sales = await login('sales.demo@pdabliss.com');
     expect(j(await sales.get(PR)).items.map((r: J) => r.department)).toEqual(['SALES']);
     const exec = await login('executive.demo@pdabliss.com');
-    expect(j(await exec.get(PR)).total).toBe(5);
+    expect(j(await exec.get(PR)).total).toBe(6);
     // Decided once: the buyer approves the Sales request; a later seed leaves it approved.
     expect(j(await buyer.post(`${PR}/${queue[0].id}/approve`)).request.status).toBe('APPROVED');
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.purchaseRequest.count()).toBe(6);
+    expect(await h.db.purchaseRequest.count()).toBe(7);
     expect(
       (await h.db.purchaseRequest.findUniqueOrThrow({ where: { id: queue[0].id } })).status,
     ).toBe('APPROVED');
@@ -549,10 +549,12 @@ describeDb('Demo personas (EP28.1)', () => {
       ['PENDING_RECEIVE', '00001', 'NOT_REQUIRED'],
       ['CANCELLED', '00001', 'NOT_REQUIRED'],
       ['RECEIVED', '00001', 'NOT_REQUIRED'],
+      ['RECEIVED', '00001', 'NOT_REQUIRED'], // EP39 PO_EP39_RECEIVED
+      ['PENDING_RECEIVE', '00001', 'NOT_REQUIRED'], // EP39 PO_EP39_AWAITING (nothing received)
     ]);
     const PO = '/api/v1/purchase-orders';
     const buyer = await login('purchasing.demo@pdabliss.com');
-    expect(j(await buyer.get(PO)).total).toBe(5);
+    expect(j(await buyer.get(PO)).total).toBe(7);
     // The operations request is partly ordered: 8 of 12.5 kg (the cancelled 4.5 released).
     const ops = rows[2]!;
     const line = await h.db.purchaseOrderLine.findFirstOrThrow({
@@ -567,21 +569,28 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(deposits[0].deposit).toMatchObject({ type: 'PERCENT', status: 'PENDING' });
     const wh = await login('warehouse.demo@pdabliss.com');
     const pending = await wh.get('/api/v1/warehouse/pending-receive');
-    expect(j(pending).items.map((o: J) => o.number)).toEqual([ops.number]);
+    expect(
+      j(pending)
+        .items.map((o: J) => o.number)
+        .sort(),
+    ).toEqual([ops.number, rows[6]!.number].sort());
     expect(pending.body).not.toMatch(/price|amount|grandTotal|subtotal|deposit|42\.5/i);
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.purchaseOrder.count()).toBe(5);
+    expect(await h.db.purchaseOrder.count()).toBe(7);
   });
 
   it('seeds three posted goods receipts: a partial one, a fully received order, FEFO lots (EP31)', async () => {
     const receipts = await h.db.goodsReceipt.findMany({ orderBy: { number: 'asc' } });
-    expect(receipts.map((r) => r.status)).toEqual(['POSTED', 'POSTED', 'POSTED']);
+    expect(receipts.map((r) => r.status)).toEqual(['POSTED', 'POSTED', 'POSTED', 'POSTED']); // + EP39
     const wh = await login('warehouse.demo@pdabliss.com');
     const W = '/api/v1/warehouse';
     // The raw-material order is partly received: 5 of 8 kg; the other order is RECEIVED.
+    // EP39 adds an order nothing has been received against yet.
     const pending = j(await wh.get(`${W}/pending-receive`)).items;
-    expect(pending).toHaveLength(1);
-    expect(pending[0].receiving.state).toBe('PARTIALLY_RECEIVED');
+    expect(pending.map((o: J) => o.receiving.state).sort()).toEqual([
+      'NOT_RECEIVED',
+      'PARTIALLY_RECEIVED',
+    ]);
     const fg = await h.db.item.findFirstOrThrow({ where: { code: 'FG-000001' } });
     const fefo = j(await wh.get(`${W}/stock/fefo?itemId=${fg.id}`)).candidates;
     // EP32 moved 4 of lot B from RECEIVING to MAIN; EP34 demo orders then reserved all
@@ -595,8 +604,10 @@ describeDb('Demo personas (EP28.1)', () => {
     const stock = await wh.get(`${W}/stock`);
     // EP37: + the labelled raw-material lot RM-DEMO-02 the production demo adds through an adjustment;
     // EP38: + the two produced finished-goods lots received by the demo receipts.
-    expect(j(stock).total).toBe(10);
-    expect(stock.body).not.toMatch(/price|amount|cost|deposit|\b120\b|12\.5/i);
+    // EP39: + RM-000002 (two lots), PK-000002 and the produced serum lot SER-DEMO-01.
+    expect(j(stock).total).toBe(14);
+    // Money appears as quoted decimals ("120.0000"); a bare 12.5 can be part of a timestamp.
+    expect(stock.body).not.toMatch(/price|amount|cost|deposit|"120(\.0+)?"|"12\.50*"/i);
     // Ledger = balances.
     const balances = await h.db.stockBalance.findMany();
     for (const b of balances) {
@@ -607,8 +618,9 @@ describeDb('Demo personas (EP28.1)', () => {
       expect(sum._sum.quantityDelta!.toString()).toBe(b.quantityOnHand.toString());
     }
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.goodsReceipt.count()).toBe(3);
-    expect(await h.db.stockMovement.count({ where: { sourceType: 'GOODS_RECEIPT' } })).toBe(5);
+    expect(await h.db.goodsReceipt.count()).toBe(4);
+    // EP39: + RM-000002 in two lots and PK-000002.
+    expect(await h.db.stockMovement.count({ where: { sourceType: 'GOODS_RECEIPT' } })).toBe(8);
   });
 
   it('seeds inventory control: transfers, adjustments and a posted count — staff drafts, the owner posts (EP32)', async () => {
@@ -649,10 +661,14 @@ describeDb('Demo personas (EP28.1)', () => {
       'PRODUCTION_CONSUMPTION',
       'PRODUCTION_CONSUMPTION', // EP38: the completed order's issue (two lines)
       'PRODUCTION_CONSUMPTION',
+      'PRODUCTION_CONSUMPTION', // EP39: the short-closed order's issue (two lines)
+      'PRODUCTION_CONSUMPTION',
       'PRODUCTION_OUTPUT', // EP38: the two posted finished goods receipts
       'PRODUCTION_OUTPUT',
+      'PRODUCTION_OUTPUT', // EP39: the short-closed order's receipt
       'SALES_ISSUE', // EP35: the two demo dispatches
       'SALES_ISSUE',
+      'SALES_ISSUE', // EP39: the delivered serum order
       'TRANSFER_IN',
       'TRANSFER_OUT',
     ]);
@@ -664,10 +680,13 @@ describeDb('Demo personas (EP28.1)', () => {
       });
       expect(sum._sum.quantityDelta!.toString()).toBe(b.quantityOnHand.toString());
     }
-    const body = (await wh.get(`${W}/movements`)).body;
-    expect(body).not.toMatch(/price|amount|cost|deposit/i);
+    const list = await wh.get(`${W}/movements`);
+    expect(list.statusCode, list.body).toBe(200); // EP39: production movements once made this fail
+    expect(list.body).not.toMatch(/price|amount|cost|deposit/i);
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.stockMovement.count()).toBe(21); // EP35: 2 SALES_ISSUE; EP37: +1 adjustment, 2 consumptions; EP38: +2 adjustment lines, 2 consumptions, 2 outputs
+    // EP35: 2 SALES_ISSUE; EP37: +1 adjustment, 2 consumptions; EP38: +2 adjustment lines,
+    // 2 consumptions, 2 outputs; EP39: +3 receipts, 2 consumptions, 1 output, 1 sales issue.
+    expect(await h.db.stockMovement.count()).toBe(28);
     expect(await h.db.inventoryTransfer.count()).toBe(2);
   });
 
@@ -684,11 +703,14 @@ describeDb('Demo personas (EP28.1)', () => {
     const all = j(await owner.get(`${S}/orders`)).items;
     expect(all.map((o: J) => o.status).sort()).toEqual([
       'CANCELLED',
-      ...Array(7).fill('CONFIRMED'),
+      ...Array(9).fill('CONFIRMED'), // EP39: + SO_EP39_DELIVERED, SO_EP39_DEMAND
       'DRAFT',
+      'DRAFT', // EP39 SO_EP39_DRAFT
       'SUBMITTED',
+      'SUBMITTED', // EP39 SO_EP39_SUBMITTED (demo branch, in stock)
     ]);
-    const by = (status: string) => all.find((o: J) => o.status === status);
+    const by = (status: string) =>
+      all.find((o: J) => o.status === status && o.branch.code === '00000');
     expect(by('SUBMITTED')).toMatchObject({
       branch: { code: '00000' },
       availability: 'UNAVAILABLE',
@@ -704,7 +726,31 @@ describeDb('Demo personas (EP28.1)', () => {
         [2, 'FULLY_ALLOCATED', 'READY'], // SO_CONFIRMED
         [2, 'PARTIALLY_ALLOCATED', 'PARTIALLY_READY'], // SO_ALLOC_PARTIAL
         ...Array(4).fill([1, 'FULLY_ALLOCATED', 'READY']), // EP35 SO_FUL_*
+        [1, 'FULLY_ALLOCATED', 'READY'], // EP39 SO_EP39_DELIVERED (allocation is cumulative)
+        [1, 'NOT_ALLOCATED', 'NOT_READY'], // EP39 SO_EP39_DEMAND (nothing in stock)
       ].sort(),
+    );
+    // EP39: the list also says how far each order got physically — delivered is visible to Sales.
+    expect(
+      all
+        .filter((o: J) => o.status === 'CONFIRMED')
+        .map((o: J) => o.fulfilmentState)
+        .sort(),
+    ).toEqual(
+      [
+        'DELIVERED', // SO_EP39_DELIVERED
+        'EXCEPTION', // SO_FUL_EXCEPTION
+        'NOT_STARTED', // SO_OPEN
+        'NOT_STARTED', // SO_CONFIRMED
+        'NOT_STARTED', // SO_ALLOC_PARTIAL
+        'NOT_STARTED', // SO_EP39_DEMAND
+        'PARTIALLY_DELIVERED', // SO_FUL_SHIPPED
+        'PARTIALLY_PICKED', // SO_FUL_PICKING
+        'PICKED', // SO_FUL_PACKED
+      ].sort(),
+    );
+    expect(all.filter((o: J) => o.status !== 'CONFIRMED').every((o: J) => !o.fulfilmentState)).toBe(
+      true,
     );
     const full = all.find((o: J) => o.allocationState === 'FULLY_ALLOCATED' && o.lineCount === 2);
     expect(j(await owner.get(`${S}/orders/${full.id}`)).order.grandTotal).toBe('1572.90');
@@ -736,7 +782,9 @@ describeDb('Demo personas (EP28.1)', () => {
     // but stays staff — no confirmation, allocation or release.
     const sales = await login('sales.demo@pdabliss.com');
     const mine = j(await sales.get(`${S}/orders?pageSize=50`)).items;
-    expect(new Set(mine.map((o: J) => o.branch.code))).toEqual(new Set(['00000', '00001']));
+    expect(new Set((mine as J[]).map((o) => o.branch.code as string))).toEqual(
+      new Set(['00000', '00001']),
+    );
     expect(code(await sales.post(`${S}/orders/${full.id}/release`))).toBe('PERMISSION_DENIED');
     expect(code(await sales.post(`${S}/orders/${full.id}/allocate`, {}))).toBe('PERMISSION_DENIED');
     // Warehouse never reaches Sales, but sees the demo branch's Pending Pick (no money).
@@ -752,8 +800,8 @@ describeDb('Demo personas (EP28.1)', () => {
       /price|amount|total|discount|tax|185|customer/i,
     );
     await seedDemo(h.db, parseSeedEnv(ENV));
-    expect(await h.db.salesOrder.count()).toBe(10);
-    expect(await h.db.salesAllocation.count()).toBe(11);
+    expect(await h.db.salesOrder.count()).toBe(14); // + EP39: 4
+    expect(await h.db.salesAllocation.count()).toBe(12); // + EP39: the delivered order's (consumed)
     expect(await h.db.stockMovement.count()).toBe(movements);
     expect(
       JSON.stringify(
@@ -770,18 +818,23 @@ describeDb('Demo personas (EP28.1)', () => {
     const moves = await h.db.stockMovement.count();
     const wh = await login('warehouse.demo@pdabliss.com');
     const picks = j(await wh.get(`${W}/picks`)).items;
-    expect(picks.map((p: J) => p.status)).toEqual(Array(4).fill('PICKED'));
+    expect(picks.map((p: J) => p.status)).toEqual(Array(5).fill('PICKED')); // + EP39
     const packs = j(await wh.get(`${W}/packs`)).items;
     expect(packs.map((p: J) => p.status).sort()).toEqual([
       'DISPATCHED',
       'DISPATCHED',
+      'DISPATCHED', // EP39 SO_EP39_DELIVERED
       'PACKED',
       'PACKED',
     ]);
     const ships = j(await wh.get(`${W}/shipments`)).items;
-    expect(ships.map((x: J) => x.status).sort()).toEqual(['DELIVERED', 'DELIVERY_EXCEPTION']);
+    expect(ships.map((x: J) => x.status).sort()).toEqual([
+      'DELIVERED',
+      'DELIVERED', // EP39 SO_EP39_DELIVERED
+      'DELIVERY_EXCEPTION',
+    ]);
     const issues = await h.db.stockMovement.findMany({ where: { type: 'SALES_ISSUE' } });
-    expect(issues.map((m) => m.quantityDelta.toString()).sort()).toEqual(['-3', '-4']);
+    expect(issues.map((m) => m.quantityDelta.toString()).sort()).toEqual(['-3', '-4', '-6']);
     // The demo warehouse persona stays staff: it reads, picks and packs but never dispatches.
     const ready = j(await wh.get(`${W}/shipments/${ships[0].id}`)).shipment;
     expect(ready.actions).toEqual([]);
@@ -790,11 +843,11 @@ describeDb('Demo personas (EP28.1)', () => {
     const states = j(await owner.get('/api/v1/sales/orders?pageSize=50'))
       .items.filter((o: J) => o.status === 'CONFIRMED')
       .map((o: J) => o.number);
-    expect(states).toHaveLength(7);
+    expect(states).toHaveLength(9); // + EP39: delivered, demand
     await seedDemo(h.db, parseSeedEnv(ENV));
     expect(await h.db.stockMovement.count()).toBe(moves);
-    expect(await h.db.salesPick.count()).toBe(4);
-    expect(await h.db.salesShipment.count()).toBe(2);
+    expect(await h.db.salesPick.count()).toBe(5);
+    expect(await h.db.salesShipment.count()).toBe(3);
   });
 
   it('seeds production planning once through the real services — no stock effect (EP36)', async () => {
@@ -817,6 +870,8 @@ describeDb('Demo personas (EP28.1)', () => {
     expect(boms.map((b: J) => [b.code, b.revision, b.status])).toEqual([
       ['BOM-FG-000001', 2, 'ACTIVE'],
       ['BOM-FG-000001', 1, 'RETIRED'],
+      ['BOM-FG-000002', 1, 'ACTIVE'], // EP39
+      ['BOM-FG-000003', 1, 'ACTIVE'], // EP39
     ]);
     const orders = j(await ops.get(`${P}/orders?pageSize=50`)).items;
     expect(orders.map((o: J) => [o.status, o.source, o.quantity]).sort()).toEqual(
@@ -829,6 +884,8 @@ describeDb('Demo personas (EP28.1)', () => {
         ['IN_PRODUCTION', 'MANUAL', '10'], // EP37 MO_EXEC
         ['SUBMITTED', 'MANUAL', '6'],
         ['SUBMITTED', 'SALES_DEMAND', '4'],
+        ['COMPLETED', 'MANUAL', '20'], // EP39 MO_EP39_SHORT_CLOSED
+        ['APPROVED', 'SALES_DEMAND', '12'], // EP39 MO_EP39_FOR_SALES
       ].sort(),
     );
     const short = orders.find((o: J) => o.quantity === '40');
@@ -849,6 +906,200 @@ describeDb('Demo personas (EP28.1)', () => {
     const before = await snapshot();
     await seedDemo(h.db, parseSeedEnv(ENV));
     expect(await snapshot()).toBe(before);
+  });
+
+  it('seeds the EP39 cross-department chain once — real services, ledger-true, every handoff visible', async () => {
+    const atBranch = async (email: string, branch = '00001') => {
+      const b = await login(email);
+      const ctx = j(await b.get(`${C}/context`));
+      if (ctx.selected?.code !== branch) {
+        const target = ctx.branches.find((x: J) => x.code === branch);
+        expect((await b.post(`${C}/context/branch`, { branchId: target.id })).statusCode).toBe(200);
+      }
+      return b;
+    };
+    const marked = async (key: string) =>
+      (
+        await h.db.auditLog.findFirstOrThrow({
+          where: { changes: { path: ['demo'], equals: key } },
+        })
+      ).entityId;
+    // Purchasing → Warehouse: the Operations request, approved by Purchasing, ordered twice.
+    const pr = await h.db.purchaseRequest.findUniqueOrThrow({
+      where: { id: await marked('PR_EP39_MATERIALS') },
+      include: { branch: true },
+    });
+    expect([pr.department, pr.status, pr.branch.code]).toEqual(['OPERATIONS', 'APPROVED', '00001']);
+    const received = await h.db.purchaseOrder.findUniqueOrThrow({
+      where: { id: await marked('PO_EP39_RECEIVED') },
+      include: { lines: true },
+    });
+    const awaiting = await h.db.purchaseOrder.findUniqueOrThrow({
+      where: { id: await marked('PO_EP39_AWAITING') },
+    });
+    expect([
+      received.status,
+      received.supplierCode,
+      awaiting.status,
+      awaiting.supplierCode,
+    ]).toEqual(['RECEIVED', 'SUP-000002', 'PENDING_RECEIVE', 'SUP-000003']);
+    expect(received.lines.every((l) => l.purchaseRequestId === pr.id)).toBe(true);
+    const lots = await h.db.inventoryLot.findMany({
+      where: { item: { code: 'RM-000002' } },
+      orderBy: { expiryDate: 'asc' },
+    });
+    expect(lots.map((l) => l.lotNumber)).toEqual(['GLY-DEMO-B', 'GLY-DEMO-A']); // FEFO order
+    // Production: short-closed with a reason, a recorded variance, output received once.
+    const mo = await h.db.productionOrder.findUniqueOrThrow({
+      where: { id: await marked('MO_EP39_SHORT_CLOSED') },
+    });
+    expect([mo.status, mo.completionOutcome]).toEqual(['COMPLETED', 'SHORT_CLOSED']);
+    expect(mo.completionReason).toBeTruthy();
+    const out = await h.db.productionOutputReport.findFirstOrThrow({
+      where: { productionOrderId: mo.id },
+    });
+    expect([out.status, out.goodQuantity.toString(), out.defectiveQuantity.toString()]).toEqual([
+      'ACCEPTED',
+      '16',
+      '2',
+    ]);
+    const usage = await h.db.productionMaterialUsage.findMany({
+      where: { productionOrderId: mo.id },
+      include: { material: true },
+    });
+    expect(usage.map((u) => [u.material.itemCode, u.quantity.toString()]).sort()).toEqual([
+      ['PK-000002', '18'],
+      ['RM-000002', '0.95'],
+    ]);
+    expect(
+      await h.db.stockMovement.count({
+        where: { type: 'PRODUCTION_OUTPUT', productionGoodsReceipt: { outputReportId: out.id } },
+      }),
+    ).toBe(1);
+    // Production → Sales: the manufactured lot, allocated by hand, delivered; 10 remain.
+    const owner = await atBranch('owner.demo@pdabliss.com');
+    const delivered = j(
+      await owner.get(`/api/v1/sales/orders/${await marked('SO_EP39_DELIVERED')}`),
+    );
+    expect(delivered.fulfilment.state).toBe('DELIVERED');
+    const serum = await h.db.stockBalance.findFirstOrThrow({
+      where: { lot: { lotNumber: 'SER-DEMO-01' } },
+    });
+    expect(serum.quantityOnHand.toString()).toBe('10');
+    // Sales staff (unchanged role) sees its demo-branch work and the delivery — and decides nothing.
+    const sales = await atBranch('sales.demo@pdabliss.com');
+    const mine = j(await sales.get('/api/v1/sales/orders?pageSize=50')).items;
+    const row = (key: string) => mine.find((o: J) => o.number === numberOf(key));
+    const numbers = await h.db.salesOrder.findMany({ select: { id: true, number: true } });
+    const ids = Object.fromEntries(
+      await Promise.all(
+        ['SO_EP39_DELIVERED', 'SO_EP39_SUBMITTED', 'SO_EP39_DRAFT', 'SO_EP39_DEMAND'].map(
+          async (k) => [k, await marked(k)] as const,
+        ),
+      ),
+    );
+    const numberOf = (key: string) => numbers.find((n) => n.id === ids[key])!.number;
+    expect(row('SO_EP39_DELIVERED')).toMatchObject({ fulfilmentState: 'DELIVERED' });
+    expect(row('SO_EP39_SUBMITTED')).toMatchObject({
+      status: 'SUBMITTED',
+      availability: 'AVAILABLE',
+    });
+    expect(row('SO_EP39_DRAFT').status).toBe('DRAFT');
+    expect(code(await sales.post(`/api/v1/sales/orders/${ids.SO_EP39_SUBMITTED}/confirm`))).toBe(
+      'PERMISSION_DENIED',
+    );
+    // Sales demand → Production → a material shortage Purchasing can read (no automatic PR / PO).
+    const forSales = await h.db.productionOrder.findUniqueOrThrow({
+      where: { id: await marked('MO_EP39_FOR_SALES') },
+    });
+    expect([forSales.status, forSales.source, forSales.salesOrderId]).toEqual([
+      'APPROVED',
+      'SALES_DEMAND',
+      ids.SO_EP39_DEMAND,
+    ]);
+    const buyer = await atBranch('purchasing.demo@pdabliss.com');
+    const shortages = j(await buyer.get('/api/v1/purchasing/production-shortages')).items;
+    expect(
+      shortages
+        .filter((s: J) => s.order.id === forSales.id)
+        .map((s: J) => [s.material.code, s.shortage]),
+    ).toEqual([['RM-000003', '1.2']]);
+    expect(await h.db.purchaseRequest.count()).toBe(7); // nothing generated from the shortage
+    // Warehouse: the awaited order to receive and the produced stock — never a price.
+    const wh = await atBranch('warehouse.demo@pdabliss.com');
+    const pending = await wh.get('/api/v1/warehouse/pending-receive');
+    expect(j(pending).items.map((o: J) => o.number)).toContain(awaiting.number);
+    expect(pending.body).not.toMatch(/price|amount|subtotal|grandTotal|"420(\.0+)?"|"85(\.0+)?"/i);
+    const stock = await wh.get('/api/v1/warehouse/stock?pageSize=100');
+    expect(stock.body).toContain('SER-DEMO-01');
+    // The movement list shows production movements with their documents (EP39 fix: it failed).
+    const mv = await wh.get('/api/v1/warehouse/movements?pageSize=100');
+    expect(mv.statusCode, mv.body).toBe(200);
+    const prod = j(mv).items.filter((m: J) => m.type.startsWith('PRODUCTION_'));
+    expect(prod.length).toBeGreaterThan(0);
+    expect(
+      prod.every((m: J) =>
+        m.type === 'PRODUCTION_CONSUMPTION'
+          ? /^MI-/.test(String(m.source.issue?.number))
+          : /^FGR-/.test(String(m.source.finishedGoodsReceipt?.number)),
+      ),
+    ).toBe(true);
+    expect(mv.body).not.toMatch(/price|amount|cost|deposit/i);
+    expect(stock.body).not.toMatch(/price|amount|cost|"290(\.0+)?"/i);
+    // Ledger = balances, nothing negative, nothing over-reserved.
+    for (const b of await h.db.stockBalance.findMany()) {
+      const sum = await h.db.stockMovement.aggregate({
+        where: { locationId: b.locationId, itemId: b.itemId, lotId: b.lotId },
+        _sum: { quantityDelta: true },
+      });
+      expect(sum._sum.quantityDelta!.toString()).toBe(b.quantityOnHand.toString());
+      expect(b.quantityOnHand.isNegative()).toBe(false);
+      const held = await Promise.all([
+        h.db.salesAllocation.aggregate({
+          where: { status: 'ACTIVE', locationId: b.locationId, itemId: b.itemId, lotKey: b.lotKey },
+          _sum: { quantity: true },
+        }),
+        h.db.productionMaterialAllocation.aggregate({
+          where: { status: 'ACTIVE', locationId: b.locationId, itemId: b.itemId, lotKey: b.lotKey },
+          _sum: { quantity: true },
+        }),
+      ]);
+      const reserved = held.reduce((t, x) => t + Number(x._sum.quantity ?? 0), 0);
+      expect(reserved).toBeLessThanOrEqual(Number(b.quantityOnHand));
+    }
+    // Seeding again changes nothing.
+    const snapshot = async () =>
+      JSON.stringify({
+        moves: await h.db.stockMovement.count(),
+        audit: await h.db.auditLog.count(),
+        seq: await h.db.documentSequence.findMany({ orderBy: { key: 'asc' } }),
+        codes: await h.db.masterCodeSequence.findMany({ orderBy: { prefix: 'asc' } }),
+      });
+    const before = await snapshot();
+    await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(await snapshot()).toBe(before);
+  });
+
+  it('EP39 fixtures respect an administrator’s later change: a refused step is skipped, never forced', async () => {
+    // An administrator removed the Demo Branch from sales.demo; the draft fixture is still to make.
+    const sales = await member('sales.demo@pdabliss.com');
+    const demoBranch = await h.db.branch.findFirstOrThrow({ where: { code: '00001' } });
+    await h.db.memberBranchAccess.deleteMany({
+      where: { memberId: sales.id, branchId: demoBranch.id },
+    });
+    const draft = await h.db.auditLog.findFirstOrThrow({
+      where: { changes: { path: ['demo'], equals: 'SO_EP39_DRAFT' } },
+    });
+    await h.db.auditLog.delete({ where: { id: draft.id } });
+    const orders = await h.db.salesOrder.count();
+    const report = await seedDemo(h.db, parseSeedEnv(ENV));
+    expect(report.integration).toMatch(/skipped SO_EP39_SUBMITTED \/ SO_EP39_DRAFT \(\w+\)/);
+    expect(await h.db.salesOrder.count()).toBe(orders); // nothing created in a branch it lost
+    expect(
+      await h.db.memberBranchAccess.count({
+        where: { memberId: sales.id, branchId: demoBranch.id },
+      }),
+    ).toBe(0); // and the administrator's decision stands
   });
 
   it('the legacy staff account carries the one exception: receiving is denied', async () => {

@@ -426,7 +426,7 @@ function ListPage({ ctx }: { ctx: PrContext }) {
                     <>
                       <AreaLink
                         to={`${BASE}/requests/${encodeURIComponent(r.id)}`}
-                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0"
+                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
                       >
                         {r.number}
                       </AreaLink>

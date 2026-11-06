@@ -35,6 +35,8 @@ export interface SoRow {
   availability: Availability | null;
   allocationState: AllocationState | null;
   pickReadiness: PickReadiness | null;
+  /** EP39: how far the order got physically (as on the order); absent before confirmation. */
+  fulfilmentState?: FulfilmentState | null;
   createdBy: Person;
   updatedAt: string;
 }

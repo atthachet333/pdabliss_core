@@ -9,6 +9,11 @@ import { CUSTOMER_PREFIX, ITEM_PREFIX, reserveThrough, SUPPLIER_PREFIX } from '.
  * locations for the Head Office and the demo branch. Clearly labelled demo
  * data; no price, cost or margin anywhere.
  *
+ * EP39 adds, for the cross-department demo (src/demo/integration-demo.ts): the
+ * unit L, a packaging category, two finished goods, two raw materials (one in
+ * litres) and a packaging item, two customers and two suppliers. Purely
+ * additive: the EP28 records keep their codes and values.
+ *
  * Stable codes make it idempotent: a record is created only when its code is
  * missing, and an existing one is never overwritten (an administrator's edit
  * or deactivation stays). Generated-form codes move their counter forward, so
@@ -20,11 +25,13 @@ const UNITS = [
   { code: 'PCS', name: 'ชิ้น', symbol: 'ชิ้น', precision: 0 },
   { code: 'KG', name: 'กิโลกรัม', symbol: 'กก.', precision: 3 },
   { code: 'BOX', name: 'กล่อง', symbol: 'กล่อง', precision: 0 },
+  { code: 'L', name: 'ลิตร', symbol: 'ล.', precision: 3 },
 ] as const;
 
 const CATEGORIES = [
   { code: 'FG', name: 'สินค้าสำเร็จรูป (ตัวอย่าง)' },
   { code: 'RM', name: 'วัตถุดิบ (ตัวอย่าง)' },
+  { code: 'PK', name: 'บรรจุภัณฑ์ (ตัวอย่าง)' },
 ] as const;
 
 const ITEMS = [
@@ -55,7 +62,102 @@ const ITEMS = [
     lotTracking: 'NONE',
     expiryTracking: 'NONE',
   },
+  // EP39
+  {
+    code: 'FG-000002',
+    type: 'FINISHED_GOOD',
+    name: 'เซรั่มบำรุงผิว 30 มล. (ตัวอย่าง)',
+    unit: 'PCS',
+    category: 'FG',
+    lotTracking: 'REQUIRED',
+    expiryTracking: 'REQUIRED',
+  },
+  {
+    code: 'FG-000003',
+    type: 'FINISHED_GOOD',
+    name: 'โลชั่นกันแดด 100 มล. (ตัวอย่าง)',
+    unit: 'PCS',
+    category: 'FG',
+    lotTracking: 'REQUIRED',
+    expiryTracking: 'REQUIRED',
+  },
+  {
+    code: 'RM-000002',
+    type: 'RAW_MATERIAL',
+    name: 'กลีเซอรีน (ตัวอย่าง)',
+    unit: 'KG',
+    category: 'RM',
+    lotTracking: 'REQUIRED',
+    expiryTracking: 'REQUIRED',
+  },
+  {
+    code: 'RM-000003',
+    type: 'RAW_MATERIAL',
+    name: 'สารกันแดดเข้มข้น (ตัวอย่าง)',
+    unit: 'L',
+    category: 'RM',
+    lotTracking: 'REQUIRED',
+    expiryTracking: 'OPTIONAL',
+  },
+  {
+    code: 'PK-000002',
+    type: 'PACKAGING',
+    name: 'ขวดปั๊มพลาสติก (ตัวอย่าง)',
+    unit: 'PCS',
+    category: 'PK',
+    lotTracking: 'NONE',
+    expiryTracking: 'NONE',
+  },
 ] as const;
+
+const CUSTOMERS = [
+  {
+    seq: 1,
+    kind: 'BUSINESS',
+    name: 'ร้านค้าตัวอย่าง (ข้อมูลสาธิต)',
+    contactName: 'ฝ่ายจัดซื้อ (ตัวอย่าง)',
+    billingAddress: '1 ถนนสาธิต (ข้อมูลสาธิต) กรุงเทพมหานคร 10900',
+  },
+  // EP39
+  {
+    seq: 2,
+    kind: 'BUSINESS',
+    name: 'ร้านขายยาตัวอย่าง (ข้อมูลสาธิต)',
+    contactName: 'เภสัชกรผู้จัดการร้าน (ตัวอย่าง)',
+    billingAddress: '25 ถนนทดลอง (ข้อมูลสาธิต) นนทบุรี 11000',
+  },
+  {
+    seq: 3,
+    kind: 'INDIVIDUAL',
+    name: 'คุณลูกค้าตัวอย่าง (ข้อมูลสาธิต)',
+    contactName: null,
+    billingAddress: '8 ซอยสาธิต (ข้อมูลสาธิต) ปทุมธานี 12000',
+  },
+] as const;
+
+const SUPPLIERS = [
+  {
+    seq: 1,
+    name: 'ผู้ขายวัตถุดิบตัวอย่าง (ข้อมูลสาธิต)',
+    contactName: 'ฝ่ายขาย (ตัวอย่าง)',
+    address: '99 ถนนตัวอย่าง (ข้อมูลสาธิต) นนทบุรี 11000',
+  },
+  // EP39
+  {
+    seq: 2,
+    name: 'ผู้ขายบรรจุภัณฑ์ตัวอย่าง (ข้อมูลสาธิต)',
+    contactName: 'ฝ่ายขายบรรจุภัณฑ์ (ตัวอย่าง)',
+    address: '12 นิคมตัวอย่าง (ข้อมูลสาธิต) สมุทรปราการ 10280',
+  },
+  {
+    seq: 3,
+    name: 'ผู้ขายสารเคมีตัวอย่าง (ข้อมูลสาธิต)',
+    contactName: 'ฝ่ายบริการลูกค้า (ตัวอย่าง)',
+    address: '300 ถนนอุตสาหกรรม (ข้อมูลสาธิต) ชลบุรี 20000',
+  },
+] as const;
+
+const code6 = (prefix: string, n: number) => `${prefix}-${String(n).padStart(6, '0')}`;
 
 const LOCATIONS = [
   { branch: '00000', code: 'MAIN', name: 'คลังหลัก สำนักงานใหญ่ (ตัวอย่าง)', isDefault: true },
@@ -125,43 +227,20 @@ export async function seedDemoMasterData(db: Db, companyId: string, meta: Reques
     created++;
   }
 
-  const customerCode = `${CUSTOMER_PREFIX}-000001`;
-  await db.$transaction((tx) => reserveThrough(tx, companyId, CUSTOMER_PREFIX, 1));
-  if (
-    !(await db.customer.findUnique({
-      where: { companyId_code: { companyId, code: customerCode } },
-    }))
-  ) {
-    const row = await db.customer.create({
-      data: {
-        companyId,
-        code: customerCode,
-        kind: 'BUSINESS',
-        name: 'ร้านค้าตัวอย่าง (ข้อมูลสาธิต)',
-        contactName: 'ฝ่ายจัดซื้อ (ตัวอย่าง)',
-        billingAddress: '1 ถนนสาธิต (ข้อมูลสาธิต) กรุงเทพมหานคร 10900',
-      },
-    });
+  for (const { seq: n, ...c } of CUSTOMERS) {
+    const code = code6(CUSTOMER_PREFIX, n);
+    await db.$transaction((tx) => reserveThrough(tx, companyId, CUSTOMER_PREFIX, n));
+    if (await db.customer.findUnique({ where: { companyId_code: { companyId, code } } })) continue;
+    const row = await db.customer.create({ data: { companyId, code, ...c } });
     await audit('Customer', row.id, row.code, row.name);
     created++;
   }
 
-  const supplierCode = `${SUPPLIER_PREFIX}-000001`;
-  await db.$transaction((tx) => reserveThrough(tx, companyId, SUPPLIER_PREFIX, 1));
-  if (
-    !(await db.supplier.findUnique({
-      where: { companyId_code: { companyId, code: supplierCode } },
-    }))
-  ) {
-    const row = await db.supplier.create({
-      data: {
-        companyId,
-        code: supplierCode,
-        name: 'ผู้ขายวัตถุดิบตัวอย่าง (ข้อมูลสาธิต)',
-        contactName: 'ฝ่ายขาย (ตัวอย่าง)',
-        address: '99 ถนนตัวอย่าง (ข้อมูลสาธิต) นนทบุรี 11000',
-      },
-    });
+  for (const { seq: n, ...v } of SUPPLIERS) {
+    const code = code6(SUPPLIER_PREFIX, n);
+    await db.$transaction((tx) => reserveThrough(tx, companyId, SUPPLIER_PREFIX, n));
+    if (await db.supplier.findUnique({ where: { companyId_code: { companyId, code } } })) continue;
+    const row = await db.supplier.create({ data: { companyId, code, ...v } });
     await audit('Supplier', row.id, row.code, row.name);
     created++;
   }

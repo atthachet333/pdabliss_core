@@ -219,6 +219,13 @@ noindex, served by the existing `/platform/*` shell rewrite).
   (read-only, no commercial data), `pendingPick` count, `/stock` rows with `quantityReserved` /
   `quantityAvailable`; every ledger decrease refuses to take reserved stock (`409 STOCK_RESERVED`).
   Screens: lazy `AllocationSection` (Sales order) and `PendingPickArea` (`/core/warehouse/pending-pick`).
+- **EP39 (Operational integration, no schema change):** see [EP39_INTEGRATION_REPORT.md](EP39_INTEGRATION_REPORT.md).
+  - Sales list rows add `fulfilmentState` (same derivation as the order's `fulfilment.state`;
+    null until confirmed). The list shows it once picking has started, so "delivered" reaches
+    Sales.
+  - Warehouse movement rows accept the three production movement types (previously HTTP 500) and
+    add `source.issue` / `source.finishedGoodsReceipt`.
+  - No other contract changed.
 - **EP38 (Output, finished goods receipt, completion):** see [PRODUCTION_OUTPUT.md](PRODUCTION_OUTPUT.md),
   [PRODUCTION_FINISHED_GOODS_RECEIPT.md](PRODUCTION_FINISHED_GOODS_RECEIPT.md),
   [PRODUCTION_COMPLETION.md](PRODUCTION_COMPLETION.md) and [EP38_REPORT.md](EP38_REPORT.md).
@@ -337,6 +344,9 @@ counts and reverses posted documents). Use `sales.demo@pdabliss.com` for EP33 sa
 Sales **Staff** at the Head Office; `owner.demo@pdabliss.com` confirms and cancels). EP34: `owner.demo`
 allocates / releases; `warehouse.demo` reads Pending Pick for branch 00001. EP35: `warehouse.demo` (still
 Warehouse **Staff**) picks, packs and prepares shipments; `owner.demo` dispatches and records delivery.
+EP39: no persona changed; a cross-department fixture chain was added through the real services
+([DEMO_ACCOUNT_MATRIX.md](DEMO_ACCOUNT_MATRIX.md), [DEMO_DATA_CATALOG.md](DEMO_DATA_CATALOG.md),
+[DEMO_WORKFLOW_GUIDE.md](DEMO_WORKFLOW_GUIDE.md)).
 
 ## 12. Localization
 

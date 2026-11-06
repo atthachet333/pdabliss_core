@@ -260,7 +260,7 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                     <>
                       <AreaLink
                         to={`${BASE}/${encodeURIComponent(o.id)}`}
-                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0"
+                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
                       >
                         {o.number}
                       </AreaLink>
@@ -705,7 +705,7 @@ function PurchasingOrder({ d, set }: { d: Detail; set: (d: OrderDetail) => void 
                 <AreaLink
                   key={r.id}
                   to={`/core/purchasing/requests/${encodeURIComponent(r.id)}`}
-                  className={cn(link, 'font-mono')}
+                  className={cn(link, 'inline-flex min-h-7 items-center font-mono')}
                 >
                   {r.number}
                 </AreaLink>

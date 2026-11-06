@@ -167,7 +167,7 @@ function ReceiptList({ ctx }: { ctx: WarehouseContext }) {
                     <>
                       <AreaLink
                         to={`${BASE}/${encodeURIComponent(r.id)}`}
-                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0"
+                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
                       >
                         {r.number}
                       </AreaLink>
@@ -261,7 +261,7 @@ function ReceiptPage({ id, ctx }: { id: string; ctx: WarehouseContext }) {
           <Fact term={c.f.order}>
             <AreaLink
               to={`${WH}/pending-receive/${encodeURIComponent(r.order.id)}`}
-              className="font-mono font-semibold text-brand-soft underline-offset-4 hover:underline"
+              className="inline-flex min-h-7 items-center font-mono font-semibold text-brand-soft underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
               {r.order.number}
             </AreaLink>

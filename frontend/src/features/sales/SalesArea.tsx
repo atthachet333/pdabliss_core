@@ -63,7 +63,7 @@ import { SALES_COPY, salesError, useMoney } from './salesCopy';
 
 const BASE = '/core/sales';
 const LINK =
-  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-6';
+  'inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7';
 /** EP34: the allocation of a confirmed order — its own lazy chunk. */
 const AllocationSection = lazy(() => import('./AllocationSection'));
 
@@ -210,8 +210,22 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
     {
       head: c.f.availability,
       // EP34: a confirmed order shows how much is reserved; before that, what stock exists.
+      // EP39: once Warehouse has started, how far it got (picked … delivered) instead.
       cell: (r) =>
-        r.allocationState ? (
+        r.fulfilmentState && r.fulfilmentState !== 'NOT_STARTED' ? (
+          <Pill
+            tone={
+              r.fulfilmentState === 'DELIVERED'
+                ? 'teal'
+                : r.fulfilmentState === 'EXCEPTION'
+                  ? 'warning'
+                  : 'muted'
+            }
+            data-fulfilment-state={r.fulfilmentState}
+          >
+            {c.ful.states[r.fulfilmentState]}
+          </Pill>
+        ) : r.allocationState ? (
           <Pill
             tone={r.allocationState === 'FULLY_ALLOCATED' ? 'teal' : 'warning'}
             data-allocation-state={r.allocationState}
@@ -313,12 +327,13 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
             </option>
           ))}
         </SelectField>
-        <label className="flex min-h-11 items-center gap-2 text-label text-text-primary">
+        {/* EP39: the whole row is the target; the box itself is 24 px (WCAG 2.5.8). */}
+        <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-label text-text-primary">
           <input
             type="checkbox"
             checked={shortage}
             onChange={(e) => filter({ status, availability: e.target.checked ? 'SHORTAGE' : '' })}
-            className="size-4 accent-[var(--color-brand-primary)]"
+            className="size-6 shrink-0 cursor-pointer accent-[var(--color-brand-primary)]"
             data-filter="shortage"
           />
           {c.shortageOnly}

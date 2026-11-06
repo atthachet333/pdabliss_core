@@ -1,6 +1,10 @@
 import type { RequestMeta } from '../auth/audit.js';
 import type { AuthContext } from '../auth/sessions.js';
-import { recordCompanyEvent, type SalesOrderAuditAction } from '../company/audit.js';
+import {
+  recordCompanyEvent,
+  type ActorScope,
+  type SalesOrderAuditAction,
+} from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
 import { AppError } from '../lib/errors.js';
 import { permissionDenied } from '../permissions/guard.js';
@@ -124,7 +128,11 @@ const progressView = (l: { quantity: Decimal; inventoryTracked: boolean }, p = N
 };
 
 export class SalesOrderService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    /** EP39: 'seed' when the demo seed drives this service (the audit scope of its events). */
+    private readonly scope: ActorScope = 'customer',
+  ) {}
 
   private today(actor: SalesActor) {
     return companyDay(actor.access.company.timezone);
@@ -259,6 +267,36 @@ export class SalesOrderService {
       createdBy: who(o.createdBy),
       updatedAt: o.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * EP39: the same derived fulfilment state as the order view, for a page of orders at
+   * once — so the Sales list shows "delivered" where it happened, not only "allocated".
+   */
+  private async fulfilmentStates(orders: Full[]) {
+    const confirmed = orders.filter((o) => o.status === 'CONFIRMED');
+    if (!confirmed.length) return new Map<string, string | null>();
+    const ids = confirmed.map((o) => o.id);
+    const [lines, exceptions] = await Promise.all([
+      lineProgress(this.db, ids),
+      this.db.salesShipment.findMany({
+        where: { salesOrderId: { in: ids }, status: 'DELIVERY_EXCEPTION' },
+        select: { salesOrderId: true },
+      }),
+    ]);
+    const failed = new Set(exceptions.map((e) => e.salesOrderId));
+    return new Map(
+      confirmed.map((o) => [
+        o.id,
+        fulfilmentStateOf(
+          o.status,
+          o.lines
+            .filter((l) => l.inventoryTracked)
+            .map((l) => ({ ordered: l.quantity, p: lines.get(l.id) ?? NONE })),
+          failed.has(o.id),
+        ),
+      ]),
+    );
   }
 
   /** EP35: per-line milestones, the derived fulfilment state and the order's shipments. */
@@ -469,8 +507,14 @@ export class SalesOrderService {
       this.db.salesOrder.count({ where }),
     ]);
     const stock = await this.stockForOrders(actor, rows);
+    const fulfilment = await this.fulfilmentStates(rows);
     return {
-      items: rows.map((o) => SoRow.parse(this.row(o, this.lineStates(o, stock)))),
+      items: rows.map((o) =>
+        SoRow.parse({
+          ...this.row(o, this.lineStates(o, stock)),
+          fulfilmentState: fulfilment.get(o.id) ?? null,
+        }),
+      ),
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -665,7 +709,7 @@ export class SalesOrderService {
     return recordCompanyEvent(tx, meta, {
       action,
       actorId: actor.access.actor.userId,
-      actorScope: 'customer',
+      actorScope: this.scope,
       companyId: actor.access.company.id,
       entityType: 'SalesOrder',
       entityId: id,
@@ -690,7 +734,13 @@ export class SalesOrderService {
 
   // ------------------------------------------------------------------ writes
 
-  async create(ctx: AuthContext, input: CreateSoInput, meta: RequestMeta) {
+  /** EP39: additional details for the CREATED audit entry (the demo seed's stable fixture key). */
+  async create(
+    ctx: AuthContext,
+    input: CreateSoInput,
+    meta: RequestMeta,
+    extra: Record<string, string> = {},
+  ) {
     const actor = await loadSalesActor(this.db, ctx);
     if (!actor.create) throw permissionDenied('sales.orders.create');
     const branch = this.workingBranch(actor, ctx);
@@ -725,6 +775,7 @@ export class SalesOrderService {
       await this.event(tx, actor, meta, 'SALES_ORDER_CREATED', o.id, {
         number,
         lines: rows.length,
+        ...extra,
       });
       return o.id;
     });

@@ -171,8 +171,22 @@ describe('Sales orders (EP33)', () => {
       as(false, {
         [`GET ${S}/orders`]: (_b, q) =>
           ok({
-            items: q.get('status') === 'DRAFT' ? [] : [row()],
-            total: q.get('status') === 'DRAFT' ? 0 : 1,
+            items:
+              q.get('status') === 'DRAFT'
+                ? []
+                : [
+                    row(),
+                    // EP39: a delivered order says so — not only "fully allocated".
+                    row({
+                      id: 'o2',
+                      number: 'SO-202611-000002',
+                      status: 'CONFIRMED',
+                      allocationState: 'FULLY_ALLOCATED',
+                      pickReadiness: 'READY',
+                      fulfilmentState: 'DELIVERED',
+                    }),
+                  ],
+            total: q.get('status') === 'DRAFT' ? 0 : 2,
             page: 1,
             pageSize: 25,
             hasMore: false,
@@ -189,6 +203,10 @@ describe('Sales orders (EP33)', () => {
     expect(within(tiles).getByText('4')).toBeInTheDocument();
     expect(screen.getAllByText('Partly in stock').length).toBeGreaterThan(0);
     expect(screen.getByText(/Only allocation holds stock/)).toBeInTheDocument();
+    expect(document.querySelector('[data-fulfilment-state="DELIVERED"]')).toHaveTextContent(
+      'Delivered',
+    );
+    expect(document.querySelector('[data-allocation-state]')).toBeNull();
     // The page action — and the same entry in the CORE menu (EP38.4).
     expect(
       within(document.getElementById('main')!).getByRole('link', { name: 'New sales order' }),

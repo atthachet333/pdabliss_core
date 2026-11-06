@@ -208,6 +208,11 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP39 — no budget changed; no recovery needed.** The chunk graph was inspected first. There is
+  no new chunk or dependency: production movement labels (TH / EN / ZH) in the Warehouse chunk, a
+  fulfilment pill in the Sales list, link sizes, and CORE focus / branch-return logic.
+  - All JS **4,247.4 → 4,249.1 / 4,300 KiB (+1.7)**; headroom ≈ 50.9 KiB.
+  - Initial JS 182.7 / 205 KiB gzip and static HTML 526.9 / 560 KiB are unchanged.
 - **EP38.4 — no budget changed; no recovery needed.** The CORE menu (`CoreNav.tsx`, TH / EN / ZH)
   joins the existing lazy CORE shell chunk, and the customer combobox replaces the old picker in
   `SalesArea` (59.7 KiB raw / 17.5 gzip); no new dependency, nothing on public routes.

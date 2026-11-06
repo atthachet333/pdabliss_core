@@ -73,7 +73,8 @@ export default function AllocationSection({
           >
             {a.states[o.allocationState]}
           </Pill>
-          {o.pickReadiness && (
+          {/* EP39: "ready to pick" only while nothing has been picked yet. */}
+          {o.pickReadiness && (!ful?.state || ful.state === 'NOT_STARTED') && (
             <Pill
               tone={o.pickReadiness === 'READY' ? 'teal' : 'muted'}
               data-readiness={o.pickReadiness}

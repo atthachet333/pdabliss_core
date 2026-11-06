@@ -171,6 +171,10 @@ export const MOVEMENT_TYPES = [
   'ADJUSTMENT_OUT_REVERSAL',
   'COUNT_CORRECTION',
   'SALES_ISSUE',
+  // EP39: the EP37 / EP38 production movements (without them the movement list failed).
+  'PRODUCTION_CONSUMPTION',
+  'PRODUCTION_OUTPUT',
+  'PRODUCTION_OUTPUT_REVERSAL',
 ] as const;
 
 export const MovementQuery = z

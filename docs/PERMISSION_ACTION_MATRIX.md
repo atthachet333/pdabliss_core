@@ -273,3 +273,19 @@ Rules for module authors:
 - `/company/permissions`: Role profiles (matrix on wide screens, cards below 1280 px) and Member
   exceptions (person picker → grouped areas → resources → actions with state, source, inactive
   reason and an exception selector; raw codes secondary).
+
+## EP39 — integration check (no permission change)
+
+- No code, role default or persona changed. The effective permissions of every demo account
+  were read from the running stack (`/company/context`) into
+  [DEMO_ACCOUNT_MATRIX.md](DEMO_ACCOUNT_MATRIX.md).
+- Verified end to end over HTTP:
+  - Sales Staff cannot confirm or allocate;
+  - Warehouse Staff cannot dispatch, approve or post finished goods, and sees no money;
+  - Executive is refused every write (403) and holds only `.view` codes;
+  - System Admin reaches no operational workspace;
+  - Accounting reaches deposits only;
+  - the legacy staff exception (DENY `warehouse.receiving.process`) holds.
+- **Known v1 rule, not changed:** a department manager may decide their own department's purchase
+  request (EP29: no separation-of-duties rule). It is listed as a release consideration in
+  `EP39_INTEGRATION_REPORT.md`.

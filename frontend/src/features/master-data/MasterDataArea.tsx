@@ -424,7 +424,7 @@ function Rows({ resource: r, items }: { resource: Resource; items: MasterRecord[
             <td className={cn(cell, 'max-md:before:hidden')}>
               <AreaLink
                 to={`/company/master-data/${r}/${encodeURIComponent(x.id)}`}
-                className="inline-flex min-h-11 items-center gap-1 rounded-md font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-0"
+                className="inline-flex min-h-11 items-center gap-1 rounded-md font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
                 aria-label={c.open(x.code)}
               >
                 {x.code}

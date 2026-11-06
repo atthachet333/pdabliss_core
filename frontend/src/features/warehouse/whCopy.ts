@@ -80,6 +80,9 @@ const th = {
     ADJUSTMENT_OUT_REVERSAL: 'กลับรายการปรับลด',
     COUNT_CORRECTION: 'ปรับตามการตรวจนับ',
     SALES_ISSUE: 'ส่งออกตามคำสั่งขาย',
+    PRODUCTION_CONSUMPTION: 'เบิกวัตถุดิบเข้าผลิต',
+    PRODUCTION_OUTPUT: 'รับสินค้าสำเร็จรูปจากการผลิต',
+    PRODUCTION_OUTPUT_REVERSAL: 'กลับรายการรับสินค้าสำเร็จรูป',
   } satisfies Record<MovementType, string>,
   f: {
     number: 'เลขที่',
@@ -275,6 +278,9 @@ const en: WhCopy = {
     ADJUSTMENT_OUT_REVERSAL: 'Decrease reversal',
     COUNT_CORRECTION: 'Count correction',
     SALES_ISSUE: 'Sales dispatch',
+    PRODUCTION_CONSUMPTION: 'Issued to production',
+    PRODUCTION_OUTPUT: 'Finished goods from production',
+    PRODUCTION_OUTPUT_REVERSAL: 'Finished goods receipt reversed',
   },
   f: {
     number: 'Number',
@@ -470,6 +476,9 @@ const zh: WhCopy = {
     ADJUSTMENT_OUT_REVERSAL: '减少调整冲销',
     COUNT_CORRECTION: '盘点差异调整',
     SALES_ISSUE: '销售发运出库',
+    PRODUCTION_CONSUMPTION: '生产领料出库',
+    PRODUCTION_OUTPUT: '生产成品入库',
+    PRODUCTION_OUTPUT_REVERSAL: '成品入库冲销',
   },
   f: {
     number: '编号',

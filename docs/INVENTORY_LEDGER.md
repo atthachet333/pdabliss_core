@@ -261,3 +261,24 @@ hand (`FGR_STOCK_GONE`). Both enum values are added in their own migration
 - every output movement belongs to a POSTED / REVERSED receipt line of the same quantity;
 - received ≤ accepted per output report;
 - reserved ≤ on hand.
+
+## EP39 — integration audit
+
+- **Fixed (P1, from EP37):** `GET /api/v1/warehouse/movements` failed with HTTP 500 as soon as
+  one production movement existed. Its type list stopped at `SALES_ISSUE`, which also broke the
+  Warehouse *Movements* screen. `MOVEMENT_TYPES` (backend input / view, frontend `whApi`) now
+  include `PRODUCTION_CONSUMPTION`, `PRODUCTION_OUTPUT` and `PRODUCTION_OUTPUT_REVERSAL`, with
+  TH / EN / ZH labels. Each such movement now names its document: `source.issue` (MI number) and
+  `source.finishedGoodsReceipt` (FGR number, linked to its Warehouse page).
+- **Reconciliation, run on the seeded demo database, on a restored copy of the development
+  database and after every real-stack race** (all zero):
+  - `StockBalance` = Σ `StockMovement` for every stock identity (location × item × lot);
+  - no negative balance;
+  - active Sales + Production reservations ≤ on hand, per identity;
+  - at most one `SALES_ISSUE` per shipment line and lot;
+  - at most one `PURCHASE_RECEIPT` per receipt allocation;
+  - at most one `PRODUCTION_CONSUMPTION` per issue line and lot;
+  - at most one `PRODUCTION_OUTPUT` per finished-goods receipt line;
+  - no consumed reservation without its shipment line / issue line;
+  - no output movement without a posted (or reversed) receipt.
+- No movement type, rule or quantity semantics changed in EP39.

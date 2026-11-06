@@ -743,6 +743,7 @@ describeDb('Sales orders (EP33)', () => {
         'createdBy',
         'currency',
         'customer',
+        'fulfilmentState', // EP39: delivery progress visible in the Sales list
         'grandTotal',
         'id',
         'lineCount',

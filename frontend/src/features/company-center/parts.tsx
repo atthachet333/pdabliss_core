@@ -191,7 +191,9 @@ export function Result({ result }: { result: { tone: 'success' | 'error'; text: 
 /** An in-area link that keeps the current language (signed-in screens carry it in router state). */
 export function AreaLink(props: LinkProps) {
   const { locale } = useLocale();
-  return <Link {...props} state={{ locale }} />;
+  // EP39: extra state (e.g. the page to return to) is kept alongside the language.
+  const extra = props.state && typeof props.state === 'object' ? props.state : {};
+  return <Link {...props} state={{ ...extra, locale }} />;
 }
 
 export function AreaNavLink(props: NavLinkProps) {

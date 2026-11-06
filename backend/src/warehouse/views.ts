@@ -126,6 +126,9 @@ export const MovementRow = z.object({
     count: z.object({ id: z.string(), number: z.string() }).nullable(),
     /** EP35: the dispatched shipment of a SALES_ISSUE. */
     shipment: z.object({ id: z.string(), number: z.string() }).nullable(),
+    /** EP39: the posted material issue (consumption) or finished goods receipt (output). */
+    issue: z.object({ id: z.string(), number: z.string() }).nullable(),
+    finishedGoodsReceipt: z.object({ id: z.string(), number: z.string() }).nullable(),
   }),
   actor: person,
 });

@@ -212,7 +212,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                         {ctx.transfers.create && (
                           <AreaLink
                             to={`${WH}/transfers/new?location=${encodeURIComponent(s.location.id)}`}
-                            className="inline-flex min-h-11 items-center text-label whitespace-nowrap text-brand-soft hover:underline lg:min-h-6"
+                            className="inline-flex min-h-11 items-center text-label whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:min-h-7"
                             aria-label={`${c.nav.transfers} ${s.item.code} ${s.location.code}`}
                           >
                             {c.nav.transfers}
@@ -221,7 +221,7 @@ function StockList({ view, ctx }: { view: 'stock' | 'lots'; ctx: WarehouseContex
                         {ctx.adjustments.create && (
                           <AreaLink
                             to={`${WH}/adjustments/new`}
-                            className="inline-flex min-h-11 items-center text-label whitespace-nowrap text-brand-soft hover:underline lg:min-h-6"
+                            className="inline-flex min-h-11 items-center text-label whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:min-h-7"
                             aria-label={`${c.nav.adjustments} ${s.item.code} ${s.location.code}`}
                           >
                             {c.nav.adjustments}

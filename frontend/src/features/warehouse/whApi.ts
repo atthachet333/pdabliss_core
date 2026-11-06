@@ -35,6 +35,10 @@ export const MOVEMENT_TYPES = [
   'ADJUSTMENT_OUT_REVERSAL',
   'COUNT_CORRECTION',
   'SALES_ISSUE',
+  // EP39: the EP37 / EP38 production movements (without them the movement list failed).
+  'PRODUCTION_CONSUMPTION',
+  'PRODUCTION_OUTPUT',
+  'PRODUCTION_OUTPUT_REVERSAL',
 ] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
@@ -208,6 +212,9 @@ export interface MovementRow {
     order: { number: string } | null;
     transfer: DocRef | null;
     adjustment: DocRef | null;
+    /** EP39: the posted material issue / finished goods receipt of a production movement. */
+    issue?: { id: string; number: string } | null;
+    finishedGoodsReceipt?: { id: string; number: string } | null;
     /** EP35: the dispatched shipment of a SALES_ISSUE. */
     shipment: DocRef | null;
     count: DocRef | null;

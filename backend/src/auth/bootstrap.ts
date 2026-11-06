@@ -11,6 +11,7 @@ import {
   type DemoPersona,
   type DemoPersonaKey,
 } from '../demo/personas.js';
+import { seedDemoIntegration } from '../demo/integration-demo.js';
 import { seedDemoMasterData } from '../master-data/demo.js';
 import { seedDemoPurchaseRequests } from '../purchasing/demo.js';
 import { seedDemoPurchaseOrders } from '../purchasing/order-demo.js';
@@ -460,6 +461,9 @@ export async function seedDemo(db: Db, env: SeedEnv) {
   const fulfilment = await seedDemoFulfilment(db, company.id, SEED_META);
   // EP36: a BOM (active + retired revision) and production orders — planning only, no stock effect.
   const production = await seedDemoProduction(db, company.id, SEED_META);
+  // EP39: the cross-department chain (purchasing → receipt → production → sales → delivery, and a
+  // sales demand waiting on a material) through the real services, on the EP39 master data.
+  const integration = await seedDemoIntegration(db, company.id, SEED_META);
 
   return {
     companyId: company.id,
@@ -476,6 +480,7 @@ export async function seedDemo(db: Db, env: SeedEnv) {
     salesOrders,
     fulfilment,
     production,
+    integration,
   };
 }
 

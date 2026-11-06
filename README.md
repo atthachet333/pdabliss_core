@@ -182,7 +182,21 @@ Docs: [docs/PRODUCTION_OUTPUT.md](docs/PRODUCTION_OUTPUT.md),
 [docs/PRODUCTION_FINISHED_GOODS_RECEIPT.md](docs/PRODUCTION_FINISHED_GOODS_RECEIPT.md),
 [docs/PRODUCTION_COMPLETION.md](docs/PRODUCTION_COMPLETION.md),
 [docs/EP38_REPORT.md](docs/EP38_REPORT.md).
-Next: EP39 (not started).
+**EP39** (completed locally, not pushed) integrates the departments and completes the demo:
+- a cross-department contract audit, with two defects fixed:
+  - the Warehouse movement list failed once production movements existed;
+  - the Sales list never showed delivery;
+- a complete, idempotent demo seed through the real services: purchasing → receipt → production →
+  finished goods → sales → delivery, and a sales demand waiting on a material for Purchasing;
+- real-stack E2E for every chain, races, privacy and permission checks;
+- browser QA of all nine personas.
+
+Demo readiness is not production readiness. Docs:
+[docs/EP39_INTEGRATION_REPORT.md](docs/EP39_INTEGRATION_REPORT.md),
+[docs/DEMO_ACCOUNT_MATRIX.md](docs/DEMO_ACCOUNT_MATRIX.md),
+[docs/DEMO_DATA_CATALOG.md](docs/DEMO_DATA_CATALOG.md),
+[docs/DEMO_WORKFLOW_GUIDE.md](docs/DEMO_WORKFLOW_GUIDE.md).
+Next: EP40 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 
@@ -374,7 +388,10 @@ and (development only, EP28.1) `GET /api/v1/demo/personas`
 passwords come only from your local `backend/.env` (`DEMO_*_PASSWORD`; the five department
 personas are skipped until theirs is set). In development with `ENABLE_DEMO_ROUTES=true`, they sign
 in without the emailed code and the sign-in page lists them to fill the email. Never in production.
-Who sees what: [docs/DEMO_PERSONAS.md](docs/DEMO_PERSONAS.md).
+Who sees what: [docs/DEMO_PERSONAS.md](docs/DEMO_PERSONAS.md) and
+[docs/DEMO_ACCOUNT_MATRIX.md](docs/DEMO_ACCOUNT_MATRIX.md). The data the seed creates:
+[docs/DEMO_DATA_CATALOG.md](docs/DEMO_DATA_CATALOG.md). How to try each account, step by step:
+[docs/DEMO_WORKFLOW_GUIDE.md](docs/DEMO_WORKFLOW_GUIDE.md) (EP39).
 
 ## Workspace prototype (EP01-PROTOTYPE)
 
@@ -466,6 +483,10 @@ statuses, is `/security` ([docs/SECURITY_TRUST_CENTER.md](docs/SECURITY_TRUST_CE
 - [docs/EP24_REPORT.md](docs/EP24_REPORT.md) — company and subscription foundation report
 - [docs/EP24_1_REPORT.md](docs/EP24_1_REPORT.md) — Platform Control Center, Company Explorer, Platform Inspection, account profile, About S2 chapter
 - [docs/EP24_1_2_REPORT.md](docs/EP24_1_2_REPORT.md) — operator-first Platform Control Center: customer/demo separation, attention rules, activity, operators
+- [docs/EP39_INTEGRATION_REPORT.md](docs/EP39_INTEGRATION_REPORT.md) — cross-department contract audit, demo readiness, integration results
+- [docs/DEMO_ACCOUNT_MATRIX.md](docs/DEMO_ACCOUNT_MATRIX.md) — every demo account: branches, workspaces, allowed and forbidden actions
+- [docs/DEMO_DATA_CATALOG.md](docs/DEMO_DATA_CATALOG.md) — every demo record the seed creates, by department and state
+- [docs/DEMO_WORKFLOW_GUIDE.md](docs/DEMO_WORKFLOW_GUIDE.md) — how to test each demo account later, step by step
 
 ---
 

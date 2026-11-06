@@ -185,6 +185,55 @@ describe('CORE navigation (EP38.4)', () => {
     );
   });
 
+  it('Change branch returns to the page it was opened from, with focus on the content (EP39)', async () => {
+    const sales = {
+      'GET /api/v1/sales/context': ok({
+        orders: { view: true, create: true, confirm: false, cancel: false },
+        branches: [
+          { id: 'b0', code: '00000', name: 'Head Office', type: 'HEAD_OFFICE' },
+          { id: 'b1', code: '00001', name: 'Demo Branch', type: 'BRANCH' },
+        ],
+        selectedBranch: { id: 'b1', code: '00001', name: 'Demo Branch', type: 'BRANCH' },
+        counts: { myDrafts: 0, awaitingConfirmation: 0, confirmed: 0, withShortage: 0 },
+        today: '2026-11-05',
+      }),
+      'GET /api/v1/master-data/customers': ok({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        hasMore: false,
+      }),
+    };
+    fakeApi({
+      ...as('DEPARTMENT_STAFF', SALES_STAFF),
+      ...sales,
+      'POST /api/v1/company/context/branch': ok({
+        company: { id: 'c1', displayName: 'Alpha' },
+        role: 'DEPARTMENT_STAFF',
+        scope: 'SELECTED_BRANCHES',
+        branches: [HO, DEMO],
+        selected: HO,
+        needsSelection: false,
+        blocked: null,
+        departments: ['SALES'],
+        permissions: SALES_STAFF,
+      }),
+    });
+    const user = userEvent.setup();
+    renderRoute('/core/sales/orders/new?lang=en');
+    await screen.findByRole('heading', { level: 1, name: 'New sales order' });
+    await user.click(within(sidebar()).getByRole('link', { name: 'Change branch' }));
+    await screen.findByRole('heading', { level: 1, name: 'Choose the branch you work in' });
+    await user.click(screen.getByRole('radio', { name: /00000/ }));
+    await user.click(screen.getByRole('button', { name: 'Enter CORE' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'New sales order' }),
+    ).toBeInTheDocument();
+    // The button that had focus is gone: focus moves to the content, never stays on <body>.
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById('main')));
+  });
+
   it('speaks Thai and Simplified Chinese', async () => {
     fakeApi(as('DEPARTMENT_STAFF', SALES_STAFF));
     const { unmount } = renderRoute('/core?lang=th');

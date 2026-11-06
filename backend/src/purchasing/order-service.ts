@@ -1,6 +1,10 @@
 import type { RequestMeta } from '../auth/audit.js';
 import type { AuthContext } from '../auth/sessions.js';
-import { recordCompanyEvent, type PurchaseOrderAuditAction } from '../company/audit.js';
+import {
+  recordCompanyEvent,
+  type ActorScope,
+  type PurchaseOrderAuditAction,
+} from '../company/audit.js';
 import type { Db, Prisma } from '../db/client.js';
 import type { PurchaseOrderStatus } from '../generated/prisma/enums.js';
 import { AppError } from '../lib/errors.js';
@@ -158,7 +162,11 @@ type RequestLine = Prisma.PurchaseRequestLineGetPayload<{
 }>;
 
 export class PurchaseOrderService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    /** EP39: 'seed' when the demo seed drives this service (the audit scope of its events). */
+    private readonly scope: ActorScope = 'customer',
+  ) {}
 
   private event(
     tx: Prisma.TransactionClient,
@@ -171,7 +179,7 @@ export class PurchaseOrderService {
     return recordCompanyEvent(tx, meta, {
       action,
       actorId: actor.access.actor.userId,
-      actorScope: 'customer',
+      actorScope: this.scope,
       companyId: actor.access.company.id,
       entityType: 'PurchaseOrder',
       entityId: id,
@@ -1019,7 +1027,13 @@ export class PurchaseOrderService {
    * A new DRAFT from one APPROVED request, in that request's branch. The
    * number is taken now (PO-YYYYMM-NNNNNN, company-wide, monthly, atomic).
    */
-  async create(ctx: AuthContext, input: CreateOrderInput, meta: RequestMeta) {
+  /** EP39: additional details for the CREATED audit entry (the demo seed's stable fixture key). */
+  async create(
+    ctx: AuthContext,
+    input: CreateOrderInput,
+    meta: RequestMeta,
+    extra: Record<string, string> = {},
+  ) {
     const actor = await loadPoActor(this.db, ctx);
     if (!actor.orders.create) throw permissionDenied('purchase_order.create');
     const companyId = actor.access.company.id;
@@ -1120,6 +1134,7 @@ export class PurchaseOrderService {
         number,
         request: pr.number,
         lines: lines.length,
+        ...extra,
       });
       return o.id;
     });

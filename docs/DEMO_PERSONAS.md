@@ -108,3 +108,47 @@ also has `00001`, so its orders can be allocated and fulfilled by Warehouse Staf
   3. `warehouse.demo` picks, packs and prepares the shipment.
   4. `owner.demo` dispatches and records delivery.
   5. `sales.demo` sees "delivered".
+
+## EP39 — Complete demo data and cross-department readiness
+
+**No persona changed.** The nine accounts keep their roles, departments, branches and the one
+exception (`sales.demo` still has `00000` + `00001` as Sales Staff; `warehouse.demo` still only
+`00001`). The effective permissions, read from the running stack, are in
+[DEMO_ACCOUNT_MATRIX.md](DEMO_ACCOUNT_MATRIX.md).
+
+**What the seed adds** (`backend/src/demo/integration-demo.ts`, after every earlier fixture; data in
+[DEMO_DATA_CATALOG.md](DEMO_DATA_CATALOG.md)):
+
+- **Master data:** five items (two finished goods, two raw materials — one in litres — and
+  bottles), two customers, two suppliers, the unit `L`, a packaging category.
+- **A chain through the real services**, each persona acting in its own permissions:
+  1. An Operations purchase request, approved by Purchasing.
+  2. Two purchase orders: one received in full in two FEFO lots by Warehouse, one still awaiting
+     the supplier.
+  3. BOMs, and a production order short-closed with variance and partial output.
+  4. That output received into stock and sold, delivered end to end.
+  5. Sales orders in draft and submitted.
+  6. A confirmed sales demand with no stock, planned as a production order that now waits on a
+     material for Purchasing.
+
+**Seed safety (EP39 additions):**
+
+- Every fixture carries a stable `demo` key on its CREATED audit entry and runs once, as all
+  earlier ones. To support this, the purchase-request, purchase-order, receiving and sales-order
+  services accept the audit scope (`seed`) and extra CREATED details. Route handlers never pass
+  them.
+- Classification: `STATIC_DEMO_FIXTURE` (seed, `demo` key), `USER_CREATED_DEMO_RECORD` (no key —
+  never touched) and `INTEGRATION_QA_RECORD` (only in disposable QA databases).
+- Proven additive: on a restored copy of the development database, every one of its 747 rows
+  stayed byte-identical except the document / code counters (which move forward). A second seed
+  changes nothing at all (row-level and per-table hashes).
+- Two consecutive seeds on a fresh database: 0 of 70 tables differ.
+- A persona an administrator has since taken out of the demo branch is never moved elsewhere:
+  its not-yet-created EP39 fixtures are skipped and the seed says so
+  (`integration …, skipped <fixture> (BRANCH_NOT_ALLOWED)`). A business refusal in the middle of
+  a chain leaves the documents already made, in valid states, and is never forced.
+
+**Updating an existing development database:** take a backup first (`pg_dump -Fc`), then run
+`npm --prefix backend run db:seed:demo` once. It reports `master data created 11, … integration
+created 12` the first time and `unchanged` afterwards. No reset, no deletion, no migration
+(EP39 has no schema change).

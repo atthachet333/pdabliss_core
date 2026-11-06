@@ -276,7 +276,7 @@ export function Overview() {
         aside={
           <AreaLink
             to="/company/departments"
-            className="inline-flex min-h-6 items-center text-caption text-brand-soft underline underline-offset-4"
+            className="inline-flex min-h-6 min-w-6 items-center justify-center px-1 text-caption text-brand-soft underline underline-offset-4"
           >
             {c.overview.open}
           </AreaLink>

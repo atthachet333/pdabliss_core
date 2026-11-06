@@ -199,7 +199,7 @@ export function RequestPage({ id, ctx }: { id: string; ctx: PrContext }) {
                             {' · '}
                             <AreaLink
                               to={`/core/purchasing/orders/${encodeURIComponent(x.id)}`}
-                              className="font-mono text-brand-soft underline-offset-4 hover:underline"
+                              className="inline-flex min-h-7 items-center font-mono text-brand-soft underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             >
                               {x.number}
                             </AreaLink>{' '}

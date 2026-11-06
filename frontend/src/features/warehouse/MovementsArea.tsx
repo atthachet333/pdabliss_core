@@ -34,7 +34,11 @@ function SourceLink({ s }: { s: MovementRow['source'] }) {
           ? ['counts', s.count]
           : s.shipment
             ? ['shipments', s.shipment]
-            : null;
+            : s.finishedGoodsReceipt
+              ? ['finished-goods', s.finishedGoodsReceipt]
+              : null;
+  // EP39: a material issue is an Operations document — its number, for traceability.
+  if (!doc && s.issue) return <span className="font-mono">{s.issue.number}</span>;
   if (!doc) return <>—</>;
   return (
     <>

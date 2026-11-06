@@ -228,7 +228,7 @@ function NavList({
 }) {
   const n = useCopy(CORE_NAV_COPY);
   const { locale } = useLocale();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const groups = navFor(context);
   const current = pathname === '/core' ? '/core' : currentOf(groups, pathname);
   const link = (to: string, label: string, plus = false) => (
@@ -261,6 +261,8 @@ function NavList({
           {context.branches.length > 1 && (
             <AreaLink
               to="/core/branch"
+              // EP39: back to this page after the change (the selector accepts CORE pages only).
+              state={{ from: `${pathname}${search}` }}
               onClick={onNavigate}
               className="mt-1 inline-flex min-h-8 items-center text-caption font-medium text-brand-glow underline-offset-4 hover:underline"
             >

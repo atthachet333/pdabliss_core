@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { requestMeta, requireAuth, requireSession } from '../../auth/http.js';
-import { DecisionBody } from '../../company/approval.js';
+import { LenientDecisionBody } from '../../company/approval.js';
 import { IdParams } from '../../company/input.js';
 import type { Db } from '../../db/client.js';
 import { parseInput } from '../../lib/validation.js';
@@ -87,7 +87,7 @@ export const purchaseOrderRoutes: FastifyPluginAsync<{ db: Db }> = async (app, {
       auth(r),
       idOf(r.params),
       meta(r),
-      parseInput(DecisionBody, r.body ?? {}).ownerOverride ?? null,
+      parseInput(LenientDecisionBody, r.body ?? {}).ownerOverride ?? null,
     ),
   );
   app.post('/:id/cancel', small, async (r) =>

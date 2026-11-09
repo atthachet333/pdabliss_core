@@ -1,4 +1,4 @@
-# Demo Workflow Guide (EP39)
+# Demo Workflow Guide (EP39, EP41 approval policy)
 
 How to test every demo account later, on your own machine. Nothing here needs doing now: EP39
 already ran these paths automatically (real HTTP E2E and real browser sessions); this guide is
@@ -30,6 +30,22 @@ menu (*Working branch* → **Change branch**). The branch is always shown in the
 **CORE menu.** At 1280 px and wider it is the left sidebar; on smaller screens press **Menu**
 (top right). The current page is highlighted. Quick actions are on the CORE home.
 
+**Approval policy (EP41).** Since EP41 a company can require *independent approval*: the
+person who raised or submitted a document cannot approve, post or confirm it. See
+[`EP41_APPROVAL_POLICY.md`](EP41_APPROVAL_POLICY.md).
+
+| Database | Policy | What it means for this guide |
+| --- | --- | --- |
+| Freshly seeded | Independent approval | The owner approves what Operations and Purchasing raise (production orders, material issues, output, purchase orders). Owner-raised adjustments need the override dialog. |
+| Your existing `pdabliss_core_dev` | Self-approval allowed (unchanged) | Everything works as in EP39. To try the control, sign in as `owner.demo` → **Company Control Center** → **Settings** → **Document approval** → *Independent approval required* → **Save**. Switch back the same way; both changes appear in Activity. |
+
+**Owner override.** Under independent approval, when the owner decides a document they raised,
+CORE opens **Owner override**.
+- Give a reason of at least 10 characters → **Approve with owner override**. The decision and
+  the reason are recorded (Activity → *Owner override of independent approval*).
+- **Cancel** or Escape leaves the document as it was.
+- Other people get a message instead: another person with approval rights must decide.
+
 ## 1. Account by account
 
 ### Sales — `sales.demo` (branch `00001`)
@@ -59,7 +75,8 @@ no-access page.
 4. Menu → **Production shortages**: MO-202611-000010 needs RM-000003 — read only. Purchasing
    decides what to buy; nothing is generated automatically.
 5. To order more: **Purchase orders** → **New purchase order** → pick an approved request,
-   the supplier and prices → save → issue it to the supplier.
+   the supplier and prices → save → issue it to the supplier. *Under independent approval:*
+   the person who created the order cannot issue it — `owner.demo` issues it.
 
 ### Warehouse — `warehouse.demo` (branch `00001`, the only one)
 
@@ -88,6 +105,9 @@ Privacy: no screen shows a price, cost, total, customer or supplier detail to th
    (FEFO)** → fully reserved → **Release as ready** → **Start production** → **New material
    issue** → **Post issue** → record usage → new output → **Submit for review** → **Accept
    output** → (Warehouse receives it) → **Request completion review** → **Complete**.
+   *Under independent approval (fresh seed):* **Approve**, **Post issue** and **Accept output**
+   on documents Operations raised are refused for `operations.demo`; sign in as `owner.demo` for
+   those three steps.
 4. Quick action **New production order** for a manual order; **New purchase request** for
    materials.
 

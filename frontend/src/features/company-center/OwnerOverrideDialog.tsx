@@ -92,7 +92,12 @@ export default function OwnerOverrideDialog({
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      before?.focus?.();
+      // Focus goes back to what opened the dialog once the page has settled; if the page
+      // replaced or disabled it meanwhile (a busy button), to the page's main region.
+      setTimeout(() => {
+        if (before?.isConnected && !before.hasAttribute('disabled')) before.focus();
+        else document.getElementById('main')?.focus();
+      }, 0);
     };
   }, [onDone]);
   return (

@@ -1,20 +1,19 @@
 import { useId, useState, type FormEvent } from 'react';
 import { buttonClasses } from '@/components/ui/buttonStyles';
-import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField } from '@/features/auth/fields';
 import type { Locale } from '@/i18n/locales';
 import { useCopy } from '@/i18n/useCopy';
-import { controlApi, type CompanySettings } from './api';
+import { controlApi, type ApprovalPolicy, type CompanySettings } from './api';
 import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useLoad } from './model';
-import { Loading, PageTitle, Result, Section } from './parts';
+import { Loading, PageError, PageTitle, Result, Section } from './parts';
 
 /*
  * /company/settings — only settings the system really uses today: the
- * company time zone (dates in invitation emails) and the default language
- * (of invitation emails). Closing the company is not self-service.
+ * company time zone (dates in invitation emails), the default language
+ * (of invitation emails) and, EP41, the approval policy (owner-only). Closing the company is not self-service.
  */
 
 /** Common zones for CORE customers; the company's current zone is always listed. */
@@ -49,7 +48,8 @@ function Settings() {
   const c = useCopy(CONTROL_COPY);
   const { state } = useLoad(controlApi.settings);
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{errorText(state.error, c)}</PageError>;
   return <SettingsForm initial={state.data} />;
 }
 
@@ -60,15 +60,17 @@ function SettingsForm({ initial }: { initial: CompanySettings }) {
   const [saved, setSaved] = useState(initial);
   const [timezone, setTimezone] = useState(initial.timezone);
   const [language, setLanguage] = useState<Locale>(initial.defaultLocale);
+  const [policy, setPolicy] = useState<ApprovalPolicy>(initial.approvalPolicy);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const zones = ZONES.includes(saved.timezone) ? ZONES : [saved.timezone, ...ZONES];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const body: Partial<CompanySettings> = {};
+    const body: Parameters<typeof controlApi.updateSettings>[0] = {};
     if (timezone !== saved.timezone) body.timezone = timezone;
     if (language !== saved.defaultLocale) body.defaultLocale = language;
+    if (policy !== saved.approvalPolicy) body.approvalPolicy = policy;
     if (!Object.keys(body).length) {
       setResult({ tone: 'success', text: c.profile.nothing });
       return;
@@ -118,6 +120,25 @@ function SettingsForm({ initial }: { initial: CompanySettings }) {
           {(['th', 'en', 'zh-CN'] as const).map((l) => (
             <option key={l} value={l}>
               {c.settings.languages[l]}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          id={`${base}-policy`}
+          label={c.settings.approvalPolicy}
+          hint={
+            saved.canChangeApprovalPolicy
+              ? c.settings.approvalPolicyHint
+              : `${c.settings.approvalPolicyHint} · ${c.settings.approvalPolicyOwnerOnly}`
+          }
+          value={policy}
+          disabled={!saved.canChangeApprovalPolicy}
+          onChange={(e) => setPolicy(e.target.value as ApprovalPolicy)}
+          data-approval-policy
+        >
+          {(['INDEPENDENT_APPROVAL', 'SELF_APPROVAL_ALLOWED'] as const).map((p) => (
+            <option key={p} value={p}>
+              {c.settings.policies[p]}
             </option>
           ))}
         </SelectField>

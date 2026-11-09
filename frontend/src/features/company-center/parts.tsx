@@ -1,10 +1,14 @@
 import { LoaderCircle } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Link, NavLink, type LinkProps, type NavLinkProps } from 'react-router';
+import { Link, NavLink, useLocation, type LinkProps, type NavLinkProps } from 'react-router';
+import { buttonClasses } from '@/components/ui/buttonStyles';
+import { useCopy } from '@/i18n/useCopy';
+import { ApiError, NETWORK_ERROR, TIMEOUT } from '@/lib/api';
 import { useLocale } from '@/i18n/useLocale';
 import { Notice } from '@/features/auth/AuthFrame';
 import { cn } from '@/lib/cn';
 import { logoUrl } from './api';
+import { CONTROL_COPY } from './copy';
 import { initials } from './model';
 
 /*
@@ -199,4 +203,64 @@ export function AreaLink(props: LinkProps) {
 export function AreaNavLink(props: NavLinkProps) {
   const { locale } = useLocale();
   return <NavLink {...props} state={{ locale }} />;
+}
+
+/**
+ * EP41: a page that cannot be shown — a real page heading (not found, no access,
+ * unreachable), the reason in words, and a way on: back, or the area's home.
+ * Used for page-level load failures; inline action errors stay notices.
+ */
+export function PageError({
+  error,
+  back,
+  home,
+  children,
+}: {
+  error?: unknown;
+  /** A contextual back link (e.g. to the list); otherwise "Go back" in history. */
+  back?: ReactNode;
+  /** false where the page itself is the area's home (its own retry is the way forward). */
+  home?: false;
+  children: ReactNode;
+}) {
+  const c = useCopy(CONTROL_COPY).pageError;
+  const { pathname } = useLocation();
+  const status = error instanceof ApiError ? error.status : null;
+  const code = error instanceof ApiError ? error.code : null;
+  const title =
+    status === 404
+      ? c.notFound
+      : status === 403
+        ? c.forbidden
+        : code === NETWORK_ERROR || code === TIMEOUT
+          ? c.unavailable
+          : c.generic;
+  const company = pathname.startsWith('/company');
+  return (
+    <section className="grid max-w-2xl gap-4" data-page-error={status ?? code ?? 'error'}>
+      <h1 className="text-[clamp(1.5rem,1.2rem+1vw,2.125rem)] font-semibold tracking-tight text-text-primary">
+        {title}
+      </h1>
+      <Notice tone="error">{children}</Notice>
+      <div className="flex flex-wrap gap-3">
+        {back ?? (
+          <button
+            type="button"
+            className={buttonClasses('ghost', 'md')}
+            onClick={() => window.history.back()}
+          >
+            {c.back}
+          </button>
+        )}
+        {home !== false && (
+          <AreaLink
+            to={company ? '/company' : '/core'}
+            className={buttonClasses('secondary', 'md')}
+          >
+            {company ? c.homeCompany : c.home}
+          </AreaLink>
+        )}
+      </div>
+    </section>
+  );
 }

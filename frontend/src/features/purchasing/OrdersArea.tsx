@@ -12,6 +12,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Section,
 } from '@/features/company-center/parts';
@@ -63,7 +64,8 @@ export default function OrdersArea() {
   const cc = useCopy(CONTROL_COPY);
   const { state } = useLoad(poApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{poError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{poError(state.error, c, cc)}</PageError>;
   const ctx = state.data;
   return (
     <Routes>
@@ -439,7 +441,8 @@ function FromRequest({ requestId }: { requestId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{poError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{poError(state.error, c, cc)}</PageError>;
   const r: SourceRequest = state.data.request;
   const open = r.lines.filter((l) => scaled(l.remaining) > 0n);
   const choice = (l: SourceLine) => picked[l.id] ?? { on: true, qty: l.remaining };
@@ -611,7 +614,8 @@ function OrderPage({ id }: { id: string }) {
   const cc = useCopy(CONTROL_COPY);
   const { state, set } = useLoad(() => poApi.get(id));
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{poError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{poError(state.error, c, cc)}</PageError>;
   const d = state.data;
   return d.view === 'executive' ? (
     <ExecutiveSummary o={d.order} />

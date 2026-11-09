@@ -23,7 +23,7 @@ import {
   useLoad,
   type BranchFields,
 } from './model';
-import { AreaLink, Loading, PageTitle, Pill, Result, Section } from './parts';
+import { AreaLink, Loading, PageError, PageTitle, Pill, Result, Section } from './parts';
 
 /*
  * /company/branches (EP25; EP26: an operational list). Every branch of the
@@ -62,7 +62,8 @@ export function BranchesPage() {
   }, [state, search]);
 
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{errorText(state.error, c)}</PageError>;
   const list: BranchList = state.data;
   const active = list.branches.filter((b) => b.status === 'ACTIVE').length;
 

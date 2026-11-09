@@ -21,6 +21,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Pill,
   Section,
@@ -81,7 +82,8 @@ export default function SalesArea() {
   const { c, err } = useSales();
   const { state } = useLoad(salesApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{err(state.error)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{err(state.error)}</PageError>;
   const ctx = state.data;
   return (
     <div className="grid grid-cols-1 gap-6" data-sales>
@@ -981,10 +983,9 @@ function OrderPage({ id }: { id: string }) {
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error')
     return (
-      <>
-        <BackLink />
-        <Notice tone="error">{err(state.error)}</Notice>
-      </>
+      <PageError error={state.error} back={<BackLink />}>
+        {err(state.error)}
+      </PageError>
     );
   const { order: o, timeline, fulfilment } = state.data;
   const run = async (work: () => Promise<SoDetail>, text: string | (() => string) = c.saved) => {

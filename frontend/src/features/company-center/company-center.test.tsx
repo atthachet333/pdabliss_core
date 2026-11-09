@@ -1,6 +1,6 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CompanyRole } from '@/features/auth/api';
 import { destinationFor, homeFor, resetIdentityForTests, safeNext } from '@/features/auth/session';
 import type { BranchInfo } from '@/features/company/api';
@@ -622,5 +622,81 @@ describe('Branch context and CORE Operations entry (EP25)', () => {
       screen.getByText(/No department is assigned to you in this company yet/),
     ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Change branch' })).toBeNull();
+  });
+});
+
+describe('Approval policy and page errors (EP41)', () => {
+  const SETTINGS = {
+    timezone: 'Asia/Bangkok',
+    defaultLocale: 'th',
+    approvalPolicy: 'INDEPENDENT_APPROVAL',
+    canChangeApprovalPolicy: true,
+  };
+  const page = (settings: Parameters<typeof fakeApi>[0][string]) => ({
+    ...signedIn(member('COMPANY_OWNER')),
+    'GET /api/v1/company/control': ok(overview()),
+    'GET /api/v1/company/current/settings': settings,
+  });
+
+  it('lets the owner change the approval policy — only that field is sent', async () => {
+    const api = fakeApi({
+      ...page(ok(SETTINGS)),
+      'PATCH /api/v1/company/current/settings': (body) => ok({ ...SETTINGS, ...(body as object) }),
+    });
+    renderRoute('/company/settings?lang=en');
+    const select = await screen.findByLabelText('Document approval');
+    expect(select).toBeEnabled();
+    expect(select).toHaveValue('INDEPENDENT_APPROVAL');
+    await userEvent.selectOptions(select, 'SELF_APPROVAL_ALLOWED');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(api.called('PATCH /api/v1/company/current/settings')).toHaveLength(1),
+    );
+    expect(api.called('PATCH /api/v1/company/current/settings')[0]!.body).toEqual({
+      approvalPolicy: 'SELF_APPROVAL_ALLOWED',
+    });
+  });
+
+  it('shows everyone else the policy read-only, saying only the owner can change it', async () => {
+    fakeApi(page(ok({ ...SETTINGS, canChangeApprovalPolicy: false })));
+    renderRoute('/company/settings?lang=en');
+    const select = await screen.findByLabelText('Document approval');
+    expect(select).toBeDisabled();
+    expect(screen.getByText(/Only the company owner can change this setting/)).toBeInTheDocument();
+  });
+
+  it('a page that cannot load says why in a heading and offers a way back', async () => {
+    fakeApi(page(fail(403, 'FORBIDDEN')));
+    renderRoute('/company/settings?lang=en');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'You do not have access to this page' }),
+    ).toBeInTheDocument();
+    expect(document.querySelector('[data-page-error="403"]')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to the Company Control Center' })).toHaveAttribute(
+      'href',
+      '/company',
+    );
+  });
+
+  it('tells a missing page from an unreachable service', async () => {
+    fakeApi(page(fail(404, 'NOT_FOUND')));
+    renderRoute('/company/settings?lang=en');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'This page was not found' }),
+    ).toBeInTheDocument();
+    cleanup();
+    resetIdentityForTests();
+    fakeApi(page(ok(SETTINGS)));
+    const fake = globalThis.fetch;
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+      String(url).includes('/current/settings')
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : fake(url, init),
+    );
+    renderRoute('/company/settings?lang=en');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'The service could not be reached' }),
+    ).toBeInTheDocument();
   });
 });

@@ -22,9 +22,10 @@ Each company has one **approval policy** (`Company.approvalPolicy`):
 | `SELF_APPROVAL_ALLOWED` | The pre-EP41 behaviour: the permission alone decides. |
 | `INDEPENDENT_APPROVAL` | A consequential decision must be made by **someone other than the document's originators**. The decider still needs the same permission as before: being another person never grants an approval right. |
 
-Only the **Company Owner** can change the policy (Company Control Center → Profile → Approval
-policy). Each change is audited as `APPROVAL_POLICY_CHANGED` (from → to). A System Admin can
-administer people but cannot weaken a business control.
+Only the **Company Owner** can change the policy (Company Control Center → Settings → **Document
+approval**). Everyone else who manages settings sees it read-only, with "only the company owner
+can change this setting". Each change is audited as `APPROVAL_POLICY_CHANGED` (from → to). A
+System Admin can administer people but cannot weaken a business control (`403 OWNER_ONLY`).
 
 ### Who counts as an originator (per workflow)
 
@@ -112,3 +113,33 @@ always be decided:
 
 None of these is an authorization bypass. Every decision still requires its permission, branch
 and company access.
+
+## 6. Implementation notes
+
+- **One check:** `backend/src/company/approval.ts` `requireIndependentDecision()`.
+  - Each of the nine services calls it inside the decision's own transaction, after its
+    permission, branch and status checks.
+  - A refused attempt therefore writes nothing, and an override's audit entry commits or rolls
+    back with the decision.
+- **Request body:** `{ "ownerOverride": { "reason": "…" } }`. The `reason` is trimmed, must be
+  10–500 characters with no control characters, and nothing else is allowed in the override
+  object.
+  - Production decision routes refuse any other key (`400`), as before EP41.
+  - Purchasing, sales and warehouse decision routes still ignore other keys, as they always did.
+- **Screens:**
+  - The CORE frame registers one handler (`frontend/src/lib/api.ts` `setOwnerOverrideHandler`).
+  - On `409 SELF_APPROVAL_NOT_ALLOWED` with `overridable: true`, it opens the lazily loaded
+    **Owner override** dialog. This is a labelled modal with a required reason, keeps focus inside
+    and gives it back, and closes on Escape.
+  - On confirmation, the same request is sent **once more** with the reason. Cancel sends
+    nothing. A second refusal is shown, never asked again.
+  - A non-owner sees the localized error "another person with approval rights must decide".
+- **Demo seed:** the development seed (never reachable over HTTP and refused in production)
+  recreates historical fixtures with their recorded actors.
+  - Its own decisions (`scope: 'seed'`, no override) are history, not new decisions, and are not
+    checked. This lets a later seed run complete a fixture on a demo company already under
+    independent approval.
+  - No customer request can carry that scope.
+- **Not checked here, by design:** a decision's permission (still required),
+  rejections/cancellations, and the steps listed in §2.
+

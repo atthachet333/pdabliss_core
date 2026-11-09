@@ -18,6 +18,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Pill,
   Section,
@@ -89,7 +90,8 @@ export default function ProductionArea() {
   const { c, err } = useProd();
   const { state } = useLoad(productionApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{err(state.error)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{err(state.error)}</PageError>;
   const ctx = state.data;
   return (
     <div className="grid grid-cols-1 gap-6" data-production>
@@ -667,10 +669,9 @@ function OrderPage({ id }: { id: string }) {
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error')
     return (
-      <>
-        <BackLink to={`${PROD}/orders`} />
-        <Notice tone="error">{err(state.error)}</Notice>
-      </>
+      <PageError error={state.error} back={<BackLink to={`${PROD}/orders`} />}>
+        {err(state.error)}
+      </PageError>
     );
   const { order: o, timeline } = state.data;
   const run = async (work: () => Promise<MoDetail>, text: string = c.saved) => {
@@ -1243,10 +1244,9 @@ function BomPage({ id }: { id: string }) {
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error')
     return (
-      <>
-        <BackLink to={`${PROD}/boms`} />
-        <Notice tone="error">{err(state.error)}</Notice>
-      </>
+      <PageError error={state.error} back={<BackLink to={`${PROD}/boms`} />}>
+        {err(state.error)}
+      </PageError>
     );
   const { bom: b, timeline } = state.data;
   const run = async (work: () => Promise<BomDetail>, text: string = c.saved) => {

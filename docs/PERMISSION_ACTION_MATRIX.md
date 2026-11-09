@@ -309,3 +309,36 @@ Rules for module authors:
   deciding their own document when they hold the approve / manage permission. It is a production
   release blocker; the EP41 proposal (`approvalPolicy`, a `SELF_APPROVAL_NOT_ALLOWED` refusal and
   an audited owner override) is in `EP40_FINDINGS_REGISTER.md`.
+
+## EP41 — separation of duties (no permission change)
+
+- **No role default, permission or demo persona changed.** Each consequential decision still
+  needs exactly its EP40 permission.
+- **Who** may use that permission is narrowed by the company's approval policy
+  (`EP41_APPROVAL_POLICY.md`):
+
+  | Decision | Permission | Under `INDEPENDENT_APPROVAL` the decider must not be |
+  | --- | --- | --- |
+  | Purchase request approve | `purchasing.requests.approve` / `<dept>.purchase_requests.approve` | the requester |
+  | Purchase order issue | `purchasing.orders.approve` | the creator |
+  | Sales order confirm | `sales.orders.approve` | the creator or submitter |
+  | Stock adjustment approve | `warehouse.stock_adjustment.approve` | the creator or submitter |
+  | Cycle count post | `warehouse.counts.approve` | the creator, starter or any counter |
+  | Production order approve | `operations.orders.approve` | the creator or submitter |
+  | Material issue post | `operations.material_issues.approve` | the creator |
+  | Output accept | `operations.output.approve` | the creator or submitter |
+  | Finished goods receipt post | `warehouse.finished_goods.confirm` | the creator |
+
+- **Refusal order** (the check runs after permission, branch and status):
+  - `403` permission / `404` other branch or company — as before;
+  - `409 SELF_APPROVAL_NOT_ALLOWED` — the decider is an originator;
+  - with `ownerOverride`: `403 OVERRIDE_NOT_ALLOWED` for a non-owner, `400 OVERRIDE_NOT_NEEDED`
+    when nothing needs overriding.
+- **Policy setting:** only `COMPANY_OWNER` may change `approvalPolicy` (`PATCH
+  /company/current/settings`; anyone else gets `403 OWNER_ONLY`). `company.settings.manage` still
+  covers the time zone and language.
+- **Regression:**
+  - the EP40 285-route sweep (`ep40-security.test.ts`) passes unchanged;
+  - `ep41-controls.test.ts` covers the matrix with the real personas;
+  - Warehouse money privacy and cross-branch isolation pass in the real-stack E2E
+    (`EP41_FINAL_REPORT.md`).

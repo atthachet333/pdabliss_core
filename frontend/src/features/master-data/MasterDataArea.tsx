@@ -7,7 +7,14 @@ import { SelectField } from '@/features/auth/fields';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CELL, useLoad } from '@/features/company-center/model';
 import { SearchBox } from '@/features/company-center/SearchBox';
-import { AreaLink, AreaNavLink, Loading, PageTitle, Pill } from '@/features/company-center/parts';
+import {
+  AreaLink,
+  AreaNavLink,
+  Loading,
+  PageError,
+  PageTitle,
+  Pill,
+} from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
@@ -45,7 +52,7 @@ export default function MasterDataArea() {
   const { state, reload } = useLoad(masterApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error')
-    return <Notice tone="error">{readError(state.error, c).message}</Notice>;
+    return <PageError error={state.error}>{readError(state.error, c).message}</PageError>;
   const ctx = state.data;
   const visible = RESOURCES.filter((r) => ctx.capabilities[r].view);
   return (

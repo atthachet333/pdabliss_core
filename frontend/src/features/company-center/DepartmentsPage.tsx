@@ -12,7 +12,7 @@ import { controlApi, type DepartmentConfig } from './api';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useLoad } from './model';
-import { AreaLink, Loading, PageTitle, Pill, Result, Section } from './parts';
+import { AreaLink, Loading, PageError, PageTitle, Pill, Result, Section } from './parts';
 
 /*
  * /company/departments — the six CORE departments and what this company has
@@ -30,7 +30,8 @@ export function DepartmentsPage() {
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{errorText(state.error, c)}</PageError>;
   const cfg: DepartmentConfig = state.data;
   const selected = draft ?? cfg.enabled;
   const max = cfg.entitlements?.maxDepartments ?? 'CUSTOM';

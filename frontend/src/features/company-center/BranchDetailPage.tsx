@@ -20,7 +20,7 @@ import {
   useDepartmentName,
   useLoad,
 } from './model';
-import { AreaLink, Fact, Facts, Loading, Pill, Section } from './parts';
+import { AreaLink, Fact, Facts, Loading, PageError, Pill, Section } from './parts';
 
 /*
  * /company/branches/:branchId (EP26) — one branch: who it is (code, name,
@@ -45,12 +45,9 @@ function BranchLoader({ branchId }: { branchId: string }) {
   if (state.status === 'error') {
     const missing = state.error instanceof ApiError && state.error.status === 404;
     return (
-      <div className="grid gap-4">
-        <BackLink />
-        <Notice tone="error">
-          {missing ? a.branchDetail.notFound : errorText(state.error, c)}
-        </Notice>
-      </div>
+      <PageError error={state.error} back={<BackLink />}>
+        {missing ? a.branchDetail.notFound : errorText(state.error, c)}
+      </PageError>
     );
   }
   return <Detail data={state.data} reload={reload} replace={set} />;

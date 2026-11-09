@@ -31,7 +31,7 @@ import { CONTROL_COPY } from './copy';
 import { CoreMenuButton, CoreSidebar, QuickActions } from './CoreNav';
 import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, locationSummary, oneLineAddress, useLoad } from './model';
-import { AreaLink, Loading, Pill } from './parts';
+import { AreaLink, Loading, PageError, Pill } from './parts';
 
 /*
  * CORE Operations entry (EP25): Company → branch → CORE.
@@ -169,20 +169,27 @@ export function CoreArea({ identity }: { identity: Identity }) {
   if (state.status === 'error') {
     return (
       <CoreFrame identity={identity} context={null}>
-        <div className="grid max-w-xl gap-4 py-8">
-          <Notice tone="error">{errorText(state.error, c)}</Notice>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => void reload().catch(() => undefined)}
-              className={buttonClasses('secondary', 'md')}
-            >
-              {c.shell.retry}
-            </button>
-            <AreaLink to="/company" className={buttonClasses('ghost', 'md')}>
-              {c.enter.back}
-            </AreaLink>
-          </div>
+        <div className="py-8">
+          <PageError
+            error={state.error}
+            home={false}
+            back={
+              <>
+                <button
+                  type="button"
+                  onClick={() => void reload().catch(() => undefined)}
+                  className={buttonClasses('secondary', 'md')}
+                >
+                  {c.shell.retry}
+                </button>
+                <AreaLink to="/company" className={buttonClasses('ghost', 'md')}>
+                  {c.enter.back}
+                </AreaLink>
+              </>
+            }
+          >
+            {errorText(state.error, c)}
+          </PageError>
         </div>
       </CoreFrame>
     );

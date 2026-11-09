@@ -22,7 +22,7 @@ import { RequirePermission } from './CompanyShell';
 import { CONTROL_COPY } from './copy';
 import { errorText, useDepartmentName, useLoad } from './model';
 import { PERMISSION_COPY } from './permissionCopy';
-import { AreaLink, Loading, PageTitle, Pill, Section } from './parts';
+import { AreaLink, Loading, PageError, PageTitle, Pill, Section } from './parts';
 
 /*
  * /company/permissions (EP27) — what roles and people may do.
@@ -376,7 +376,8 @@ function MemberPanel({ memberId, catalog }: { memberId: string; catalog: Permiss
   );
 
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{errorText(state.error, c)}</PageError>;
   const data: MemberPermissions = state.data;
   const m = data.member;
   const changes = Object.entries(pending).filter(

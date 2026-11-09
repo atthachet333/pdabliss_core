@@ -342,9 +342,15 @@ export interface ActivityItem {
   occurredAt: string;
 }
 
+export type ApprovalPolicy = 'SELF_APPROVAL_ALLOWED' | 'INDEPENDENT_APPROVAL';
+
 export interface CompanySettings {
   timezone: string;
   defaultLocale: Locale;
+  /** EP41 separation of duties (docs/EP41_APPROVAL_POLICY.md). */
+  approvalPolicy: ApprovalPolicy;
+  /** Only the Company Owner may change the approval policy. */
+  canChangeApprovalPolicy: boolean;
 }
 
 /* ---- EP27 permission administration ---------------------------------- */
@@ -518,8 +524,9 @@ export const controlApi = {
     apiRequest<{ items: ActivityItem[] }>('GET', `${C}/current/activity?scope=${scope}&limit=60`),
 
   settings: () => apiRequest<CompanySettings>('GET', `${C}/current/settings`),
-  updateSettings: (body: Partial<CompanySettings>) =>
-    apiRequest<CompanySettings>('PATCH', `${C}/current/settings`, body),
+  updateSettings: (
+    body: Partial<Pick<CompanySettings, 'timezone' | 'defaultLocale' | 'approvalPolicy'>>,
+  ) => apiRequest<CompanySettings>('PATCH', `${C}/current/settings`, body),
 
   permissionProfiles: () => apiRequest<PermissionProfiles>('GET', `${C}/current/permissions`),
   memberPermissions: (memberId: string) =>

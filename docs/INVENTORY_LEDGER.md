@@ -300,3 +300,38 @@ hand (`FGR_STOCK_GONE`). Both enum values are added in their own migration
   lot, reservation or status change (`backend/test/ep40-rollback.test.ts`).
 - **Gap (EP40-06, recommendation):** posted goods receipts, transfers, adjustments, counts and
   `AuditLog` rows have no database immutability trigger. The application never changes them.
+
+## EP41 — history immutability in the database
+
+Migration `20261111090100_ep41_history_immutability` adds triggers in the EP31 `StockMovement`
+style:
+
+| Table(s) | Frozen when | Still allowed |
+| --- | --- | --- |
+| `AuditLog` | always (append-only) | INSERT |
+| `GoodsReceipt` + lines + allocations | `POSTED`, `CANCELLED` | `POSTED → CANCELLED` setting only `cancelledAt`, `cancelledByMemberId`, `cancellationReason` |
+| `InventoryTransfer` + lines | `POSTED`, `CANCELLED` | the same reversal |
+| `StockAdjustment` + lines | `POSTED`, `REJECTED`, `CANCELLED` | the same reversal |
+| `CycleCount` + lines + locations | `POSTED`, `CANCELLED` | nothing |
+
+- **Drafts stay editable:**
+  - a header's technical `updatedAt` is ignored by the comparison;
+  - posting writes the children before the header changes status, so the services never meet
+    the guard.
+- **Reversals unchanged:** a reversal still writes its own compensating movements; the original
+  movements stay (StockMovement is immutable since EP31).
+- **Verified:**
+  - `ep41-controls.test.ts`: UPDATE, DELETE and INSERT by direct SQL are refused on posted
+    headers and children, drafts can still be edited, and the receipt and adjustment reversals
+    still work;
+  - real stack, QA scratch DB: 23 / 23 checks;
+  - upgrade path: a restored copy of the development database was migrated with 0 rows changed,
+    removed or added across 70 tables; afterwards the same refusals hold on its existing history
+    and the 10 ledger checks are zero.
+- **Consequence:** a `User` or `Company` with audit history can no longer be deleted (the
+  `SET NULL` foreign key would update `AuditLog`). No application path deletes either; deletion
+  remains a controlled, out-of-band procedure.
+- **Not covered (infrastructure):**
+  - the table owner can still `TRUNCATE` or `ALTER TABLE … DISABLE TRIGGER`;
+  - a least-privilege runtime role (no DDL, no TRUNCATE) is a deployment task
+    (`EP41_RELEASE_READINESS.md`).

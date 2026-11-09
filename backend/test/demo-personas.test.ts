@@ -217,7 +217,11 @@ describeDb('Demo personas (EP28.1)', () => {
   it('completes an account from an earlier seed only where nothing was decided', async () => {
     // A pre-EP28.1 staff account: Warehouse, branch decided by an administrator, no job title, no marker.
     const staff = await member('staff.demo@pdabliss.com');
+    // EP41: AuditLog is append-only in the database; this test fabricates a pre-EP28.1
+    // database, so it lifts the guard for its own setup only.
+    await h.db.$executeRawUnsafe('ALTER TABLE "AuditLog" DISABLE TRIGGER "AuditLog_immutable"');
     await h.db.auditLog.deleteMany({ where: { action: DEMO_PERSONA_MARKER, entityId: staff.id } });
+    await h.db.$executeRawUnsafe('ALTER TABLE "AuditLog" ENABLE TRIGGER "AuditLog_immutable"');
     await h.db.memberPermissionOverride.deleteMany({ where: { memberId: staff.id } });
     await h.db.companyMember.update({
       where: { id: staff.id },
@@ -1092,7 +1096,10 @@ describeDb('Demo personas (EP28.1)', () => {
     const draft = await h.db.auditLog.findFirstOrThrow({
       where: { changes: { path: ['demo'], equals: 'SO_EP39_DRAFT' } },
     });
+    // EP41: lift the append-only guard for this fabricated setup only.
+    await h.db.$executeRawUnsafe('ALTER TABLE "AuditLog" DISABLE TRIGGER "AuditLog_immutable"');
     await h.db.auditLog.delete({ where: { id: draft.id } });
+    await h.db.$executeRawUnsafe('ALTER TABLE "AuditLog" ENABLE TRIGGER "AuditLog_immutable"');
     const orders = await h.db.salesOrder.count();
     const report = await seedDemo(h.db, parseSeedEnv(ENV));
     expect(report.integration).toMatch(/skipped SO_EP39_SUBMITTED \/ SO_EP39_DRAFT \(\w+\)/);

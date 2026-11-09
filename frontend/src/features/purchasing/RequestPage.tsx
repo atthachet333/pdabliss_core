@@ -9,6 +9,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Section,
 } from '@/features/company-center/parts';
@@ -54,7 +55,8 @@ export function RequestPage({ id, ctx }: { id: string; ctx: PrContext }) {
   const heading = useRef<HTMLDivElement>(null);
 
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{prError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{prError(state.error, c, cc)}</PageError>;
   const d = state.data;
   const r = d.request;
   const editable = d.actions.includes('edit');

@@ -98,7 +98,6 @@ export async function seedDemoInventoryControl(db: Db, companyId: string, meta: 
           transferDate: asDay(today),
           lineCounter: 1,
           createdByMemberId: staff.id,
-          ...(post ? { status: 'POSTED', postedAt: now, postedByMemberId: owner.id } : {}),
         },
       });
       const l = await tx.inventoryTransferLine.create({
@@ -112,6 +111,13 @@ export async function seedDemoInventoryControl(db: Db, companyId: string, meta: 
           quantity: line.quantity,
         },
       });
+      // EP41: like the service, the lines exist before the header is posted (they freeze with it).
+      if (post) {
+        await tx.inventoryTransfer.update({
+          where: { id: t.id },
+          data: { status: 'POSTED', postedAt: now, postedByMemberId: owner.id },
+        });
+      }
       await event(tx, by, 'TRANSFER_CREATED', 'InventoryTransfer', t.id, { demo: key, number });
       if (!post) return;
       await lockLocations(tx, [from, to], 'shared');
@@ -171,15 +177,18 @@ export async function seedDemoInventoryControl(db: Db, companyId: string, meta: 
           adjustmentDate: asDay(today),
           lineCounter: 1,
           createdByMemberId: staff.id,
-          status: 'POSTED',
+          status: 'SUBMITTED',
           submittedAt: now,
           submittedByMemberId: staff.id,
-          approvedAt: now,
-          approvedByMemberId: owner.id,
         },
       });
       const l = await tx.stockAdjustmentLine.create({
         data: { ...base, adjustmentId: d.id, lineNo: 1, ...line },
+      });
+      // EP41: posted once its line exists (a posted adjustment's lines are frozen).
+      await tx.stockAdjustment.update({
+        where: { id: d.id },
+        data: { status: 'POSTED', approvedAt: now, approvedByMemberId: owner.id },
       });
       await event(tx, by, 'ADJUSTMENT_CREATED', 'StockAdjustment', d.id, {
         demo: key,
@@ -232,12 +241,10 @@ export async function seedDemoInventoryControl(db: Db, companyId: string, meta: 
           countDate: asDay(today),
           lineCounter: balances.length,
           createdByMemberId: staff.id,
-          status: 'POSTED',
+          status: 'REVIEW',
           startedAt: now,
           startedByMemberId: staff.id,
           reviewAt: now,
-          postedAt: now,
-          postedByMemberId: owner.id,
         },
       });
       await tx.cycleCountLocation.create({
@@ -288,6 +295,11 @@ export async function seedDemoInventoryControl(db: Db, companyId: string, meta: 
         });
         corrections++;
       }
+      // EP41: posted once its scope and lines exist (they freeze with it).
+      await tx.cycleCount.update({
+        where: { id: c.id },
+        data: { status: 'POSTED', postedAt: now, postedByMemberId: owner.id },
+      });
       await event(tx, by, 'CYCLE_COUNT_REVIEWED', 'CycleCount', c.id, {
         number,
         from: 'COUNTING',

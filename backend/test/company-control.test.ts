@@ -877,15 +877,18 @@ describeDb('Company Control Center (EP25)', () => {
 
   it('keeps real settings only — time zone and default language — and invitations follow the default', async () => {
     const admin = await as('admin@a.example');
+    // EP41: the approval policy is shown to administrators; only the owner may change it.
+    const policy = { approvalPolicy: 'SELF_APPROVAL_ALLOWED', canChangeApprovalPolicy: false };
     expect(j(await admin.get('/api/v1/company/current/settings'))).toEqual({
       timezone: 'Asia/Bangkok',
       defaultLocale: 'th',
+      ...policy,
     });
     const res = await admin.patch('/api/v1/company/current/settings', {
       timezone: 'Asia/Singapore',
       defaultLocale: 'zh-CN',
     });
-    expect(j(res)).toEqual({ timezone: 'Asia/Singapore', defaultLocale: 'zh-CN' });
+    expect(j(res)).toEqual({ timezone: 'Asia/Singapore', defaultLocale: 'zh-CN', ...policy });
     expect(
       (await admin.patch('/api/v1/company/current/settings', { timezone: 'Mars/Olympus' }))
         .statusCode,

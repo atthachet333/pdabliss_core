@@ -677,6 +677,49 @@ describe('Permission activity and languages (EP27)', () => {
     ).toBeInTheDocument();
   });
 
+  it('EP41: shows an owner override with its document, branch and reason, and policy changes in words', async () => {
+    fakeApi(
+      admin({
+        'GET /api/v1/company/current/activity': ok({
+          items: [
+            {
+              id: 'o1',
+              kind: 'admin',
+              type: 'SELF_APPROVAL_OVERRIDE',
+              actor: { kind: 'member', email: 'owner@alpha.example', fullName: 'Owner Person' },
+              entityType: 'StockAdjustment',
+              details: {
+                decision: 'approve',
+                number: 'ADJ-202611-000062',
+                branch: '00001',
+                roles: ['creator', 'submitter'],
+                reason: 'Owner is the only approver on site today',
+              },
+              occurredAt: '2026-11-09T02:42:00.000Z',
+            },
+            {
+              id: 'p1',
+              kind: 'admin',
+              type: 'APPROVAL_POLICY_CHANGED',
+              actor: { kind: 'member', email: 'owner@alpha.example', fullName: 'Owner Person' },
+              entityType: 'Company',
+              details: { from: 'SELF_APPROVAL_ALLOWED', to: 'INDEPENDENT_APPROVAL' },
+              occurredAt: '2026-11-09T02:00:00.000Z',
+            },
+          ],
+        }),
+      }),
+    );
+    renderRoute('/company/security?lang=en');
+    expect(await screen.findByText('Owner override of independent approval')).toBeInTheDocument();
+    expect(
+      screen.getByText(/ADJ-202611-000062 · 00001 · “Owner is the only approver on site today”/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Self-approval allowed \(by permission\) → Independent approval required/),
+    ).toBeInTheDocument();
+  });
+
   it('has the same copy shape in TH / EN / ZH and no Thai in EN / ZH screens', async () => {
     const shape = (v: unknown): unknown =>
       typeof v === 'function'

@@ -192,13 +192,14 @@ describeDb('EP40 transaction rollback', () => {
   });
 
   it('material issue posting: a failure at the last movement keeps every reservation and the issue draft', async () => {
-    const ops = await ctxOf('operations.demo@pdabliss.com');
+    // EP41: Operations drafted the issue; under independent approval the owner posts it.
+    const owner = await ctxOf('owner.demo@pdabliss.com');
     const mo = await marker('MO_EXEC');
     const draft = await h.db.productionMaterialIssue.findFirstOrThrow({
       where: { productionOrderId: mo, status: 'DRAFT' },
     });
     await fails('stockMovement.create', () =>
-      new MaterialIssueService(faulty).post(ops, draft.id, META),
+      new MaterialIssueService(faulty).post(owner, draft.id, META),
     );
     expect(
       (await h.db.productionMaterialIssue.findUniqueOrThrow({ where: { id: draft.id } })).status,

@@ -14,7 +14,14 @@ import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
 import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
 import { SearchBox } from '@/features/company-center/SearchBox';
-import { AreaLink, Loading, PageTitle, Pill, Section } from '@/features/company-center/parts';
+import {
+  AreaLink,
+  Loading,
+  PageError,
+  PageTitle,
+  Pill,
+  Section,
+} from '@/features/company-center/parts';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
 import { cn } from '@/lib/cn';
 import {
@@ -60,7 +67,8 @@ export function DocArea({
   const { c, err } = useCtl();
   const { state } = useLoad(whApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{err(state.error)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{err(state.error)}</PageError>;
   const ctx = state.data;
   return (
     <div className="grid grid-cols-1 gap-6" data-ctl={kind}>
@@ -310,7 +318,8 @@ export function DocPage<K extends DocKind>({
     top.current?.focus();
   };
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{err(state.error)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{err(state.error)}</PageError>;
   const d = docOf(kind, state.data);
   const allowed = steps(d);
   return (

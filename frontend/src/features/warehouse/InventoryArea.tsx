@@ -5,7 +5,7 @@ import { SelectField } from '@/features/auth/fields';
 import { CONTROL_COPY } from '@/features/company-center/copy';
 import { useLoad } from '@/features/company-center/model';
 import { SearchBox } from '@/features/company-center/SearchBox';
-import { AreaLink, Loading, PageTitle } from '@/features/company-center/parts';
+import { AreaLink, Loading, PageError, PageTitle } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import { whApi, type ExpiryState, type WarehouseContext } from './whApi';
@@ -27,7 +27,8 @@ export default function InventoryArea({ view }: { view: 'stock' | 'lots' }) {
   const cc = useCopy(CONTROL_COPY);
   const { state } = useLoad(whApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{whError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{whError(state.error, c, cc)}</PageError>;
   return <StockList key={view} view={view} ctx={state.data} />;
 }
 

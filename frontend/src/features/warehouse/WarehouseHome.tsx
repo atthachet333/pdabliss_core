@@ -1,7 +1,6 @@
-import { Notice } from '@/features/auth/AuthFrame';
 import { CONTROL_COPY } from '@/features/company-center/copy';
 import { useLoad } from '@/features/company-center/model';
-import { AreaLink, Loading, PageTitle } from '@/features/company-center/parts';
+import { AreaLink, Loading, PageError, PageTitle } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { whApi } from './whApi';
 import { WH_COPY, whError } from './whCopy';
@@ -19,7 +18,8 @@ export default function WarehouseHome() {
   const cc = useCopy(CONTROL_COPY);
   const { state } = useLoad(whApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{whError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{whError(state.error, c, cc)}</PageError>;
   const ctx = state.data;
   const tiles = [
     [ctx.counts.pendingReceive, c.tiles.pending, `${WH}/pending-receive`],

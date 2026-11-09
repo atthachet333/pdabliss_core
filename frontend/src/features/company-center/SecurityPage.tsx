@@ -1,6 +1,5 @@
 import { KeyRound, Settings2 } from 'lucide-react';
 import { useState } from 'react';
-import { Notice } from '@/features/auth/AuthFrame';
 import { AUTH_COPY } from '@/features/auth/copy';
 import { DEPARTMENT_CODES, type DepartmentCode } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
@@ -11,7 +10,7 @@ import { ADMIN_COPY } from './adminCopy';
 import { CONTROL_COPY } from './copy';
 import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, eventLabel, useDateFormat, useDepartmentName, useLoad } from './model';
-import { Loading, PageTitle, Section } from './parts';
+import { Loading, PageError, PageTitle, Section } from './parts';
 
 /*
  * /company/security — what changed in the company and members' sign-in and
@@ -64,7 +63,8 @@ function Timeline({ scope }: { scope: Scope }) {
   const c = useCopy(CONTROL_COPY);
   const { state } = useLoad(() => controlApi.activity(scope));
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{errorText(state.error, c)}</PageError>;
   const items = state.data.items;
   return (
     <Section id="timeline-title" title={c.security.filters[scope]}>
@@ -105,6 +105,12 @@ function detailText(
   if (typeof d.name === 'string') parts.push(d.name);
   if (Array.isArray(d.departments))
     parts.push(d.departments.filter(isDepartment).map(dept).join(', '));
+  // EP41: an owner override names its document, branch and the owner's reason.
+  if (item.type === 'SELF_APPROVAL_OVERRIDE') {
+    if (typeof d.number === 'string') parts.push(d.number);
+    if (typeof d.branch === 'string') parts.push(d.branch);
+    if (typeof d.reason === 'string') parts.push(`“${d.reason}”`);
+  }
   return parts.join(' · ');
 }
 
@@ -127,7 +133,7 @@ function Entry({ item }: { item: ActivityItem }) {
       : item.actor.kind === 'system'
         ? c.security.system
         : (item.actor.fullName ?? item.actor.email);
-  const detail = detailText(item, { ...a.roles, ...statusWords }, dept);
+  const detail = detailText(item, { ...a.roles, ...statusWords, ...c.settings.policies }, dept);
   const Icon = item.kind === 'security' ? KeyRound : Settings2;
   return (
     <li

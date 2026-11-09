@@ -10,6 +10,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Section,
 } from '@/features/company-center/parts';
@@ -242,7 +243,7 @@ function NewOutput() {
   if (orders.state.status === 'loading' || ctx.state.status === 'loading')
     return <Loading label={o.loading} />;
   if (orders.state.status === 'error')
-    return <Notice tone="error">{err(orders.state.error)}</Notice>;
+    return <PageError error={orders.state.error}>{err(orders.state.error)}</PageError>;
   const today = ctx.state.status === 'ready' ? ctx.state.data.today : '';
   const open = orders.state.data.items.filter(
     (m) => m.status === 'IN_PRODUCTION' || m.status === 'PAUSED',
@@ -329,10 +330,9 @@ function OutputPage({ id }: { id: string }) {
   if (state.status === 'loading') return <Loading label={o.loading} />;
   if (state.status === 'error')
     return (
-      <>
-        <BackLink to={OUT} />
-        <Notice tone="error">{err(state.error)}</Notice>
-      </>
+      <PageError error={state.error} back={<BackLink to={OUT} />}>
+        {err(state.error)}
+      </PageError>
     );
   const { report: r, timeline } = state.data;
   const run = async (work: () => Promise<OutputDetail>, text: string) => {

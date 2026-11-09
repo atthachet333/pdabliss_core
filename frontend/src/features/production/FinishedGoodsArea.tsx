@@ -10,6 +10,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Section,
 } from '@/features/company-center/parts';
@@ -44,7 +45,8 @@ export default function FinishedGoodsArea() {
   const ctx = useLoad(() => whApi.context());
   const { o, err } = useOut();
   if (ctx.state.status === 'loading') return <Loading label={o.loading} />;
-  if (ctx.state.status === 'error') return <Notice tone="error">{err(ctx.state.error)}</Notice>;
+  if (ctx.state.status === 'error')
+    return <PageError error={ctx.state.error}>{err(ctx.state.error)}</PageError>;
   const w = ctx.state.data;
   return (
     <div className="grid grid-cols-1 gap-6" data-finished-goods>
@@ -333,7 +335,7 @@ function NewReceipt({ w }: { w: WarehouseContext }) {
   const [error, setError] = useState<string | null>(null);
   if (pending.state.status === 'loading') return <Loading label={o.loading} />;
   if (pending.state.status === 'error')
-    return <Notice tone="error">{err(pending.state.error)}</Notice>;
+    return <PageError error={pending.state.error}>{err(pending.state.error)}</PageError>;
   const p = pending.state.data.items.find((x) => x.output.id === outputId);
   return (
     <>
@@ -385,10 +387,9 @@ function ReceiptPage({ id, w }: { id: string; w: WarehouseContext }) {
   if (state.status === 'loading') return <Loading label={o.loading} />;
   if (state.status === 'error')
     return (
-      <>
-        <BackLink to={FG} />
-        <Notice tone="error">{err(state.error)}</Notice>
-      </>
+      <PageError error={state.error} back={<BackLink to={FG} />}>
+        {err(state.error)}
+      </PageError>
     );
   const { receipt: r, timeline } = state.data;
   const run = async (work: () => Promise<ReceiptDetail>, text: string) => {

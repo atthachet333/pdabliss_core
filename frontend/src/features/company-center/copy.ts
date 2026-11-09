@@ -41,6 +41,16 @@ const th = {
     readOnly: 'ดูได้อย่างเดียว — การแก้ไขทำโดยเจ้าของบริษัทหรือผู้ดูแลระบบของบริษัท',
     forbidden: 'บทบาทของคุณไม่มีสิทธิ์เปิดหน้านี้',
   },
+  /** EP41: the page-level "cannot show this" state (semantic heading + recovery). */
+  pageError: {
+    notFound: 'ไม่พบหน้านี้',
+    forbidden: 'ไม่มีสิทธิ์เข้าถึงหน้านี้',
+    unavailable: 'เชื่อมต่อระบบไม่ได้',
+    generic: 'แสดงหน้านี้ไม่ได้',
+    back: 'ย้อนกลับ',
+    home: 'ไปที่หน้าแรก CORE',
+    homeCompany: 'ไปที่ศูนย์ควบคุมบริษัท',
+  },
   common: {
     save: 'บันทึก',
     saving: 'กำลังบันทึก…',
@@ -397,6 +407,14 @@ const th = {
     timezoneHint: 'ใช้แสดงเวลาในอีเมลเชิญและเอกสารในอนาคต',
     language: 'ภาษาเริ่มต้นของบริษัท',
     languageHint: 'ภาษาเริ่มต้นของอีเมลเชิญ (เลือกเป็นรายคนได้ตอนเชิญ)',
+    approvalPolicy: 'การอนุมัติเอกสาร',
+    approvalPolicyHint:
+      'อนุมัติโดยผู้อื่น: ผู้สร้างหรือผู้ส่งเอกสารอนุมัติ/ลงบัญชีเอกสารของตนเองไม่ได้ — เจ้าของบริษัทยกเว้นได้โดยระบุเหตุผล ซึ่งถูกบันทึกในกิจกรรม',
+    approvalPolicyOwnerOnly: 'เฉพาะเจ้าของบริษัทเปลี่ยนการตั้งค่านี้ได้',
+    policies: {
+      SELF_APPROVAL_ALLOWED: 'อนุญาตให้อนุมัติเอกสารของตนเอง (ตามสิทธิ์)',
+      INDEPENDENT_APPROVAL: 'ต้องอนุมัติโดยผู้อื่น',
+    },
     saved: 'บันทึกการตั้งค่าแล้ว',
     languages: { th: 'ไทย', en: 'English', 'zh-CN': '简体中文' },
     closure: 'การปิดบริษัท',
@@ -463,6 +481,16 @@ const en: Copy = {
     toAccount: 'Go to my account',
     readOnly: 'Read only — changes are made by the Company Owner or a System Admin',
     forbidden: 'Your role cannot open this page',
+  },
+  /** EP41: the page-level "cannot show this" state (semantic heading + recovery). */
+  pageError: {
+    notFound: 'This page was not found',
+    forbidden: 'You do not have access to this page',
+    unavailable: 'The service could not be reached',
+    generic: 'This page cannot be shown',
+    back: 'Go back',
+    home: 'Go to CORE overview',
+    homeCompany: 'Go to the Company Control Center',
   },
   common: {
     save: 'Save',
@@ -828,6 +856,14 @@ const en: Copy = {
     timezoneHint: 'Used for times in invitation emails and, later, documents',
     language: 'Company default language',
     languageHint: 'The default for invitation emails (you can pick per invitation)',
+    approvalPolicy: 'Document approval',
+    approvalPolicyHint:
+      'Independent approval: the person who created or submitted a document cannot approve or post it — the owner may override with a reason, recorded in Activity',
+    approvalPolicyOwnerOnly: 'Only the company owner can change this setting',
+    policies: {
+      SELF_APPROVAL_ALLOWED: 'Self-approval allowed (by permission)',
+      INDEPENDENT_APPROVAL: 'Independent approval required',
+    },
     saved: 'Settings saved',
     languages: { th: 'ไทย', en: 'English', 'zh-CN': '简体中文' },
     closure: 'Closing the company',
@@ -891,6 +927,16 @@ const zh: Copy = {
     toAccount: '前往我的账户',
     readOnly: '只读——由公司所有者或系统管理员进行修改',
     forbidden: '您的角色无法打开此页面',
+  },
+  /** EP41: the page-level "cannot show this" state (semantic heading + recovery). */
+  pageError: {
+    notFound: '未找到此页面',
+    forbidden: '您无权访问此页面',
+    unavailable: '无法连接服务',
+    generic: '无法显示此页面',
+    back: '返回',
+    home: '前往 CORE 概览',
+    homeCompany: '前往公司控制中心',
   },
   common: {
     save: '保存',
@@ -1245,6 +1291,14 @@ const zh: Copy = {
     timezoneHint: '用于邀请邮件中的时间，以及今后的单据',
     language: '公司默认语言',
     languageHint: '邀请邮件的默认语言（邀请时可逐一选择）',
+    approvalPolicy: '单据审批',
+    approvalPolicyHint:
+      '独立审批：单据的创建人或提交人不能审批或过账自己的单据——所有者可填写原因进行豁免，并记录在活动中',
+    approvalPolicyOwnerOnly: '仅公司所有者可更改此设置',
+    policies: {
+      SELF_APPROVAL_ALLOWED: '允许审批本人单据（按权限）',
+      INDEPENDENT_APPROVAL: '必须由他人审批',
+    },
     saved: '设置已保存',
     languages: { th: 'ไทย', en: 'English', 'zh-CN': '简体中文' },
     closure: '关闭公司',

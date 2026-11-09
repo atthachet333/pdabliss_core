@@ -9,17 +9,20 @@ database query), not inferred from documentation. Severities follow the EP40 bri
 | EP40-01 | P2 | configuration (`src/config/env.ts`, demo seed) | Demo surface fails open when `NODE_ENV` is missing | Fixed |
 | EP40-02 | P2 | Sales, Production, Warehouse create paths | A removed working branch is silently replaced by the member's only branch | Fixed |
 | EP40-03 | P2 | all list / detail routes (path and query) | A NUL character in the URL causes HTTP 500 | Fixed |
-| EP40-04 | P2 (policy) · **production blocker** | every approve / post / confirm step | No separation of duties: the originator may approve their own document | Open by policy — EP41 proposal |
+| EP40-04 | P2 (policy) · **production blocker** | every approve / post / confirm step | No separation of duties: the originator may approve their own document | **Resolved in EP41** (policy + owner override, `EP41_APPROVAL_POLICY.md`) |
 | EP40-05 | P3 | `GET /purchase-requests`, `/purchase-requests/context` | Answer 200 (empty) to a member with no Purchasing role, where other modules answer 403 | Accepted (no data) |
-| EP40-06 | P3 | database | `AuditLog` and posted goods receipts / transfers / adjustments / counts have no database-level immutability trigger | Recommendation |
-| EP40-07 | P3 | frontend `src/lib/api.ts` | No client-side request timeout (a hung server leaves a spinner) | Recommendation |
-| EP40-08 | P3 | dev tooling | 10 moderate advisories in the ESLint toolchain (`minimatch` ReDoS), dev-only | Accepted |
+| EP40-06 | P3 | database | `AuditLog` and posted goods receipts / transfers / adjustments / counts have no database-level immutability trigger | **Resolved in EP41** (triggers; the DB role is still an infrastructure item) |
+| EP40-07 | P3 | frontend `src/lib/api.ts` | No client-side request timeout (a hung server leaves a spinner) | **Resolved in EP41** |
+| EP40-08 | P3 | dev tooling | 10 moderate advisories in the ESLint toolchain (`minimatch` ReDoS), dev-only | **Resolved in EP41** (`minimatch` override → 0 advisories) |
 | EP40-10 | P3 | backend test suites | Timestamp-sensitive "no money" assertions (a bare `370` matched `…32.370Z`) — flaky, not a leak | Fixed |
-| EP40-11 | P3 | frontend error states | "Not found" and "no permission" states show a message without a page heading (h1) | Recommendation |
+| EP40-11 | P3 | frontend error states | "Not found" and "no permission" states show a message without a page heading (h1) | **Resolved in EP41** (`PageError`) |
 | EP40-09 | Info | deployment | Cookie `Secure` / `__Host-` prefix and the production checks depend on `NODE_ENV=production` | Documented |
 
 No P0 or P1 finding was found. Earlier episodes' P1 (EP39 movement list) stays fixed and is
 covered by the EP40 sweeps.
+
+**EP41 update (2026-11-09):** EP40-04, -06, -07, -08 and -11 are resolved; see the EP41 sections
+at the end of each entry and `EP41_FINAL_REPORT.md`. EP41-01 (below) is new.
 
 ## EP40-01 — Demo surface fails open when `NODE_ENV` is missing (P2, fixed)
 
@@ -111,6 +114,15 @@ covered by the EP40 sweeps.
   5. Tests per action, plus a demo persona pair for each control.
 - **Residual risk until then:** one manager can raise and approve their own purchasing,
   inventory and production documents (fully audited).
+- **EP41 resolution:** implemented as `Company.approvalPolicy` (`SELF_APPROVAL_ALLOWED` |
+  `INDEPENDENT_APPROVAL`) with an owner-only, reason-required, audited override. The scope
+  differs from the proposal in two places, both documented in `EP41_APPROVAL_POLICY.md` §2:
+  - transfers and production completion are **not** checked;
+  - the cycle count also excludes everyone who counted.
+  
+  Existing companies keep self-approval until the owner switches. Evidence:
+  `backend/test/ep41-controls.test.ts` covers all nine decisions. On the real stack, 346 decisions
+  were made after the switch: 0 self-decisions without an override and 54 explicit overrides.
 
 ## EP40-05 — Purchase-request list is 200 (empty) for non-Purchasing members (P3, accepted)
 
@@ -131,6 +143,15 @@ covered by the EP40 sweeps.
 - **Recommendation (EP41 or the infrastructure episode):**
   - add `_immutable` triggers in the same style;
   - run the application with a role that has no `DELETE` on history tables.
+- **EP41 resolution:** migration `20261111090100_ep41_history_immutability`:
+  - `AuditLog` is append-only;
+  - posted, cancelled or rejected receipts, transfers, adjustments and counts are frozen, with
+    their lines, allocations and locations;
+  - the POSTED → CANCELLED reversal may set only its cancellation fields.
+  
+  Direct SQL is refused on clean and upgraded databases (`INVENTORY_LEDGER.md` § EP41).
+  **Still open (infrastructure):** a least-privilege runtime role. The table owner can still
+  `TRUNCATE` or disable triggers.
 
 ## EP40-07 — No client request timeout (P3, recommendation)
 
@@ -138,12 +159,23 @@ covered by the EP40 sweeps.
 gives up. Network failure and server errors already show a message (verified in the browser).
 Recommendation: a 30 s default timeout mapped to the existing network-error copy.
 
+**EP41 resolution:**
+- a 30 s bound per request, reported as `TIMEOUT` ("the outcome is unknown");
+- the caller's own abort stays an `AbortError`, and network failure stays `NETWORK_ERROR`;
+- nothing is retried automatically (`frontend/src/lib/api.test.ts`).
+
 ## EP40-08 — Dev-only dependency advisories (P3, accepted)
 
 `npm audit` reports 10 moderate advisories in each package, all through `eslint`,
 `typescript-eslint` and `minimatch` (glob ReDoS). `npm audit --omit=dev` reports
 **0 vulnerabilities** for backend and frontend. There is no runtime exposure, and the fix is a
 toolchain major upgrade, deferred to avoid churn.
+
+**EP41 resolution:** both packages pin `"overrides": { "minimatch": "11.0.5" }`, the patched
+major; ESLint 10 and typescript-eslint stay unchanged. Afterwards:
+- `npm audit` reports **0 vulnerabilities** in both packages;
+- ESLint lints the same files as before (backend 164, frontend 550 tracked + 2 new tests),
+  still ignores `dist` / `node_modules`, and still fires its rules.
 
 ## EP40-09 — Production cookie and safety flags depend on `NODE_ENV` (info, documented)
 
@@ -163,6 +195,30 @@ deployment guide must set it; EP40-01 already makes the demo surface independent
   `warehouse`, `production`, `production-output`, `demo-personas` tests.
 - **Verification:** the 7 suites pass 115/115. The pattern was checked against a string price, a
   numeric price, a timestamp and a cuid.
+
+## EP40-11 — Error states without a page heading (P3) · EP41 resolution
+
+A shared `PageError` (`frontend/src/features/company-center/parts.tsx`) is now used by every
+page-level load error in CORE and the Company Control Center: 37 sites in 27 files, including
+the detail pages and the CORE frame itself. It
+shows:
+- one `h1` that names the case: not found (404), no access (403), service unreachable or timed
+  out, or cannot be shown;
+- the existing message;
+- a way back: the page's own back link, or "Go back";
+- a link home: CORE overview, or the Company Control Center under `/company`.
+
+The deep link stays in the address bar, so branch recovery is unchanged. Browser QA covers it in
+TH / EN / ZH at six widths.
+
+## EP41-01 — Seed fixtures wrote lines under an already-posted header (P3, fixed in EP41)
+
+`warehouse/control-demo.ts` created the posted transfer, adjustment and count headers directly in
+their final status and then inserted their lines. The new child guards correctly refuse that.
+- **Fix:** the fixtures now write the header in its pre-posting status and post it once its
+  lines exist, the same order the services use.
+- **Effect:** the seeded rows and audit entries are the same as before. A third seed changes 0
+  rows.
 
 ## Non-findings (tested, no defect)
 

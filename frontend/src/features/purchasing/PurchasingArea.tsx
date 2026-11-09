@@ -18,7 +18,7 @@ import type { DepartmentCode } from '@/features/company/api';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CELL, useDateFormat, useDepartmentName, useLoad } from '@/features/company-center/model';
 import { SearchBox } from '@/features/company-center/SearchBox';
-import { AreaLink, Loading, PageTitle, Pill } from '@/features/company-center/parts';
+import { AreaLink, Loading, PageError, PageTitle, Pill } from '@/features/company-center/parts';
 import { CONTROL_COPY } from '@/features/company-center/copy';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
@@ -77,7 +77,8 @@ export default function PurchasingArea() {
   const cc = useCopy(CONTROL_COPY);
   const { state } = useLoad(prApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{prError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{prError(state.error, c, cc)}</PageError>;
   const ctx = state.data;
   const any =
     ctx.createDepartments.length > 0 || ctx.purchasingView || ctx.decideDepartments.length > 0;

@@ -10,6 +10,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Pill,
   Section,
@@ -103,10 +104,9 @@ function Detail({ resource: r, id, back }: { resource: Resource; id: string; bac
   if (state.status === 'loading') return <Loading label={c.loading} />;
   if (state.status === 'error')
     return (
-      <div className="grid grid-cols-1 gap-4">
-        {back}
-        <Notice tone="error">{readError(state.error, c).message}</Notice>
-      </div>
+      <PageError error={state.error} back={back}>
+        {readError(state.error, c).message}
+      </PageError>
     );
   const d = state.data;
   const x = d.record;

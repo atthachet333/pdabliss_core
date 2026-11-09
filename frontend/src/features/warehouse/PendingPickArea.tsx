@@ -5,7 +5,7 @@ import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField } from '@/features/auth/fields';
 import { CONTROL_COPY } from '@/features/company-center/copy';
 import { useDateFormat, useLoad } from '@/features/company-center/model';
-import { Loading, PageTitle, Pill } from '@/features/company-center/parts';
+import { Loading, PageError, PageTitle, Pill } from '@/features/company-center/parts';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import { useCopy, type Localized } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
@@ -82,7 +82,8 @@ export default function PendingPickArea() {
   const cc = useCopy(CONTROL_COPY);
   const { state } = useLoad(whApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{whError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{whError(state.error, c, cc)}</PageError>;
   return <PickList ctx={state.data} />;
 }
 

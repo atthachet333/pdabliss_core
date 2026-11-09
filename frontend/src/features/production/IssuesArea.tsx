@@ -9,6 +9,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Pill,
   Section,
@@ -181,10 +182,9 @@ function IssuePage({ id }: { id: string }) {
   if (state.status === 'loading') return <Loading label={x.loading} />;
   if (state.status === 'error')
     return (
-      <>
-        <BackLink to={`${PROD}/issues`} />
-        <Notice tone="error">{err(state.error)}</Notice>
-      </>
+      <PageError error={state.error} back={<BackLink to={`${PROD}/issues`} />}>
+        {err(state.error)}
+      </PageError>
     );
   const { issue: i, timeline } = state.data;
   const run = async (work: () => Promise<IssueDetail>, text: string) => {

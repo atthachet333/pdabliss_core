@@ -10,6 +10,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Section,
 } from '@/features/company-center/parts';
@@ -188,7 +189,8 @@ function ReceivePage({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{poError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{poError(state.error, c, cc)}</PageError>;
   const [{ order: o }, ctx] = state.data;
   const canReceive = ctx.receiving.process && o.status === 'PENDING_RECEIVE';
   const receive = async () => {

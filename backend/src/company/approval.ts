@@ -34,8 +34,20 @@ export const OwnerOverrideBody = z
   .strict();
 export type OwnerOverride = z.output<typeof OwnerOverrideBody>;
 
-/** The body of a decision route: nothing, or an owner override. */
+/**
+ * The body of a decision route that never accepted a body (Production): nothing,
+ * or an owner override — anything else is refused (mass assignment, 400).
+ */
 export const DecisionBody = z.object({ ownerOverride: OwnerOverrideBody.optional() }).strict();
+
+/**
+ * The same for decision routes that always ignored their body (purchasing,
+ * sales, warehouse): other keys stay ignored, as before EP41, so a client
+ * sending `{}` or a stale field is not broken. The override itself is strict.
+ */
+export const LenientDecisionBody = z
+  .object({ ownerOverride: OwnerOverrideBody.optional() })
+  .strip();
 
 export type OriginatorRole = 'requester' | 'creator' | 'submitter' | 'starter' | 'counter';
 
@@ -76,7 +88,11 @@ export async function requireIndependentDecision(
       facts.originators.filter((o) => o.memberId === access.actor.memberId).map((o) => o.role),
     ),
   ];
-  const independent = access.company.approvalPolicy === 'INDEPENDENT_APPROVAL';
+  // The development demo seed (never HTTP, refused in production) recreates
+  // fixtures with their recorded actors; a later run may complete one on a demo
+  // company already switched to independent approval. History, not a decision.
+  const seedHistory = scope === 'seed' && !override;
+  const independent = access.company.approvalPolicy === 'INDEPENDENT_APPROVAL' && !seedHistory;
   if (!independent || roles.length === 0) {
     // Only ever a real override in the audit trail.
     if (override) {

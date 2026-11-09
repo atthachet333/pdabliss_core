@@ -12,6 +12,7 @@ import {
   Fact,
   Facts,
   Loading,
+  PageError,
   PageTitle,
   Section,
 } from '@/features/company-center/parts';
@@ -52,7 +53,8 @@ export default function ReceiptsArea() {
   const cc = useCopy(CONTROL_COPY);
   const { state } = useLoad(whApi.context);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{whError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{whError(state.error, c, cc)}</PageError>;
   return (
     <div className="grid grid-cols-1 gap-6" data-receipts>
       <Routes>
@@ -223,7 +225,8 @@ function ReceiptPage({ id, ctx }: { id: string; ctx: WarehouseContext }) {
   const [editing, setEditing] = useState<string | null>(null);
   const heading = useRef<HTMLDivElement>(null);
   if (state.status === 'loading') return <Loading label={c.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{whError(state.error, c, cc)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{whError(state.error, c, cc)}</PageError>;
   const d = state.data;
   const r = d.receipt;
   const editable = r.actions.includes('edit');

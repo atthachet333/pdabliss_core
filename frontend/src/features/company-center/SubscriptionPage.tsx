@@ -10,7 +10,7 @@ import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { errorText, useDateFormat, useDepartmentName, useLoad } from './model';
-import { AreaLink, Fact, Facts, Loading, PageTitle, Pill, Section } from './parts';
+import { AreaLink, Fact, Facts, Loading, PageError, PageTitle, Pill, Section } from './parts';
 
 /*
  * /company/subscription — the facts of the package (Owner, System Admin,
@@ -35,7 +35,8 @@ function Subscription() {
   const { state } = useLoad(controlApi.subscription);
 
   if (state.status === 'loading') return <Loading label={c.shell.loading} />;
-  if (state.status === 'error') return <Notice tone="error">{errorText(state.error, c)}</Notice>;
+  if (state.status === 'error')
+    return <PageError error={state.error}>{errorText(state.error, c)}</PageError>;
   const { subscription: sub, entitlements: e, departments, branches } = state.data;
   const plan = getPlan(planId(sub.plan));
   const max = e.maxDepartments === 'CUSTOM' ? DEPARTMENT_CODES.length : e.maxDepartments;

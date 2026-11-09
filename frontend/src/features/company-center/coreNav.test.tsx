@@ -1,9 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { apiRequest } from '@/lib/api';
 import type { CompanyRole } from '@/features/auth/api';
 import type { BranchInfo } from '@/features/company/api';
-import { fakeApi, identity, ok, signedIn } from '@/test/fakeApi';
+import { fail, fakeApi, identity, ok, signedIn } from '@/test/fakeApi';
 import { renderRoute } from '@/test/render';
 import type { BranchContext } from './api';
 
@@ -244,5 +245,50 @@ describe('CORE navigation (EP38.4)', () => {
     renderRoute('/core?lang=zh');
     expect(await within(document.body).findAllByText('新建销售订单')).not.toHaveLength(0);
     expect(screen.getByText('快捷操作')).toBeInTheDocument();
+  });
+});
+
+describe('Owner override in the CORE frame (EP41)', () => {
+  it('asks the owner in a dialog, then resends the decision once with the reason', async () => {
+    let n = 0;
+    const api = fakeApi({
+      ...as('COMPANY_OWNER', SALES_STAFF),
+      'POST /api/v1/sales/orders/so1/confirm': () =>
+        ++n === 1
+          ? fail(409, 'SELF_APPROVAL_NOT_ALLOWED', { decision: 'confirm', overridable: true })
+          : ok({ order: { id: 'so1', status: 'CONFIRMED' } }),
+    });
+    renderRoute('/core?lang=en');
+    await screen.findByRole('heading', { level: 1, name: 'CORE Operations' });
+    const decided = apiRequest('POST', '/api/v1/sales/orders/so1/confirm', {});
+    const dialog = await screen.findByRole('dialog', { name: 'Owner override' });
+    const confirm = within(dialog).getByRole('button', { name: 'Approve with owner override' });
+    expect(confirm).toBeDisabled();
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Only approver on site today');
+    await userEvent.click(confirm);
+    await expect(decided).resolves.toMatchObject({ order: { status: 'CONFIRMED' } });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(api.called('POST /api/v1/sales/orders/so1/confirm').map((c) => c.body)).toEqual([
+      {},
+      { ownerOverride: { reason: 'Only approver on site today' } },
+    ]);
+  });
+
+  it('cancelling the dialog sends nothing more', async () => {
+    const api = fakeApi({
+      ...as('COMPANY_OWNER', SALES_STAFF),
+      'POST /api/v1/sales/orders/so1/confirm': fail(409, 'SELF_APPROVAL_NOT_ALLOWED', {
+        overridable: true,
+      }),
+    });
+    renderRoute('/core?lang=en');
+    await screen.findByRole('heading', { level: 1, name: 'CORE Operations' });
+    const decided = apiRequest('POST', '/api/v1/sales/orders/so1/confirm', {}).catch(
+      (e: unknown) => e,
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Owner override' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(await decided).toMatchObject({ code: 'SELF_APPROVAL_NOT_ALLOWED' });
+    expect(api.called('POST /api/v1/sales/orders/so1/confirm')).toHaveLength(1);
   });
 });

@@ -216,7 +216,24 @@ production approval**. Docs: [docs/EP40_FINAL_REPORT.md](docs/EP40_FINAL_REPORT.
 [docs/EP40_SECURITY_AUDIT.md](docs/EP40_SECURITY_AUDIT.md),
 [docs/EP40_STRESS_REPORT.md](docs/EP40_STRESS_REPORT.md),
 [docs/EP40_RELIABILITY_REPORT.md](docs/EP40_RELIABILITY_REPORT.md).
-Next: EP41 (not started).
+
+**EP41** (completed locally, not pushed) hardens business controls and data integrity:
+- **Separation of duties** for nine decisions (PR, PO, sales confirmation, stock adjustment,
+  cycle count, production approval, material issue, output acceptance, finished-goods receipt).
+  - It is a per-company approval policy.
+  - The owner can override it explicitly, with a required reason, and the override is audited.
+  - Existing companies are unchanged until the owner switches.
+- **Database immutability** of the audit trail and of posted warehouse history (reversals
+  kept).
+- **Client request timeouts**, with no automatic retry of writes.
+- **Accessible 403 / 404 / unavailable pages.**
+- **Dependency audit:** 0 advisories.
+
+Not a production approval: the infrastructure items in the release-readiness checklist are
+open. Docs: [docs/EP41_FINAL_REPORT.md](docs/EP41_FINAL_REPORT.md),
+[docs/EP41_APPROVAL_POLICY.md](docs/EP41_APPROVAL_POLICY.md),
+[docs/EP41_RELEASE_READINESS.md](docs/EP41_RELEASE_READINESS.md).
+Next: EP42 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 

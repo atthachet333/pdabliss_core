@@ -18,7 +18,7 @@ import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
 import { PERMISSION_COPY } from './permissionCopy';
 import { errorText, eventLabel, useDateFormat, useDepartmentName, useLoad } from './model';
-import { AreaLink, Fact, Facts, Loading, Pill, Result, Section } from './parts';
+import { AreaLink, Fact, Facts, Loading, PageError, Pill, Result, Section } from './parts';
 import { BranchScopeEditor } from './UsersPage';
 
 /*
@@ -49,10 +49,9 @@ function MemberLoader({ memberId }: { memberId: string }) {
   if (state.status === 'error') {
     const missing = state.error instanceof ApiError && state.error.status === 404;
     return (
-      <div className="grid gap-4">
-        <BackLink />
-        <Notice tone="error">{missing ? a.member.notFound : errorText(state.error, c)}</Notice>
-      </div>
+      <PageError error={state.error} back={<BackLink />}>
+        {missing ? a.member.notFound : errorText(state.error, c)}
+      </PageError>
     );
   }
   return <Member data={state.data} replace={set} />;

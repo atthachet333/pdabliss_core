@@ -236,7 +236,9 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                     'px-3 pb-2 font-medium first:pl-4',
                     h === c.f.grandTotal && 'text-right',
                     (h === c.f.orderDate || h === c.f.expected) && 'md:max-lg:hidden',
-                    (h === c.f.requests || h === c.f.updated) && 'md:max-xl:hidden',
+                    // EP42.1: at 1280–1535 px the sidebar leaves too little room (ZH / EN
+                    // overflowed the page); the requests stay on the order page.
+                    (h === c.f.requests || h === c.f.updated) && 'md:max-2xl:hidden',
                   )}
                 >
                   {h}
@@ -290,7 +292,7 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                     <span className="font-mono text-caption">
                       {o.requests.map((r) => r.number).join(', ')}
                     </span>,
-                    'md:max-xl:hidden',
+                    'md:max-2xl:hidden',
                   )}
                   {cell(c.f.orderDate, date(o.orderDate), 'md:max-lg:hidden md:whitespace-nowrap')}
                   {cell(
@@ -303,7 +305,7 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                     <span className="tabular-nums">{money(o.grandTotal, o.currency)}</span>,
                     'md:text-right md:whitespace-nowrap',
                   )}
-                  {cell(c.f.updated, date(o.updatedAt), 'md:max-xl:hidden md:whitespace-nowrap')}
+                  {cell(c.f.updated, date(o.updatedAt), 'md:max-2xl:hidden md:whitespace-nowrap')}
                 </tr>
               );
             })}

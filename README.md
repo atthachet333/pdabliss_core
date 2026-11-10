@@ -233,7 +233,22 @@ Not a production approval: the infrastructure items in the release-readiness che
 open. Docs: [docs/EP41_FINAL_REPORT.md](docs/EP41_FINAL_REPORT.md),
 [docs/EP41_APPROVAL_POLICY.md](docs/EP41_APPROVAL_POLICY.md),
 [docs/EP41_RELEASE_READINESS.md](docs/EP41_RELEASE_READINESS.md).
-Next: EP42 (not started).
+
+**EP42.1** (completed locally, not pushed) prepares the first internal hands-on demo and the
+owner's UAT:
+- All nine demo personas, the demo data and every cross-department workflow re-verified against
+  the real API and authorization service (scratch databases and a verified copy of the
+  development database; the development database itself was only read).
+- Two small fixes: arrow keys in the Sales line-item search, and the Purchase-order list no
+  longer overflows at 1280 px.
+- A Thai demo guide, a Thai UAT checklist (not pre-marked) and a product gap matrix
+  (implemented / partial / planned against the confirmed direction).
+
+Docs: [docs/EP42_1_FINAL_REPORT.md](docs/EP42_1_FINAL_REPORT.md),
+[docs/EP42_1_DEMO_USER_GUIDE.md](docs/EP42_1_DEMO_USER_GUIDE.md),
+[docs/EP42_1_UAT_CHECKLIST.md](docs/EP42_1_UAT_CHECKLIST.md),
+[docs/EP42_1_PRODUCT_GAP_MATRIX.md](docs/EP42_1_PRODUCT_GAP_MATRIX.md).
+Next: EP42.2 — owner UAT (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 

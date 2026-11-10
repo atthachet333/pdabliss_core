@@ -432,8 +432,15 @@ describe('Sales orders (EP33)', () => {
     expect(api.called(`PUT ${S}/orders/o1/lines`)).toHaveLength(0);
     await userEvent.clear(qty);
     await userEvent.type(qty, '10');
-    await userEvent.type(screen.getByLabelText('Add an item'), 'RM');
-    await userEvent.click(await screen.findByRole('button', { name: /RM-000001 · Resin/ }));
+    // Keyboard, like the customer field (EP42.1): ↓ reaches the result, ↑ returns, Enter adds.
+    const search = screen.getByLabelText('Add an item');
+    await userEvent.type(search, 'RM');
+    const result = await screen.findByRole('button', { name: /RM-000001 · Resin/ });
+    await userEvent.keyboard('{ArrowDown}');
+    expect(result).toHaveFocus();
+    await userEvent.keyboard('{ArrowUp}');
+    expect(search).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}{Enter}');
     const kg = screen.getByLabelText('Quantity (KG)');
     await userEvent.clear(kg);
     await userEvent.type(kg, '0.125');

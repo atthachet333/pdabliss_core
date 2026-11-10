@@ -208,6 +208,10 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP42.1 — no budget changed; no recovery needed.** Two small fixes only: arrow-key movement in
+  the Sales line-item search and responsive column visibility on the Purchase-order list. All JS
+  **4,260.9 → 4,261.2 / 4,300 KiB (+0.3)**; headroom ≈ 38.8 KiB. Initial JS 182.7 / 205 KiB gzip,
+  static HTML 526.9 / 560 KiB (111 / 111 files) and initial CSS 50.6 / 52 KiB are unchanged.
 - **EP41 — no budget changed; no recovery needed.** What was added:
   - the Owner override dialog, in its **own lazy chunk**, loaded only when an owner meets
     `SELF_APPROVAL_NOT_ALLOWED`;

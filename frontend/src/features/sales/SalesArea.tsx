@@ -1427,8 +1427,19 @@ function ItemSearch({ onPick }: { onPick: (i: SoItem) => void }) {
       live = false;
     };
   }, [debounced]);
+  // ↓ / ↑ move between the search and its results, like the customer field above
+  // (EP42.1); Tab and Enter keep working as before.
+  const onArrow = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const list = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('li > button')];
+    if (!list.length) return;
+    const at = list.indexOf(document.activeElement as HTMLButtonElement);
+    const next = e.key === 'ArrowDown' ? Math.min(at + 1, list.length - 1) : at - 1;
+    e.preventDefault();
+    (next < 0 ? e.currentTarget.querySelector('input') : list[next])?.focus();
+  };
   return (
-    <div className="grid gap-2" data-item-search>
+    <div className="grid gap-2" data-item-search onKeyDown={onArrow}>
       <SearchBox
         id={id}
         label={c.addItem}

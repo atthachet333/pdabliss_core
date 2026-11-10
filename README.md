@@ -248,7 +248,21 @@ Docs: [docs/EP42_1_FINAL_REPORT.md](docs/EP42_1_FINAL_REPORT.md),
 [docs/EP42_1_DEMO_USER_GUIDE.md](docs/EP42_1_DEMO_USER_GUIDE.md),
 [docs/EP42_1_UAT_CHECKLIST.md](docs/EP42_1_UAT_CHECKLIST.md),
 [docs/EP42_1_PRODUCT_GAP_MATRIX.md](docs/EP42_1_PRODUCT_GAP_MATRIX.md).
-Next: EP42.2 — owner UAT (not started).
+
+**EP42.2** (completed locally, not pushed) adds an isolated **UAT sandbox** for the owner's
+full-system testing, separate from development:
+- frontend <http://127.0.0.1:1211>, backend <http://127.0.0.1:1212>, database `pdabliss_core_uat`
+  (`127.0.0.1` keeps its session cookie apart from development on `localhost`);
+- `uat/uat.mjs` (or `uat\uat.cmd` on Windows): `start`, `stop`, `status`, `doctor`, `init`, `verify`,
+  `backup`, `reset`, `restore`. It refuses any database other than `pdabliss_core_uat[_<suffix>]` on a
+  local server, never resets on start-up, backs up before every reset or restore, and stops only
+  the processes it started. Runtime data lives in `%USERPROFILE%\pdabliss_uat` (outside the repo).
+
+Docs (Thai): [docs/EP42_2_UAT_START_GUIDE.md](docs/EP42_2_UAT_START_GUIDE.md),
+[docs/EP42_2_OWNER_TEST_PLAN.md](docs/EP42_2_OWNER_TEST_PLAN.md),
+[docs/EP42_2_BUG_REGISTER.md](docs/EP42_2_BUG_REGISTER.md); report:
+[docs/EP42_2_SANDBOX_REPORT.md](docs/EP42_2_SANDBOX_REPORT.md). Human UAT: not started.
+Next: the owner's UAT in the sandbox, then EP42.3 (not started).
 
 ### Auth & Transactional Email Polish (EP24)
 

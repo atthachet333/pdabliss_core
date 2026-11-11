@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
 
@@ -30,6 +31,43 @@ const EnvSchema = z
           .filter(Boolean),
       )
       .pipe(z.array(z.url()).min(1)),
+    /**
+     * EP44: which proxies may report the client address (X-Forwarded-For). Unset = none (the
+     * socket address is the client). `loopback` = a proxy on this host (a Cloudflare tunnel
+     * connector, a local reverse proxy); or a comma list of exact IPs / CIDRs. "Trust everyone"
+     * (true, *, all, a hop count) is refused: any client could then choose its own address,
+     * slipping past rate limits and writing a false IP into the audit trail.
+     */
+    TRUST_PROXY: z
+      .string()
+      .optional()
+      .transform((v, ctx) => {
+        const raw = v?.trim();
+        if (!raw) return false as const;
+        if (/^(true|\*|all|yes|\d+)$/i.test(raw)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'refusing to trust every proxy — use "loopback" or explicit IPs / CIDRs',
+          });
+          return z.NEVER;
+        }
+        const parts = raw
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        for (const part of parts) {
+          const [ip, bits] = part.split('/');
+          const family = isIP(ip ?? '');
+          const okPreset = ['loopback', 'linklocal', 'uniquelocal'].includes(part);
+          const okBits =
+            bits === undefined || (/^\d+$/.test(bits) && Number(bits) <= (family === 6 ? 128 : 32));
+          if (!okPreset && (!family || !okBits)) {
+            ctx.addIssue({ code: 'custom', message: `not an IP, CIDR or preset: ${part}` });
+            return z.NEVER;
+          }
+        }
+        return parts;
+      }),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
     RATE_LIMIT_WINDOW: z.string().min(1).default('1 minute'),
     ENABLE_DEMO_ROUTES: z.stringbool().optional(),

@@ -57,7 +57,8 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
         : randomUUID();
     },
     bodyLimit: 1_048_576,
-    trustProxy: false,
+    // EP44: explicit list only (env TRUST_PROXY); off unless configured.
+    trustProxy: env.TRUST_PROXY === false ? false : env.TRUST_PROXY,
   });
 
   // JSON only: a text/plain body is a "simple" cross-origin request that skips
@@ -104,6 +105,11 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
   await app.register(cookie);
 
   registerErrorHandling(app);
+  if (env.NODE_ENV === 'production' && env.TRUST_PROXY === false) {
+    app.log.warn(
+      'TRUST_PROXY is not set: behind a tunnel or reverse proxy every request appears to come from the proxy (one shared rate limit, the proxy address in the audit trail). Set TRUST_PROXY=loopback for a connector on this host.',
+    );
+  }
 
   const ownsDb = !overrides.db && !!env.DATABASE_URL;
   const db = overrides.db ?? (env.DATABASE_URL ? createDb(env.DATABASE_URL) : null);

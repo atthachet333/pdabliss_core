@@ -9,6 +9,7 @@ For a developer or system administrator taking over CORE. Written in EP43 (2026-
 | **📝 PROPOSED** | design only                                       |
 | **⛔ BLOCKED**  | needs an owner / administrator decision (see §11) |
 
+Release gates and the production activation procedure: `docs/EP44_RELEASE_GATE_MATRIX.md`, `docs/EP44_INFRASTRUCTURE_ACTIVATION_PLAN.md`.
 Detail: `docs/EP43_INFRASTRUCTURE_AUDIT.md`, `EP43_BACKUP_RECOVERY_DESIGN.md`, `EP43_DISASTER_RECOVERY_RUNBOOK.md`,
 `EP43_DATABASE_ROLE_POLICY.md`, `EP43_MONITORING_DESIGN.md`.
 
@@ -53,11 +54,12 @@ Browser ──HTTPS──▶ [edge / Cloudflare tunnel — not part of CORE] ─
 | `ENABLE_DEMO_ROUTES`             | must stay off (it is off by default in production)                            |
 | `LOG_LEVEL`                      | `info`                                                                        |
 | `HOST`, `PORT`                   | bind to `127.0.0.1` behind the proxy, never to `0.0.0.0`                      |
+| `TRUST_PROXY`                    | `loopback` behind a same-host tunnel / proxy (EP44); unset otherwise          |
 
 Startup **fails closed** (✅ VERIFIED, `test/ep43-production-config.test.ts`): a missing `DATABASE_URL`,
 `PUBLIC_APP_URL`, `AUTH_SECRET` or `SMTP_HOST`, or the development secret, stops the server with the variable named.
 
-**⚠ Trust proxy.** `trustProxy` is off. Behind a tunnel or proxy every request then appears to come from the proxy:
+**Trust proxy (EP44).** Set `TRUST_PROXY=loopback` when the tunnel connector (`cloudflared`) or a reverse proxy runs on the same host: the client address is then the right-most address that proxy reports, so each client has its own rate limit and the audit log records real IPs. Explicit IPs or CIDRs are also accepted. "Trust everyone" (`true`, `*`, a hop count) is refused at start-up, and production without the setting logs a warning. Verified by tests (`test/ep44-trust-proxy.test.ts`). **Not yet verified through the real tunnel** (activation plan Phase 5).
 
 - the rate limit becomes shared by all users;
 - the IP address recorded in the audit log is the proxy's.
@@ -171,7 +173,7 @@ Escalate to the **owner** for any data loss, restore, credential exposure or pro
 | B3  | Activate the production backup profile and schedule backup / verify / retention / health                              |
 | B4  | Off-machine encrypted backup target, plus a tested restore from it                                                    |
 | B5  | Process supervisor choice and installation (service / PM2), log rotation                                              |
-| B6  | Trust-proxy setting for the tunnel (code change) and the HTTPS edge                                                   |
+| B6  | Trust-proxy code done in EP44 (`TRUST_PROXY`); still open: the HTTPS edge and verification through the real tunnel    |
 | B7  | `listen_addresses = 'localhost'` (needs a PostgreSQL restart)                                                         |
 | B8  | SMTP credentials and recipients for alerts                                                                            |
 | B9  | WAL archiving / PITR (if an RPO under 24 h is required)                                                               |

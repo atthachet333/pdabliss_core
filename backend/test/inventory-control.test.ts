@@ -1010,6 +1010,15 @@ describeDb('Inventory transfers, adjustments and cycle counts (EP32)', () => {
       delete body.total; // a row count, not money
       for (const k of keysOf(body)) expect(k, `${url} ${k}`).not.toMatch(MONEY);
     }
+    // EP42.4: each row says what it holds — item, quantity, unit, "+N more"; nothing else.
+    const trRow = (await ok(wh.get(TR))).items.find((x: J) => x.id === t.id);
+    expect(trRow.summary).toMatchObject({ quantity: '1', more: 0 });
+    expect(Object.keys(trRow.summary).sort()).toEqual(['code', 'more', 'name', 'quantity', 'unit']);
+    const adjRow = (await ok(wh.get(ADJ))).items.find((x: J) => x.id === adj);
+    expect(adjRow.summary.quantity).toMatch(/^[+-]\d/); // the change, signed by its direction
+    // A count is blind: its row names the items, never a quantity (the system one least of all).
+    const ccRow = (await ok(wh.get(CC))).items.find((x: J) => x.id === c.id);
+    expect(ccRow.summary === null || ccRow.summary.quantity === null).toBe(true);
     const p = await ok(wh.get(`${TR}?pageSize=1&page=1`));
     expect(p).toMatchObject({ total: 1, page: 1, pageSize: 1, hasMore: false });
     expect((await ok(wh.get(`${TR}?status=POSTED`))).total).toBe(1);

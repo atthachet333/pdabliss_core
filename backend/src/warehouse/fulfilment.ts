@@ -653,6 +653,16 @@ export class FulfilmentService {
           createdBy: person,
           shipment: { select: { id: true, number: true } },
           _count: { select: { lines: true } },
+          // EP42.4: the first line — packed quantity of what was picked for it.
+          lines: {
+            orderBy: { lineNo: 'asc' },
+            take: 1,
+            select: {
+              quantity: true,
+              orderLine: lineRef,
+              pickLine: { select: { pickedQuantity: true } },
+            },
+          },
         },
       }),
       this.db.salesPack.count({ where }),
@@ -666,6 +676,16 @@ export class FulfilmentService {
           packageCount: p.packageCount,
           packageReference: p.packageReference,
           shipment: p.shipment,
+          summary: lineSummary(
+            p.lines.map((l) => ({
+              ...l.orderLine,
+              quantity: l.quantity,
+              picked: l.pickLine.pickedQuantity,
+            })),
+            (l) => l.quantity,
+            p._count.lines,
+            (l) => l.picked,
+          ),
         }),
       ),
       total,
@@ -903,12 +923,33 @@ export class FulfilmentService {
           order: orderRef,
           createdBy: person,
           _count: { select: { lines: true } },
+          // EP42.4: the first line — delivered quantity of what was shipped.
+          lines: {
+            orderBy: { lineNo: 'asc' },
+            take: 1,
+            select: { quantity: true, deliveredQuantity: true, orderLine: lineRef },
+          },
         },
       }),
       this.db.salesShipment.count({ where }),
     ]);
     return page(
-      rows.map((s) => ShipmentRow.parse({ ...this.shipmentRow(s), lineCount: s._count.lines })),
+      rows.map((s) =>
+        ShipmentRow.parse({
+          ...this.shipmentRow(s),
+          lineCount: s._count.lines,
+          summary: lineSummary(
+            s.lines.map((l) => ({
+              ...l.orderLine,
+              quantity: l.quantity,
+              delivered: l.deliveredQuantity,
+            })),
+            (l) => l.delivered,
+            s._count.lines,
+            (l) => l.quantity,
+          ),
+        }),
+      ),
       total,
       q,
     );

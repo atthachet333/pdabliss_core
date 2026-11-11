@@ -29,6 +29,29 @@ export default function CountsArea() {
           ctx={ctx}
           canCreate={ctx.cycleCounts.create}
           statuses={['DRAFT', 'COUNTING', 'REVIEW', 'POSTED', 'CANCELLED']}
+          // EP42.4: start counting → send for review → confirm the result.
+          next={(r) =>
+            r.status === 'DRAFT'
+              ? k.act.start
+              : r.status === 'COUNTING'
+                ? k.act.review
+                : r.status === 'REVIEW'
+                  ? k.act.postCount
+                  : null
+          }
+          // Counted figures only — the system quantity of a blind count never appears here.
+          preview={(d) =>
+            d.lines.map((l) => ({
+              key: l.id,
+              code: l.item.code,
+              name: l.item.name,
+              quantity: l.countedQuantity ?? '—',
+              unit: l.countedQuantity === null ? null : l.unit.code,
+              extra: [l.location.code, l.lot?.lotNumber ?? l.newLot?.lotNumber]
+                .filter(Boolean)
+                .join(' · '),
+            }))
+          }
           columns={[
             {
               head: k.f.locations,
@@ -41,7 +64,6 @@ export default function CountsArea() {
               cell: (r) => (
                 <span className="tabular-nums">{`${r.countedLines}/${r.lineCount} · Δ ${r.varianceLines}`}</span>
               ),
-              minor: true,
             },
           ]}
         />

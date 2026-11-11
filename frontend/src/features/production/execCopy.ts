@@ -97,8 +97,6 @@ const th = {
   count: (n: number) => `${n} รายการ`,
   none: 'ยังไม่มีรายการ',
   issuesLead: 'ใบเบิกวัตถุดิบของสาขา: ฉบับร่างแก้ไขได้ ผ่านรายการแล้วแก้ไม่ได้',
-  reservationsLead: 'ใบสั่งผลิตที่อนุมัติแล้วและสถานะการจองวัตถุดิบ',
-  executionLead: 'ใบสั่งผลิตที่กำลังผลิตหรือหยุดชั่วคราว',
   handoff: {
     title: 'ใบเบิกวัตถุดิบเพื่อการผลิต',
     lead: 'สำหรับคลังสินค้า: วัตถุดิบที่ต้องจ่ายและที่จ่ายออกแล้ว (ตำแหน่ง ล็อต จำนวน) — อ่านอย่างเดียว',
@@ -233,8 +231,6 @@ export const EXEC_COPY: Localized<ExecCopy> = {
     none: 'Nothing here yet',
     issuesLead:
       'Material issues of your branches: drafts can be edited, posted issues never change.',
-    reservationsLead: 'Approved production orders and how far their materials are reserved.',
-    executionLead: 'Production orders in production or paused.',
     handoff: {
       title: 'Production material issues',
       lead: 'For the warehouse: materials to hand over and handed over (location, lot, quantity) — read only.',
@@ -356,8 +352,6 @@ export const EXEC_COPY: Localized<ExecCopy> = {
     count: (n: number) => `${n} 条`,
     none: '暂无记录',
     issuesLead: '您所在分支的领料单：草稿可编辑，已过账不可更改。',
-    reservationsLead: '已审批的生产订单及其物料预留进度。',
-    executionLead: '生产中或已暂停的生产订单。',
     handoff: {
       title: '生产领料单',
       lead: '供仓库查看：待交付与已交付的物料（库位、批次、数量）——只读。',

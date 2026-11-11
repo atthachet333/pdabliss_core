@@ -222,6 +222,8 @@ export const TransferRow = z.object({
   lineCount: z.number(),
   createdBy: person,
   updatedAt: z.string(),
+  /** EP42.4: first line (item, quantity, unit) and how many more — operational only. */
+  summary: LineSummary.optional(),
 });
 
 const transferLine = z.object({
@@ -271,6 +273,8 @@ export const AdjustmentRow = z.object({
   createdBy: person,
   approvedBy: person,
   updatedAt: z.string(),
+  /** EP42.4: first line (item, quantity, unit) and how many more — operational only. */
+  summary: LineSummary.optional(),
 });
 
 const adjustmentLine = z.object({
@@ -317,6 +321,8 @@ export const CountRow = z.object({
   varianceLines: z.number(),
   createdBy: person,
   updatedAt: z.string(),
+  /** EP42.4: first line (item, quantity, unit) and how many more — operational only. */
+  summary: LineSummary.optional(),
 });
 
 const countLine = z.object({
@@ -362,5 +368,6 @@ export const CONTROL_FIELD_CLASSES: Record<string, DataClass> = Object.fromEntri
     ...Object.keys(adjustmentLine.shape),
     ...Object.keys(CountView.shape),
     ...Object.keys(countLine.shape),
+    ...LINE_SUMMARY_KEYS,
   ].map((k) => [k, 'operational' as const]),
 );

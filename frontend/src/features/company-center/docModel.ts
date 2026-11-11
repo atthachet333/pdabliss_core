@@ -15,6 +15,7 @@ const th = {
   none: 'ยังไม่มีรายการ',
   loading: 'กำลังโหลดรายการ…',
   failed: 'โหลดรายการไม่สำเร็จ — เปิดเอกสารฉบับเต็มแทน',
+  denied: 'คุณไม่มีสิทธิ์ดูรายการของเอกสารนี้',
 };
 type DocCopy = typeof th;
 export const DOC_COPY: Localized<DocCopy> = {
@@ -31,6 +32,7 @@ export const DOC_COPY: Localized<DocCopy> = {
     none: 'No lines yet',
     loading: 'Loading lines…',
     failed: 'Could not load the lines — open the full document instead.',
+    denied: 'You do not have access to this document’s lines.',
   },
   'zh-CN': {
     items: '物料',
@@ -44,6 +46,7 @@ export const DOC_COPY: Localized<DocCopy> = {
     none: '暂无明细',
     loading: '正在加载明细…',
     failed: '明细加载失败 — 请打开完整单据。',
+    denied: '您无权查看此单据的明细。',
   },
 };
 
@@ -51,9 +54,12 @@ export const DOC_COPY: Localized<DocCopy> = {
 export type LineSummary = {
   code: string | null;
   name: string;
-  quantity: string;
+  /** null where a list must not show it (a blind cycle count). */
+  quantity: string | null;
   unit: string | null;
   more: number;
+  /** EP42.4: what the quantity is measured against (packed OF picked); the column names it. */
+  of?: string | null;
 } | null;
 
 /**

@@ -412,6 +412,71 @@ describe('Inventory control (EP32)', () => {
     expect(await screen.findByText(/Stock changed after counting started/)).toBeInTheDocument();
   });
 
+  // EP42.4: a row says what is moved / changed / counted and what comes next; its preview
+  // reads the document once, shows the lines and offers no action of its own.
+  it('lists say what each document holds and what comes next; the preview is read-only', async () => {
+    // A list row is the document without its lines and actions, plus the server's summary.
+    const row = (d: Transfer, summary: object) => ({
+      ...Object.fromEntries(
+        Object.entries(d).filter(([key]) => key !== 'lines' && key !== 'actions'),
+      ),
+      summary,
+    });
+    const api = fakeApi(
+      as(false, {
+        [`GET ${W}/transfers`]: ok({
+          items: [
+            row(transfer(), {
+              code: ITEM.code,
+              name: ITEM.name,
+              quantity: '4',
+              unit: 'PCS',
+              more: 0,
+            }),
+            row(transfer({ id: 't2', number: 'TR-202611-000002', status: 'POSTED' }), {
+              code: ITEM.code,
+              name: ITEM.name,
+              quantity: '2',
+              unit: 'PCS',
+              more: 1,
+            }),
+          ],
+          total: 2,
+          page: 1,
+          pageSize: 25,
+          hasMore: false,
+        }),
+        [`GET ${W}/transfers/t1`]: ok({ transfer: transfer(), timeline: tl('TRANSFER_CREATED') }),
+      }),
+    );
+    renderRoute('/core/warehouse/transfers?lang=en');
+    const draft = (await screen.findByRole('link', { name: 'TR-202611-000001' })).closest('tr')!;
+    const posted = screen.getByRole('link', { name: 'TR-202611-000002' }).closest('tr')!;
+    expect(draft.querySelector('[data-line-summary]')).toHaveTextContent(ITEM.name);
+    expect(draft.querySelector('[data-line-summary]')).toHaveTextContent('4 PCS');
+    expect(posted.querySelector('[data-line-summary]')).toHaveTextContent('+ 1 more');
+    // Only the draft has a next step (it is posted next); a posted transfer is done.
+    expect(draft.querySelector('[data-next-action]')).not.toBeNull();
+    expect(posted.querySelector('[data-next-action]')).toBeNull();
+    expect(within(draft).getByText(`${MAIN.code} → ${QC.code}`)).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    const toggle = within(draft).getByRole('button', { name: /TR-202611-000001/ });
+    await user.click(toggle);
+    const region = await screen.findByRole('region', { name: /TR-202611-000001/ });
+    await waitFor(() => expect(region).toHaveTextContent('4 PCS'));
+    expect(within(region).queryByRole('button')).toBeNull();
+    expect(within(region).getByRole('link')).toHaveAttribute(
+      'href',
+      '/core/warehouse/transfers/t1',
+    );
+    await user.click(toggle);
+    await user.click(toggle);
+    await screen.findByRole('region', { name: /TR-202611-000001/ });
+    expect(api.called(`GET ${W}/transfers/t1`)).toHaveLength(1);
+    expect(document.getElementById('main')!.textContent).not.toMatch(MONEY);
+  });
+
   it('movements: EP32 types are labelled and link their documents', async () => {
     const mv = (over: Partial<MovementRow>): MovementRow => ({
       id: 'm',

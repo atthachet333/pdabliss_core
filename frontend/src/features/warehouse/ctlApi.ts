@@ -1,3 +1,4 @@
+import type { LineSummary } from '@/features/company-center/docModel';
 import { apiRequest } from '@/lib/api';
 import type { Page, Ref, Tracking } from './whApi';
 
@@ -70,6 +71,8 @@ export type DocItem = Ref & { lotTracking: Tracking; expiryTracking: Tracking };
 type Unit = { code: string; precision: number };
 
 interface Common {
+  /** EP42.4: first line (item, quantity, unit), how many more; operational only. */
+  summary?: LineSummary;
   id: string;
   number: string;
   branch: Ref;
@@ -162,6 +165,8 @@ export interface Count extends Common {
 
 /** The common shape of an EP35 fulfilment document (no money anywhere). */
 interface Fulfilment {
+  /** EP42.3 (picks) / EP42.4 (packs, shipments): first line and how many more. */
+  summary?: LineSummary;
   id: string;
   number: string;
   branch: Ref;

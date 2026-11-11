@@ -27,6 +27,7 @@ import type { WarehouseContext } from './whApi';
  */
 
 export default function TransfersArea() {
+  const { k } = useCtl();
   return (
     <DocArea
       kind="transfers"
@@ -36,9 +37,21 @@ export default function TransfersArea() {
           ctx={ctx}
           canCreate={ctx.transfers.create}
           statuses={['DRAFT', 'POSTED', 'CANCELLED']}
+          // EP42.4: a draft is posted next (one step: no in-transit stage to show).
+          next={(r) => (r.status === 'DRAFT' ? k.act.post : null)}
+          preview={(d) =>
+            d.lines.map((l) => ({
+              key: l.id,
+              code: l.item.code,
+              name: l.item.name,
+              quantity: l.quantity,
+              unit: l.unit.code,
+              extra: l.lot ? l.lot.lotNumber : undefined,
+            }))
+          }
           columns={[
             {
-              head: '→',
+              head: `${k.f.from} → ${k.f.to}`,
               cell: (r) => (
                 <span className="font-mono whitespace-nowrap">{`${r.source.code} → ${r.destination.code}`}</span>
               ),

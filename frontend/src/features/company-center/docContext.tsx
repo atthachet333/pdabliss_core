@@ -2,6 +2,7 @@ import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import type { DepartmentCode } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
+import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { DOC_COPY, type LineSummary } from './docModel';
 import { useDepartmentName } from './model';
@@ -28,9 +29,18 @@ export function LineSummaryText({ s }: { s: LineSummary | undefined }) {
         {s.name}
       </span>
       <span className="text-caption text-text-secondary tabular-nums">
-        {s.quantity}
-        {s.unit && ` ${s.unit}`}
-        {s.more > 0 && <span className="ml-2 text-text-muted">{d.more(s.more)}</span>}
+        {s.quantity !== null && (
+          <>
+            {s.quantity}
+            {s.of !== undefined && s.of !== null && ` / ${s.of}`}
+            {s.unit && ` ${s.unit}`}
+          </>
+        )}
+        {s.more > 0 && (
+          <span className={cn('text-text-muted', s.quantity !== null && 'ml-2')}>
+            {d.more(s.more)}
+          </span>
+        )}
       </span>
     </span>
   );
@@ -38,17 +48,29 @@ export function LineSummaryText({ s }: { s: LineSummary | undefined }) {
 
 /** "→ Warehouse": the department this document waits on (null = nothing pending). */
 export function NextStep({ dept }: { dept: DepartmentCode | null }) {
-  const d = useCopy(DOC_COPY);
   const name = useDepartmentName();
   if (!dept) return null;
+  return <NextAction label={name(dept)} data={{ 'data-next-dept': dept }} />;
+}
+
+/**
+ * EP42.4: "→ Dispatch" — the next step of a document inside one department (the action's
+ * own label). Presentation only: it says what comes next, not that this person may do it.
+ */
+export function NextAction({
+  label,
+  data = { 'data-next-action': true },
+}: {
+  label: string | null;
+  data?: Record<`data-${string}`, string | boolean>;
+}) {
+  const d = useCopy(DOC_COPY);
+  if (!label) return null;
   return (
-    <span
-      className="mt-1 flex items-center gap-1 text-caption whitespace-nowrap text-text-muted"
-      data-next-dept={dept}
-    >
+    <span className="mt-1 flex items-center gap-1 text-caption text-text-muted" {...data}>
       <span className="sr-only">{d.next}: </span>
       <ArrowRight aria-hidden className="size-3.5 shrink-0 text-brand-soft" />
-      {name(dept)}
+      {label}
     </span>
   );
 }
@@ -64,7 +86,10 @@ export interface PreviewLine {
 }
 
 type State =
-  { status: 'loading' } | { status: 'error' } | { status: 'ready'; lines: PreviewLine[] };
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'denied' }
+  | { status: 'ready'; lines: PreviewLine[] };
 
 /**
  * A table row with a read-only preview: `row(toggle)` renders the row with the toggle
@@ -106,7 +131,12 @@ function usePreview(load: () => Promise<PreviewLine[]>, href: string, label: str
       setState({ status: 'loading' });
       load().then(
         (lines) => setState({ status: 'ready', lines }),
-        () => setState({ status: 'error' }),
+        // A refusal (no access to this document's lines) says so, not "try the full page".
+        (e: unknown) =>
+          setState({
+            status:
+              e instanceof ApiError && (e.status === 403 || e.status === 404) ? 'denied' : 'error',
+          }),
       );
     }
   };
@@ -143,9 +173,13 @@ function usePreview(load: () => Promise<PreviewLine[]>, href: string, label: str
           >
             {state.status === 'loading' ? (
               <Loading label={d.loading} />
-            ) : state.status === 'error' ? (
-              <p role="alert" className="py-2 text-caption text-[#f3cf8a]">
-                {d.failed}
+            ) : state.status === 'error' || state.status === 'denied' ? (
+              <p
+                role="alert"
+                className="py-2 text-caption text-[#f3cf8a]"
+                data-preview-state={state.status}
+              >
+                {state.status === 'denied' ? d.denied : d.failed}
               </p>
             ) : state.lines.length === 0 ? (
               <p className="py-2 text-caption text-text-muted">{d.none}</p>

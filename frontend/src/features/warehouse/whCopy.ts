@@ -165,7 +165,6 @@ const th = {
   useRemaining: 'รับทั้งหมดที่เหลือ',
   allocations: 'จัดเก็บที่',
   allocated: (a: string, total: string) => `จัดเก็บแล้ว ${a} จาก ${total}`,
-  nothingYet: 'ยังไม่ได้ระบุ',
   draftNote:
     'กรอกจำนวนที่รับเข้าและที่ปฏิเสธในแต่ละรายการ แล้วระบุตำแหน่ง (และล็อต) ของจำนวนที่รับเข้า สต็อกจะเพิ่มเมื่อกด “บันทึกรับสินค้า” เท่านั้น',
   post: 'บันทึกรับสินค้า',
@@ -185,7 +184,6 @@ const th = {
   } as Record<string, string>,
   system: 'ระบบ',
   noAccess: 'คุณไม่มีสิทธิ์ใช้งานส่วนนี้',
-  reversed: 'กลับรายการแล้ว',
   errors: {
     STOCK_RESERVED: 'สต็อกนี้ถูกจองไว้แล้ว (ฝ่ายขายหรือการผลิต) — ปลดการจองก่อน',
     CONCURRENT_UPDATE: 'มีการเปลี่ยนสต็อกเดียวกันพร้อมกัน ลองอีกครั้ง',
@@ -364,7 +362,6 @@ const en: WhCopy = {
   useRemaining: 'Accept all that remains',
   allocations: 'Put away to',
   allocated: (a: string, total: string) => `Allocated ${a} of ${total}`,
-  nothingYet: 'Not entered yet',
   draftNote:
     'Enter what was accepted and rejected on each line, then where the accepted quantity goes (and its lot). Stock changes only when you post the receipt.',
   post: 'Post receipt',
@@ -385,7 +382,6 @@ const en: WhCopy = {
   },
   system: 'System',
   noAccess: 'You do not have access to this area.',
-  reversed: 'Reversed',
   errors: {
     STOCK_RESERVED:
       'This stock is reserved (for sales or production) — release the reservation first.',
@@ -560,7 +556,6 @@ const zh: WhCopy = {
   useRemaining: '全部接收剩余数量',
   allocations: '存放至',
   allocated: (a: string, total: string) => `已分配 ${a} / ${total}`,
-  nothingYet: '尚未填写',
   draftNote:
     '在每行填写接收与拒收数量，再填写接收数量的存放库位（及批次）。只有过账后库存才会变化。',
   post: '过账收货单',
@@ -580,7 +575,6 @@ const zh: WhCopy = {
   },
   system: '系统',
   noAccess: '您无权访问此区域。',
-  reversed: '已冲销',
   errors: {
     STOCK_RESERVED: '该库存已被预留（销售或生产）— 请先释放预留。',
     CONCURRENT_UPDATE: '同一库存同时发生了变更，请重试。',

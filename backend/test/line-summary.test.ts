@@ -29,6 +29,35 @@ describe('line summary (EP42.3)', () => {
     expect(s).toEqual({ code: null, name: 'Office chair', quantity: '2.5', unit: null, more: 3 });
   });
 
+  it('EP42.4: measures the figure against another (packed of picked) and can leave it out', () => {
+    const lines = [
+      {
+        itemCode: 'PK-1',
+        itemName: 'Box',
+        unitCode: 'BOX',
+        packed: d('6.000000'),
+        picked: d('10'),
+      },
+    ];
+    expect(
+      lineSummary(
+        lines,
+        (l) => l.packed,
+        1,
+        (l) => l.picked,
+      ),
+    ).toEqual({
+      code: 'PK-1',
+      name: 'Box',
+      quantity: '6',
+      unit: 'BOX',
+      more: 0,
+      of: '10',
+    });
+    expect(lineSummary(lines, () => null)).toMatchObject({ quantity: null });
+    expect(LineSummary.parse(lineSummary(lines, () => null))).toBeTruthy();
+  });
+
   it('is null for a document without lines', () => {
     expect(lineSummary([], () => d('1'))).toBeNull();
   });

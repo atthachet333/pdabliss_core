@@ -46,6 +46,7 @@ import {
 } from './policy.js';
 import { TransferRow, TransferView } from './views.js';
 import { stockReserved, usableOf } from './reservations.js';
+import { itemLine, lineSummary } from '../lib/line-summary.js';
 
 /*
  * Inventory transfers (EP32) — docs/INVENTORY_TRANSFER.md. Moves existing
@@ -139,6 +140,11 @@ export class TransferService {
       destination: t.destinationLocation,
       transferDate: day(t.transferDate)!,
       lineCount: t.lines.length,
+      // EP42.4: what is being moved — first item, quantity, unit, "+N more".
+      summary: lineSummary(
+        t.lines.map((l) => ({ ...itemLine(l.item), quantity: l.quantity })),
+        (l) => l.quantity,
+      ),
       createdBy: who(t.createdBy),
       updatedAt: t.updatedAt.toISOString(),
     };

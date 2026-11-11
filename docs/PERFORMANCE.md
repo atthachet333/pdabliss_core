@@ -208,6 +208,15 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP42.4 — no budget changed; JS recovered first.** Before adding UI, a source-mapped build was
+  attributed per module (no module appears in two chunks; unused exports are already tree-shaken), so
+  the safe recovery was dead copy: 26 keys never read anywhere, removed from TH / EN / ZH (78 entries,
+  every candidate checked by hand) — about **−5.8 KiB**. Then the Warehouse list summaries, next
+  actions and previews (+≈2.5 KiB, in the existing `ctlParts` / area chunks) and the signed-in
+  dictionary wait (`AuthLocale wait`). All JS **4,273.1 → 4,270.0 / 4,300 KiB (−3.1)**; headroom
+  ≈ 30 KiB. Initial JS **182.7 → 182.9 / 205 KiB gzip**; static HTML **526.9 → 525.6 / 560 KiB**
+  (111 / 111 files); initial CSS 50.8 / 52 KiB gzip unchanged. Remaining weight is live TH / EN / ZH
+  copy, React and the separately budgeted CORE World chunk — further safe recovery is limited.
 - **EP42.3 — no budget changed; no recovery needed.** Document context and workspace layout:
   the shared `company-center/docContext.tsx` + `docModel.ts` (row item summary, next-department hint,
   read-only row preview; its TH / EN / ZH copy), summary columns and previews in six lists, the

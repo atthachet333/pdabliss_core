@@ -52,6 +52,7 @@ import {
 } from './policy.js';
 import { AdjustmentRow, AdjustmentView } from './views.js';
 import { stockReserved, usableOf } from './reservations.js';
+import { itemLine, lineSummary } from '../lib/line-summary.js';
 
 /*
  * Stock adjustments (EP32) — docs/STOCK_ADJUSTMENT.md. A controlled
@@ -133,6 +134,12 @@ export class AdjustmentService {
       adjustmentDate: day(d.adjustmentDate)!,
       locations: [...new Set(d.lines.map((l) => l.location.code))],
       lineCount: d.lines.length,
+      // EP42.4: first line's item and its change, signed (+ increase, − decrease). Quantities
+      // only — an adjustment carries no cost or value anywhere.
+      summary: lineSummary(
+        d.lines.map((l) => ({ ...itemLine(l.item), quantity: l.quantity, direction: l.direction })),
+        (l) => `${l.direction === 'DECREASE' ? '-' : '+'}${l.quantity.toString()}`,
+      ),
       createdBy: who(d.createdBy),
       approvedBy: who(d.approvedBy),
       updatedAt: d.updatedAt.toISOString(),

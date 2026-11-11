@@ -4,8 +4,6 @@ import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
 import { useDateFormat } from '@/features/company-center/model';
 import { AreaLink, Fact, Facts, Pill, Section } from '@/features/company-center/parts';
-import { DOC_COPY, type LineSummary } from '@/features/company-center/docModel';
-import { LineSummaryText } from '@/features/company-center/docContext';
 import { useCopy } from '@/i18n/useCopy';
 import type { Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
@@ -296,7 +294,7 @@ const where = (l: { location: { code: string }; lot: { lotNumber: string } | nul
 
 export default function FulfilmentArea({ kind }: { kind: FKind }) {
   const F = useCopy(FUL_COPY);
-  const d = useCopy(DOC_COPY);
+  const { date } = useDateFormat();
   return (
     <DocArea
       kind={kind}
@@ -317,26 +315,57 @@ export default function FulfilmentArea({ kind }: { kind: FKind }) {
               head: F.f.order,
               cell: (r) => <span className="font-mono whitespace-nowrap">{r.order.number}</span>,
             },
-            // EP42.3: what the pick holds (first item, planned quantity, "+N more").
-            ...(kind === 'picks'
-              ? [
-                  {
-                    head: d.items,
-                    cell: (r: object) => (
-                      <LineSummaryText s={'summary' in r ? (r.summary as LineSummary) : null} />
-                    ),
-                  },
-                ]
-              : []),
             ...(kind === 'shipments'
               ? [
                   {
                     head: F.f.shipTo,
                     cell: (r: object) => ('shipToName' in r ? `${r.shipToName as string}` : ''),
                   },
+                  // EP42.4: when it left and when it arrived (dates the server recorded).
+                  ...(['dispatchedAt', 'deliveredAt'] as const).map((key) => ({
+                    head: key === 'dispatchedAt' ? F.f.dispatched : F.f.delivered,
+                    cell: (r: object) => {
+                      const at = (r as Partial<Record<typeof key, string | null>>)[key];
+                      return at ? date(at) : '—';
+                    },
+                    minor: true,
+                  })),
                 ]
               : []),
           ]}
+          // EP42.4: the pair the summary shows, and the next step in Warehouse (presentation only).
+          summaryHead={
+            kind === 'packs'
+              ? `${F.f.item} (${F.f.packed} / ${F.f.picked})`
+              : kind === 'shipments'
+                ? `${F.f.item} (${F.f.delivered} / ${F.f.quantity})`
+                : undefined
+          }
+          next={(r) =>
+            r.status === 'DRAFT'
+              ? kind === 'picks'
+                ? F.act.start
+                : F.act.confirmPack
+              : r.status === 'IN_PROGRESS'
+                ? F.act.confirmPick
+                : r.status === 'PACKED' && !(r as { shipment?: unknown }).shipment
+                  ? F.act.ship
+                  : r.status === 'READY'
+                    ? F.act.dispatch
+                    : r.status === 'DISPATCHED' && kind === 'shipments'
+                      ? F.act.deliver
+                      : null
+          }
+          preview={(doc) =>
+            (doc.lines as (Pick | Pack | Shipment)['lines'][number][]).map((l) => ({
+              key: l.id,
+              code: l.item.code,
+              name: l.item.name,
+              quantity: 'planned' in l ? l.planned : l.quantity,
+              unit: l.unit.code,
+              extra: 'delivered' in l ? `${F.f.delivered} ${l.delivered} · ${where(l)}` : where(l),
+            }))
+          }
         />
       )}
       create={null}

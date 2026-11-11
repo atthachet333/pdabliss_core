@@ -43,7 +43,7 @@ export function SignedInArea({
   const identity = useIdentity();
   const fallback = identity.status === 'ready' ? identity.identity.user.locale : undefined;
   return (
-    <AuthLocale fallback={fallback}>
+    <AuthLocale fallback={fallback} wait>
       <Guard area={area}>{children}</Guard>
     </AuthLocale>
   );

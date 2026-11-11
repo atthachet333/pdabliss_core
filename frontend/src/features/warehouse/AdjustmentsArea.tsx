@@ -51,12 +51,27 @@ export default function AdjustmentsArea() {
             param: 'reason',
             options: ADJ_REASONS.map((r) => [r, k.reasons[r]]),
           }}
+          // EP42.4: draft → submitted for approval → approved (and posted); quantities only.
+          next={(r) =>
+            r.status === 'DRAFT' ? k.act.submit : r.status === 'SUBMITTED' ? k.act.approve : null
+          }
+          preview={(d) =>
+            d.lines.map((l) => ({
+              key: l.id,
+              code: l.item.code,
+              name: l.item.name,
+              quantity: `${l.direction === 'DECREASE' ? '-' : '+'}${l.quantity}`,
+              unit: l.unit.code,
+              extra: [l.location.code, l.lot?.lotNumber ?? l.newLot?.lotNumber]
+                .filter(Boolean)
+                .join(' · '),
+            }))
+          }
           columns={[
             { head: c.f.reason, cell: (r) => k.reasons[r.reason] },
             {
               head: c.f.location,
               cell: (r) => <span className="font-mono">{r.locations.join(', ') || '—'}</span>,
-              minor: true,
             },
           ]}
         />

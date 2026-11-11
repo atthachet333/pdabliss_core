@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { PlatformOverview } from '@/features/auth/api';
@@ -571,6 +571,59 @@ describe('Company Explorer (EP24.1)', () => {
     await waitFor(() => expect(router.state.location.search).toBe(''));
     // Many real interaction steps: more than the default budget under a parallel run.
   }, 20_000);
+
+  // EP42.4: two filters chosen before the Explorer re-renders are both kept (React Router builds
+  // the next URL from the last render's params, even in its function form — EP42.3.1).
+  it('two filters changed in one tick are both kept in the URL and the request', async () => {
+    const api = fakeApi({
+      ...owner(),
+      'GET /api/v1/platform/companies': ok({
+        companies: [row(1)],
+        total: 1,
+        nextCursor: null,
+        developmentActivation: true,
+      }),
+    });
+    const { router } = renderRoute('/platform/companies');
+    await screen.findByRole('heading', { level: 1, name: 'Company Explorer' });
+    await screen.findByText('แสดง 1 จาก 1 บริษัท');
+    fireEvent.change(screen.getByLabelText('แพ็กเกจ'), { target: { value: 'STARTER' } });
+    fireEvent.change(document.querySelector('select[id$="-subscriptionStatus"]')!, {
+      target: { value: 'ACTIVE' },
+    });
+    await waitFor(() =>
+      expect(api.calls.at(-1)!.query).toMatchObject({
+        plan: 'STARTER',
+        subscriptionStatus: 'ACTIVE',
+      }),
+    );
+    expect(router.state.location.search).toContain('plan=STARTER');
+    expect(router.state.location.search).toContain('subscriptionStatus=ACTIVE');
+  });
+
+  // EP42.4: the debounced search writes the URL on its own timer; a filter chosen while that
+  // write is pending must survive it (and the search must survive the filter).
+  it('a filter chosen right after typing a search keeps both', async () => {
+    const api = fakeApi({
+      ...owner(),
+      'GET /api/v1/platform/companies': ok({
+        companies: [row(1)],
+        total: 1,
+        nextCursor: null,
+        developmentActivation: true,
+      }),
+    });
+    const { router } = renderRoute('/platform/companies');
+    await screen.findByText('แสดง 1 จาก 1 บริษัท');
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('searchbox', { name: 'ค้นหา' }), 'alpha');
+    await user.selectOptions(screen.getByLabelText('แพ็กเกจ'), 'STARTER');
+    await waitFor(() =>
+      expect(api.calls.at(-1)!.query).toMatchObject({ q: 'alpha', plan: 'STARTER' }),
+    );
+    expect(router.state.location.search).toContain('plan=STARTER');
+    expect(router.state.location.search).toContain('q=alpha');
+  });
 
   it('opens with filters from the URL (links from the overview)', async () => {
     const api = fakeApi({

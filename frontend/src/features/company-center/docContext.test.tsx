@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { LineSummaryText, NextStep, Previewable } from './docContext';
 import { DOC_COPY, usePreviewCache, type LineSummary } from './docModel';
+import { ApiError } from '@/lib/api';
 
 /*
  * EP42.3 document context (UI): a row says what the document holds and who it waits on;
@@ -121,6 +122,33 @@ describe('document context (EP42.3)', () => {
     await user.click(toggle);
     await screen.findByText('Oil');
     expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('EP42.4: a figure measured against another ("6 / 10 BOX"); a blind count shows no quantity', () => {
+    at(
+      <>
+        <LineSummaryText
+          s={{ code: 'PK-1', name: 'Box', quantity: '6', unit: 'BOX', more: 0, of: '10' }}
+        />
+        <LineSummaryText
+          s={{ code: 'FG-1', name: 'Cream', quantity: null, unit: 'PCS', more: 1 }}
+        />
+      </>,
+    );
+    const [packed, counted] = document.querySelectorAll('[data-line-summary]');
+    expect(packed!.textContent).toContain('6 / 10 BOX');
+    expect(counted!.textContent).not.toMatch(/\d+ PCS/);
+    expect(counted!.textContent).toContain(d.more(1));
+  });
+
+  it('EP42.4: a refused read says the lines are not this person’s to see', async () => {
+    const load = vi.fn(() => Promise.reject(new ApiError(403, 'FORBIDDEN', 'no')));
+    const user = userEvent.setup();
+    at(<Table load={load} />);
+    await user.click(screen.getByRole('button', { name: `${d.preview} — PO-1` }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(d.denied);
+    expect(alert).toHaveAttribute('data-preview-state', 'denied');
   });
 
   it('preview: a failed read says so (with the way on) and is tried again on the next opening', async () => {

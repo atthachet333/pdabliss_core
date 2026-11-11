@@ -846,6 +846,11 @@ describeDb('Sales fulfilment (EP35)', () => {
         /(?<![\w.])185(\.0+)?(?![\w.])|(?<![\w.])370(\.0+)?(?![\w.])|CUS-000001/,
       );
     }
+    // EP42.4: rows name what they hold — packed OF picked, delivered OF shipped (quantities only).
+    const packRow = (await ok(w.get(`${W}/packs`))).items.find((x: J) => x.id === pack.id);
+    expect(packRow.summary).toMatchObject({ quantity: '2', of: '2', more: 0 });
+    const shipRow = (await ok(w.get(`${W}/shipments`))).items.find((x: J) => x.id === ship.id);
+    expect(shipRow.summary).toMatchObject({ quantity: '0', of: '2', more: 0 });
     // Executive reads, never acts; System Admin (no Warehouse) and Sales cannot touch fulfilment.
     const exec = await as('exec@a.example');
     expect((await exec.get(`${W}/shipments/${ship.id}`)).statusCode).toBe(200);

@@ -89,6 +89,8 @@ export const PackRow = z.object({
   packageCount: z.number(),
   packageReference: z.string().nullable(),
   shipment: z.object({ id: z.string(), number: z.string() }).nullable(),
+  /** EP42.4: first line (item, quantity, unit) and how many more — operational only. */
+  summary: LineSummary.optional(),
 });
 
 const packLine = z.object({
@@ -132,6 +134,8 @@ export const ShipmentRow = z.object({
   trackingReference: z.string().nullable(),
   dispatchedAt: z.string().nullable(),
   deliveredAt: z.string().nullable(),
+  /** EP42.4: first line (item, quantity, unit) and how many more — operational only. */
+  summary: LineSummary.optional(),
 });
 
 const shipmentLine = z.object({

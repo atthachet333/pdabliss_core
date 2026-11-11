@@ -49,6 +49,7 @@ import {
   type WarehouseActor,
 } from './policy.js';
 import { CountRow, CountView } from './views.js';
+import { itemLine, lineSummary } from '../lib/line-summary.js';
 
 /*
  * Cycle counts (EP32) — docs/CYCLE_COUNT.md. Physical counting of the stock of
@@ -128,6 +129,12 @@ export class CountService {
       lineCount: c.lines.length,
       countedLines: c.lines.filter((l) => l.countedQuantity !== null).length,
       varianceLines: c.lines.filter((l) => variance(l)?.isZero() === false).length,
+      // EP42.4: which items are counted — no quantity: a count is blind, so the system
+      // quantity never reaches a list (progress and variance lines are the figures above).
+      summary: lineSummary(
+        c.lines.map((l) => itemLine(l.item)),
+        () => null,
+      ),
       createdBy: who(c.createdBy),
       updatedAt: c.updatedAt.toISOString(),
     };

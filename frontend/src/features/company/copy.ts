@@ -157,15 +157,9 @@ const th = {
     onboarding: 'การเริ่มใช้งาน',
     status: 'สถานะบริษัท',
     created: 'สร้างเมื่อ',
-    onboardingStatuses: { IN_PROGRESS: 'ยังไม่ครบ', COMPLETED: 'ครบแล้ว' },
     none: '—',
     activate: 'เปิดใช้งาน (พัฒนา/ทดสอบเท่านั้น)',
-    activateHint:
-      'เฉพาะสภาพแวดล้อมพัฒนา/ทดสอบ: เปิดสมาชิกภาพโดยไม่มีการชำระเงิน และบันทึกในประวัติ — ไม่มีในระบบจริง',
-    activating: 'กำลังเปิดใช้งาน…',
     activated: (name: string) => `เปิดใช้งาน ${name} แล้ว (พัฒนา/ทดสอบ — ไม่มีการชำระเงิน)`,
-    activateFailed: 'เปิดใช้งานไม่สำเร็จ',
-    stepUpNeeded: 'ต้องยืนยันรหัสทางอีเมลอีกครั้งก่อน (ออกจากระบบแล้วเข้าใหม่)',
   },
 };
 
@@ -329,15 +323,9 @@ export const COMPANY_COPY: Localized<CompanyCopy> = {
       onboarding: 'Onboarding',
       status: 'Company status',
       created: 'Created',
-      onboardingStatuses: { IN_PROGRESS: 'In progress', COMPLETED: 'Completed' },
       none: '—',
       activate: 'Activate (development / test only)',
-      activateHint:
-        'Development and test environments only: activates the subscription without payment and records it in the audit trail — absent in production.',
-      activating: 'Activating…',
       activated: (name: string) => `${name} activated (development / test — no payment)`,
-      activateFailed: 'Activation failed',
-      stepUpNeeded: 'Confirm with an emailed code first (sign out and in again)',
     },
   },
   'zh-CN': {
@@ -488,15 +476,9 @@ export const COMPANY_COPY: Localized<CompanyCopy> = {
       onboarding: '开始使用',
       status: '公司状态',
       created: '创建时间',
-      onboardingStatuses: { IN_PROGRESS: '进行中', COMPLETED: '已完成' },
       none: '—',
       activate: '开通（仅限开发 / 测试）',
-      activateHint:
-        '仅限开发与测试环境：无需付款即可开通订阅，并记录在审计记录中 — 生产环境不存在。',
-      activating: '正在开通…',
       activated: (name: string) => `${name} 已开通（开发 / 测试 — 无付款）`,
-      activateFailed: '开通失败',
-      stepUpNeeded: '请先通过邮件验证码确认（退出后重新登录）',
     },
   },
 };

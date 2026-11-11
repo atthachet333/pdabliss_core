@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useId,
   useRef,
@@ -13,6 +14,13 @@ import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
 import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
+import {
+  LineSummaryText,
+  NextAction,
+  Previewable,
+  type PreviewLine,
+} from '@/features/company-center/docContext';
+import { DOC_COPY, usePreviewCache } from '@/features/company-center/docModel';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import {
   AreaLink,
@@ -23,6 +31,7 @@ import {
   Section,
 } from '@/features/company-center/parts';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
+import { useCopy } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
 import {
   ctlApi,
@@ -121,6 +130,8 @@ export interface Column<K extends DocKind> {
   cell: (r: RowOf<K>) => ReactNode;
   /** Hidden between md and lg (secondary facts). */
   minor?: boolean;
+  /** EP42.4: shown only from 1536 px (who / when — the document page has them). */
+  wide?: boolean;
 }
 
 /** A server-paged, filterable list of one document kind. */
@@ -131,6 +142,9 @@ export function DocList<K extends DocKind>({
   columns,
   extraFilter,
   canCreate,
+  summaryHead,
+  next,
+  preview,
 }: {
   kind: K;
   ctx: WarehouseContext;
@@ -138,8 +152,18 @@ export function DocList<K extends DocKind>({
   columns: Column<K>[];
   extraFilter?: { label: string; param: string; options: [string, string][] };
   canCreate: boolean;
+  /** EP42.4: the summary column's heading where its pair needs naming ("Packed / Picked"). */
+  summaryHead?: string;
+  /** EP42.4: the document's next step in Warehouse, by state (presentation only). */
+  next?: (r: RowOf<K>) => string | null;
+  /** EP42.4: the lines a row preview shows, from the document this person may already open. */
+  preview?: (doc: DocOf<K>) => PreviewLine[];
 }) {
   const { c, k, err } = useCtl();
+  const d = useCopy(DOC_COPY);
+  const read = usePreviewCache((id: string) =>
+    ctlApi.get(kind, id).then((x) => preview!(docOf(kind, x))),
+  );
   const { date } = useDateFormat();
   const base = useId();
   const [params] = useSearchParams();
@@ -167,15 +191,23 @@ export function DocList<K extends DocKind>({
         </AreaLink>
       ),
     },
-    { head: c.f.status, cell: (r) => <DocStatusPill status={r.status} /> },
-    ...columns,
     {
-      head: c.f.lines,
-      cell: (r) => <span className="tabular-nums">{r.lineCount}</span>,
-      minor: true,
+      head: c.f.status,
+      cell: (r) => (
+        <>
+          <DocStatusPill status={r.status} />
+          {next && <NextAction label={next(r)} />}
+        </>
+      ),
     },
-    { head: c.f.by, cell: (r) => r.createdBy?.name ?? '—', minor: true },
-    { head: c.f.date, cell: (r) => date(r.updatedAt), minor: true },
+    ...columns,
+    // EP42.4: what the document holds, instead of a bare line count.
+    {
+      head: summaryHead ?? d.items,
+      cell: (r) => <LineSummaryText s={r.summary} />,
+    },
+    { head: c.f.by, cell: (r) => r.createdBy?.name ?? '—', wide: true },
+    { head: c.f.date, cell: (r) => date(r.updatedAt), wide: true },
   ];
   return (
     <>
@@ -253,6 +285,7 @@ export function DocList<K extends DocKind>({
                   className={cn(
                     'px-3 pb-2 font-medium first:pl-4',
                     col.minor && 'md:max-lg:hidden',
+                    col.wide && 'md:max-2xl:hidden',
                   )}
                 >
                   {col.head}
@@ -261,19 +294,45 @@ export function DocList<K extends DocKind>({
             </tr>
           </thead>
           <tbody className="max-md:grid max-md:grid-cols-1 max-md:gap-2">
-            {data.items.map((r) => (
-              <tr key={r.id} className={ROW} data-doc={r.number}>
-                {cols.map((col) => (
-                  <td
-                    key={col.head}
-                    data-label={col.head}
-                    className={cn(CELL, col.minor && 'md:max-lg:hidden')}
-                  >
-                    {col.cell(r)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {data.items.map((r) => {
+              const row = (toggle: ReactNode) => (
+                <tr className={ROW} data-doc={r.number}>
+                  {cols.map((col, i) => (
+                    <td
+                      key={col.head}
+                      data-label={col.head}
+                      className={cn(
+                        CELL,
+                        i === 0 && 'max-md:before:hidden',
+                        col.minor && 'md:max-lg:hidden',
+                        col.wide && 'max-md:hidden! md:max-2xl:hidden',
+                      )}
+                    >
+                      {i === 0 ? (
+                        <span className="inline-flex items-center">
+                          {col.cell(r)}
+                          {toggle}
+                        </span>
+                      ) : (
+                        col.cell(r)
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+              return preview ? (
+                <Previewable
+                  key={r.id}
+                  load={() => read(r.id)}
+                  href={`${WH}/${kind}/${encodeURIComponent(r.id)}`}
+                  label={r.number}
+                  colSpan={cols.length}
+                  row={row}
+                />
+              ) : (
+                <Fragment key={r.id}>{row(null)}</Fragment>
+              );
+            })}
           </tbody>
         </table>
       )}

@@ -46,6 +46,8 @@ const passwordOf = (email: string) =>
 /** Routes a visitor may call without a session (each still validates its input). */
 const PUBLIC = [
   /^GET \/health$/,
+  // EP43: readiness for monitors — statuses only, no host / database / migration names (readiness.test.ts).
+  /^GET \/health\/ready$/,
   /^GET \/api\/v1\/?$/,
   /^GET \/api\/v1\/packages$/,
   /^GET \/api\/v1\/demo\//,
@@ -234,8 +236,8 @@ describeDb('EP40 security sweeps', () => {
   it('the route table is what the audit covers (no unexpected public routes)', () => {
     expect(routes.length).toBeGreaterThan(250);
     const publics = routes.filter(isPublic).map((r) => `${r.method} ${r.path}`);
-    // 18 = health, the API index (2), packages, three demo routes, eleven auth entry points.
-    expect(publics).toHaveLength(18);
+    // 19 = health + readiness (EP43), the API index (2), packages, three demo routes, eleven auth entry points.
+    expect(publics).toHaveLength(19);
   });
 
   it('anonymous: every non-public route answers 401, none fails with 5xx', async () => {

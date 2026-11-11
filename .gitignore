@@ -36,3 +36,7 @@ Thumbs.db
 
 # Local git backup bundles (never committed)
 /EP37-backup.bundle
+
+# EP43 ops: the real config (paths, env-file names) stays local
+ops/ops.config.json
+ops-logs/

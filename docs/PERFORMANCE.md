@@ -208,6 +208,12 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP43 — no frontend change; budgets unchanged.** EP43 added a backend readiness route and the
+  `ops/` operations tooling only. All JS 4,270.0 / 4,300 KiB, initial JS 182.9 / 205 KiB gzip,
+  static HTML 525.6 / 560 KiB (re-measured by the EP43 build). Operations overhead measured: a
+  health cycle 0.56 s wall / 44 ms CPU / ≈ 71 MB RSS / 0 database connections; backup + restore
+  verification of the UAT database 0.7 s + ≈ 2 s, ≈ 62 MB peak (Node; `pg_dump` / `pg_restore` are
+  separate processes).
 - **EP42.4 — no budget changed; JS recovered first.** Before adding UI, a source-mapped build was
   attributed per module (no module appears in two chunks; unused exports are already tree-shaken), so
   the safe recovery was dead copy: 26 keys never read anywhere, removed from TH / EN / ZH (78 entries,

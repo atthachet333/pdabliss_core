@@ -1,0 +1,95 @@
+{
+  "_readme": "Copy to ops/ops.config.json (git-ignored) and edit. No credentials in this file: connections come from env files named below. Paths may start with ~/ (the user's home). Backup folders must be outside the repository and outside OneDrive or any cloud-sync folder.",
+  "pgBin": "C:/Program Files/PostgreSQL/18/bin",
+  "logDir": "~/pdabliss_core_ops/logs",
+  "runDir": "~/pdabliss_core_ops/run",
+  "logRotation": { "maxBytes": 5242880, "keep": 5 },
+  "profiles": {
+    "dev": {
+      "enabled": true,
+      "kind": "development",
+      "envFile": "backend/.env",
+      "envKey": "DATABASE_URL",
+      "database": "pdabliss_core_dev",
+      "backupDir": "~/pdabliss_core_backups/dev"
+    },
+    "uat": {
+      "enabled": true,
+      "kind": "uat",
+      "envFile": "backend/.env",
+      "envKey": "DATABASE_URL",
+      "credentialsOnly": true,
+      "database": "pdabliss_core_uat",
+      "backupDir": "~/pdabliss_core_backups/uat"
+    },
+    "production": {
+      "enabled": false,
+      "approvedBy": null,
+      "kind": "production",
+      "envFile": "C:/ProgramData/pdabliss-core/core-backup.env",
+      "envKey": "CORE_BACKUP_DATABASE_URL",
+      "database": "pdabliss_core",
+      "backupDir": "E:/pdabliss-core-backups/production",
+      "_note": "Inactive until approved. Use the core_backup role (read-only), never postgres. Off-machine copy: see docs/EP43_BACKUP_RECOVERY_DESIGN.md."
+    }
+  },
+  "verify": {
+    "_note": "Where restore verification creates its disposable core_restorecheck_* database. Omit to use the profile's own server.",
+    "envFile": "backend/.env",
+    "envKey": "CORE_VERIFY_DATABASE_URL"
+  },
+  "retention": {
+    "allowDirs": ["~/pdabliss_core_backups/dev", "~/pdabliss_core_backups/uat"],
+    "policy": { "daily": 7, "weekly": 4, "monthly": 6, "minKeep": 3 }
+  },
+  "storage": {
+    "thresholds": {
+      "observePct": 70,
+      "warningPct": 80,
+      "criticalPct": 90,
+      "warningFreeGB": 20,
+      "criticalFreeGB": 10
+    },
+    "volumes": [
+      {
+        "name": "database",
+        "path": "C:/Program Files/PostgreSQL/18/data",
+        "diagnose": []
+      },
+      {
+        "name": "backups",
+        "path": "~/pdabliss_core_backups",
+        "diagnose": [
+          "~/pdabliss_core_backups/dev",
+          "~/pdabliss_core_backups/uat"
+        ]
+      },
+      {
+        "name": "logs",
+        "path": "~/pdabliss_core_ops/logs",
+        "diagnose": ["~/pdabliss_core_ops/logs"]
+      }
+    ]
+  },
+  "health": {
+    "intervalSeconds": 60,
+    "timeoutMs": 5000,
+    "retries": 2,
+    "retryDelayMs": 1000,
+    "frontendUrl": "http://127.0.0.1:1211/login",
+    "backendUrl": "http://127.0.0.1:1212",
+    "statusFile": "~/pdabliss_core_ops/run/health-status.json",
+    "backups": [
+      {
+        "profile": "uat",
+        "dir": "~/pdabliss_core_backups/uat",
+        "maxAgeHours": 26,
+        "criticalAgeHours": 50
+      }
+    ]
+  },
+  "alerts": {
+    "email": { "enabled": false, "to": [] },
+    "line": { "enabled": false }
+  }
+}

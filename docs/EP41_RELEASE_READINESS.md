@@ -7,6 +7,23 @@ Status as of EP41 (2026-11-09). This is a **checklist**, not an implementation.
 - Items marked **Operator** must be built, configured and verified on the target infrastructure
   before a production release.
 
+> **EP43 update (2026-11-11):** the infrastructure foundation now exists in `ops/` and is verified
+> on disposable environments — see [CORE_OPERATIONS_HANDBOOK.md](CORE_OPERATIONS_HANDBOOK.md) and
+> [EP43_FINAL_REPORT.md](EP43_FINAL_REPORT.md). Status per section below:
+>
+> | § | EP43 status |
+> | --- | --- |
+> | 1 Production configuration | fail-closed startup re-verified; trust-proxy for the tunnel still open (B6) |
+> | 2 Backups and verified restore | **tooling verified** (backup, 7-check restore verification, scratch restore, GFS retention); production schedule and off-machine copy not active (B3, B4) |
+> | 3 Migration and rollback | procedure in the handbook §7–8; migrations proven to run as a non-superuser owner |
+> | 4 Monitoring and alerts | readiness endpoint + monitor + storage alerts verified; email / LINE not active (B8) |
+> | 5 Log retention and redaction | redaction verified; ops logs rotate; backend log rotation needs the supervisor (B5) |
+> | 6 Data retention | decisions listed in `EP43_MONITORING_DESIGN.md` §6 (B11) |
+> | 7 Incident response | 12-scenario runbook `EP43_DISASTER_RECOVERY_RUNBOOK.md` |
+> | 8 Load testing | unchanged (not done) |
+> | 9 Independent security review | unchanged (not done) |
+> | Least-privilege database role | **designed and verified on a disposable cluster** (17/17 forbidden operations refused, 51/51 regression as `core_app`); not applied to any persistent server (B2) |
+
 Legend:
 - **In code** — implemented and tested in this repository.
 - **Documented** — the procedure is written down, never exercised on production.

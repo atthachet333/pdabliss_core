@@ -21,7 +21,7 @@ import { v1Routes, type AccountServices } from './routes/v1/index.js';
 const REQUEST_ID_HEADER = 'x-request-id';
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._-]{8,128}$/;
 
-function loggerOptions(env: Env): FastifyServerOptions['logger'] {
+export function loggerOptions(env: Env): FastifyServerOptions['logger'] {
   if (env.NODE_ENV === 'test') return false;
   return {
     level: env.LOG_LEVEL,
@@ -146,7 +146,7 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
     app.decorateRequest('auth', null);
   }
 
-  await app.register(healthRoutes, { environment: env.NODE_ENV });
+  await app.register(healthRoutes, { environment: env.NODE_ENV, db });
   await app.register(v1Routes, {
     prefix: '/api/v1',
     env,

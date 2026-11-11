@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { DataClass } from '../domain/access/data-classification.js';
+import { LineSummary } from '../lib/line-summary.js';
 import { AVAILABILITY } from './input.js';
 
 /*
@@ -39,6 +40,8 @@ export const SoRow = z.object({
   orderDate: z.string(),
   requestedDate: z.string().nullable(),
   lineCount: z.number(),
+  /** EP42.3: the first line (item, quantity, unit) and how many more — operational. */
+  summary: LineSummary.optional(),
   currency: z.string(),
   grandTotal: z.string(),
   /** Now, from the ledger — informational, never a reservation (null for CANCELLED). */

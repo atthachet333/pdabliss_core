@@ -1,3 +1,4 @@
+import type { LineSummary } from '@/features/company-center/docModel';
 import type { DepartmentCode } from '@/features/company/api';
 import { apiRequest } from '@/lib/api';
 import type { PrBranch } from './api';
@@ -174,6 +175,8 @@ export interface OrderRow {
   orderDate: string;
   expectedDate: string | null;
   lineCount: number;
+  /** EP42.3: first line, quantity, unit and how many more (operational, no money). */
+  summary?: LineSummary;
   requests: { id: string; number: string }[];
   updatedAt: string;
 }
@@ -205,6 +208,8 @@ export interface DepositOrder {
   deposit: Deposit;
   receiving: Receiving;
   lineCount: number;
+  /** EP42.3: first line, quantity, unit and how many more (operational, no money). */
+  summary?: LineSummary;
 }
 
 export interface DepositDetail {
@@ -228,6 +233,8 @@ export interface ReceiveOrder {
   pendingReceiveAt: string | null;
   receiving: Receiving;
   lineCount: number;
+  /** EP42.3: first line, quantity, unit and how many more (operational, no money). */
+  summary?: LineSummary;
 }
 
 export type Tracking = 'NONE' | 'OPTIONAL' | 'REQUIRED';
@@ -379,3 +386,13 @@ export const receiveApi = {
   get: (id: string) =>
     apiRequest<ReceiveDetail>('GET', `/api/v1/warehouse/pending-receive/${encodeURIComponent(id)}`),
 };
+
+/** EP42.3: a line as the list preview shows it (identity, quantity, unit — never money). */
+export const previewLine = (l: OperationalLine, quantity = l.quantity, extra?: string) => ({
+  key: l.id,
+  code: l.item?.code ?? null,
+  name: l.item?.name ?? l.description ?? '',
+  quantity,
+  unit: l.unit?.code ?? l.unit?.name ?? null,
+  extra,
+});

@@ -4,6 +4,8 @@ import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
 import { useDateFormat } from '@/features/company-center/model';
 import { AreaLink, Fact, Facts, Pill, Section } from '@/features/company-center/parts';
+import { DOC_COPY, type LineSummary } from '@/features/company-center/docModel';
+import { LineSummaryText } from '@/features/company-center/docContext';
 import { useCopy } from '@/i18n/useCopy';
 import type { Localized } from '@/i18n/useCopy';
 import { cn } from '@/lib/cn';
@@ -294,6 +296,7 @@ const where = (l: { location: { code: string }; lot: { lotNumber: string } | nul
 
 export default function FulfilmentArea({ kind }: { kind: FKind }) {
   const F = useCopy(FUL_COPY);
+  const d = useCopy(DOC_COPY);
   return (
     <DocArea
       kind={kind}
@@ -314,6 +317,17 @@ export default function FulfilmentArea({ kind }: { kind: FKind }) {
               head: F.f.order,
               cell: (r) => <span className="font-mono whitespace-nowrap">{r.order.number}</span>,
             },
+            // EP42.3: what the pick holds (first item, planned quantity, "+N more").
+            ...(kind === 'picks'
+              ? [
+                  {
+                    head: d.items,
+                    cell: (r: object) => (
+                      <LineSummaryText s={'summary' in r ? (r.summary as LineSummary) : null} />
+                    ),
+                  },
+                ]
+              : []),
             ...(kind === 'shipments'
               ? [
                   {

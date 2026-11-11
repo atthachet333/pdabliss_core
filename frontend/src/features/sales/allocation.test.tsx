@@ -419,7 +419,9 @@ describe('Warehouse Pending Pick and reserved stock (EP34)', () => {
     expect(
       api.calls.some((c) => c.path === `${W}/pending-pick` && c.query.readiness === 'READY'),
     ).toBe(true);
-    expect(screen.getByRole('link', { name: 'Pending pick' })).toHaveAttribute(
+    // EP42.3: the CORE sidebar lists the same section; the workspace's own tab is checked here.
+    const tabs = document.querySelector<HTMLElement>('[data-warehouse-nav]')!;
+    expect(within(tabs).getByRole('link', { name: 'Pending pick' })).toHaveAttribute(
       'href',
       '/core/warehouse/pending-pick',
     );

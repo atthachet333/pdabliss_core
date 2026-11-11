@@ -54,6 +54,7 @@ import {
   type WarehouseActor,
 } from './policy.js';
 import { expiryStateOf } from './service.js';
+import { lineSummary } from '../lib/line-summary.js';
 
 /*
  * Sales fulfilment (EP35) — docs/SALES_FULFILLMENT.md. Picks, packs and
@@ -282,6 +283,12 @@ export class FulfilmentService {
           order: orderRef,
           createdBy: person,
           _count: { select: { lines: true } },
+          // EP42.3: the first line (item, planned quantity, unit) for the row summary.
+          lines: {
+            orderBy: { lineNo: 'asc' },
+            take: 1,
+            select: { plannedQuantity: true, orderLine: lineRef },
+          },
         },
       }),
       this.db.salesPick.count({ where }),
@@ -292,6 +299,11 @@ export class FulfilmentService {
           ...this.common(p),
           status: p.status,
           lineCount: p._count.lines,
+          summary: lineSummary(
+            p.lines.map((l) => ({ ...l.orderLine, plannedQuantity: l.plannedQuantity })),
+            (l) => l.plannedQuantity,
+            p._count.lines,
+          ),
         }),
       ),
       total,

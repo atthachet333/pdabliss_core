@@ -1,11 +1,21 @@
 import { FilePlus2 } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
 import { BranchCode, FieldGroup } from '@/features/company-center/adminParts';
 import { CELL, useDateFormat, useDepartmentName, useLoad } from '@/features/company-center/model';
+import { DOC_COPY, usePreviewCache } from '@/features/company-center/docModel';
+import { LineSummaryText, NextStep, Previewable } from '@/features/company-center/docContext';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import {
   AreaLink,
@@ -25,6 +35,7 @@ import {
   decimals,
   PO_STATUSES,
   poApi,
+  previewLine,
   PRICE,
   QTY,
   RATE,
@@ -95,6 +106,13 @@ function BackLink({ to, label }: { to: string; label: string }) {
 
 // ------------------------------------------------------------------ list
 
+/** EP42.3: who an order waits on (the server's transitions; presentation only). */
+const PO_NEXT: Partial<Record<OrderRow['status'], 'PURCHASING' | 'ACCOUNTING' | 'WAREHOUSE'>> = {
+  DRAFT: 'PURCHASING',
+  WAITING_DEPOSIT: 'ACCOUNTING',
+  PENDING_RECEIVE: 'WAREHOUSE',
+};
+
 function OrderList({ ctx }: { ctx: PoContext }) {
   const c = useCopy(ORDER_COPY);
   const cc = useCopy(CONTROL_COPY);
@@ -111,6 +129,25 @@ function OrderList({ ctx }: { ctx: PoContext }) {
   const [error, setError] = useState<unknown>(null);
   const [more, setMore] = useState(false);
   const request = useRef(0);
+  const d = useCopy(DOC_COPY);
+  // EP42.3: lines and what is still to receive, read once per order (Purchasing view only).
+  const preview = usePreviewCache((id: string) =>
+    poApi
+      .get(id)
+      .then((r) =>
+        r.view === 'purchasing'
+          ? r.order.lines.map((l) =>
+              previewLine(
+                l,
+                l.quantity,
+                r.order.status === 'PENDING_RECEIVE' && l.receiving.remaining !== '0'
+                  ? d.left(`${l.receiving.remaining} ${l.unit?.code ?? ''}`.trim())
+                  : undefined,
+              ),
+            )
+          : [],
+      ),
+  );
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 300);
     return () => clearTimeout(t);
@@ -222,6 +259,7 @@ function OrderList({ ctx }: { ctx: PoContext }) {
               {[
                 c.f.number,
                 c.f.status,
+                d.items,
                 c.f.branch,
                 c.f.requests,
                 c.f.orderDate,
@@ -236,6 +274,8 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                     'px-3 pb-2 font-medium first:pl-4',
                     h === c.f.grandTotal && 'text-right',
                     (h === c.f.orderDate || h === c.f.expected) && 'md:max-lg:hidden',
+                    // EP42.3: the branch code repeats the page filter; wide screens only.
+                    h === c.f.branch && 'md:max-xl:hidden',
                     // EP42.1: at 1280–1535 px the sidebar leaves too little room (ZH / EN
                     // overflowed the page); the requests stay on the order page.
                     (h === c.f.requests || h === c.f.updated) && 'md:max-2xl:hidden',
@@ -253,22 +293,26 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                   {content}
                 </td>
               );
-              return (
+              const href = `${BASE}/${encodeURIComponent(o.id)}`;
+              const row = (toggle: ReactNode) => (
                 <tr
-                  key={o.id}
                   className="border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4"
                   data-order={o.number}
                 >
                   {cell(
                     c.f.number,
                     <>
-                      <AreaLink
-                        to={`${BASE}/${encodeURIComponent(o.id)}`}
-                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
-                      >
-                        {o.number}
-                      </AreaLink>
-                      <span className="block max-w-40 truncate text-caption text-text-muted lg:max-w-72">
+                      <span className="inline-flex items-center">
+                        <AreaLink
+                          to={href}
+                          className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
+                        >
+                          {o.number}
+                        </AreaLink>
+                        {toggle}
+                      </span>
+                      {/* EP42.3: the supplier in full (it wraps) — it names the order. */}
+                      <span className="block max-w-72 text-caption break-words text-text-secondary">
                         {o.supplier?.name ?? c.noSupplier}
                       </span>
                     </>,
@@ -276,16 +320,21 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                   )}
                   {cell(
                     c.f.status,
-                    <span className="flex flex-wrap gap-1.5">
-                      <PoStatusPill status={o.status} />
-                      {o.deposit.status !== 'NOT_REQUIRED' && (
-                        <DepositPill status={o.deposit.status} />
-                      )}
-                    </span>,
+                    <>
+                      <span className="flex flex-wrap gap-1.5">
+                        <PoStatusPill status={o.status} />
+                        {o.deposit.status !== 'NOT_REQUIRED' && (
+                          <DepositPill status={o.deposit.status} />
+                        )}
+                      </span>
+                      <NextStep dept={PO_NEXT[o.status] ?? null} />
+                    </>,
                   )}
+                  {cell(d.items, <LineSummaryText s={o.summary} />, 'md:min-w-48')}
                   {cell(
                     c.f.branch,
                     <BranchCode code={o.branch.code} head={o.branch.code === '00000'} />,
+                    'md:max-xl:hidden',
                   )}
                   {cell(
                     c.f.requests,
@@ -307,6 +356,19 @@ function OrderList({ ctx }: { ctx: PoContext }) {
                   )}
                   {cell(c.f.updated, date(o.updatedAt), 'md:max-2xl:hidden md:whitespace-nowrap')}
                 </tr>
+              );
+              // The Executive's order view has no lines — the row summary is all there is.
+              return ctx.executive ? (
+                <Fragment key={o.id}>{row(null)}</Fragment>
+              ) : (
+                <Previewable
+                  key={o.id}
+                  load={() => preview(o.id)}
+                  href={href}
+                  label={o.number}
+                  colSpan={9}
+                  row={row}
+                />
               );
             })}
           </tbody>

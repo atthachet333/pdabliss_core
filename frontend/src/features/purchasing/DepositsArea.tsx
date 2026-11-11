@@ -4,6 +4,8 @@ import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
+import { DOC_COPY } from '@/features/company-center/docModel';
+import { LineSummaryText } from '@/features/company-center/docContext';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import {
   AreaLink,
@@ -49,6 +51,7 @@ function DepositRoute() {
 
 function DepositList() {
   const c = useCopy(ORDER_COPY);
+  const d = useCopy(DOC_COPY);
   const cc = useCopy(CONTROL_COPY);
   const money = useMoney();
   const { date } = useDateFormat();
@@ -136,6 +139,7 @@ function DepositList() {
               {[
                 c.f.number,
                 c.f.status,
+                d.items,
                 c.f.branch,
                 c.f.grandTotal,
                 c.f.depositAmount,
@@ -148,6 +152,7 @@ function DepositList() {
                     'px-3 pb-2 font-medium first:pl-4',
                     (h === c.f.grandTotal || h === c.f.depositAmount) && 'text-right',
                     h === c.f.grandTotal && 'md:max-lg:hidden',
+                    h === c.f.branch && 'md:max-xl:hidden',
                   )}
                 >
                   {h}
@@ -177,16 +182,19 @@ function DepositList() {
                       >
                         {o.number}
                       </AreaLink>
-                      <span className="block max-w-40 truncate text-caption text-text-muted lg:max-w-72">
+                      {/* EP42.3: the supplier in full (it wraps) — it names the order. */}
+                      <span className="block max-w-72 text-caption break-words text-text-secondary">
                         {o.supplier.name}
                       </span>
                     </>,
                     'max-md:before:hidden',
                   )}
                   {cell(c.f.status, <DepositPill status={o.deposit.status} />)}
+                  {cell(d.items, <LineSummaryText s={o.summary} />, 'md:min-w-48')}
                   {cell(
                     c.f.branch,
                     <BranchCode code={o.branch.code} head={o.branch.code === '00000'} />,
+                    'md:max-xl:hidden',
                   )}
                   {cell(
                     c.f.grandTotal,

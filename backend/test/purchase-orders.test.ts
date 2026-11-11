@@ -1034,6 +1034,12 @@ describeDb('Purchase orders (EP30)', () => {
     const list = await wh.get(RECEIVE);
     expect(list.statusCode).toBe(200);
     expect(j(list).items.map((x: J) => x.number)).toEqual([ready.number]);
+    // EP42.3: the row says what is still to receive — first line, quantity, unit, "+N more" —
+    // and nothing commercial: no price, amount, total or note key inside it either.
+    const summary = j(list).items[0].summary as J;
+    expect(summary).toMatchObject({ quantity: '8', more: 0 });
+    expect(Object.keys(summary).sort()).toEqual(['code', 'more', 'name', 'quantity', 'unit']);
+    expect(JSON.stringify(summary)).not.toMatch(/42\.75|999\.99|price|amount|total|note/i);
     const detail = await wh.get(`${RECEIVE}/${ready.id}`);
     expect(detail.statusCode).toBe(200);
     expect(j(detail)).toMatchObject({

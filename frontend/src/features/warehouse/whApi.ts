@@ -1,3 +1,4 @@
+import type { LineSummary } from '@/features/company-center/docModel';
 import { apiRequest } from '@/lib/api';
 
 /*
@@ -127,6 +128,8 @@ export interface ReceiptRow {
   createdBy: Person;
   postedAt: string | null;
   lineCount: number;
+  /** EP42.3: first line (item, accepted quantity, unit) and how many more. */
+  summary?: LineSummary;
   updatedAt: string;
 }
 

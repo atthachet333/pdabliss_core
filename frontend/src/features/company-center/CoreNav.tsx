@@ -44,7 +44,24 @@ const th = {
     finishedGoods: 'รับสินค้าสำเร็จรูป',
     newTransfer: 'สร้างใบโอนย้าย',
     deposits: 'มัดจำผู้ขาย',
+    pendingReceive: 'รอรับสินค้า',
+    receipts: 'ใบรับสินค้า',
+    lots: 'ล็อตและวันหมดอายุ',
+    movements: 'ความเคลื่อนไหว',
+    transfers: 'โอนย้าย',
+    adjustments: 'ปรับปรุงสต็อก',
+    counts: 'ตรวจนับ',
+    picks: 'ใบหยิบ',
+    packs: 'แพ็กสินค้า',
+    shipments: 'จัดส่ง',
+    materialIssues: 'เบิกวัตถุดิบผลิต',
   },
+  filters: {
+    awaiting: 'รอยืนยัน',
+    confirmed: 'ยืนยันแล้ว',
+    shortage: 'สต็อกไม่พอ',
+  },
+  filtersLabel: 'กรองคำสั่งขาย',
 };
 type NavCopy = typeof th;
 type ItemKey = keyof NavCopy['items'];
@@ -76,7 +93,24 @@ const CORE_NAV_COPY: Localized<NavCopy> = {
       finishedGoods: 'Finished goods',
       newTransfer: 'New transfer',
       deposits: 'Supplier deposits',
+      pendingReceive: 'Pending receive',
+      receipts: 'Goods receipts',
+      lots: 'Lots & expiry',
+      movements: 'Movements',
+      transfers: 'Transfers',
+      adjustments: 'Adjustments',
+      counts: 'Cycle counts',
+      picks: 'Picks',
+      packs: 'Packing',
+      shipments: 'Shipments',
+      materialIssues: 'Production issues',
     },
+    filters: {
+      awaiting: 'Awaiting confirmation',
+      confirmed: 'Confirmed',
+      shortage: 'Short of stock',
+    },
+    filtersLabel: 'Filter sales orders',
   },
   'zh-CN': {
     label: 'CORE 菜单',
@@ -103,7 +137,24 @@ const CORE_NAV_COPY: Localized<NavCopy> = {
       finishedGoods: '成品入库',
       newTransfer: '新建调拨单',
       deposits: '供应商定金',
+      pendingReceive: '待收货',
+      receipts: '收货单',
+      lots: '批次与有效期',
+      movements: '库存变动',
+      transfers: '调拨',
+      adjustments: '库存调整',
+      counts: '循环盘点',
+      picks: '拣货单',
+      packs: '包装',
+      shipments: '发运',
+      materialIssues: '生产领料',
     },
+    filters: {
+      awaiting: '待确认',
+      confirmed: '已确认',
+      shortage: '库存不足',
+    },
+    filtersLabel: '筛选销售订单',
   },
 };
 
@@ -114,15 +165,34 @@ interface Item {
   needs: RegExp;
   /** Shown as a quick action on the CORE home. */
   quick?: boolean;
+  /**
+   * EP42.3: a section page shown only while the person works in this department (the
+   * group of the current page); elsewhere the group keeps its main entries short.
+   */
+  section?: boolean;
+  /** EP42.3: list filters (query strings the list reads from its URL), under the entry. */
+  filters?: [keyof NavCopy['filters'], string][];
 }
 
+const WH = '/core/warehouse';
+const RECEIVING = /^warehouse\.receiving\.view$/;
+const INVENTORY = /^warehouse\.inventory\.view$/;
 const REQUEST_VIEW =
   /^(purchasing\.requests\.(view|create|approve)|[a-z]+\.purchase_requests\.(create|approve))$/;
 const NAV: [DepartmentCode, Item[]][] = [
   [
     'SALES',
     [
-      { to: '/core/sales', key: 'salesOrders', needs: /^sales\.orders\.view$/ },
+      {
+        to: '/core/sales',
+        key: 'salesOrders',
+        needs: /^sales\.orders\.view$/,
+        filters: [
+          ['awaiting', 'status=SUBMITTED'],
+          ['confirmed', 'status=CONFIRMED'],
+          ['shortage', 'availability=SHORTAGE'],
+        ],
+      },
       {
         to: '/core/sales/orders/new',
         key: 'newSalesOrder',
@@ -165,15 +235,33 @@ const NAV: [DepartmentCode, Item[]][] = [
     'WAREHOUSE',
     [
       { to: '/core/warehouse', key: 'warehouseHome', needs: /^warehouse\.receiving\.view$/ },
-      { to: '/core/warehouse/inventory', key: 'inventory', needs: /^warehouse\.inventory\.view$/ },
+      // EP42.3: every Warehouse section, as its tab strip shows them (same codes as the
+      // workspace's own context); the sections appear while working in Warehouse.
+      { to: `${WH}/pending-receive`, key: 'pendingReceive', needs: RECEIVING, section: true },
+      { to: `${WH}/receipts`, key: 'receipts', needs: RECEIVING, section: true },
+      { to: `${WH}/inventory`, key: 'inventory', needs: INVENTORY },
+      { to: `${WH}/lots`, key: 'lots', needs: INVENTORY, section: true },
+      { to: `${WH}/movements`, key: 'movements', needs: INVENTORY, section: true },
+      { to: `${WH}/transfers`, key: 'transfers', needs: INVENTORY, section: true },
+      { to: `${WH}/adjustments`, key: 'adjustments', needs: INVENTORY, section: true },
+      { to: `${WH}/counts`, key: 'counts', needs: INVENTORY, section: true },
       {
-        to: '/core/warehouse/pending-pick',
+        to: `${WH}/pending-pick`,
         key: 'pendingPick',
-        needs: /^warehouse\.picking\.process$/,
+        needs: /^warehouse\.(picking\.process|inventory\.view)$/,
         quick: true,
       },
+      { to: `${WH}/picks`, key: 'picks', needs: INVENTORY, section: true },
+      { to: `${WH}/packs`, key: 'packs', needs: INVENTORY, section: true },
+      { to: `${WH}/shipments`, key: 'shipments', needs: INVENTORY, section: true },
       {
-        to: '/core/warehouse/finished-goods',
+        to: `${WH}/material-issues`,
+        key: 'materialIssues',
+        needs: /^warehouse\.material_issues\.view$/,
+        section: true,
+      },
+      {
+        to: `${WH}/finished-goods`,
         key: 'finishedGoods',
         needs: /^warehouse\.finished_goods\.view$/,
       },
@@ -231,14 +319,24 @@ function NavList({
   const { pathname, search } = useLocation();
   const groups = navFor(context);
   const current = pathname === '/core' ? '/core' : currentOf(groups, pathname);
-  const link = (to: string, label: string, plus = false) => (
+  // A list filter is current when the page is its list with exactly that query.
+  // (?lang= only names the language; it is not part of a filter.)
+  const params = new URLSearchParams(search);
+  params.delete('lang');
+  const query = params.toString();
+  const filtered =
+    !!query &&
+    groups.some((g) =>
+      g.items.some((i) => i.to === current && i.filters?.some(([, q]) => q === query)),
+    );
+  const link = (to: string, label: string, plus = false, active = current === to && !filtered) => (
     <AreaLink
       to={to}
       onClick={onNavigate}
-      aria-current={current === to ? 'page' : undefined}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         LINK,
-        current === to
+        active
           ? 'bg-brand-primary/[0.12] font-semibold text-text-primary shadow-[inset_2px_0_0_rgb(62_240_192/0.9)]'
           : 'text-text-secondary hover:bg-white/[0.04] hover:text-text-primary',
       )}
@@ -274,18 +372,43 @@ function NavList({
       <ul className="grid gap-1">
         <li>{link('/core', n.home)}</li>
       </ul>
-      {groups.map((g) => (
-        <div key={g.code} data-nav-group={g.code}>
-          <p className="mb-1.5 px-3 font-mono text-[0.6875rem] tracking-[0.14em] text-text-muted uppercase">
-            {getDepartment(departmentId(g.code), locale).name}
-          </p>
-          <ul className="grid gap-0.5">
-            {g.items.map((i) => (
-              <li key={i.to}>{link(i.to, n.items[i.key], /\/new$/.test(i.to))}</li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {groups.map((g) => {
+        const here = g.items.some((i) => i.to === current);
+        return (
+          <div key={g.code} data-nav-group={g.code} data-nav-current={here || undefined}>
+            <p className="mb-1.5 px-3 font-mono text-[0.6875rem] tracking-[0.14em] text-text-muted uppercase">
+              {getDepartment(departmentId(g.code), locale).name}
+            </p>
+            <ul className="grid gap-0.5">
+              {g.items
+                .filter((i) => here || !i.section)
+                .map((i) => (
+                  <li key={i.to}>
+                    {link(i.to, n.items[i.key], /\/new$/.test(i.to))}
+                    {here && i.filters && (
+                      <ul
+                        aria-label={n.filtersLabel}
+                        className="mt-0.5 mb-1 ml-3 grid gap-0.5 border-l border-white/[0.08] pl-2"
+                        data-nav-filters
+                      >
+                        {i.filters.map(([key, q]) => (
+                          <li key={q}>
+                            {link(
+                              `${i.to}?${q}`,
+                              n.filters[key],
+                              false,
+                              current === i.to && query === q,
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -752,9 +752,14 @@ describeDb('Sales orders (EP33)', () => {
         'pickReadiness',
         'requestedDate',
         'status',
+        'summary', // EP42.3: first line, quantity, unit and how many more — never money
         'updatedAt',
       ].sort(),
     );
+    if (row.summary) {
+      expect(Object.keys(row.summary).sort()).toEqual(['code', 'more', 'name', 'quantity', 'unit']);
+      expect(row.more ?? row.summary.more).toBe(row.lineCount - 1);
+    }
   });
 
   // ---------------------------------------------------------------- roles & isolation

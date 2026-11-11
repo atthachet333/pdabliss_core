@@ -43,7 +43,10 @@ export function WarehouseNav({ ctx }: { ctx: WarehouseContext }) {
   return (
     <nav
       aria-label={c.workspace}
-      className="flex [scrollbar-width:none] gap-5 overflow-x-auto border-b border-white/[0.07]"
+      // EP42.3: up to twelve sections — from 768 px they wrap onto a second row instead of
+      // scrolling out of sight; phones keep the single swipeable row. From 1280 px the CORE
+      // sidebar lists the same sections (same permission codes), so the strip steps aside.
+      className="flex [scrollbar-width:none] gap-x-5 overflow-x-auto border-b border-white/[0.07] md:flex-wrap md:overflow-visible xl:hidden"
       data-warehouse-nav
     >
       {links.map(([to, label]) => (

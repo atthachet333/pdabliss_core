@@ -672,14 +672,27 @@ describe('Deposits and pending receive (EP30)', () => {
         ],
       },
     };
-    fakeApi({
+    const api = fakeApi({
       ...person(
         'DEPARTMENT_STAFF',
         ['WAREHOUSE'],
         ['warehouse.workspace.view', 'warehouse.receiving.view'],
       ),
       [`GET ${RCV}`]: ok({
-        items: [{ ...pending.order, lines: undefined }],
+        items: [
+          {
+            ...pending.order,
+            lines: undefined,
+            // EP42.3: what is still to receive, on the row.
+            summary: {
+              code: 'RM-000001',
+              name: 'Raw material',
+              quantity: '8',
+              unit: 'KG',
+              more: 0,
+            },
+          },
+        ],
         total: 1,
         page: 1,
         pageSize: 50,
@@ -705,6 +718,17 @@ describe('Deposits and pending receive (EP30)', () => {
     });
     renderRoute('/core/warehouse/pending-receive?lang=th');
     const user = userEvent.setup();
+    // EP42.3: the row names what is still to receive; the preview shows the lines read-only.
+    const listRow = (await screen.findByRole('link', { name: 'PO-202610-000003' })).closest('tr')!;
+    expect(listRow.querySelector('[data-line-summary]')).toHaveTextContent('Raw material');
+    expect(listRow.querySelector('[data-line-summary]')).toHaveTextContent('8 KG');
+    await user.click(within(listRow).getByRole('button', { name: /ดูรายการย่อ/ }));
+    const preview = await screen.findByRole('region', { name: /PO-202610-000003/ });
+    await waitFor(() => expect(preview).toHaveTextContent('ยังค้าง 8 KG'));
+    expect(within(preview).queryByRole('button')).toBeNull();
+    for (const word of ['ราคา', 'ยอดรวม', 'มัดจำ', 'THB'])
+      expect(preview.textContent).not.toContain(word);
+    expect(api.called(`GET ${RCV}/po3`)).toHaveLength(1);
     await user.click(await screen.findByRole('link', { name: 'PO-202610-000003' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: 'PO-202610-000003' }),

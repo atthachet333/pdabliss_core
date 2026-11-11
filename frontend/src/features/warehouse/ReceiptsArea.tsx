@@ -6,6 +6,8 @@ import { SelectField, TextField } from '@/features/auth/fields';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CONTROL_COPY } from '@/features/company-center/copy';
 import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
+import { DOC_COPY } from '@/features/company-center/docModel';
+import { LineSummaryText } from '@/features/company-center/docContext';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import {
   AreaLink,
@@ -72,6 +74,7 @@ function ReceiptRoute({ ctx }: { ctx: WarehouseContext }) {
 
 function ReceiptList({ ctx }: { ctx: WarehouseContext }) {
   const c = useCopy(WH_COPY);
+  const d = useCopy(DOC_COPY);
   const cc = useCopy(CONTROL_COPY);
   const { dateTime } = useDateFormat();
   const base = useId();
@@ -136,14 +139,15 @@ function ReceiptList({ ctx }: { ctx: WarehouseContext }) {
                 c.f.branch,
                 c.f.receivedAt,
                 c.f.receivedBy,
-                c.f.lines,
+                d.items,
               ].map((h) => (
                 <th
                   key={h}
                   scope="col"
                   className={cn(
                     'px-3 pb-2 font-medium first:pl-4',
-                    (h === c.f.receivedBy || h === c.f.lines) && 'md:max-lg:hidden',
+                    h === c.f.receivedBy && 'md:max-2xl:hidden',
+                    h === c.f.branch && 'md:max-xl:hidden',
                   )}
                 >
                   {h}
@@ -173,7 +177,7 @@ function ReceiptList({ ctx }: { ctx: WarehouseContext }) {
                       >
                         {r.number}
                       </AreaLink>
-                      <span className="block max-w-48 truncate text-caption text-text-muted">
+                      <span className="block max-w-64 text-caption break-words text-text-secondary">
                         {r.supplier.name ?? '—'}
                       </span>
                     </>,
@@ -187,14 +191,11 @@ function ReceiptList({ ctx }: { ctx: WarehouseContext }) {
                   {cell(
                     c.f.branch,
                     <BranchCode code={r.branch.code} head={r.branch.code === '00000'} />,
+                    'md:max-xl:hidden',
                   )}
                   {cell(c.f.receivedAt, dateTime(r.receivedAt), 'md:whitespace-nowrap')}
-                  {cell(c.f.receivedBy, r.createdBy?.name ?? '—', 'md:max-lg:hidden')}
-                  {cell(
-                    c.f.lines,
-                    <span className="tabular-nums">{r.lineCount}</span>,
-                    'md:max-lg:hidden',
-                  )}
+                  {cell(c.f.receivedBy, r.createdBy?.name ?? '—', 'md:max-2xl:hidden')}
+                  {cell(d.items, <LineSummaryText s={r.summary} />, 'md:min-w-48')}
                 </tr>
               );
             })}

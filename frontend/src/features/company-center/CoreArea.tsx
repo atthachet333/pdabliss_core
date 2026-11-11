@@ -343,7 +343,7 @@ function CoreFrame({
         className="h-[3px] bg-[linear-gradient(90deg,rgb(25_195_154/0.9),rgb(62_240_192/0.75)_45%,rgb(90_169_255/0.35))]"
       />
       <header className="border-b border-white/[0.06] bg-[rgb(6_16_20/0.9)]">
-        <div className="mx-auto flex w-full max-w-[100rem] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[120rem] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
           <AreaLink to="/" aria-label={a.common.home} className="shrink-0">
             <span className="max-md:hidden">
               <Logo compact />
@@ -396,7 +396,7 @@ function CoreFrame({
       </header>
       <div
         className={cn(
-          'mx-auto w-full max-w-[100rem]',
+          'mx-auto w-full max-w-[120rem]',
           navigable && 'xl:grid xl:grid-cols-[15.5rem_minmax(0,1fr)]',
         )}
       >

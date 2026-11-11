@@ -118,17 +118,23 @@ export function Section({
   );
 }
 
-/** Label/value rows (a real description list). */
+/**
+ * Label/value rows (a real description list). EP42.3: where the facts' own column is
+ * wide (≥ 56rem — a document page on a desktop), they flow into two label/value pairs
+ * per row instead of one long, narrow column; narrow places keep one pair per row.
+ */
 export function Facts({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <dl
-      className={cn(
-        'grid gap-x-6 gap-y-2.5 text-label sm:grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)]',
-        className,
-      )}
-    >
-      {children}
-    </dl>
+    <div className="@container">
+      <dl
+        className={cn(
+          'grid gap-x-6 gap-y-2.5 text-label sm:grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)] @4xl:grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)_minmax(9rem,max-content)_minmax(0,1fr)] @4xl:gap-x-8',
+          className,
+        )}
+      >
+        {children}
+      </dl>
+    </div>
   );
 }
 

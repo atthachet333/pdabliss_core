@@ -9,6 +9,7 @@ import {
 import type { Db, Prisma } from '../db/client.js';
 import { AppError } from '../lib/errors.js';
 import { permissionDenied } from '../permissions/guard.js';
+import { lineSummary } from '../lib/line-summary.js';
 import { Decimal, lineAmounts, money, orderTotals, ZERO } from '../purchasing/money.js';
 import { companyDay } from '../purchasing/service.js';
 import { allocateOrder, allocationStateOf, releaseOrder, type LineResult } from './allocation.js';
@@ -259,6 +260,7 @@ export class SalesOrderService {
       orderDate: day(o.orderDate)!,
       requestedDate: day(o.requestedDate),
       lineCount: o.lines.length,
+      summary: lineSummary(o.lines, (l) => l.quantity),
       currency: o.currency,
       grandTotal: money(o.grandTotal)!,
       availability:

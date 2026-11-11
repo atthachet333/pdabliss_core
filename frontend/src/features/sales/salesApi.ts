@@ -1,3 +1,4 @@
+import type { LineSummary } from '@/features/company-center/docModel';
 import { apiRequest } from '@/lib/api';
 
 /*
@@ -30,6 +31,8 @@ export interface SoRow {
   orderDate: string;
   requestedDate: string | null;
   lineCount: number;
+  /** EP42.3: first line, quantity, unit and how many more (operational). */
+  summary?: LineSummary;
   currency: string;
   grandTotal: string;
   availability: Availability | null;

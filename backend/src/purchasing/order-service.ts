@@ -47,6 +47,7 @@ import {
   WarehousePendingReceiveView,
 } from './order-views.js';
 import { companyDay } from './service.js';
+import { lineSummary } from '../lib/line-summary.js';
 
 /*
  * Purchase orders, deposits and pending receive (EP30) — docs/PURCHASE_ORDER.md.
@@ -474,12 +475,27 @@ export class PurchaseOrderService {
         deposit: this.deposit(o),
         receiving: this.receivingOf(o, progress),
         lineCount: o.lines.length,
+        summary: lineSummary(o.lines, (l) => l.quantity),
         lines: o.lines.map((l) => this.commercialLine(l)),
         actions: poAllowedActions(actor, o).filter(
           (a) => a === 'confirm_deposit' || a === 'waive_deposit',
         ),
       }),
     };
+  }
+
+  /**
+   * EP42.3: Warehouse's row summary — the first line still to receive and how many
+   * other lines are open (all lines once nothing is left), quantity = still to receive.
+   */
+  private toReceive(o: Full, progress: Progress) {
+    const open = o.lines.filter((l) =>
+      new Decimal(this.lineReceiving(l, progress).remaining).gt(0),
+    );
+    const lines = open.length ? open : o.lines;
+    return lineSummary(lines, (l) =>
+      open.length ? this.lineReceiving(l, progress).remaining : l.quantity,
+    );
   }
 
   private warehouseView(
@@ -501,6 +517,7 @@ export class PurchaseOrderService {
         pendingReceiveAt: iso(o.pendingReceiveAt),
         receiving: this.receivingOf(o, progress),
         lineCount: o.lines.length,
+        summary: this.toReceive(o, progress),
         lines: o.lines.map((l) => {
           const r = this.lineReceiving(l, progress);
           return {
@@ -582,7 +599,19 @@ export class PurchaseOrderService {
         include: {
           branch: { select: { id: true, code: true, name: true } },
           supplier: { select: { code: true, name: true } },
-          lines: { select: { purchaseRequestId: true, prNumber: true } },
+          lines: {
+            orderBy: { lineNo: 'asc' },
+            select: {
+              purchaseRequestId: true,
+              prNumber: true,
+              // EP42.3: the first line's item, quantity and unit for the row summary.
+              itemCode: true,
+              itemName: true,
+              description: true,
+              unitCode: true,
+              quantity: true,
+            },
+          },
         },
       }),
       this.db.purchaseOrder.count({ where }),
@@ -615,6 +644,7 @@ export class PurchaseOrderService {
         orderDate: day(o.orderDate),
         expectedDate: day(o.expectedDate),
         lineCount: o.lines.length,
+        summary: lineSummary(o.lines, (l) => l.quantity),
         requests: [...new Map(o.lines.map((l) => [l.purchaseRequestId, l.prNumber]))].map(
           ([id, number]) => ({ id, number }),
         ),

@@ -208,6 +208,14 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP42.3 — no budget changed; no recovery needed.** Document context and workspace layout:
+  the shared `company-center/docContext.tsx` + `docModel.ts` (row item summary, next-department hint,
+  read-only row preview; its TH / EN / ZH copy), summary columns and previews in six lists, the
+  contextual sidebar (all Warehouse sections, Sales filters) and layout classes (wider shell,
+  two-column facts in wide containers, denser phone cards). No new dependency, no new lazy entry.
+  All JS **4,261.2 → 4,272.9 / 4,300 KiB (+11.7)**; headroom ≈ 27.1 KiB. Initial JS 182.7 / 205 KiB
+  gzip and static HTML 526.9 / 560 KiB (111 / 111 files) unchanged; initial CSS **50.6 → 50.8 / 52
+  KiB gzip** (the new Tailwind classes — container queries and the hanging phone labels).
 - **EP42.1 — no budget changed; no recovery needed.** Two small fixes only: arrow-key movement in
   the Sales line-item search and responsive column visibility on the Purchase-order list. All JS
   **4,260.9 → 4,261.2 / 4,300 KiB (+0.3)**; headroom ≈ 38.8 KiB. Initial JS 182.7 / 205 KiB gzip,

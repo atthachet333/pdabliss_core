@@ -17,6 +17,8 @@ import { FieldError, SelectField, TextField } from '@/features/auth/fields';
 import type { DepartmentCode } from '@/features/company/api';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CELL, useDateFormat, useDepartmentName, useLoad } from '@/features/company-center/model';
+import { DOC_COPY, usePreviewCache } from '@/features/company-center/docModel';
+import { LineSummaryText, NextStep, Previewable } from '@/features/company-center/docContext';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import { AreaLink, Loading, PageError, PageTitle, Pill } from '@/features/company-center/parts';
 import { CONTROL_COPY } from '@/features/company-center/copy';
@@ -28,6 +30,7 @@ import {
   prApi,
   type PrContext,
   type PrList,
+  type PrRow,
   type PrStatus,
   type PrView,
   type PurchaseRequest,
@@ -233,10 +236,34 @@ function Workspace({ ctx, any }: { ctx: PrContext; any: boolean }) {
 const TILE =
   'grid min-h-24 gap-1 rounded-2xl bg-white/[0.025] p-5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus';
 
+/**
+ * EP42.3: who a request waits on — its own department until approved (the requester
+ * submits, that department's decider approves), then Purchasing (presentation only).
+ */
+const prNext = (r: PrRow): DepartmentCode | null =>
+  r.status === 'DRAFT' || r.status === 'SUBMITTED'
+    ? r.department
+    : r.status === 'APPROVED'
+      ? 'PURCHASING'
+      : null;
+
 function ListPage({ ctx }: { ctx: PrContext }) {
   const c = useCopy(PR_COPY);
   const cc = useCopy(CONTROL_COPY);
+  const d = useCopy(DOC_COPY);
   const deptName = useDepartmentName();
+  // EP42.3: a row's preview reads the request once.
+  const preview = usePreviewCache((id: string) =>
+    prApi.get(id).then(({ request }) =>
+      request.lines.map((l) => ({
+        key: l.id,
+        code: l.item?.code ?? null,
+        name: l.item?.name ?? l.description ?? '',
+        quantity: l.quantity,
+        unit: l.unit?.code ?? l.unit?.name ?? null,
+      })),
+    ),
+  );
   const { date } = useDateFormat();
   const base = useId();
   const [initial] = useSearchParams();
@@ -393,7 +420,7 @@ function ListPage({ ctx }: { ctx: PrContext }) {
                 c.f.requester,
                 c.f.requestDate,
                 c.f.needBy,
-                c.f.lines,
+                d.items,
               ].map((h) => (
                 <th
                   key={h}
@@ -402,6 +429,8 @@ function ListPage({ ctx }: { ctx: PrContext }) {
                     'px-3 pb-2 font-medium first:pl-4',
                     // 768–1023 px: the need-by date waits for wider screens (it stays in the stacked rows).
                     h === c.f.needBy && 'md:max-lg:hidden',
+                    // EP42.3: the requester and request date wait for wide screens (≥ 1536 px).
+                    (h === c.f.requester || h === c.f.requestDate) && 'md:max-2xl:hidden',
                   )}
                 >
                   {h}
@@ -416,40 +445,63 @@ function ListPage({ ctx }: { ctx: PrContext }) {
                   {content}
                 </td>
               );
+              const href = `${BASE}/requests/${encodeURIComponent(r.id)}`;
               return (
-                <tr
+                <Previewable
                   key={r.id}
-                  className="border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4"
-                  data-request={r.number}
-                >
-                  {cell(
-                    c.f.number,
-                    <>
-                      <AreaLink
-                        to={`${BASE}/requests/${encodeURIComponent(r.id)}`}
-                        className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
-                      >
-                        {r.number}
-                      </AreaLink>
-                      {r.purpose && (
-                        <span className="block max-w-36 truncate text-caption text-text-muted lg:max-w-72">
-                          {r.purpose}
-                        </span>
+                  load={() => preview(r.id)}
+                  href={href}
+                  label={r.number}
+                  colSpan={8}
+                  row={(toggle) => (
+                    <tr
+                      className="border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4"
+                      data-request={r.number}
+                    >
+                      {cell(
+                        c.f.number,
+                        <>
+                          <span className="inline-flex items-center">
+                            <AreaLink
+                              to={href}
+                              className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
+                            >
+                              {r.number}
+                            </AreaLink>
+                            {toggle}
+                          </span>
+                          {/* EP42.3: the purpose names the request — two lines instead of a cut-off. */}
+                          {r.purpose && (
+                            <span className="line-clamp-2 block max-w-72 text-caption break-words text-text-secondary">
+                              {r.purpose}
+                            </span>
+                          )}
+                        </>,
+                        'max-md:before:hidden',
                       )}
-                    </>,
-                    'max-md:before:hidden',
+                      {cell(
+                        c.f.status,
+                        <>
+                          <StatusPill status={r.status} />
+                          <NextStep dept={prNext(r)} />
+                        </>,
+                      )}
+                      {cell(c.f.department, deptName(r.department))}
+                      {cell(
+                        c.f.branch,
+                        <BranchCode code={r.branch.code} head={r.branch.code === '00000'} />,
+                      )}
+                      {cell(c.f.requester, r.requester.name, 'md:max-2xl:hidden')}
+                      {cell(c.f.requestDate, date(r.requestDate), 'md:max-2xl:hidden')}
+                      {cell(
+                        c.f.needBy,
+                        r.needByDate ? date(r.needByDate) : '—',
+                        'md:max-lg:hidden',
+                      )}
+                      {cell(d.items, <LineSummaryText s={r.summary} />, 'md:min-w-48')}
+                    </tr>
                   )}
-                  {cell(c.f.status, <StatusPill status={r.status} />)}
-                  {cell(c.f.department, deptName(r.department))}
-                  {cell(
-                    c.f.branch,
-                    <BranchCode code={r.branch.code} head={r.branch.code === '00000'} />,
-                  )}
-                  {cell(c.f.requester, r.requester.name)}
-                  {cell(c.f.requestDate, date(r.requestDate))}
-                  {cell(c.f.needBy, r.needByDate ? date(r.needByDate) : '—', 'md:max-lg:hidden')}
-                  {cell(c.f.lines, <span className="tabular-nums">{r.lineCount}</span>)}
-                </tr>
+                />
               );
             })}
           </tbody>

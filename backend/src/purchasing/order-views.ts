@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LINE_SUMMARY_KEYS, LineSummary } from '../lib/line-summary.js';
 import type { DataClass } from '../domain/access/data-classification.js';
 
 /*
@@ -120,6 +121,8 @@ export const WarehousePendingReceiveView = z.object({
   pendingReceiveAt: z.string().nullable(),
   receiving,
   lineCount: z.number(),
+  /** EP42.3: the first line still to receive (item, quantity to receive, unit) and how many more. */
+  summary: LineSummary.optional(),
   lines: z.array(receiveLine),
   receipts: z.array(receiptRef),
 });
@@ -137,6 +140,7 @@ export const WAREHOUSE_FIELD_CLASSES: Record<string, DataClass> = Object.fromEnt
     ...Object.keys(receiveLine.shape),
     ...Object.keys(receiving.shape),
     ...Object.keys(receiptRef.shape),
+    ...LINE_SUMMARY_KEYS,
   ].map((k) => [k, 'operational' as const]),
 );
 
@@ -203,6 +207,7 @@ export const AccountingDepositView = z.object({
   deposit,
   receiving,
   lineCount: z.number(),
+  summary: LineSummary.optional(),
   lines: z.array(commercialLine),
   actions: z.array(z.enum(['confirm_deposit', 'waive_deposit'])),
 });

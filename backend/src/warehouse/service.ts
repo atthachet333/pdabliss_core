@@ -36,6 +36,7 @@ import {
   MovementRow,
   StockRow,
 } from './views.js';
+import { lineSummary } from '../lib/line-summary.js';
 
 /*
  * Goods receipts, stock, lots and the movement ledger (EP31) —
@@ -388,6 +389,12 @@ export class ReceivingService {
           branch: { select: { id: true, code: true, name: true } },
           createdBy: person,
           _count: { select: { lines: true } },
+          // EP42.3: the first line (item, accepted quantity, unit) for the row summary.
+          lines: {
+            orderBy: { lineNo: 'asc' },
+            take: 1,
+            select: { itemCode: true, itemName: true, unitCode: true, acceptedQuantity: true },
+          },
         },
       }),
       this.db.goodsReceipt.count({ where }),
@@ -413,6 +420,7 @@ export class ReceivingService {
           createdBy: who(r.createdBy),
           postedAt: iso(r.postedAt),
           lineCount: r._count.lines,
+          summary: lineSummary(r.lines, (l) => l.acceptedQuantity, r._count.lines),
           updatedAt: r.updatedAt.toISOString(),
         }),
       ),

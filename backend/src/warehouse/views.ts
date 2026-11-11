@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LINE_SUMMARY_KEYS, LineSummary } from '../lib/line-summary.js';
 import type { DataClass } from '../domain/access/data-classification.js';
 import { MOVEMENT_TYPES } from './input.js';
 
@@ -64,6 +65,8 @@ export const GoodsReceiptRow = z.object({
   createdBy: person,
   postedAt: z.string().nullable(),
   lineCount: z.number(),
+  /** EP42.3: first line (item, accepted quantity, unit) and how many more — operational. */
+  summary: LineSummary.optional(),
   updatedAt: z.string(),
 });
 
@@ -193,6 +196,7 @@ export const INVENTORY_FIELD_CLASSES: Record<string, DataClass> = Object.fromEnt
     ...Object.keys(MovementRow.shape),
     ...Object.keys(FefoCandidate.shape),
     ...Object.keys(PickDemandOrder.shape),
+    ...LINE_SUMMARY_KEYS,
   ].map((k) => [k, 'operational' as const]),
 );
 

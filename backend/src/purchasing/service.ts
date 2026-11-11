@@ -22,6 +22,7 @@ import {
   type PrAction,
   type PrActor,
 } from './policy.js';
+import { lineSummary } from '../lib/line-summary.js';
 
 /*
  * Purchase requests (EP29) — docs/PURCHASING_REQUEST.md.
@@ -367,6 +368,18 @@ export class PurchaseRequestService {
           branch: { select: { id: true, code: true, name: true } },
           requester: { select: { user: { select: { fullName: true, email: true } } } },
           _count: { select: { lines: true } },
+          // EP42.3: the first line only — the row's "what is being requested".
+          lines: {
+            orderBy: { lineNo: 'asc' },
+            take: 1,
+            select: {
+              itemCode: true,
+              itemName: true,
+              description: true,
+              unitCode: true,
+              quantity: true,
+            },
+          },
         },
       }),
       this.db.purchaseRequest.count({ where }),
@@ -390,6 +403,7 @@ export class PurchaseRequestService {
         needByDate: day(r.needByDate),
         purpose: r.purpose,
         lineCount: r._count.lines,
+        summary: lineSummary(r.lines, (l) => l.quantity, r._count.lines),
         updatedAt: r.updatedAt.toISOString(),
       })),
       total,

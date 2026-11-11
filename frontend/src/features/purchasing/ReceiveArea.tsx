@@ -4,6 +4,8 @@ import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { BranchCode } from '@/features/company-center/adminParts';
 import { CELL, useDateFormat, useLoad } from '@/features/company-center/model';
+import { DOC_COPY, usePreviewCache } from '@/features/company-center/docModel';
+import { LineSummaryText, Previewable } from '@/features/company-center/docContext';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import {
   AreaLink,
@@ -21,7 +23,7 @@ import { GrStatusPill, WarehouseNav } from '@/features/warehouse/whParts';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
-import { receiveApi, type Page, type ReceiveOrder } from './orderApi';
+import { previewLine, receiveApi, type Page, type ReceiveOrder } from './orderApi';
 import { ORDER_COPY, poError } from './orderCopy';
 import { LineIdentity, PoStatusPill } from './orderParts';
 
@@ -62,6 +64,23 @@ function ReceiveList() {
   const [data, setData] = useState<Page<ReceiveOrder> | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [more, setMore] = useState(false);
+  const d = useCopy(DOC_COPY);
+  // EP42.3: each order's lines (ordered, still to receive) read once — operational fields only.
+  const preview = usePreviewCache((id: string) =>
+    receiveApi
+      .get(id)
+      .then(({ order }) =>
+        order.lines.map((l) =>
+          previewLine(
+            l,
+            l.orderedQuantity,
+            l.receivable && l.pendingQuantity !== '0'
+              ? d.left(`${l.pendingQuantity} ${l.unit?.code ?? ''}`.trim())
+              : undefined,
+          ),
+        ),
+      ),
+  );
   const { state: ctx } = useLoad(whApi.context);
   const request = useRef(0);
   useEffect(() => {
@@ -116,7 +135,7 @@ function ReceiveList() {
         <table className="w-full text-left text-label max-md:block" data-receive-rows>
           <thead className="max-md:sr-only">
             <tr className="text-caption text-text-muted">
-              {[c.f.number, c.f.supplier, c.f.branch, c.f.expected, c.f.lines].map((h) => (
+              {[c.f.number, c.f.supplier, d.toReceive, c.f.branch, c.f.expected].map((h) => (
                 <th key={h} scope="col" className="px-3 pb-2 font-medium first:pl-4">
                   {h}
                 </th>
@@ -130,30 +149,46 @@ function ReceiveList() {
                   {content}
                 </td>
               );
+              const href = `${BASE}/${encodeURIComponent(o.id)}`;
               return (
-                <tr
+                <Previewable
                   key={o.id}
-                  className="border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4"
-                  data-receive-order={o.number}
-                >
-                  {cell(
-                    c.f.number,
-                    <AreaLink
-                      to={`${BASE}/${encodeURIComponent(o.id)}`}
-                      className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
+                  load={() => preview(o.id)}
+                  href={href}
+                  label={o.number}
+                  colSpan={5}
+                  row={(toggle) => (
+                    <tr
+                      className="border-t border-white/[0.06] max-md:grid max-md:grid-cols-1 max-md:gap-1 max-md:rounded-xl max-md:border-0 max-md:bg-white/[0.02] max-md:p-4"
+                      data-receive-order={o.number}
                     >
-                      {o.number}
-                    </AreaLink>,
-                    'max-md:before:hidden',
+                      {cell(
+                        c.f.number,
+                        <span className="inline-flex items-center">
+                          <AreaLink
+                            to={href}
+                            className="inline-flex min-h-11 items-center font-mono font-semibold whitespace-nowrap text-brand-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-7"
+                          >
+                            {o.number}
+                          </AreaLink>
+                          {toggle}
+                        </span>,
+                        'max-md:before:hidden',
+                      )}
+                      {cell(c.f.supplier, o.supplier.name ?? '—')}
+                      {cell(d.toReceive, <LineSummaryText s={o.summary} />, 'md:min-w-48')}
+                      {cell(
+                        c.f.branch,
+                        <BranchCode code={o.branch.code} head={o.branch.code === '00000'} />,
+                      )}
+                      {cell(
+                        c.f.expected,
+                        o.expectedDate ? date(o.expectedDate) : '—',
+                        'md:whitespace-nowrap',
+                      )}
+                    </tr>
                   )}
-                  {cell(c.f.supplier, o.supplier.name ?? '—')}
-                  {cell(
-                    c.f.branch,
-                    <BranchCode code={o.branch.code} head={o.branch.code === '00000'} />,
-                  )}
-                  {cell(c.f.expected, o.expectedDate ? date(o.expectedDate) : '—')}
-                  {cell(c.f.lines, <span className="tabular-nums">{o.lineCount}</span>)}
-                </tr>
+                />
               );
             })}
           </tbody>

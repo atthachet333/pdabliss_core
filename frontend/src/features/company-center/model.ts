@@ -180,6 +180,11 @@ export function permissionLabel(code: string, p: PermissionCopy) {
   return resource && action ? `${resource} — ${action}` : code;
 }
 
-/** Table cell that becomes a labelled row below 768 px (data-label holds the column name). */
+/**
+ * Table cell that becomes a labelled row below 768 px (data-label holds the column name).
+ * EP42.3: the label hangs in a 7rem column to the left of the value (one line per field
+ * instead of two). The first cell — the document number, the card's heading — keeps its
+ * own layout (most lists hide its label).
+ */
 export const CELL =
-  'block px-0 py-1 align-top md:table-cell md:px-3 md:py-3 md:first:pl-4 max-md:before:block max-md:before:text-caption max-md:before:text-text-muted max-md:before:content-[attr(data-label)]';
+  'block px-0 py-1 align-top md:table-cell md:px-3 md:py-3 md:first:pl-4 max-md:before:block max-md:before:text-caption max-md:before:text-text-muted max-md:before:content-[attr(data-label)] max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:flow-root max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:pl-28 max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:before:float-left max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:before:-ml-28 max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:before:w-28 max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:before:pt-px max-md:[&[data-label]:not([data-label=""]):not(:first-child)]:before:pr-3';

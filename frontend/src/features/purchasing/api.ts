@@ -1,3 +1,4 @@
+import type { LineSummary } from '@/features/company-center/docModel';
 import type { DepartmentCode } from '@/features/company/api';
 import { apiRequest } from '@/lib/api';
 
@@ -97,6 +98,8 @@ export interface PrRow {
   needByDate: string | null;
   purpose: string | null;
   lineCount: number;
+  /** EP42.3: first line, quantity, unit and how many more. */
+  summary?: LineSummary;
   updatedAt: string;
 }
 

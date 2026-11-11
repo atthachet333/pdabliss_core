@@ -292,3 +292,77 @@ describe('Owner override in the CORE frame (EP41)', () => {
     expect(api.called('POST /api/v1/sales/orders/so1/confirm')).toHaveLength(1);
   });
 });
+
+/*
+ * EP42.3: the sidebar follows the work. The department of the current page lists all its
+ * sections (the same codes as its own tab strip); the others keep their main entries. A
+ * list's filters sit under its entry, and the one in use is the current page.
+ */
+const WAREHOUSE_STAFF = [
+  'warehouse.workspace.view',
+  'warehouse.receiving.view',
+  'warehouse.receiving.process',
+  'warehouse.inventory.view',
+  'warehouse.transfers.create',
+];
+describe('CORE navigation follows the work (EP42.3)', () => {
+  it('Warehouse sections appear while working in Warehouse; elsewhere only its main entries', async () => {
+    fakeApi(as('DEPARTMENT_STAFF', WAREHOUSE_STAFF, { departments: ['WAREHOUSE'] }));
+    const { router } = renderRoute('/core?lang=en');
+    await screen.findByRole('heading', { level: 1, name: 'CORE Operations' });
+    let nav = within(sidebar());
+    expect(nav.getByRole('link', { name: 'Warehouse overview' })).toBeInTheDocument();
+    expect(nav.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
+    expect(nav.queryByRole('link', { name: 'Goods receipts' })).toBeNull();
+    expect(nav.queryByRole('link', { name: 'Cycle counts' })).toBeNull();
+    await router.navigate('/core/warehouse/receipts', { state: { locale: 'en' } });
+    await waitFor(() =>
+      expect(within(sidebar()).getByRole('link', { name: 'Goods receipts' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      ),
+    );
+    nav = within(sidebar());
+    for (const [name, href] of [
+      ['Pending receive', '/core/warehouse/pending-receive'],
+      ['Lots & expiry', '/core/warehouse/lots'],
+      ['Transfers', '/core/warehouse/transfers'],
+      ['Cycle counts', '/core/warehouse/counts'],
+      ['Picks', '/core/warehouse/picks'],
+      ['Shipments', '/core/warehouse/shipments'],
+    ])
+      expect(nav.getByRole('link', { name })).toHaveAttribute('href', href);
+    // Codes this person lacks stay out (production issues, finished goods).
+    expect(nav.queryByRole('link', { name: 'Production issues' })).toBeNull();
+    expect(nav.queryByRole('link', { name: 'Finished goods' })).toBeNull();
+    expect(nav.getByRole('link', { name: 'Warehouse overview' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
+  it('Sales filters sit under Sales orders; the filter in use is the current page', async () => {
+    fakeApi(as('DEPARTMENT_STAFF', SALES_STAFF));
+    renderRoute('/core/sales?status=SUBMITTED&lang=en');
+    const filters = await waitFor(() => {
+      const el = sidebar().querySelector<HTMLElement>('[data-nav-filters]');
+      expect(el).not.toBeNull();
+      return within(el!);
+    });
+    expect(filters.getByRole('link', { name: 'Awaiting confirmation' })).toHaveAttribute(
+      'href',
+      '/core/sales?status=SUBMITTED',
+    );
+    expect(filters.getByRole('link', { name: 'Short of stock' })).toHaveAttribute(
+      'href',
+      '/core/sales?availability=SHORTAGE',
+    );
+    // The filter in use is the current page (?lang only names the language); the list is not.
+    expect(filters.getByRole('link', { name: 'Awaiting confirmation' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(sidebar()).getByRole('link', { name: 'Sales orders' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+});

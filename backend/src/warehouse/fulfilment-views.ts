@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LINE_SUMMARY_KEYS, LineSummary } from '../lib/line-summary.js';
 import type { DataClass } from '../domain/access/data-classification.js';
 import { DELIVERY_EXCEPTIONS, PICK_DISCREPANCIES } from './input.js';
 import { expiryState } from './views.js';
@@ -44,6 +45,8 @@ const common = {
 export const PickRow = z.object({
   ...common,
   status: z.enum(['DRAFT', 'IN_PROGRESS', 'PICKED', 'CANCELLED']),
+  /** EP42.3: first line (item, planned quantity, unit) and how many more — operational. */
+  summary: LineSummary.optional(),
 });
 
 const pickLine = z.object({
@@ -184,5 +187,7 @@ export const FULFILMENT_FIELD_CLASSES: Record<string, DataClass> = Object.fromEn
     ...Object.keys(shipmentLine.shape),
     ...Object.keys(deliveryEvent.shape),
     ...Object.keys(order.shape),
+    ...Object.keys(PickRow.shape),
+    ...LINE_SUMMARY_KEYS,
   ].map((k) => [k, 'operational' as const]),
 );

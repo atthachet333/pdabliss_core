@@ -26,7 +26,10 @@ import {
   Pill,
   Section,
 } from '@/features/company-center/parts';
+import { DOC_COPY, usePreviewCache } from '@/features/company-center/docModel';
+import { LineSummaryText, NextStep, Previewable } from '@/features/company-center/docContext';
 import { SearchBox } from '@/features/company-center/SearchBox';
+import type { DepartmentCode } from '@/features/company/api';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
 import { useDebounced, usePaged } from '@/features/warehouse/whModel';
 import { useCopy } from '@/i18n/useCopy';
@@ -46,6 +49,7 @@ import {
   type SoDetail,
   type SoItem,
   type SoLineInput,
+  type SoRow,
   type SoStatus,
 } from './salesApi';
 import { SALES_COPY, salesError, useMoney } from './salesCopy';
@@ -134,6 +138,21 @@ function AvailabilityPill({ state }: { state: Availability }) {
   );
 }
 
+/**
+ * EP42.3: who the order waits on — the transitions the server enforces (presentation only).
+ * Draft / submitted → Sales (submit, confirm); confirmed with nothing reserved → Sales
+ * (the manager allocates); anything reserved and not yet delivered → Warehouse.
+ */
+function soNext(r: SoRow): DepartmentCode | null {
+  if (r.status === 'DRAFT' || r.status === 'SUBMITTED') return 'SALES';
+  if (r.status !== 'CONFIRMED' || r.fulfilmentState === 'DELIVERED' || !r.allocationState)
+    return null;
+  return r.allocationState === 'NOT_ALLOCATED' &&
+    (r.fulfilmentState ?? 'NOT_STARTED') === 'NOT_STARTED'
+    ? 'SALES'
+    : 'WAREHOUSE';
+}
+
 function BackLink() {
   const { c } = useSales();
   return (
@@ -170,6 +189,23 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
     [status, shortage, debounced],
   );
   const { locale } = useLocale();
+  const d = useCopy(DOC_COPY);
+  // EP42.3: a row's preview reads the order once (lines with what is still to deliver).
+  const preview = usePreviewCache((id: string) =>
+    salesApi.get(id).then(({ order }) =>
+      order.lines.map((l) => ({
+        key: l.id,
+        code: l.item.code,
+        name: l.item.name,
+        quantity: l.quantity,
+        unit: l.unit.code,
+        extra:
+          l.progress.toDeliver && l.progress.toDeliver !== '0' && order.status === 'CONFIRMED'
+            ? d.left(`${l.progress.toDeliver} ${l.unit.code}`)
+            : undefined,
+      })),
+    ),
+  );
   // Filters live in the URL (shareable, back button); other params and the language stay.
   const filter = (next: { status?: string; availability?: string }) => {
     const p = new URLSearchParams(params);
@@ -188,6 +224,8 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
   const cols: {
     head: string;
     minor?: boolean;
+    /** EP42.3: secondary columns shown only on wide screens (≥ 1536 px). */
+    wide?: boolean;
     end?: boolean;
     cell: (r: NonNullable<typeof data>['items'][number]) => ReactNode;
   }[] = [
@@ -199,7 +237,15 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
         </AreaLink>
       ),
     },
-    { head: c.f.status, cell: (r) => <SoStatusPill status={r.status} /> },
+    {
+      head: c.f.status,
+      cell: (r) => (
+        <>
+          <SoStatusPill status={r.status} />
+          <NextStep dept={soNext(r)} />
+        </>
+      ),
+    },
     {
       head: c.f.customer,
       cell: (r) => (
@@ -209,6 +255,7 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
         </span>
       ),
     },
+    { head: d.items, cell: (r) => <LineSummaryText s={r.summary} /> },
     {
       head: c.f.availability,
       // EP34: a confirmed order shows how much is reserved; before that, what stock exists.
@@ -254,8 +301,8 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
       minor: true,
       cell: (r) => (r.requestedDate ? date(r.requestedDate) : '—'),
     },
-    { head: c.f.createdBy, minor: true, cell: (r) => r.createdBy?.name ?? '—' },
-    { head: c.f.updated, minor: true, cell: (r) => date(r.updatedAt) },
+    { head: c.f.createdBy, wide: true, cell: (r) => r.createdBy?.name ?? '—' },
+    { head: c.f.updated, wide: true, cell: (r) => date(r.updatedAt) },
   ];
   return (
     <>
@@ -363,6 +410,7 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
                   className={cn(
                     'px-3 pb-2 font-medium first:pl-4',
                     col.minor && 'md:max-xl:hidden',
+                    col.wide && 'max-md:hidden! md:max-2xl:hidden',
                     col.end && 'md:text-right',
                   )}
                 >
@@ -373,21 +421,40 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
           </thead>
           <tbody className="max-md:grid max-md:grid-cols-1 max-md:gap-2">
             {data.items.map((r) => (
-              <tr key={r.id} className={ROW} data-so={r.number}>
-                {cols.map((col) => (
-                  <td
-                    key={col.head}
-                    data-label={col.head}
-                    className={cn(
-                      CELL,
-                      col.minor && 'md:max-xl:hidden',
-                      col.end && 'md:text-right',
-                    )}
-                  >
-                    {col.cell(r)}
-                  </td>
-                ))}
-              </tr>
+              <Previewable
+                key={r.id}
+                load={() => preview(r.id)}
+                href={`${BASE}/orders/${encodeURIComponent(r.id)}`}
+                label={r.number}
+                colSpan={cols.length}
+                row={(toggle) => (
+                  <tr className={ROW} data-so={r.number}>
+                    {cols.map((col, i) => (
+                      <td
+                        key={col.head}
+                        data-label={col.head}
+                        className={cn(
+                          CELL,
+                          // The number heads the card on a phone (its label is redundant there).
+                          i === 0 && 'max-md:before:hidden',
+                          col.minor && 'md:max-xl:hidden',
+                          col.wide && 'max-md:hidden! md:max-2xl:hidden',
+                          col.end && 'md:text-right',
+                        )}
+                      >
+                        {i === 0 ? (
+                          <span className="inline-flex items-center">
+                            {col.cell(r)}
+                            {toggle}
+                          </span>
+                        ) : (
+                          col.cell(r)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+              />
             ))}
           </tbody>
         </table>

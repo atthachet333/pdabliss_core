@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react';
-import { Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { Notice } from '@/features/auth/AuthFrame';
 import { SelectField, TextField } from '@/features/auth/fields';
@@ -25,7 +25,7 @@ import {
 } from '@/features/company-center/parts';
 import { SearchBox } from '@/features/company-center/SearchBox';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
-import { useDebounced, usePaged } from '@/features/warehouse/whModel';
+import { useDebounced, usePaged, useUrlFilters } from '@/features/warehouse/whModel';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import {
@@ -210,8 +210,7 @@ function OrderList({
   const { c, err } = useProd();
   const { date } = useDateFormat();
   const base = useId();
-  const { locale } = useLocale();
-  const [params, setParams] = useSearchParams();
+  const [params, update] = useUrlFilters();
   const get = (k: string) => params.get(k) ?? '';
   const [q, setQ] = useState('');
   const debounced = useDebounced(q);
@@ -227,12 +226,11 @@ function OrderList({
       }),
     [...keys.map(get), debounced, stage],
   );
-  const filter = (k: (typeof keys)[number], v: string) => {
-    const p = new URLSearchParams(params);
-    if (v) p.set(k, v);
-    else p.delete(k);
-    setParams(p, { replace: true, state: { locale } });
-  };
+  const filter = (k: (typeof keys)[number], v: string) =>
+    update((p) => {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    });
   const select = (k: (typeof keys)[number], label: string, options: [string, string][]) => (
     <SelectField
       id={`${base}-${k}`}

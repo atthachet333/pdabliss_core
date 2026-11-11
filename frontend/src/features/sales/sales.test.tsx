@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CompanyRole } from '@/features/auth/api';
@@ -233,6 +233,34 @@ describe('Sales orders (EP33)', () => {
       ).toBe(true),
     );
     expect(document.body.textContent).not.toMatch(COST);
+  });
+
+  // EP42.3.1: a status and "short of stock" chosen before the list re-renders are both kept
+  // (React Router builds the next URL from the last render's params; the second used to win).
+  it('two filters changed in one tick are both sent and both shown', async () => {
+    const api = fakeApi(
+      as(false, {
+        [`GET ${S}/orders`]: ok({
+          items: [row()],
+          total: 1,
+          page: 1,
+          pageSize: 25,
+          hasMore: false,
+        }),
+      }),
+    );
+    renderRoute('/core/sales?lang=en');
+    await screen.findByRole('link', { name: 'SO-202611-000001' });
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'SUBMITTED' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Short of stock only' }));
+    await waitFor(() =>
+      expect(api.called(`GET ${S}/orders`).at(-1)!.query).toMatchObject({
+        status: 'SUBMITTED',
+        availability: 'SHORTAGE',
+      }),
+    );
+    expect(screen.getByLabelText('Status')).toHaveValue('SUBMITTED');
+    expect(screen.getByRole('checkbox', { name: 'Short of stock only' })).toBeChecked();
   });
 
   it('creates a draft for a customer, then opens it', async () => {

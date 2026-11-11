@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { CompanyRole } from '@/features/auth/api';
@@ -285,6 +285,25 @@ describe('Production planning (EP36)', () => {
         page: '1',
       }),
     );
+  });
+
+  // EP42.3.1: the root cause of an intermittent failure of the test above. React Router builds
+  // the next URL from the params of the LAST RENDER, so a second filter change made before the
+  // router re-rendered dropped the first one. Two changes in one tick reproduce it every time.
+  it('two filter changes before the list re-renders keep both filters', async () => {
+    const api = fakeApi(as('manager', { [`GET ${P}/orders`]: page([row()]) }));
+    renderRoute('/core/production/orders?lang=en');
+    await screen.findByText('MO-202611-000001');
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'APPROVED' } });
+    fireEvent.change(screen.getByLabelText('Materials'), { target: { value: 'SHORT' } });
+    await waitFor(() =>
+      expect(api.called(`GET ${P}/orders`).at(-1)!.query).toMatchObject({
+        status: 'APPROVED',
+        materials: 'SHORT',
+      }),
+    );
+    expect(screen.getByLabelText('Status')).toHaveValue('APPROVED');
+    expect(screen.getByLabelText('Materials')).toHaveValue('SHORT');
   });
 
   it('new order: finished item, its active BOM, server preview — and only plan fields are sent', async () => {

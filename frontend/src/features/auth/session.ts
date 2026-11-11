@@ -18,6 +18,8 @@ export type IdentityState =
 
 let state: IdentityState = { status: 'idle' };
 let inflight: Promise<void> | null = null;
+/** Bumped by the test reset: an answer to a request from before it is not kept. */
+let generation = 0;
 const listeners = new Set<() => void>();
 
 function set(next: IdentityState) {
@@ -31,20 +33,24 @@ export function getIdentityState(): IdentityState {
 
 /** Asks the server who is signed in (deduplicated). */
 export function refreshIdentity(): Promise<void> {
+  const gen = generation;
+  const current = (next: IdentityState) => {
+    if (gen === generation) set(next);
+  };
   inflight ??= (async () => {
     if (state.status !== 'ready') set({ status: 'loading' });
     try {
       const { identity } = await authApi.me();
-      set({ status: 'ready', identity });
+      current({ status: 'ready', identity });
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) set({ status: 'anonymous' });
+      if (e instanceof ApiError && e.status === 401) current({ status: 'anonymous' });
       else
-        set({
+        current({
           status: 'error',
           error: e instanceof ApiError ? e : new ApiError(0, 'UNKNOWN', String(e)),
         });
     } finally {
-      inflight = null;
+      if (gen === generation) inflight = null;
     }
   })();
   return inflight;
@@ -60,6 +66,7 @@ export function clearIdentity() {
 
 /** Test seam: forget everything between test cases. */
 export function resetIdentityForTests() {
+  generation += 1;
   state = { status: 'idle' };
   inflight = null;
 }

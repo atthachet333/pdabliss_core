@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Route, Routes, useNavigate, useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { controlClass } from '@/components/ui/fieldStyles';
 import { Notice } from '@/features/auth/AuthFrame';
@@ -31,7 +31,7 @@ import { LineSummaryText, NextStep, Previewable } from '@/features/company-cente
 import { SearchBox } from '@/features/company-center/SearchBox';
 import type { DepartmentCode } from '@/features/company/api';
 import { ConfirmBox } from '@/features/purchasing/orderParts';
-import { useDebounced, usePaged } from '@/features/warehouse/whModel';
+import { useDebounced, usePaged, useUrlFilters } from '@/features/warehouse/whModel';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
@@ -172,7 +172,7 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
   const money = useMoney();
   const { date } = useDateFormat();
   const base = useId();
-  const [params, setParams] = useSearchParams();
+  const [params, update] = useUrlFilters();
   const status = params.get('status') ?? '';
   const shortage = params.get('availability') === 'SHORTAGE';
   const [q, setQ] = useState('');
@@ -188,7 +188,6 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
       }),
     [status, shortage, debounced],
   );
-  const { locale } = useLocale();
   const d = useCopy(DOC_COPY);
   // EP42.3: a row's preview reads the order once (lines with what is still to deliver).
   const preview = usePreviewCache((id: string) =>
@@ -207,14 +206,15 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
     ),
   );
   // Filters live in the URL (shareable, back button); other params and the language stay.
-  const filter = (next: { status?: string; availability?: string }) => {
-    const p = new URLSearchParams(params);
-    for (const k of ['status', 'availability'] as const) {
-      if (next[k]) p.set(k, next[k]);
-      else p.delete(k);
-    }
-    setParams(p, { replace: true, state: { locale } });
-  };
+  // EP42.3.1: only the filters named are changed, on top of any change not yet rendered.
+  const filter = (next: { status?: string; availability?: string }) =>
+    update((p) => {
+      for (const k of ['status', 'availability'] as const) {
+        if (!(k in next)) continue;
+        if (next[k]) p.set(k, next[k]);
+        else p.delete(k);
+      }
+    });
   const tiles: [keyof SalesContext['counts'], { status?: string; availability?: string }][] = [
     ['myDrafts', { status: 'DRAFT' }],
     ['awaitingConfirmation', { status: 'SUBMITTED' }],
@@ -330,7 +330,7 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
               <button
                 type="button"
                 aria-pressed={active}
-                onClick={() => filter(active ? {} : f)}
+                onClick={() => filter({ status: '', availability: '', ...(active ? {} : f) })}
                 className={cn(
                   'grid min-h-11 w-full gap-1 rounded-xl p-4 text-left shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
                   active
@@ -364,9 +364,7 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
           id={`${base}-status`}
           label={c.f.status}
           value={status}
-          onChange={(e) =>
-            filter({ status: e.target.value, availability: shortage ? 'SHORTAGE' : '' })
-          }
+          onChange={(e) => filter({ status: e.target.value })}
           data-filter="status"
         >
           <option value="">{c.f.any}</option>
@@ -381,7 +379,7 @@ function SalesHome({ ctx }: { ctx: SalesContext }) {
           <input
             type="checkbox"
             checked={shortage}
-            onChange={(e) => filter({ status, availability: e.target.checked ? 'SHORTAGE' : '' })}
+            onChange={(e) => filter({ availability: e.target.checked ? 'SHORTAGE' : '' })}
             className="size-6 shrink-0 cursor-pointer accent-[var(--color-brand-primary)]"
             data-filter="shortage"
           />

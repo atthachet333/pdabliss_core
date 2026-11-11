@@ -21,13 +21,27 @@ const PASSWORD = 'correct horse battery staple';
 const CHALLENGE = {
   id: '6f1c2a40-1111-4222-8333-944455556666',
   purpose: 'LOGIN',
-  expiresAt: new Date(Date.now() + 600_000).toISOString(),
-  resendAvailableAt: new Date(Date.now() + 60_000).toISOString(),
   maskedEmail: 'p•••@example.com',
 };
 const anonymous = { 'GET /api/v1/auth/me': fail(401, 'UNAUTHENTICATED') };
-const otpRequired = (trustDeviceAllowed = true) =>
-  ok({ status: 'otp_required', challenge: CHALLENGE, trustDeviceAllowed });
+/**
+ * The OTP step as the server sends it, dated WHEN IT ANSWERS (EP42.3.1). The dates used to be
+ * fixed when this file loaded: on a loaded machine the file reached "resend waits for its
+ * countdown" more than 60 s later, the resend window had really passed, and the screen rightly
+ * offered "Resend" — an intermittent failure of the fixture, not of the login page.
+ */
+const otpRequired =
+  (trustDeviceAllowed = true) =>
+  () =>
+    ok({
+      status: 'otp_required',
+      challenge: {
+        ...CHALLENGE,
+        expiresAt: new Date(Date.now() + 600_000).toISOString(),
+        resendAvailableAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+      trustDeviceAllowed,
+    });
 
 async function open(path = '/login') {
   const r = renderRoute(path);
@@ -288,6 +302,22 @@ describe('real sign-in (EP23)', () => {
     expect(
       await screen.findByRole('button', { name: /ส่งรหัสใหม่ได้ใน \d+ วินาที/ }),
     ).toBeDisabled();
+  });
+
+  it('the resend countdown runs from the server answer, however late in the run it comes', async () => {
+    // What a slow run does: this test starts more than 60 s after the file was loaded.
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 61_000 });
+    try {
+      fakeApi({ ...anonymous, 'POST /api/v1/auth/login': otpRequired() });
+      await open();
+      await fill(EMAIL, PASSWORD);
+      await userEvent.keyboard('{Enter}');
+      expect(
+        await screen.findByRole('button', { name: /ส่งรหัสใหม่ได้ใน \d+ วินาที/ }),
+      ).toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows and hides the password with a labelled 44 px control', async () => {

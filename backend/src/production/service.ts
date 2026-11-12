@@ -15,7 +15,14 @@ import {
   reservationStateOf,
   type MaterialResult,
 } from './allocation.js';
-import type { CompleteInput, CreateMoInput, MoListInput, UpdateMoInput } from './input.js';
+import { BomService } from './bom.js';
+import type {
+  BomLineInput,
+  CompleteInput,
+  CreateMoInput,
+  MoListInput,
+  UpdateMoInput,
+} from './input.js';
 import { outputProgress, progressJson, receivedByReport } from './output.js';
 import {
   allowedMoActions,
@@ -85,9 +92,42 @@ const include = {
 } satisfies Prisma.ProductionOrderInclude;
 type Full = Prisma.ProductionOrderGetPayload<{ include: typeof include }>;
 
+/**
+ * EP46: may this member see the order's material QUANTITIES? Recipe holders always; for a
+ * MANUAL plan the quantities are the planner's, not a recipe; for a BOM plan only once the
+ * order was released for execution (approved and released by recipe holders).
+ */
+const discloses = (
+  actor: Pick<ProductionActor, 'recipes'>,
+  o: { materialPlan: 'BOM' | 'MANUAL'; releasedAt: Date | null },
+) => actor.recipes || o.materialPlan === 'MANUAL' || o.releasedAt !== null;
+
+/** Quantity fields withheld from a confidential projection (identity and state stay). */
+const HIDDEN_QUANTITIES = {
+  required: null,
+  available: null,
+  shortage: null,
+  reserved: null,
+  issued: null,
+  used: null,
+  stillNeeded: null,
+  excess: null,
+  usageVariance: null,
+  unrecorded: null,
+};
+
+const bomRequiredByPolicy = () =>
+  new AppError(
+    422,
+    'BOM_REQUIRED_BY_POLICY',
+    'This company manufactures with a BOM: choose an active BOM revision.',
+    { field: 'materialPlan' },
+  );
+
 const TIMELINE: ProductionAuditAction[] = [
   'PRODUCTION_ORDER_CREATED',
   'PRODUCTION_ORDER_UPDATED',
+  'PRODUCTION_ORDER_MATERIALS_PLANNED',
   'PRODUCTION_ORDER_SUBMITTED',
   'PRODUCTION_ORDER_APPROVED',
   'PRODUCTION_ORDER_REJECTED',
@@ -254,7 +294,12 @@ export class ProductionOrderService {
   private async writeMaterials(
     tx: Prisma.TransactionClient,
     o: { id: string; companyId: string },
-    rows: ReturnType<ProductionOrderService['materialRows']>,
+    rows: readonly (Omit<
+      ReturnType<ProductionOrderService['materialRows']>[number],
+      'bomQuantity'
+    > & {
+      bomQuantity: Decimal | null;
+    })[],
   ) {
     await tx.productionOrderMaterial.deleteMany({ where: { productionOrderId: o.id } });
     if (rows.length) {
@@ -307,15 +352,16 @@ export class ProductionOrderService {
         usageVariance: used.minus(m.requiredQuantity).toString(),
         unrecorded: Decimal.max(ZERO, issued.minus(used)).toString(),
       };
-      const exact = o.bomOutputQuantity
-        ? requiredQuantity(o.quantity, m.bomQuantity, o.bomOutputQuantity, m.unitPrecision).exact
-        : true;
+      const exact =
+        o.bomOutputQuantity && m.bomQuantity
+          ? requiredQuantity(o.quantity, m.bomQuantity, o.bomOutputQuantity, m.unitPrecision).exact
+          : true;
       const base = {
         id: m.id,
         lineNo: m.lineNo,
         item: { id: m.itemId, code: m.itemCode, name: m.itemName },
         unit: { code: m.unitCode, precision: m.unitPrecision },
-        bomQuantity: m.bomQuantity.toString(),
+        bomQuantity: m.bomQuantity?.toString() ?? null,
         required: m.requiredQuantity.toString(),
         exact,
         ...execution,
@@ -365,6 +411,7 @@ export class ProductionOrderService {
       item: { id: o.itemId, code: o.itemCode, name: o.itemName },
       unit: { code: o.unitCode, precision: o.unitPrecision },
       quantity: o.quantity.toString(),
+      materialPlan: o.materialPlan,
       bom:
         o.bomId && o.bomCode && o.bomRevision
           ? { id: o.bomId, code: o.bomCode, revision: o.bomRevision }
@@ -461,6 +508,14 @@ export class ProductionOrderService {
     ]);
     const a = this.assess(o, stock, progress);
     const claimed = new Map(claims.map((c) => [c.allocationId, c._sum.quantity ?? ZERO]));
+    // EP46: recipe fields need operations.recipes.view; BOM-derived quantities are disclosed to
+    // everyone else only once the order is released for execution (a recipe holder approved it).
+    const disclose = discloses(actor, o);
+    const materials = a.lines.map((l) => ({
+      ...l,
+      ...(actor.recipes ? {} : { bomQuantity: null, exact: null }),
+      ...(disclose ? {} : HIDDEN_QUANTITIES),
+    }));
     const ep38 = await this.outputOf(o);
     const demand = await this.demandOf(o);
     const timeline = await this.db.auditLog.findMany({
@@ -483,7 +538,8 @@ export class ProductionOrderService {
       order: MoView.parse({
         ...this.row(o, a.state, a.reservation),
         note: o.note,
-        bomOutputQuantity: o.bomOutputQuantity?.toString() ?? null,
+        bomOutputQuantity: actor.recipes ? (o.bomOutputQuantity?.toString() ?? null) : null,
+        quantitiesHidden: !disclose,
         createdAt: o.createdAt.toISOString(),
         submittedAt: iso(o.submittedAt),
         submittedBy: who(o.submittedBy),
@@ -498,7 +554,7 @@ export class ProductionOrderService {
         cancelledBy: who(o.cancelledBy),
         cancellationReason: o.cancellationReason,
         frozen: FROZEN.includes(o.status) && !!o.approvedAt,
-        materials: a.lines,
+        materials,
         demand,
         warnings,
         actions: this.actionsOf(actor, o, a, allocations.length > 0, claims.length > 0),
@@ -513,8 +569,8 @@ export class ProductionOrderService {
           unit: { code: r.material.unitCode, precision: r.material.unitPrecision },
           location: r.location,
           lot: r.lot ? { ...r.lot, expiryDate: day(r.lot.expiryDate) } : null,
-          quantity: r.quantity.toString(),
-          claimed: (claimed.get(r.id) ?? ZERO).toString(),
+          quantity: disclose ? r.quantity.toString() : null,
+          claimed: disclose ? (claimed.get(r.id) ?? ZERO).toString() : null,
           excess: r.excess,
         })),
         issues: issues.map((i) => ({
@@ -605,7 +661,10 @@ export class ProductionOrderService {
       },
       output: { create: actor.outputCreate, approve: actor.outputApprove },
       completion: { manage: actor.complete },
-      bom: { view: actor.bomView, manage: actor.bomManage },
+      bom: { view: actor.bomView, manage: actor.bomManage && actor.recipes },
+      /** EP46: confidential recipe access, and how this company manufactures. */
+      recipes: { view: actor.recipes },
+      manufacturingMode: actor.mode,
       branches: actor.branches,
       selectedBranch: selected,
       counts: {
@@ -705,6 +764,8 @@ export class ProductionOrderService {
   /** Requirements of `quantity` from one ACTIVE BOM in a branch — computed, not saved. */
   async preview(ctx: AuthContext, q: { bomId: string; quantity: string; branchId?: string }) {
     const actor = await this.reader(ctx);
+    // EP46: a preview scales the recipe — checked before any lookup (no existence oracle).
+    if (!actor.recipes) throw permissionDenied('operations.recipes.view');
     const branch = this.workingBranch(actor, ctx, q.branchId);
     const bom = await this.db.productionBom.findFirst({
       where: { id: q.bomId, companyId: actor.access.company.id },
@@ -760,13 +821,21 @@ export class ProductionOrderService {
   async requirements(ctx: AuthContext, q: { branchId?: string }) {
     const actor = await this.reader(ctx);
     const branchId = this.workingBranch(actor, ctx, q.branchId).id;
-    const orders = await this.db.productionOrder.findMany({
+    const all = await this.db.productionOrder.findMany({
       where: {
         ...this.visibleWhere(actor, branchId),
         status: { in: ['SUBMITTED', ...EXECUTING] },
       },
-      select: { id: true, requiredDate: true, materials: true },
+      select: {
+        id: true,
+        requiredDate: true,
+        materials: true,
+        materialPlan: true,
+        releasedAt: true,
+      },
     });
+    // EP46: BOM-derived quantities of unreleased orders are recipe data.
+    const orders = all.filter((o) => discloses(actor, o));
     const progress = await materialProgress(
       this.db,
       orders.map((o) => o.id),
@@ -1181,6 +1250,7 @@ export class ProductionOrderService {
    */
   private async refresh(tx: Prisma.TransactionClient, o: Prisma.ProductionOrderGetPayload<object>) {
     if (o.source === 'SALES_DEMAND' && o.salesOrderId) await this.lockSales(tx, o.salesOrderId);
+    if (o.materialPlan === 'MANUAL') return this.refreshManual(tx, o);
     if (!o.bomId) {
       throw fail(422, 'BOM_REQUIRED', 'Choose an active BOM revision first.', { field: 'bomId' });
     }
@@ -1220,6 +1290,98 @@ export class ProductionOrderService {
     return rows.length;
   }
 
+  /**
+   * EP46: a MANUAL plan is validated, never recomputed — the planner's explicit quantities
+   * are the requirement. The company must (still) allow it; at least one material; every
+   * material still active; the output item still manufacturable.
+   */
+  private async refreshManual(
+    tx: Prisma.TransactionClient,
+    o: Prisma.ProductionOrderGetPayload<object>,
+  ) {
+    const company = await tx.company.findUniqueOrThrow({
+      where: { id: o.companyId },
+      select: { manufacturingMode: true },
+    });
+    if (company.manufacturingMode !== 'BOM_OPTIONAL') throw bomRequiredByPolicy();
+    const item = await this.outputItem(tx, o.companyId, o.itemId);
+    this.checkQuantity(o.quantity.toString(), item.baseUnit.precision);
+    const materials = await tx.productionOrderMaterial.findMany({
+      where: { productionOrderId: o.id },
+      select: { itemId: true },
+    });
+    if (!materials.length) {
+      throw fail(
+        422,
+        'MATERIAL_PLAN_REQUIRED',
+        'Add at least one material to the material plan first.',
+        { field: 'materials' },
+      );
+    }
+    const inactive = await tx.item.count({
+      where: { id: { in: materials.map((m) => m.itemId) }, status: { not: 'ACTIVE' } },
+    });
+    if (inactive) throw fail(422, 'MATERIAL_INACTIVE', 'A material of this plan is inactive.');
+    return materials.length;
+  }
+
+  /** EP46: what a member may ask for: BOM (default) or MANUAL — MANUAL only in BOM_OPTIONAL. */
+  private planOf(
+    actor: ProductionActor,
+    requested: 'BOM' | 'MANUAL' | undefined,
+    bomId: string | null | undefined,
+  ) {
+    if (requested !== 'MANUAL') return 'BOM' as const;
+    if (actor.mode !== 'BOM_OPTIONAL') throw bomRequiredByPolicy();
+    if (bomId) {
+      throw fail(422, 'PLAN_CONFLICT', 'A manual material plan has no BOM revision.', {
+        field: 'bomId',
+      });
+    }
+    return 'MANUAL' as const;
+  }
+
+  /**
+   * EP46: the explicit material plan of a DRAFT MANUAL order (replaced whole). Same material
+   * rules as a BOM line (active stock items, base unit, precision, no duplicates, not the
+   * output item); the quantity IS the requirement — nothing is scaled or inferred.
+   */
+  async setMaterials(
+    ctx: AuthContext,
+    id: string,
+    lines: readonly BomLineInput[],
+    meta: RequestMeta,
+  ) {
+    const actor = await loadProductionActor(this.db, ctx);
+    await this.db.$transaction(async (tx) => {
+      const o = await this.locked(tx, actor, id, 'edit');
+      if (o.materialPlan !== 'MANUAL') {
+        throw fail(409, 'NOT_MANUAL_PLAN', 'This order takes its materials from its BOM revision.');
+      }
+      if (actor.mode !== 'BOM_OPTIONAL') throw bomRequiredByPolicy();
+      const rows = await new BomService(this.db).lineRows(tx, o.companyId, o.itemId, lines);
+      await this.writeMaterials(
+        tx,
+        o,
+        rows.map((r) => ({
+          lineNo: r.lineNo,
+          itemId: r.itemId,
+          itemCode: r.itemCode,
+          itemName: r.itemName,
+          unitId: r.unitId,
+          unitCode: r.unitCode,
+          unitPrecision: r.unitPrecision,
+          bomQuantity: null,
+          requiredQuantity: new Decimal(r.quantity),
+        })),
+      );
+      await this.event(tx, actor, meta, 'PRODUCTION_ORDER_MATERIALS_PLANNED', o, {
+        materials: rows.length,
+      });
+    });
+    return this.get(ctx, id);
+  }
+
   // ------------------------------------------------------------------ writes
 
   async create(ctx: AuthContext, input: CreateMoInput, meta: RequestMeta) {
@@ -1255,7 +1417,9 @@ export class ProductionOrderService {
       }
       const item = await this.outputItem(tx, companyId, itemId);
       this.checkQuantity(input.quantity, item.baseUnit.precision);
-      const bom = await this.resolveBom(tx, companyId, item.id, input.bomId);
+      const plan = this.planOf(actor, input.materialPlan, input.bomId);
+      const bom =
+        plan === 'MANUAL' ? null : await this.resolveBom(tx, companyId, item.id, input.bomId);
       const period = today.slice(0, 7).replace('-', '');
       const seq = await tx.$queryRaw<{ lastValue: number }[]>`
         INSERT INTO "DocumentSequence" ("companyId", "key", "lastValue", "updatedAt")
@@ -1278,6 +1442,7 @@ export class ProductionOrderService {
           unitCode: item.baseUnit.code,
           unitPrecision: item.baseUnit.precision,
           ...this.bomFields(bom),
+          materialPlan: plan,
           quantity: input.quantity,
           plannedStartDate: input.plannedStartDate ? asDay(input.plannedStartDate) : null,
           requiredDate: input.requiredDate ? asDay(input.requiredDate) : null,
@@ -1289,6 +1454,7 @@ export class ProductionOrderService {
       if (bom) await this.writeMaterials(tx, o, this.materialRows(bom, input.quantity));
       await this.event(tx, actor, meta, 'PRODUCTION_ORDER_CREATED', o, {
         source: o.source,
+        materialPlan: plan,
         materials: bom?.lines.length ?? 0,
         ...extra,
       });
@@ -1306,8 +1472,40 @@ export class ProductionOrderService {
       this.dates(start, required);
       const quantity = input.quantity ?? o.quantity.toString();
       this.checkQuantity(quantity, o.unitPrecision);
+      // EP46: switching to MANUAL needs BOM_OPTIONAL; a MANUAL plan keeps its explicit lines
+      // (never rescaled when the quantity changes); switching back to BOM recomputes them.
+      const plan =
+        input.materialPlan === undefined
+          ? o.materialPlan
+          : input.materialPlan === o.materialPlan
+            ? o.materialPlan
+            : this.planOf(actor, input.materialPlan, input.bomId);
+      if (plan === 'MANUAL' && input.bomId) {
+        throw fail(422, 'PLAN_CONFLICT', 'A manual material plan has no BOM revision.', {
+          field: 'bomId',
+        });
+      }
+      if (plan === 'MANUAL') {
+        await tx.productionOrder.update({
+          where: { id },
+          data: {
+            materialPlan: 'MANUAL',
+            quantity,
+            ...this.bomFields(null),
+            plannedStartDate: start ? asDay(start) : null,
+            requiredDate: required ? asDay(required) : null,
+            ...(input.priority ? { priority: input.priority } : {}),
+            ...(input.note !== undefined ? { note: input.note } : {}),
+          },
+        });
+        if (o.materialPlan !== 'MANUAL') await this.writeMaterials(tx, o, []);
+        await this.event(tx, actor, meta, 'PRODUCTION_ORDER_UPDATED', o, {
+          fields: Object.keys(input).sort().join(','),
+        });
+        return;
+      }
       const bom =
-        input.bomId !== undefined
+        input.bomId !== undefined || o.materialPlan === 'MANUAL'
           ? await this.resolveBom(tx, o.companyId, o.itemId, input.bomId)
           : o.bomId
             ? await tx.productionBom.findFirst({
@@ -1318,6 +1516,7 @@ export class ProductionOrderService {
       await tx.productionOrder.update({
         where: { id },
         data: {
+          materialPlan: 'BOM',
           quantity,
           ...this.bomFields(bom),
           plannedStartDate: start ? asDay(start) : null,
@@ -1858,16 +2057,17 @@ export class ProductionOrderService {
     });
   }
 
-  private allocResult(lines: MaterialResult[]) {
+  private allocResult(lines: MaterialResult[], disclose: boolean) {
+    const q = (d: Decimal) => (disclose ? d.toString() : null);
     return AllocationResult.parse({
-      reservedNow: lines.reduce((t, l) => t.plus(l.reservedNow), ZERO).toString(),
+      reservedNow: q(lines.reduce((t, l) => t.plus(l.reservedNow), ZERO)),
       materials: lines.map((l) => ({
         lineNo: l.lineNo,
         item: l.itemCode,
-        required: l.required.toString(),
-        reservedNow: l.reservedNow.toString(),
-        covered: l.covered.toString(),
-        shortage: l.shortage.toString(),
+        required: q(l.required),
+        reservedNow: q(l.reservedNow),
+        covered: q(l.covered),
+        shortage: q(l.shortage),
       })),
     });
   }
@@ -1888,7 +2088,8 @@ export class ProductionOrderService {
   async allocate(ctx: AuthContext, id: string, meta: RequestMeta) {
     const actor = await loadProductionActor(this.db, ctx);
     const lines = await this.allocateAs(actor, id, meta);
-    return { ...(await this.get(ctx, id)), allocation: this.allocResult(lines) };
+    const v = await this.get(ctx, id);
+    return { ...v, allocation: this.allocResult(lines, !v.order.quantitiesHidden) };
   }
 
   async allocateAs(actor: ProductionActor, id: string, meta: RequestMeta) {
@@ -1957,7 +2158,8 @@ export class ProductionOrderService {
       });
       return r;
     });
-    return { ...(await this.get(ctx, id)), allocation: this.allocResult(lines) };
+    const v = await this.get(ctx, id);
+    return { ...v, allocation: this.allocResult(lines, !v.order.quantitiesHidden) };
   }
 
   /** Manager-authorized extra material beyond the frozen requirement (reason kept). */
@@ -1998,7 +2200,8 @@ export class ProductionOrderService {
       });
       return r;
     });
-    return { ...(await this.get(ctx, id)), allocation: this.allocResult(lines) };
+    const v = await this.get(ctx, id);
+    return { ...v, allocation: this.allocResult(lines, !v.order.quantitiesHidden) };
   }
 
   /**

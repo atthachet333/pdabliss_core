@@ -394,6 +394,8 @@ export const SettingsBody = z
     defaultLocale: z.enum(API_LOCALES).optional(),
     /** EP41: separation of duties — the owner alone may change it. */
     approvalPolicy: z.enum(['SELF_APPROVAL_ALLOWED', 'INDEPENDENT_APPROVAL']).optional(),
+    /** EP46: optional BOM — the owner alone may change it (docs/EP46_MANUFACTURING_POLICY.md). */
+    manufacturingMode: z.enum(['BOM_REQUIRED', 'BOM_OPTIONAL']).optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, 'nothing to update');

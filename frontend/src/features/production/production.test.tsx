@@ -711,3 +711,150 @@ describe('Production planning (EP36)', () => {
     expect(screen.getByRole('button', { name: '审批通过' })).toBeInTheDocument();
   });
 });
+
+describe('EP46 optional BOM and confidential recipes', () => {
+  const optional = (who: Who, recipes: boolean, extra: Parameters<typeof fakeApi>[0] = {}) => ({
+    ...as(who, extra),
+    [`GET ${P}/context`]: ok({
+      ...ctx(who),
+      recipes: { view: recipes },
+      manufacturingMode: 'BOM_OPTIONAL',
+    } satisfies ProductionContext),
+  });
+
+  it('new order in BOM-optional mode: an explicit plan sends no BOM and asks for no preview', async () => {
+    const api = fakeApi(
+      optional('staff', false, {
+        [`GET ${P}/items`]: ok({ items: [fgItem] }),
+        [`POST ${P}/orders`]: ok({
+          order: order({
+            status: 'DRAFT',
+            materialPlan: 'MANUAL',
+            bom: null,
+            materials: [],
+            actions: ['edit', 'submit', 'cancel'],
+          }),
+          timeline: tl('PRODUCTION_ORDER_CREATED'),
+        }),
+        [`GET ${P}/orders/mo1`]: ok({
+          order: order({
+            status: 'DRAFT',
+            materialPlan: 'MANUAL',
+            bom: null,
+            materials: [],
+            actions: ['edit', 'submit', 'cancel'],
+          }),
+          timeline: tl('PRODUCTION_ORDER_CREATED'),
+        }),
+      }),
+    );
+    renderRoute('/core/production/orders/new?lang=en');
+    await userEvent.type(await screen.findByLabelText('Search the item to produce'), 'FG');
+    await userEvent.click(await screen.findByRole('button', { name: /FG-000001/ }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Explicit (no BOM)' }));
+    expect(screen.getByText(/nothing is calculated from a BOM/)).toBeInTheDocument();
+    expect(document.querySelector('[data-bom-choice]')).toBeNull();
+    await userEvent.type(screen.getByLabelText('Quantity to produce (PCS)'), '40');
+    await userEvent.click(screen.getByRole('button', { name: 'Create draft' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'MO-202611-000001' }),
+    ).toBeInTheDocument();
+    const body = api.called(`POST ${P}/orders`)[0]!.body as Record<string, unknown>;
+    expect(body).toMatchObject({ materialPlan: 'MANUAL', quantity: '40' });
+    expect(body).not.toHaveProperty('bomId');
+    expect(api.called(`GET ${P}/requirements/preview`)).toHaveLength(0);
+    // The draft explains its empty plan and offers the explicit editor.
+    expect(document.querySelector('[data-manual-plan]')).not.toBeNull();
+  });
+
+  it('a draft explicit plan is edited as whole lines (item + quantity) and saved with PUT', async () => {
+    const draft = order({
+      status: 'DRAFT',
+      materialPlan: 'MANUAL',
+      bom: null,
+      bomOutputQuantity: null,
+      materials: [material({ bomQuantity: null, required: '2.5', exact: null })],
+      actions: ['edit', 'submit', 'cancel'],
+    });
+    const api = fakeApi(
+      optional('staff', false, {
+        [`GET ${P}/orders/mo1`]: ok({ order: draft, timeline: tl('PRODUCTION_ORDER_CREATED') }),
+        [`PUT ${P}/orders/mo1/materials`]: ok({ order: draft, timeline: [] }),
+      }),
+    );
+    renderRoute('/core/production/orders/mo1?lang=en');
+    const form = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-manual-plan]');
+      if (!el) throw new Error('not yet');
+      return el;
+    });
+    const qty = within(form).getByLabelText(/KG/);
+    expect(qty).toHaveValue('2.5');
+    await userEvent.clear(qty);
+    await userEvent.type(qty, '3');
+    await userEvent.click(within(form).getByRole('button', { name: 'Save material plan' }));
+    await waitFor(() => expect(api.called(`PUT ${P}/orders/mo1/materials`)).toHaveLength(1));
+    expect(api.called(`PUT ${P}/orders/mo1/materials`)[0]!.body).toEqual({
+      lines: [{ itemId: 'rm', quantity: '3' }],
+    });
+    expect(screen.getByRole('button', { name: 'Use the BOM instead' })).toBeInTheDocument();
+  });
+
+  it('without recipe access: withheld quantities are explained, never shown; the BOM catalogue has no recipe link', async () => {
+    const hidden = order({
+      quantitiesHidden: true,
+      bomOutputQuantity: null,
+      materials: [
+        material({
+          bomQuantity: null,
+          exact: null,
+          required: null,
+          available: null,
+          shortage: null,
+          reserved: null,
+          issued: null,
+          used: null,
+          stillNeeded: null,
+          excess: null,
+          usageVariance: null,
+          unrecorded: null,
+        }),
+      ],
+    });
+    fakeApi(
+      optional('staff', false, {
+        [`GET ${P}/orders/mo1`]: ok({ order: hidden, timeline: [] }),
+        [`GET ${P}/boms`]: page([
+          {
+            id: 'bom2',
+            code: 'BOM-FG-000001',
+            revision: 2,
+            status: 'ACTIVE',
+            item: FG,
+            outputQuantity: null,
+            unit: { code: 'PCS', precision: 0 },
+            lineCount: null,
+            activatedAt: null,
+            updatedAt: '2026-11-04T02:00:00.000Z',
+          },
+        ]),
+      }),
+    );
+    const { unmount } = renderRoute('/core/production/orders/mo1?lang=th');
+    expect(await screen.findByText(/ปริมาณวัตถุดิบมาจากสูตรที่เป็นความลับ/)).toBeInTheDocument();
+    const table = document.querySelector<HTMLElement>('[data-table="materials"]')!;
+    expect(within(table).getByText('RM-000001')).toBeInTheDocument();
+    expect(table.textContent).not.toMatch(/\d+(\.\d+)? KG/);
+    unmount();
+    renderRoute('/core/production/boms?lang=zh');
+    expect(await screen.findByText('配方明细保密')).toBeInTheDocument();
+    expect((await screen.findAllByText(/BOM-FG-000001/)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: /BOM-FG-000001/ })).toBeNull();
+  });
+
+  it('shows the manufacturing mode on the production overview', async () => {
+    fakeApi(optional('manager', true));
+    renderRoute('/core/production?lang=en');
+    expect(await screen.findByText('Manufacturing: BOM optional')).toBeInTheDocument();
+  });
+});

@@ -170,13 +170,15 @@ export class BomService {
           revision: b.revision,
           status: b.status,
           item: { id: b.itemId, code: b.itemCode, name: b.itemName },
-          outputQuantity: b.outputQuantity.toString(),
+          // EP46: the output basis and size of a recipe are recipe data.
+          outputQuantity: actor.recipes ? b.outputQuantity.toString() : null,
           unit: { code: b.unitCode, precision: b.unitPrecision },
-          lineCount: b.lines.length,
+          lineCount: actor.recipes ? b.lines.length : null,
           activatedAt: iso(b.activatedAt),
           updatedAt: b.updatedAt.toISOString(),
         }),
       ),
+      recipes: actor.recipes,
       total,
       page: q.page,
       pageSize: q.pageSize,
@@ -184,8 +186,14 @@ export class BomService {
     };
   }
 
+  /**
+   * EP46: a revision's lines, output basis and notes are the confidential recipe. The
+   * permission is checked BEFORE the lookup, so the answer is the same 403 whether the id
+   * exists or not (no existence oracle for guessed ids).
+   */
   async get(ctx: AuthContext, id: string) {
     const actor = await this.reader(ctx);
+    if (!actor.recipes) throw permissionDenied('operations.recipes.view');
     return this.view(actor, await this.find(actor, id));
   }
 
@@ -290,8 +298,11 @@ export class BomService {
     };
   }
 
-  /** Lines → rows with snapshots (active stock materials, base unit, precision, no duplicates, not itself). */
-  private async lineRows(
+  /**
+   * Lines → rows with snapshots (active stock materials, base unit, precision, no duplicates,
+   * not itself). EP46: also validates a production order's MANUAL material plan.
+   */
+  async lineRows(
     tx: Prisma.TransactionClient | Db,
     companyId: string,
     outputItemId: string,
@@ -418,6 +429,7 @@ export class BomService {
   async create(ctx: AuthContext, input: CreateBomInput, meta: RequestMeta) {
     const actor = await loadProductionActor(this.db, ctx);
     if (!actor.bomManage) throw permissionDenied('operations.bom.manage');
+    if (!actor.recipes) throw permissionDenied('operations.recipes.view');
     return this.createAs(actor, input, meta).then((id) => this.get(ctx, id));
   }
 

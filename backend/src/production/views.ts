@@ -37,9 +37,9 @@ export const BomRow = z.object({
   revision: z.number(),
   status: bomStatus,
   item: ref,
-  outputQuantity: z.string(),
+  outputQuantity: z.string().nullable(),
   unit,
-  lineCount: z.number(),
+  lineCount: z.number().nullable(),
   activatedAt: z.string().nullable(),
   updatedAt: z.string(),
 });
@@ -91,6 +91,8 @@ export const MoRow = z.object({
   item: ref,
   unit,
   quantity: z.string(),
+  /** EP46: BOM (computed from the revision) or MANUAL (explicit plan). */
+  materialPlan: z.enum(['BOM', 'MANUAL']),
   bom: z.object({ id: z.string(), code: z.string(), revision: z.number() }).nullable(),
   plannedStartDate: z.string().nullable(),
   requiredDate: z.string().nullable(),
@@ -105,31 +107,35 @@ export const MoRow = z.object({
   updatedAt: z.string(),
 });
 
+/**
+ * EP46: `bomQuantity` / `exact` are recipe fields (null without operations.recipes.view); the
+ * quantities are null while a BOM-planned order is not yet released for a non-recipe member.
+ */
 export const MaterialLine = z.object({
   /** The requirement id (EP37: usage and excess name it). Empty in a preview. */
   id: z.string(),
   lineNo: z.number(),
   item: ref,
   unit,
-  bomQuantity: z.string(),
-  required: z.string(),
+  bomQuantity: z.string().nullable(),
+  required: z.string().nullable(),
   /** False when the requirement was rounded UP to the unit's decimal places. */
-  exact: z.boolean(),
+  exact: z.boolean().nullable(),
   available: z.string().nullable(),
   shortage: z.string().nullable(),
   state: availability.nullable(),
   /** EP37 — planned vs committed vs physical vs reported (never interchangeable). */
-  reserved: z.string(),
-  issued: z.string(),
-  used: z.string(),
+  reserved: z.string().nullable(),
+  issued: z.string().nullable(),
+  used: z.string().nullable(),
   /** required − reserved − issued (≥ 0): what still has to be reserved. */
-  stillNeeded: z.string(),
+  stillNeeded: z.string().nullable(),
   /** Reserved / issued beyond the requirement (manager-authorized, with a reason). */
-  excess: z.string(),
+  excess: z.string().nullable(),
   /** used − required (signed). */
-  usageVariance: z.string(),
+  usageVariance: z.string().nullable(),
   /** issued − used: issued to production, not (yet) reported as used. */
-  unrecorded: z.string(),
+  unrecorded: z.string().nullable(),
 });
 
 const demand = z
@@ -160,6 +166,8 @@ export const OutputProgress = z.object({
 export const MoView = MoRow.extend({
   note: z.string().nullable(),
   bomOutputQuantity: z.string().nullable(),
+  /** EP46: true when material quantities are withheld (BOM plan, not released, no recipe access). */
+  quantitiesHidden: z.boolean(),
   createdAt: z.string(),
   submittedAt: z.string().nullable(),
   submittedBy: person,
@@ -193,8 +201,8 @@ export const MoView = MoRow.extend({
       unit,
       location: ref,
       lot: lotRef.nullable(),
-      quantity: z.string(),
-      claimed: z.string(),
+      quantity: z.string().nullable(),
+      claimed: z.string().nullable(),
       excess: z.boolean(),
     }),
   ),
@@ -266,15 +274,15 @@ export const MoView = MoRow.extend({
 
 /** EP37: what an allocation / reallocation did, per material. */
 export const AllocationResult = z.object({
-  reservedNow: z.string(),
+  reservedNow: z.string().nullable(),
   materials: z.array(
     z.object({
       lineNo: z.number(),
       item: z.string(),
-      required: z.string(),
-      reservedNow: z.string(),
-      covered: z.string(),
-      shortage: z.string(),
+      required: z.string().nullable(),
+      reservedNow: z.string().nullable(),
+      covered: z.string().nullable(),
+      shortage: z.string().nullable(),
     }),
   ),
 });

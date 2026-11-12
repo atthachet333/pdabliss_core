@@ -182,6 +182,16 @@ Escalate to the **owner** for any data loss, restore, credential exposure or pro
 | B10 | Removal of the 21 leftover scratch databases on the development machine                                               |
 | B11 | Data-retention periods (accounting, PDPA)                                                                             |
 
+## EP46 — manufacturing mode and recipe access
+
+- Companies start BOM-required. Only the Company Owner switches to "BOM optional" (Settings); the change is audited.
+- Recipe details (BOM lines, ratios, previews) are visible to the Owner and Operations Managers. To let a specific
+  Operations Staff member see recipes, grant the exception `operations.recipes.view` on Permissions; a DENY removes it
+  from a manager. Changes apply on the next request.
+- "Quantities appear once the order is released" on an order is expected for staff without recipe access.
+- Rolling EP46 back requires that no production order uses an explicit material plan
+  ([EP46_MIGRATION_ROLLBACK.md](EP46_MIGRATION_ROLLBACK.md)).
+
 ## EP45 — department administration
 
 - One department per regular employee (Manager / Staff / Viewer); Owner, System Admin and Executive have none.

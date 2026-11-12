@@ -351,7 +351,12 @@ export interface CompanySettings {
   approvalPolicy: ApprovalPolicy;
   /** Only the Company Owner may change the approval policy. */
   canChangeApprovalPolicy: boolean;
+  /** EP46: BOM required or optional for production (owner only). */
+  manufacturingMode?: ManufacturingMode;
+  canChangeManufacturingMode?: boolean;
 }
+
+export type ManufacturingMode = 'BOM_REQUIRED' | 'BOM_OPTIONAL';
 
 /* ---- EP27 permission administration ---------------------------------- */
 
@@ -535,7 +540,9 @@ export const controlApi = {
 
   settings: () => apiRequest<CompanySettings>('GET', `${C}/current/settings`),
   updateSettings: (
-    body: Partial<Pick<CompanySettings, 'timezone' | 'defaultLocale' | 'approvalPolicy'>>,
+    body: Partial<
+      Pick<CompanySettings, 'timezone' | 'defaultLocale' | 'approvalPolicy' | 'manufacturingMode'>
+    >,
   ) => apiRequest<CompanySettings>('PATCH', `${C}/current/settings`, body),
 
   permissionProfiles: () => apiRequest<PermissionProfiles>('GET', `${C}/current/permissions`),

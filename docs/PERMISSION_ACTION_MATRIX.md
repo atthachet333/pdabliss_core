@@ -359,3 +359,15 @@ Rules for module authors:
 - No permission code, role tier or catalog entry changed; the override CHECK still lists the same codes.
 - Policy: [EP45_DEPARTMENT_POLICY.md](EP45_DEPARTMENT_POLICY.md) · audit: [EP45_AUTHORIZATION_AUDIT.md](EP45_AUTHORIZATION_AUDIT.md) ·
   tests: [EP45_SECURITY_TEST_MATRIX.md](EP45_SECURITY_TEST_MATRIX.md).
+
+## EP46 — confidential recipes
+
+- New code **`operations.recipes.view`** (OPERATIONS, COMPANY scope, READ tier, **confidential**). Confidential codes are a
+  role default only for the Company Owner and a Department Manager of the department; Staff / Viewers need an explicit
+  ALLOW; the Executive's cross-department READ never includes them. Override CHECK: **82** codes.
+- `operations.bom.view` now means the BOM **catalogue identity** (code, revision, item, status). Recipe lines, output basis,
+  previews and BOM-derived quantities of unreleased orders need `operations.recipes.view`; BOM changes need
+  `operations.bom.manage` **and** `operations.recipes.view`.
+- Company setting `manufacturingMode` (BOM required / optional) — owner only (`OWNER_ONLY`), like the approval policy.
+- Matrix and projections: [EP46_RECIPE_CONFIDENTIALITY_MATRIX.md](EP46_RECIPE_CONFIDENTIALITY_MATRIX.md); policy:
+  [EP46_MANUFACTURING_POLICY.md](EP46_MANUFACTURING_POLICY.md).

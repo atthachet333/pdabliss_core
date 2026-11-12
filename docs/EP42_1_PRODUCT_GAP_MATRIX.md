@@ -79,3 +79,8 @@ records, a working journey and server-enforced boundaries today.
 **Code delivered (EP45), owner UAT pending.** Enforced in the database (unique assignment per person and company,
 company-bound keys, role guard triggers), in the resolver (fails closed) and in administration
 (`ONE_DEPARTMENT_ONLY`). System Admin is administration only. See [EP45_FINAL_REPORT.md](EP45_FINAL_REPORT.md).
+
+## EP46 update — optional BOM and recipe confidentiality
+
+**Code delivered (EP46), owner UAT pending.** Owner-chosen BOM-optional manufacturing with explicit material plans, and
+confidential recipe access (`operations.recipes.view`). See [EP46_FINAL_REPORT.md](EP46_FINAL_REPORT.md).

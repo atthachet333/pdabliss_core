@@ -104,6 +104,8 @@ export type BomListInput = z.output<typeof BomListQuery>;
 const orderFields = {
   /** Omitted: the item's one ACTIVE revision (never an arbitrary one). */
   bomId: id.optional(),
+  /** EP46: BOM (default) or MANUAL — an explicit material plan, BOM_OPTIONAL companies only. */
+  materialPlan: z.enum(['BOM', 'MANUAL']).optional(),
   quantity: quantityValue,
   plannedStartDate: opt(dayValue),
   requiredDate: opt(dayValue),
@@ -134,6 +136,9 @@ export const UpdateMoBody = z
   .strict()
   .refine((v) => Object.keys(v).length > 0, 'nothing to update');
 export type UpdateMoInput = z.output<typeof UpdateMoBody>;
+
+/** EP46: a DRAFT MANUAL order's explicit material plan, replaced whole (empty clears it). */
+export const MoMaterialsBody = z.object({ lines: z.array(BomLineBody).max(100) }).strict();
 
 export const MoReasonBody = z.object({ reason: opt(text(500)) }).strict();
 export const MoNoBody = z.object({}).strict();

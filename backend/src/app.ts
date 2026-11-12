@@ -83,6 +83,15 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
     done();
   });
 
+  // EP46: API answers carry private company data (recipes, quantities, people) — never stored
+  // by a browser or a shared cache unless a route chose its own policy (e.g. the company logo).
+  app.addHook('onSend', (request, reply, payload, done) => {
+    if (request.url.startsWith('/api/') && !reply.hasHeader('cache-control')) {
+      void reply.header('cache-control', 'no-store');
+    }
+    done(null, payload);
+  });
+
   await app.register(helmet, {
     // JSON API: nothing should ever be rendered or framed from these responses.
     contentSecurityPolicy: {

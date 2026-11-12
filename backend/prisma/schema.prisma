@@ -59,8 +59,19 @@ enum ApprovalPolicy {
   INDEPENDENT_APPROVAL
 }
 
+/// EP46: how this company manufactures. Existing and new companies keep BOM_REQUIRED until
+/// the Company Owner changes it (Company Control Center → Settings).
+enum ManufacturingMode {
+  /// Every production order needs an ACTIVE BOM revision (EP36 behaviour).
+  BOM_REQUIRED
+  /// A production order may instead carry an explicit, manually entered material plan.
+  BOM_OPTIONAL
+}
+
 model Company {
   id                 String                  @id @default(cuid())
+  /// EP46: BOM_REQUIRED unless the owner chose BOM_OPTIONAL.
+  manufacturingMode  ManufacturingMode       @default(BOM_REQUIRED)
   /// EP41: existing companies keep SELF_APPROVAL_ALLOWED; onboarding sets INDEPENDENT_APPROVAL.
   approvalPolicy     ApprovalPolicy          @default(SELF_APPROVAL_ALLOWED)
   /// Display name (how the company is shown in CORE).
@@ -2736,8 +2747,18 @@ enum ProductionPriority {
 }
 
 /// A planned output of one finished item in one branch (MO-YYYYMM-NNNNNN). Planning only.
+/// EP46: where a production order's material plan comes from.
+enum ProductionMaterialPlan {
+  /// Computed from the order's ACTIVE BOM revision (confidential recipe data).
+  BOM
+  /// Entered explicitly for this order (BOM_OPTIONAL companies only); never inferred.
+  MANUAL
+}
+
 model ProductionOrder {
   id                        String                         @id @default(cuid())
+  /// EP46: BOM-computed or explicitly planned materials (MANUAL ⇒ no BOM — database CHECK).
+  materialPlan              ProductionMaterialPlan         @default(BOM)
   companyId                 String
   branchId                  String
   branch                    Branch                         @relation(fields: [branchId, companyId], references: [id, companyId])
@@ -2838,7 +2859,8 @@ model ProductionOrderMaterial {
   unitCode          String
   unitPrecision     Int
   /// The BOM line's quantity per BOM output quantity.
-  bomQuantity       Decimal                        @db.Decimal(18, 6)
+  /// The BOM line quantity per BOM output; NULL for a MANUAL plan (EP46 — no recipe ratio exists).
+  bomQuantity       Decimal?                       @db.Decimal(18, 6)
   requiredQuantity  Decimal                        @db.Decimal(18, 6)
   createdAt         DateTime                       @default(now())
   allocations       ProductionMaterialAllocation[]

@@ -71,9 +71,15 @@ export interface Page<T> {
 }
 export type Timeline = { type: string; at: string; actor: Person }[];
 
+export type ManufacturingMode = 'BOM_REQUIRED' | 'BOM_OPTIONAL';
+export type MaterialPlan = 'BOM' | 'MANUAL';
+
 export interface ProductionContext {
   orders: { view: boolean; create: boolean; approve: boolean; cancel: boolean };
   bom: { view: boolean; manage: boolean };
+  /** EP46: confidential recipe access, and how the company manufactures. */
+  recipes?: { view: boolean };
+  manufacturingMode?: ManufacturingMode;
   branches: { id: string; code: string; name: string; type: string }[];
   selectedBranch: { id: string; code: string; name: string; type: string } | null;
   counts: {
@@ -117,9 +123,10 @@ export interface BomRow {
   revision: number;
   status: BomStatus;
   item: Ref;
-  outputQuantity: string;
+  /** EP46: null without recipe access. */
+  outputQuantity: string | null;
   unit: Unit;
-  lineCount: number;
+  lineCount: number | null;
   activatedAt: string | null;
   updatedAt: string;
 }
@@ -144,24 +151,25 @@ export interface Bom extends BomRow {
 }
 export type BomDetail = { bom: Bom; timeline: Timeline };
 
+/** EP46: recipe fields and (before release, without recipe access) quantities may be null. */
 export interface Material {
   id: string;
   lineNo: number;
   item: Ref;
   unit: Unit;
-  bomQuantity: string;
-  required: string;
-  exact: boolean;
+  bomQuantity: string | null;
+  required: string | null;
+  exact: boolean | null;
   available: string | null;
   shortage: string | null;
   state: Availability | null;
-  reserved: string;
-  issued: string;
-  used: string;
-  stillNeeded: string;
-  excess: string;
-  usageVariance: string;
-  unrecorded: string;
+  reserved: string | null;
+  issued: string | null;
+  used: string | null;
+  stillNeeded: string | null;
+  excess: string | null;
+  usageVariance: string | null;
+  unrecorded: string | null;
 }
 
 export interface MoRow {
@@ -173,6 +181,7 @@ export interface MoRow {
   item: Ref;
   unit: Unit;
   quantity: string;
+  materialPlan?: MaterialPlan;
   bom: BomRef | null;
   plannedStartDate: string | null;
   requiredDate: string | null;
@@ -193,6 +202,8 @@ export interface MoRow {
 export interface Mo extends MoRow {
   note: string | null;
   bomOutputQuantity: string | null;
+  /** EP46: material quantities withheld (BOM plan, not released, no recipe access). */
+  quantitiesHidden?: boolean;
   createdAt: string;
   submittedAt: string | null;
   submittedBy: Person;
@@ -244,8 +255,8 @@ export interface Reservation {
   unit: Unit;
   location: Ref;
   lot: LotRef | null;
-  quantity: string;
-  claimed: string;
+  quantity: string | null;
+  claimed: string | null;
   excess: boolean;
 }
 export type LotRef = { id: string; lotNumber: string; expiryDate: string | null };
@@ -373,6 +384,7 @@ export interface MoInput {
   branchId?: string;
   salesOrderLineId?: string;
   bomId?: string;
+  materialPlan?: MaterialPlan;
   quantity?: string;
   plannedStartDate?: string | null;
   requiredDate?: string | null;
@@ -407,6 +419,9 @@ export const productionApi = {
   get: (o: string) => apiRequest<MoDetail>('GET', `${P}/orders/${id(o)}`),
   create: (body: MoInput) => apiRequest<MoDetail>('POST', `${P}/orders`, body),
   update: (o: string, body: MoInput) => apiRequest<MoDetail>('PATCH', `${P}/orders/${id(o)}`, body),
+  /** EP46: a DRAFT MANUAL order's explicit material plan (replaced whole). */
+  setMaterials: (o: string, lines: { itemId: string; quantity: string }[]) =>
+    apiRequest<MoDetail>('PUT', `${P}/orders/${id(o)}/materials`, { lines }),
   act: (o: string, action: Exclude<MoAction, 'edit'>, reason?: string) =>
     apiRequest<MoDetail>(
       'POST',

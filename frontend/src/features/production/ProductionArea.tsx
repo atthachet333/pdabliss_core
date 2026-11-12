@@ -5,8 +5,10 @@ import {
   useId,
   useRef,
   useState,
+  type Dispatch,
   type FormEvent,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
@@ -36,6 +38,7 @@ import {
   type BomAction,
   type BomDetail,
   type DemandRow,
+  type MaterialPlan,
   type Mo,
   type MoAction,
   type MoDetail,
@@ -118,10 +121,10 @@ export default function ProductionArea() {
           }
         />
         {ctx.orders.create && <Route path="orders/new" element={<NewOrder ctx={ctx} />} />}
-        <Route path="orders/:id" element={<ById kind="order" />} />
+        <Route path="orders/:id" element={<ById kind="order" ctx={ctx} />} />
         {ctx.bom.view && <Route path="boms" element={<BomList ctx={ctx} />} />}
         {ctx.bom.manage && <Route path="boms/new" element={<NewBom />} />}
-        {ctx.bom.view && <Route path="boms/:id" element={<ById kind="bom" />} />}
+        {ctx.bom.view && <Route path="boms/:id" element={<ById kind="bom" ctx={ctx} />} />}
         <Route path="requirements" element={<Requirements ctx={ctx} />} />
         <Route path="demand" element={<Demand ctx={ctx} />} />
       </Routes>
@@ -129,9 +132,13 @@ export default function ProductionArea() {
   );
 }
 
-function ById({ kind }: { kind: 'order' | 'bom' }) {
+function ById({ kind, ctx }: { kind: 'order' | 'bom'; ctx: ProductionContext }) {
   const { id } = useParams();
-  return kind === 'order' ? <OrderPage key={id} id={id!} /> : <BomPage key={id} id={id!} />;
+  return kind === 'order' ? (
+    <OrderPage key={id} id={id!} ctx={ctx} />
+  ) : (
+    <BomPage key={id} id={id!} />
+  );
 }
 
 function useGo() {
@@ -174,6 +181,13 @@ function Overview({ ctx }: { ctx: ProductionContext }) {
       {ctx.selectedBranch && (
         <p className="text-caption text-text-muted">
           {c.f.branch}: {`${ctx.selectedBranch.code} · ${ctx.selectedBranch.name}`}
+        </p>
+      )}
+      {ctx.manufacturingMode && (
+        <p data-manufacturing-mode={ctx.manufacturingMode}>
+          <Pill tone={ctx.manufacturingMode === 'BOM_OPTIONAL' ? 'teal' : 'muted'}>
+            {c.modes[ctx.manufacturingMode]}
+          </Pill>
         </p>
       )}
       <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-production-counts>
@@ -528,6 +542,10 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // EP46: BOM_OPTIONAL companies may plan materials explicitly (no BOM, nothing calculated).
+  const optional = ctx.manufacturingMode === 'BOM_OPTIONAL';
+  const [plan, setPlan] = useState<MaterialPlan>('BOM');
+  const manual = optional && plan === 'MANUAL';
   const unit = demand
     ? demand.unit
     : item
@@ -536,7 +554,7 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
   const bom = demand ? demand.activeBom : (item?.activeBom ?? null);
   const ready =
     !!unit &&
-    !!bom &&
+    (manual || !!bom) &&
     validQty(v.quantity, unit.precision) &&
     (!v.start || !v.required || v.required >= v.start);
   const submit = async (e: FormEvent) => {
@@ -547,7 +565,7 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
     try {
       const { order } = await productionApi.create({
         ...(demand ? { salesOrderLineId: demand.lineId } : { itemId: item!.id, branchId }),
-        bomId: bom!.id,
+        ...(manual ? { materialPlan: 'MANUAL' as const } : { bomId: bom!.id }),
         quantity: v.quantity,
         plannedStartDate: v.start || null,
         requiredDate: v.required || null,
@@ -621,7 +639,33 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
             )}
           </div>
         )}
-        {(item || demand) && (
+        {optional && (
+          <fieldset className="grid gap-2 sm:col-span-2" data-plan-choice>
+            <legend className="mb-1 text-label font-medium text-text-primary">
+              {c.plan.label}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {(['BOM', 'MANUAL'] as const).map((p) => (
+                <label
+                  key={p}
+                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] has-[:checked]:bg-brand-primary/[0.06]"
+                >
+                  <input
+                    type="radio"
+                    name={`${base}-plan`}
+                    checked={plan === p}
+                    onChange={() => setPlan(p)}
+                    className="size-4 accent-[var(--color-brand-primary)]"
+                    data-plan={p}
+                  />
+                  {c.plan[p]}
+                </label>
+              ))}
+            </div>
+            {manual && <p className="text-caption text-text-muted">{c.manualHint}</p>}
+          </fieldset>
+        )}
+        {(item || demand) && !manual && (
           <p className="text-label text-text-primary sm:col-span-2" data-bom-choice>
             <span className="text-text-muted">{c.f.bom}: </span>
             {bom ? (
@@ -632,7 +676,7 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
           </p>
         )}
         <PlanFields v={v} set={setV} unit={unit} />
-        {bom && unit && (
+        {bom && unit && !manual && ctx.recipes?.view !== false && (
           <RequirementsPreview
             bomId={bom.id}
             quantity={v.quantity}
@@ -657,7 +701,7 @@ function NewOrder({ ctx }: { ctx: ProductionContext }) {
 /** The EP36 document steps (EP37 material and execution actions live in ExecutionPanel). */
 type Step = Extract<MoAction, 'submit' | 'approve' | 'reject' | 'release' | 'cancel'>;
 
-function OrderPage({ id }: { id: string }) {
+function OrderPage({ id, ctx }: { id: string; ctx: ProductionContext }) {
   const { c, err } = useProd();
   const { date, dateTime } = useDateFormat();
   const { state, set } = useLoad(() => productionApi.get(id));
@@ -735,6 +779,7 @@ function OrderPage({ id }: { id: string }) {
             <span className="font-semibold tabular-nums">{`${o.quantity} ${o.unit.code}`}</span>
           </Fact>
           <Fact term={c.f.branch}>{`${o.branch.code} · ${o.branch.name}`}</Fact>
+          {o.materialPlan && <Fact term={c.plan.label}>{c.plan[o.materialPlan]}</Fact>}
           <Fact term={c.f.bom}>
             {o.bom
               ? `${o.bom.code} · ${c.f.revision} ${o.bom.revision}${o.bomOutputQuantity ? ` · ${c.f.output} ${o.bomOutputQuantity} ${o.unit.code}` : ''}`
@@ -814,10 +859,39 @@ function OrderPage({ id }: { id: string }) {
       )}
 
       <Section id="mo-materials" title={`${c.f.materials} · ${o.materials.length}`}>
-        {o.materials.length ? (
+        {o.quantitiesHidden && (
+          <p className="mb-3 text-caption text-text-muted" data-quantities-hidden>
+            {c.hiddenNote}
+          </p>
+        )}
+        {editable && o.materialPlan === 'MANUAL' ? (
+          <ManualPlanEditor
+            key={o.updatedAt}
+            o={o}
+            save={(lines) => run(() => productionApi.setMaterials(o.id, lines))}
+          />
+        ) : o.materials.length ? (
           <MaterialsTable materials={o.materials} />
         ) : (
-          <p className="text-label text-text-secondary">{c.errors.BOM_REQUIRED}</p>
+          <p className="text-label text-text-secondary">
+            {o.materialPlan === 'MANUAL' ? c.emptyPlan : c.errors.BOM_REQUIRED}
+          </p>
+        )}
+        {editable && ctx.manufacturingMode === 'BOM_OPTIONAL' && (
+          <button
+            type="button"
+            onClick={() =>
+              void run(() =>
+                productionApi.update(o.id, {
+                  materialPlan: o.materialPlan === 'MANUAL' ? 'BOM' : 'MANUAL',
+                }),
+              )
+            }
+            className={buttonClasses('ghost', 'md', 'mt-3 w-fit')}
+            data-switch-plan
+          >
+            {o.materialPlan === 'MANUAL' ? c.useBom : c.useManual}
+          </button>
         )}
         <p className="mt-3 text-caption text-text-muted">
           {o.frozen ? c.frozenNote : c.planningNote}
@@ -964,6 +1038,11 @@ function BomList({ ctx }: { ctx: ProductionContext }) {
           ) : undefined
         }
       />
+      {ctx.recipes?.view === false && (
+        <p className="text-caption text-text-muted" data-recipe-confidential>
+          {c.recipeOnly}
+        </p>
+      )}
       <div role="search" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <SearchBox
           id={`${base}-q`}
@@ -1007,16 +1086,24 @@ function BomList({ ctx }: { ctx: ProductionContext }) {
           cols={[
             {
               head: c.f.bom,
-              cell: (b) => (
-                <AreaLink to={`${PROD}/boms/${encodeURIComponent(b.id)}`} className={LINK}>
-                  {`${b.code} · ${c.f.revision} ${b.revision}`}
-                </AreaLink>
-              ),
+              // EP46: the revision page is the confidential recipe — no link without access.
+              cell: (b) =>
+                ctx.recipes?.view === false ? (
+                  <span title={c.recipeOnly}>{`${b.code} · ${c.f.revision} ${b.revision}`}</span>
+                ) : (
+                  <AreaLink to={`${PROD}/boms/${encodeURIComponent(b.id)}`} className={LINK}>
+                    {`${b.code} · ${c.f.revision} ${b.revision}`}
+                  </AreaLink>
+                ),
             },
             { head: c.f.item, cell: (b) => <ItemCell code={b.item.code} name={b.item.name} /> },
             { head: c.f.status, cell: (b) => <BomStatusPill status={b.status} /> },
-            { head: c.f.output, end: true, cell: (b) => `${b.outputQuantity} ${b.unit.code}` },
-            { head: c.f.lines, end: true, minor: true, cell: (b) => b.lineCount },
+            {
+              head: c.f.output,
+              end: true,
+              cell: (b) => (b.outputQuantity === null ? '—' : `${b.outputQuantity} ${b.unit.code}`),
+            },
+            { head: c.f.lines, end: true, minor: true, cell: (b) => b.lineCount ?? '—' },
             {
               head: c.f.activatedAt,
               minor: true,
@@ -1105,73 +1192,137 @@ function BomEditor({
           onChange={(e) => setNote(e.target.value)}
         />
       </div>
-      <fieldset className="grid gap-2">
-        <legend className="mb-2 text-label font-medium text-text-primary">{c.f.lines}</legend>
-        <ol className="grid gap-2" data-bom-lines>
-          {lines.map((l, i) => (
-            <li
-              key={l.itemId}
-              className={cn(CARD, 'grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]')}
-              data-line={l.code}
-            >
-              <span className="min-w-0 text-label">
-                <span className="font-mono text-caption text-text-muted">#{i + 1}</span>{' '}
-                <ItemCell code={l.code} name={l.name} />
-              </span>
-              <TextField
-                id={`${base}-q${i}`}
-                label={`${c.f.requiredQty} (${l.unit.code})`}
-                inputMode="decimal"
-                value={l.quantity}
-                onChange={(e) =>
-                  setLines((xs) =>
-                    xs.map((x, j) => (j === i ? { ...x, quantity: e.target.value.trim() } : x)),
-                  )
-                }
-                error={
-                  l.quantity && !validQty(l.quantity, l.unit.precision)
-                    ? c.errors.QUANTITY_PRECISION
-                    : undefined
-                }
-              />
-              <button
-                type="button"
-                onClick={() => setLines((xs) => xs.filter((_, j) => j !== i))}
-                className={buttonClasses('ghost', 'md')}
-              >
-                {c.remove(l.code)}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <ItemSearch
-          role="MATERIAL"
-          label={c.addMaterial}
-          hint={c.materialHint}
-          onPick={(m) =>
-            setLines((xs) =>
-              xs.some((x) => x.itemId === m.id)
-                ? xs
-                : [
-                    ...xs,
-                    {
-                      itemId: m.id,
-                      code: m.code,
-                      name: m.name,
-                      unit: { code: m.unit.code, precision: m.unit.precision },
-                      quantity: '',
-                    },
-                  ],
-            )
-          }
-        />
-      </fieldset>
+      <LinesField legend={c.f.lines} lines={lines} setLines={setLines} />
       <button
         type="submit"
         disabled={busy || !ok}
         className={buttonClasses('primary', 'md', 'w-fit')}
       >
         {busy ? c.saving : submitLabel}
+      </button>
+    </form>
+  );
+}
+
+/** Material lines (item + quantity in its base unit) — the BOM editor and, EP46, a manual plan. */
+function LinesField({
+  legend,
+  lines,
+  setLines,
+}: {
+  legend: string;
+  lines: DraftLine[];
+  setLines: Dispatch<SetStateAction<DraftLine[]>>;
+}) {
+  const { c } = useProd();
+  const base = useId();
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-2 text-label font-medium text-text-primary">{legend}</legend>
+      <ol className="grid gap-2" data-bom-lines>
+        {lines.map((l, i) => (
+          <li
+            key={l.itemId}
+            className={cn(CARD, 'grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]')}
+            data-line={l.code}
+          >
+            <span className="min-w-0 text-label">
+              <span className="font-mono text-caption text-text-muted">#{i + 1}</span>{' '}
+              <ItemCell code={l.code} name={l.name} />
+            </span>
+            <TextField
+              id={`${base}-q${i}`}
+              label={`${c.f.requiredQty} (${l.unit.code})`}
+              inputMode="decimal"
+              value={l.quantity}
+              onChange={(e) =>
+                setLines((xs) =>
+                  xs.map((x, j) => (j === i ? { ...x, quantity: e.target.value.trim() } : x)),
+                )
+              }
+              error={
+                l.quantity && !validQty(l.quantity, l.unit.precision)
+                  ? c.errors.QUANTITY_PRECISION
+                  : undefined
+              }
+            />
+            <button
+              type="button"
+              onClick={() => setLines((xs) => xs.filter((_, j) => j !== i))}
+              className={buttonClasses('ghost', 'md')}
+            >
+              {c.remove(l.code)}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <ItemSearch
+        role="MATERIAL"
+        label={c.addMaterial}
+        hint={c.materialHint}
+        onPick={(m) =>
+          setLines((xs) =>
+            xs.some((x) => x.itemId === m.id)
+              ? xs
+              : [
+                  ...xs,
+                  {
+                    itemId: m.id,
+                    code: m.code,
+                    name: m.name,
+                    unit: { code: m.unit.code, precision: m.unit.precision },
+                    quantity: '',
+                  },
+                ],
+          )
+        }
+      />
+    </fieldset>
+  );
+}
+
+/** EP46: a DRAFT order's explicit material plan — the quantities ARE the requirement. */
+function ManualPlanEditor({
+  o,
+  save,
+}: {
+  o: Mo;
+  save: (lines: { itemId: string; quantity: string }[]) => Promise<boolean>;
+}) {
+  const { c } = useProd();
+  const [lines, setLines] = useState<DraftLine[]>(
+    o.materials.map((m) => ({
+      itemId: m.item.id,
+      code: m.item.code,
+      name: m.item.name,
+      unit: m.unit,
+      quantity: m.required ?? '',
+    })),
+  );
+  const [busy, setBusy] = useState(false);
+  const ok = lines.every((l) => validQty(l.quantity, l.unit.precision));
+  return (
+    <form
+      noValidate
+      className="grid gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!ok) return;
+        setBusy(true);
+        void save(lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity }))).finally(() =>
+          setBusy(false),
+        );
+      }}
+      data-manual-plan
+    >
+      <p className="text-caption text-text-muted">{c.manualHint}</p>
+      <LinesField legend={c.manualPlan} lines={lines} setLines={setLines} />
+      <button
+        type="submit"
+        disabled={busy || !ok}
+        className={buttonClasses('primary', 'md', 'w-fit')}
+      >
+        {busy ? c.saving : c.savePlan}
       </button>
     </form>
   );
@@ -1315,7 +1466,7 @@ function BomPage({ id }: { id: string }) {
             key={b.updatedAt}
             outputUnit={b.unit}
             initial={{
-              output: b.outputQuantity,
+              output: b.outputQuantity ?? '',
               note: b.note ?? '',
               lines: b.lines.map((l) => ({
                 itemId: l.item.id,

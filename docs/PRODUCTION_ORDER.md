@@ -260,3 +260,10 @@ Material requirements · Sales demand (create from a line). Purchasing: `/core/p
 - Single-level BOMs only; no unit conversion; no scrap / yield.
 - No automatic production orders and no automatic purchase requests.
 - No costing, valuation or margin.
+
+## EP46
+
+- Optional BOM: an owner-chosen `BOM_OPTIONAL` company may plan an order's materials explicitly (`materialPlan:
+  MANUAL`, `PUT /production/orders/:id/materials`) — [EP46_MANUFACTURING_POLICY.md](EP46_MANUFACTURING_POLICY.md).
+- Recipes are confidential: BOM lines, output basis, previews and unreleased BOM quantities need
+  `operations.recipes.view` — [EP46_RECIPE_CONFIDENTIALITY_MATRIX.md](EP46_RECIPE_CONFIDENTIALITY_MATRIX.md).

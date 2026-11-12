@@ -100,6 +100,10 @@ export interface ProductionActor {
   outputCreate: boolean;
   outputApprove: boolean;
   complete: boolean;
+  /** EP46: confidential recipe data (BOM lines, ratios, BOM-derived quantities before release). */
+  recipes: boolean;
+  /** EP46: the company's manufacturing mode, read with the access (never from the client). */
+  mode: 'BOM_REQUIRED' | 'BOM_OPTIONAL';
   fgView: boolean;
   fgProcess: boolean;
   fgConfirm: boolean;
@@ -123,6 +127,8 @@ export async function loadProductionActor(db: Db, ctx: AuthContext): Promise<Pro
     cancel: has('operations.orders.cancel'),
     bomView: has('operations.bom.view'),
     bomManage: has('operations.bom.manage'),
+    recipes: has('operations.recipes.view'),
+    mode: access.company.manufacturingMode,
     shortages: has('purchasing.production_shortages.view'),
     materials: has('operations.materials.manage'),
     issueCreate: has('operations.material_issues.create'),
@@ -275,10 +281,12 @@ const BOM_FROM: Record<BomAction, readonly ProductionBomStatus[]> = {
 };
 
 export const allowedBomActions = (actor: ProductionActor, status: ProductionBomStatus) =>
-  actor.bomManage ? BOM_ACTIONS.filter((a) => BOM_FROM[a].includes(status)) : [];
+  actor.bomManage && actor.recipes ? BOM_ACTIONS.filter((a) => BOM_FROM[a].includes(status)) : [];
 
 export function assertBom(actor: ProductionActor, action: BomAction, status: ProductionBomStatus) {
   if (!actor.bomManage) throw permissionDenied('operations.bom.manage');
+  // EP46: editing a recipe means seeing it.
+  if (!actor.recipes) throw permissionDenied('operations.recipes.view');
   if (!BOM_FROM[action].includes(status)) {
     throw new AppError(
       409,

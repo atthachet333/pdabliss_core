@@ -665,6 +665,33 @@ describe('Approval policy and page errors (EP41)', () => {
     expect(screen.getByText(/Only the company owner can change this setting/)).toBeInTheDocument();
   });
 
+  it('EP46: the owner switches to BOM-optional manufacturing; anyone else sees it read-only', async () => {
+    const MODE = {
+      ...SETTINGS,
+      manufacturingMode: 'BOM_REQUIRED',
+      canChangeManufacturingMode: true,
+    };
+    const api = fakeApi({
+      ...page(ok(MODE)),
+      'PATCH /api/v1/company/current/settings': (body) => ok({ ...MODE, ...(body as object) }),
+    });
+    const { unmount } = renderRoute('/company/settings?lang=en');
+    const select = await screen.findByLabelText('Manufacturing with a BOM');
+    expect(select).toBeEnabled();
+    await userEvent.selectOptions(select, 'BOM_OPTIONAL');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(api.called('PATCH /api/v1/company/current/settings')).toHaveLength(1),
+    );
+    expect(api.called('PATCH /api/v1/company/current/settings')[0]!.body).toEqual({
+      manufacturingMode: 'BOM_OPTIONAL',
+    });
+    unmount();
+    fakeApi(page(ok({ ...MODE, canChangeManufacturingMode: false })));
+    renderRoute('/company/settings?lang=th');
+    expect(await screen.findByLabelText('การผลิตกับสูตร (BOM)')).toBeDisabled();
+  });
+
   it('a page that cannot load says why in a heading and offers a way back', async () => {
     fakeApi(page(fail(403, 'FORBIDDEN')));
     renderRoute('/company/settings?lang=en');

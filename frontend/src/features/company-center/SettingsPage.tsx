@@ -3,7 +3,12 @@ import { buttonClasses } from '@/components/ui/buttonStyles';
 import { SelectField } from '@/features/auth/fields';
 import type { Locale } from '@/i18n/locales';
 import { useCopy } from '@/i18n/useCopy';
-import { controlApi, type ApprovalPolicy, type CompanySettings } from './api';
+import {
+  controlApi,
+  type ApprovalPolicy,
+  type CompanySettings,
+  type ManufacturingMode,
+} from './api';
 import { RequirePermission } from './CompanyShell';
 import { useControl } from './controlContext';
 import { CONTROL_COPY } from './copy';
@@ -13,7 +18,8 @@ import { Loading, PageError, PageTitle, Result, Section } from './parts';
 /*
  * /company/settings — only settings the system really uses today: the
  * company time zone (dates in invitation emails), the default language
- * (of invitation emails) and, EP41, the approval policy (owner-only). Closing the company is not self-service.
+ * (of invitation emails) and, EP41, the approval policy (owner-only); EP46, the manufacturing
+ * mode (BOM required / optional, owner-only). Closing the company is not self-service.
  */
 
 /** Common zones for CORE customers; the company's current zone is always listed. */
@@ -61,6 +67,7 @@ function SettingsForm({ initial }: { initial: CompanySettings }) {
   const [timezone, setTimezone] = useState(initial.timezone);
   const [language, setLanguage] = useState<Locale>(initial.defaultLocale);
   const [policy, setPolicy] = useState<ApprovalPolicy>(initial.approvalPolicy);
+  const [mode, setMode] = useState<ManufacturingMode>(initial.manufacturingMode ?? 'BOM_REQUIRED');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const zones = ZONES.includes(saved.timezone) ? ZONES : [saved.timezone, ...ZONES];
@@ -71,6 +78,7 @@ function SettingsForm({ initial }: { initial: CompanySettings }) {
     if (timezone !== saved.timezone) body.timezone = timezone;
     if (language !== saved.defaultLocale) body.defaultLocale = language;
     if (policy !== saved.approvalPolicy) body.approvalPolicy = policy;
+    if (saved.manufacturingMode && mode !== saved.manufacturingMode) body.manufacturingMode = mode;
     if (!Object.keys(body).length) {
       setResult({ tone: 'success', text: c.profile.nothing });
       return;
@@ -142,6 +150,27 @@ function SettingsForm({ initial }: { initial: CompanySettings }) {
             </option>
           ))}
         </SelectField>
+        {saved.manufacturingMode && (
+          <SelectField
+            id={`${base}-mode`}
+            label={c.settings.manufacturingMode}
+            hint={
+              saved.canChangeManufacturingMode
+                ? c.settings.manufacturingModeHint
+                : `${c.settings.manufacturingModeHint} · ${c.settings.approvalPolicyOwnerOnly}`
+            }
+            value={mode}
+            disabled={!saved.canChangeManufacturingMode}
+            onChange={(e) => setMode(e.target.value as ManufacturingMode)}
+            data-manufacturing-mode
+          >
+            {(['BOM_REQUIRED', 'BOM_OPTIONAL'] as const).map((m) => (
+              <option key={m} value={m}>
+                {c.settings.manufacturingModes[m]}
+              </option>
+            ))}
+          </SelectField>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" disabled={busy} className={buttonClasses('primary', 'md')}>
             {busy ? c.common.saving : c.common.save}

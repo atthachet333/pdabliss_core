@@ -420,6 +420,13 @@ const th = {
       SELF_APPROVAL_ALLOWED: 'อนุญาตให้อนุมัติเอกสารของตนเอง (ตามสิทธิ์)',
       INDEPENDENT_APPROVAL: 'ต้องอนุมัติโดยผู้อื่น',
     },
+    manufacturingMode: 'การผลิตกับสูตร (BOM)',
+    manufacturingModeHint:
+      'ต้องใช้สูตร: ทุกใบสั่งผลิตคำนวณวัตถุดิบจากสูตรที่ใช้งานอยู่ · ใช้สูตรหรือไม่ก็ได้: ฝ่ายผลิตกำหนดวัตถุดิบและปริมาณเองต่อใบสั่งผลิตได้ (ไม่คำนวณจากสูตร) — ใบสั่งผลิตเดิมทำงานต่อตามเดิม',
+    manufacturingModes: {
+      BOM_REQUIRED: 'ต้องใช้สูตร (BOM)',
+      BOM_OPTIONAL: 'ใช้สูตรหรือไม่ก็ได้ (กำหนดวัตถุดิบเองได้)',
+    },
     saved: 'บันทึกการตั้งค่าแล้ว',
     languages: { th: 'ไทย', en: 'English', 'zh-CN': '简体中文' },
     closure: 'การปิดบริษัท',
@@ -887,6 +894,13 @@ const en: Copy = {
       SELF_APPROVAL_ALLOWED: 'Self-approval allowed (by permission)',
       INDEPENDENT_APPROVAL: 'Independent approval required',
     },
+    manufacturingMode: 'Manufacturing with a BOM',
+    manufacturingModeHint:
+      'BOM required: every production order takes its materials from the active BOM · BOM optional: production may instead enter the materials and quantities of an order explicitly (nothing is calculated) — existing orders keep working as they are',
+    manufacturingModes: {
+      BOM_REQUIRED: 'BOM required',
+      BOM_OPTIONAL: 'BOM optional (explicit material plan allowed)',
+    },
     saved: 'Settings saved',
     languages: { th: 'ไทย', en: 'English', 'zh-CN': '简体中文' },
     closure: 'Closing the company',
@@ -1340,6 +1354,13 @@ const zh: Copy = {
     policies: {
       SELF_APPROVAL_ALLOWED: '允许审批本人单据（按权限）',
       INDEPENDENT_APPROVAL: '必须由他人审批',
+    },
+    manufacturingMode: '生产与物料清单（BOM）',
+    manufacturingModeHint:
+      '必须使用 BOM：每张生产订单的物料都按有效 BOM 计算 · BOM 可选：生产可为订单直接填写物料及数量（不做任何推算）——已有订单照常进行',
+    manufacturingModes: {
+      BOM_REQUIRED: '必须使用 BOM',
+      BOM_OPTIONAL: 'BOM 可选（可直接填写物料计划）',
     },
     saved: '设置已保存',
     languages: { th: 'ไทย', en: 'English', 'zh-CN': '简体中文' },

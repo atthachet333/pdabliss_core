@@ -78,8 +78,9 @@ describe('Inventory control policy and contracts (EP32)', () => {
       expect(isRoleDefault('VIEWER', c)).toBe(false);
       expect(isRoleDefault('COMPANY_OWNER', c)).toBe(true);
     }
-    // 81 operational codes since EP38 (the override CHECK), plus the COMPANY_ADMIN codes.
-    expect(PERMISSION_CATALOG.filter((x) => x.namespace !== 'COMPANY_ADMIN')).toHaveLength(81);
+    // 81 operational codes since EP38, 82 since EP46 (operations.recipes.view; the override
+    // CHECK), plus the COMPANY_ADMIN codes.
+    expect(PERMISSION_CATALOG.filter((x) => x.namespace !== 'COMPANY_ADMIN')).toHaveLength(82);
     expect(PERMISSION_CATALOG.some((x) => /\.(post|reverse|submit|reject)$/.test(x.code))).toBe(
       false,
     );

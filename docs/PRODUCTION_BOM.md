@@ -97,3 +97,10 @@ item, orders using it, timeline, actions) · `PATCH /boms/:id` · `POST /boms/:i
   no alternates, no routings or work centres, no effective-date ranges (the active revision is the rule).
 - No unit conversion: every quantity is in the item's base unit.
 - No costing: a BOM carries no cost, price or value.
+
+## EP46
+
+- Optional BOM: an owner-chosen `BOM_OPTIONAL` company may plan an order's materials explicitly (`materialPlan:
+  MANUAL`, `PUT /production/orders/:id/materials`) — [EP46_MANUFACTURING_POLICY.md](EP46_MANUFACTURING_POLICY.md).
+- Recipes are confidential: BOM lines, output basis, previews and unreleased BOM quantities need
+  `operations.recipes.view` — [EP46_RECIPE_CONFIDENTIALITY_MATRIX.md](EP46_RECIPE_CONFIDENTIALITY_MATRIX.md).

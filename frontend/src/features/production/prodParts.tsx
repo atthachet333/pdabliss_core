@@ -256,7 +256,7 @@ export function MaterialsTable({ materials }: { materials: Material[] }) {
           cell: (m) => (
             <span className="font-semibold whitespace-nowrap" data-required={m.required}>
               {q(m.required, m.unit.code)}
-              {!m.exact && (
+              {m.exact === false && (
                 <span className="block text-caption font-normal text-text-muted">{c.rounded}</span>
               )}
             </span>

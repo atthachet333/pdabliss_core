@@ -898,7 +898,13 @@ describeDb('Company Control Center (EP25)', () => {
   it('keeps real settings only — time zone and default language — and invitations follow the default', async () => {
     const admin = await as('admin@a.example');
     // EP41: the approval policy is shown to administrators; only the owner may change it.
-    const policy = { approvalPolicy: 'SELF_APPROVAL_ALLOWED', canChangeApprovalPolicy: false };
+    // EP46: so is the manufacturing mode (BOM required by default; owner only).
+    const policy = {
+      approvalPolicy: 'SELF_APPROVAL_ALLOWED',
+      canChangeApprovalPolicy: false,
+      manufacturingMode: 'BOM_REQUIRED',
+      canChangeManufacturingMode: false,
+    };
     expect(j(await admin.get('/api/v1/company/current/settings'))).toEqual({
       timezone: 'Asia/Bangkok',
       defaultLocale: 'th',

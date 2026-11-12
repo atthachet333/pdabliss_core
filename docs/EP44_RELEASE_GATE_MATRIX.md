@@ -73,3 +73,14 @@ Single-department enforcement is **implemented and tested in development** (EP45
 "absent" to **code ready — awaiting owner UAT (DP-01 … DP-08) and the approved UAT / production migration**
 (preflight `npm run db:department-check`, procedure in [EP45_MIGRATION_AND_ROLLBACK.md](EP45_MIGRATION_AND_ROLLBACK.md)).
 No other gate changed.
+
+## EP46 update — B-10 / C-2 / C-4
+
+- **B-10 / C-4 (optional BOM):** implemented and tested in development (EP46, not deployed): an owner-chosen
+  `BOM_OPTIONAL` mode with explicit, validated material plans through the unchanged reservation → issue → usage →
+  finished goods path. Status: **code ready — awaiting owner UAT (RB-01 … RB-07) and an approved UAT / production migration**.
+- **C-2 (confidential recipes):** implemented: `operations.recipes.view` (Owner + Operations Managers by default; staff by
+  exception only; never the Executive) with server-side projections on every production route
+  ([EP46_RECIPE_CONFIDENTIALITY_MATRIX.md](EP46_RECIPE_CONFIDENTIALITY_MATRIX.md)). Status: **code ready — awaiting UAT**.
+  Residual (by design): people executing a *released* order see that batch's quantities.
+- No other gate changed.

@@ -205,6 +205,19 @@ describeDb('Production planning (EP36)', () => {
           },
         });
       }
+      // EP46: recipe quantities are confidential by default. The EP36 planning assertions below
+      // plan as `ops@` and read BOM-derived quantities, so `ops@` holds an explicit ALLOW;
+      // `ops2@` has none (see ep46-recipes.test.ts for the confidential projections).
+      if (email === 'ops@a.example') {
+        await h.db.memberPermissionOverride.create({
+          data: {
+            companyId,
+            memberId: m.id,
+            permission: 'operations.recipes.view',
+            effect: 'ALLOW',
+          },
+        });
+      }
     }
     const pcs = await h.db.unit.create({
       data: { companyId: A.companyId, code: 'PCS', name: 'Piece', precision: 0 },

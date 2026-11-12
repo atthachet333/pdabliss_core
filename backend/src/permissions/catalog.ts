@@ -116,6 +116,13 @@ import type { CompanyRole } from '../generated/prisma/enums.js';
  *   sales.orders.approve  CONFIRM a submitted order (no separate `confirm` code)
  *   sales.orders.cancel   cancel a submitted or confirmed order (reason required)
  *   sales.orders.edit     reserved (editing a draft is part of creating it)
+ *
+ * EP46 recipes (COMPANY scope):
+ *   operations.bom.view      BOM catalogue identity (code, revision, item, status) — no lines
+ *   operations.recipes.view  CONFIDENTIAL: BOM lines, output basis, per-unit ratios, previews and
+ *                            BOM-derived order quantities before release (Owner + Operations
+ *                            Managers by default; others only by an explicit ALLOW)
+ *   operations.bom.manage    create / edit / activate / retire / revise — also needs recipes.view
  */
 
 export const PERMISSION_NAMESPACES = [
@@ -155,6 +162,12 @@ export interface PermissionDefinition {
   action: PermissionAction;
   scope: PermissionScope;
   tier: PermissionTier;
+  /**
+   * EP46: confidential data (recipes). A confidential code is a role default only for the
+   * Company Owner and a Department Manager of its department; Staff and Viewers need an explicit
+   * ALLOW exception, and the Executive's cross-department READ never includes it.
+   */
+  confidential?: true;
 }
 
 const TIER: Record<PermissionAction, PermissionTier> = {
@@ -175,6 +188,7 @@ const def = <C extends string>(
   code: C,
   namespace: PermissionNamespace,
   scope: PermissionScope,
+  confidential?: 'CONFIDENTIAL',
 ): PermissionDefinition & { code: C } => {
   const [ns, resource, action] = code.split('.') as [string, string, PermissionAction];
   return {
@@ -184,6 +198,7 @@ const def = <C extends string>(
     action,
     scope,
     tier: TIER[action],
+    ...(confidential ? { confidential: true as const } : {}),
   };
 };
 
@@ -225,6 +240,8 @@ export const PERMISSION_CATALOG = [
   def('operations.orders.cancel', 'OPERATIONS', 'BRANCH'),
   def('operations.bom.view', 'OPERATIONS', 'COMPANY'),
   def('operations.bom.manage', 'OPERATIONS', 'COMPANY'),
+  // EP46: recipe structure and BOM-derived quantities (confidential — see PermissionDefinition).
+  def('operations.recipes.view', 'OPERATIONS', 'COMPANY', 'CONFIDENTIAL'),
   def('operations.materials.manage', 'OPERATIONS', 'BRANCH'),
   def('operations.material_issues.create', 'OPERATIONS', 'BRANCH'),
   def('operations.material_issues.approve', 'OPERATIONS', 'BRANCH'),
@@ -392,5 +409,6 @@ export function isRoleDefault(role: CompanyRole, code: PermissionCode): boolean 
   if (p.namespace === 'COMPANY_ADMIN') {
     return (ROLE_ADMIN_PERMISSIONS[role] as readonly string[]).includes(code);
   }
+  if (p.confidential && role !== 'COMPANY_OWNER' && role !== 'DEPARTMENT_MANAGER') return false;
   return ROLE_OPERATIONAL_PROFILE[role].tiers.includes(p.tier);
 }

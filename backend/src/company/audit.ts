@@ -53,6 +53,8 @@ export type CompanyAuditAction =
   | 'DEMO_PERSONA_APPLIED'
   // EP41: separation of duties
   | 'APPROVAL_POLICY_CHANGED'
+  // EP46: optional BOM manufacturing (owner only; from / to)
+  | 'MANUFACTURING_MODE_CHANGED'
   | 'SELF_APPROVAL_OVERRIDE'
   // ---- EP29: purchase requests (details: number, from / to, field names, line no, item code)
   | PurchaseRequestAuditAction
@@ -170,6 +172,8 @@ export type ProductionAuditAction =
   | 'PRODUCTION_BOM_RETIRED'
   | 'PRODUCTION_ORDER_CREATED'
   | 'PRODUCTION_ORDER_UPDATED'
+  // EP46: a MANUAL material plan was entered or replaced (details: materials count)
+  | 'PRODUCTION_ORDER_MATERIALS_PLANNED'
   | 'PRODUCTION_ORDER_SUBMITTED'
   | 'PRODUCTION_ORDER_APPROVED'
   | 'PRODUCTION_ORDER_REJECTED'

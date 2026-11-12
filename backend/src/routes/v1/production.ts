@@ -37,6 +37,7 @@ import {
   MoListQuery,
   MoNoBody,
   MoReasonBody,
+  MoMaterialsBody,
   PreviewQuery,
   UpdateBomBody,
   UpdateMoBody,
@@ -63,7 +64,8 @@ import { ProductionOrderService } from '../../production/service.js';
  *   GET    /orders                        list (?status, branchId, itemId, source, materials=SHORT|AVAILABLE, from, to, q, pages)
  *   POST   /orders                        DRAFT (manual: itemId[, branchId]; sales demand: salesOrderLineId) (201)
  *   GET    /orders/:id                    order, materials + availability, demand, timeline, actions
- *   PATCH  /orders/:id                    DRAFT: quantity, bomId, dates, priority, note
+ *   PATCH  /orders/:id                    DRAFT: quantity, bomId, materialPlan, dates, priority, note
+ *   PUT    /orders/:id/materials {lines}  EP46: DRAFT MANUAL plan (BOM_OPTIONAL companies), whole
  *   POST   /orders/:id/submit|approve|release            transitions (no body)
  *   POST   /orders/:id/reject|cancel {reason?}           reason required to reject / cancel approved
  *   GET    /requirements/preview?bomId&quantity&branchId  computed requirements, nothing saved
@@ -139,6 +141,10 @@ export const productionRoutes: FastifyPluginAsync<{ db: Db }> = async (app, { db
   app.get(`${O}/:id`, async (r) => s.get(auth(r), idOf(r.params)));
   app.patch(`${O}/:id`, small, async (r) =>
     s.update(auth(r), idOf(r.params), parseInput(UpdateMoBody, r.body), meta(r)),
+  );
+  // EP46: the explicit material plan of a DRAFT MANUAL order (BOM_OPTIONAL companies).
+  app.put(`${O}/:id/materials`, body, async (r) =>
+    s.setMaterials(auth(r), idOf(r.params), parseInput(MoMaterialsBody, r.body).lines, meta(r)),
   );
   for (const action of ['submit', 'release'] as const) {
     app.post(`${O}/:id/${action}`, small, async (r) => {

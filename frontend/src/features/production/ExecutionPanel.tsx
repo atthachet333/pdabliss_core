@@ -51,7 +51,8 @@ export default function ExecutionPanel({
   const variance = o.materials.some(
     (m) => m.issued !== '0' && (m.unrecorded !== '0' || m.usageVariance !== '0'),
   );
-  const q = (v: string, u: string) => `${v} ${u}`;
+  // EP46: a withheld quantity (confidential recipe, not yet released) shows as a dash.
+  const q = (v: string | null, u: string) => (v === null ? '—' : `${v} ${u}`);
   const newIssue = async () => {
     setIssueError(null);
     try {
@@ -107,7 +108,11 @@ export default function ExecutionPanel({
               end: true,
               cell: (m) => (
                 <span
-                  className={m.stillNeeded !== '0' ? 'font-semibold text-[#f3cf8a]' : undefined}
+                  className={
+                    m.stillNeeded && m.stillNeeded !== '0'
+                      ? 'font-semibold text-[#f3cf8a]'
+                      : undefined
+                  }
                 >
                   {q(m.stillNeeded, m.unit.code)}
                 </span>

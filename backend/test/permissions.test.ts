@@ -71,9 +71,10 @@ describe('Permission catalog (EP27)', () => {
       expect(p.namespace).toBe(prefix === 'company' ? 'COMPANY_ADMIN' : prefix.toUpperCase());
       // EP28: canonical master records (customers, suppliers, items) are one per
       // company; everything else operational — locations included — is per branch.
-      // EP36: BOM revisions describe items and are company-wide too.
+      // EP36: BOM revisions describe items and are company-wide too; EP46: so are recipes.
       const companyWide =
-        p.namespace === 'COMPANY_ADMIN' || /\.(customers|suppliers|items|bom)$/.test(p.resource);
+        p.namespace === 'COMPANY_ADMIN' ||
+        /\.(customers|suppliers|items|bom|recipes)$/.test(p.resource);
       expect(p.scope).toBe(companyWide ? 'COMPANY' : 'BRANCH');
     }
     expect(codes.some((c) => c.startsWith('platform.'))).toBe(false);
@@ -161,8 +162,10 @@ describe('Permission resolver (EP27)', () => {
   it('Executive: READ across enabled departments, no create / edit / approve, no administration', () => {
     const ex = has(inputs({ role: 'EXECUTIVE', assigned: [] }));
     for (const p of PERMISSION_CATALOG.filter((x) => x.namespace !== 'COMPANY_ADMIN')) {
-      expect(ex.has(p.code), p.code).toBe(p.tier === 'READ');
+      // EP46: confidential recipes are not part of the Executive's cross-department READ.
+      expect(ex.has(p.code), p.code).toBe(p.tier === 'READ' && !p.confidential);
     }
+    expect(ex.has('operations.recipes.view')).toBe(false);
     expect(ex.has('company.members.manage')).toBe(false);
     expect(ex.has('company.permissions.view')).toBe(false);
     expect(ex.has('company.members.view')).toBe(true);

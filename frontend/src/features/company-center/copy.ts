@@ -82,6 +82,11 @@ const th = {
     DEPARTMENT_LIMIT: 'เกินสิทธิ์ของแพ็กเกจ — ตรวจสอบจำนวนแผนกและแผนกผู้บริหาร',
     DEPARTMENTS_REQUIRED: 'ต้องเปิดใช้อย่างน้อยหนึ่งแผนก',
     DEPARTMENT_NOT_ENABLED: 'มอบหมายได้เฉพาะแผนกที่เปิดใช้งาน',
+    ONE_DEPARTMENT_ONLY: 'หนึ่งคนอยู่ได้เพียงหนึ่งแผนก — เลือกแผนกเดียว',
+    ROLE_TAKES_NO_DEPARTMENT: 'เจ้าของบริษัท ผู้ดูแลระบบ และผู้บริหาร ไม่ต้องมอบหมายแผนก',
+    ROLE_DEPARTMENT_CONFLICT: 'นำแผนกที่มอบหมายออกก่อน แล้วจึงเปลี่ยนเป็นบทบาทนี้',
+    DEPARTMENT_NOT_ALLOWED: 'งานนี้เป็นของแผนกอื่น ไม่ใช่แผนกของคุณ',
+    MEMBERSHIP_INACTIVE: 'สิทธิ์เข้าใช้บริษัทนี้ของคุณถูกปิดแล้ว',
     LOGO_TOO_LARGE: 'โลโก้ต้องไม่เกิน 256 KB',
     LOGO_TYPE: 'ใช้ไฟล์ PNG, JPEG หรือ WebP เท่านั้น',
     MAIL_UNAVAILABLE: 'ส่งอีเมลไม่ได้ในขณะนี้ ลองอีกครั้ง',
@@ -261,7 +266,7 @@ const th = {
       `ปิดการเข้าถึงบริษัทของ ${name}? บัญชีของเขายังอยู่ ประวัติยังอยู่ และคืนการเข้าถึงได้ภายหลัง`,
     deactivatedNote: 'ปิดการเข้าถึงแล้ว',
     protectedNote: 'คุณเปลี่ยนแปลงบุคคลนี้ไม่ได้',
-    executiveNote: 'ผู้บริหารเข้าถึงแผนกผู้บริหารเมื่อเปิดใช้ แผนกอื่นตามที่มอบหมาย',
+    executiveNote: 'ผู้บริหารดูทุกแผนกที่เปิดใช้แบบอ่านอย่างเดียว ไม่ต้องมอบหมายแผนก',
     noDepartmentsEnabled: 'ยังไม่มีแผนกที่เปิดใช้',
     count: (active: number) => `${active} คนที่ใช้งานอยู่`,
   },
@@ -447,6 +452,18 @@ const th = {
     requests: 'ใบขอซื้อ',
     none: 'ยังไม่มีแผนกที่มอบหมายให้คุณในบริษัทนี้ ติดต่อเจ้าของบริษัทหรือผู้ดูแลระบบของบริษัท',
     rule: 'เห็นเฉพาะแผนกที่บริษัทเปิดใช้และคุณได้รับสิทธิ์ — ตรวจสอบโดยเซิร์ฟเวอร์',
+    department: 'แผนก',
+    assignment: {
+      CROSS_DEPARTMENT: 'ทุกแผนก (เจ้าของบริษัท)',
+      OVERSIGHT: 'ทุกแผนก — ดูอย่างเดียว',
+      ADMINISTRATIVE: 'ผู้ดูแลระบบ — ไม่มีงานแผนก',
+      UNASSIGNED: 'ยังไม่มีแผนก',
+      AMBIGUOUS: 'ต้องแก้ไขการมอบหมายแผนก',
+    },
+    unassigned:
+      'ยังไม่ได้มอบหมายแผนกให้คุณ จึงยังทำงานในแผนกใดไม่ได้ ขอให้เจ้าของบริษัทหรือผู้ดูแลระบบของบริษัทมอบหมายแผนกให้คุณหนึ่งแผนก',
+    ambiguous: 'การมอบหมายแผนกของคุณไม่ถูกต้อง ระบบจึงปิดงานแผนกไว้ก่อน ติดต่อผู้ดูแลระบบของบริษัท',
+    administrative: 'ผู้ดูแลระบบดูแลบริษัทใน Company Control Center — ไม่ทำงานในแผนก',
   },
 };
 
@@ -523,6 +540,12 @@ const en: Copy = {
     DEPARTMENT_LIMIT: 'Over the package limit — check the number of departments and Executive',
     DEPARTMENTS_REQUIRED: 'Keep at least one department enabled',
     DEPARTMENT_NOT_ENABLED: 'Only enabled departments can be assigned',
+    ONE_DEPARTMENT_ONLY: 'A person belongs to one department — choose one.',
+    ROLE_TAKES_NO_DEPARTMENT:
+      'Owners, System Admins and Executives are not assigned to a department.',
+    ROLE_DEPARTMENT_CONFLICT: 'Remove the department assignment before giving this role.',
+    DEPARTMENT_NOT_ALLOWED: 'This work belongs to another department, not yours.',
+    MEMBERSHIP_INACTIVE: 'Your access to this company has been deactivated.',
     LOGO_TOO_LARGE: 'The logo must be at most 256 KB',
     LOGO_TYPE: 'Use a PNG, JPEG or WebP image',
     MAIL_UNAVAILABLE: 'Email cannot be sent right now. Try again.',
@@ -709,7 +732,7 @@ const en: Copy = {
     deactivatedNote: 'Access removed',
     protectedNote: 'You cannot change this person',
     executiveNote:
-      'Executives reach the Executive department when it is enabled; other departments as assigned.',
+      'Executives read every enabled department, view only — no department is assigned.',
     noDepartmentsEnabled: 'No department is enabled yet',
     count: (active: number) => `${active} active`,
   },
@@ -896,6 +919,20 @@ const en: Copy = {
     requests: 'Purchase requests',
     none: 'No department is assigned to you in this company yet. Ask your Company Owner or System Admin.',
     rule: 'Only departments your company enabled and you are permitted to use — checked by the server.',
+    department: 'Department',
+    assignment: {
+      CROSS_DEPARTMENT: 'All departments (owner)',
+      OVERSIGHT: 'All departments — view only',
+      ADMINISTRATIVE: 'System Admin — no department work',
+      UNASSIGNED: 'No department yet',
+      AMBIGUOUS: 'Department assignment needs fixing',
+    },
+    unassigned:
+      'No department is assigned to you yet, so there is no department work for you. Ask the company owner or System Admin to assign your one department.',
+    ambiguous:
+      'Your department assignment is not valid, so department work is closed for now. Contact your company’s System Admin.',
+    administrative:
+      'System Admins administer the company in the Company Control Center — no department work.',
   },
 };
 
@@ -969,6 +1006,11 @@ const zh: Copy = {
     DEPARTMENT_LIMIT: '超出套餐限制——请检查部门数量及高管部门',
     DEPARTMENTS_REQUIRED: '至少保留一个已启用的部门',
     DEPARTMENT_NOT_ENABLED: '只能分配已启用的部门',
+    ONE_DEPARTMENT_ONLY: '每人只能属于一个部门——请选择一个。',
+    ROLE_TAKES_NO_DEPARTMENT: '公司所有者、系统管理员和管理层不分配部门。',
+    ROLE_DEPARTMENT_CONFLICT: '请先移除部门分配，再授予此角色。',
+    DEPARTMENT_NOT_ALLOWED: '此工作属于其他部门，不属于您的部门。',
+    MEMBERSHIP_INACTIVE: '您在此公司的访问权限已被停用。',
     LOGO_TOO_LARGE: '标志不能超过 256 KB',
     LOGO_TYPE: '请使用 PNG、JPEG 或 WebP 图片',
     MAIL_UNAVAILABLE: '暂时无法发送邮件，请重试。',
@@ -1147,7 +1189,7 @@ const zh: Copy = {
       `移除 ${name} 的公司访问权限？其账户和记录都会保留，之后可以恢复。`,
     deactivatedNote: '已移除访问权限',
     protectedNote: '您无法更改此人',
-    executiveNote: '高管在高管部门启用时可进入该部门，其他部门按分配进入。',
+    executiveNote: '管理层以只读方式查看所有已启用的部门——不分配部门。',
     noDepartmentsEnabled: '尚未启用任何部门',
     count: (active: number) => `${active} 人在用`,
   },
@@ -1330,6 +1372,18 @@ const zh: Copy = {
     requests: '请购单',
     none: '您在此公司中尚未被分配任何部门。请联系公司所有者或系统管理员。',
     rule: '只显示公司已启用且您有权使用的部门——由服务器检查。',
+    department: '部门',
+    assignment: {
+      CROSS_DEPARTMENT: '所有部门（所有者）',
+      OVERSIGHT: '所有部门——仅查看',
+      ADMINISTRATIVE: '系统管理员——无部门工作',
+      UNASSIGNED: '尚未分配部门',
+      AMBIGUOUS: '部门分配需要更正',
+    },
+    unassigned:
+      '您尚未被分配部门，因此暂时没有部门工作。请公司所有者或系统管理员为您分配一个部门。',
+    ambiguous: '您的部门分配无效，部门工作已暂时关闭。请联系公司的系统管理员。',
+    administrative: '系统管理员在 Company Control Center 管理公司——不进行部门工作。',
   },
 };
 

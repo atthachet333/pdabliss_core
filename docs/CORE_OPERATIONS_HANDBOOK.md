@@ -123,7 +123,9 @@ restarts anything itself.
 2. `ops backup --profile production --verify` must print **VERIFIED**. No verified backup, no deploy.
 3. Build the new release into a **new** folder (`releases/<version>`). Never overwrite the running one.
 4. Stop the backend.
-5. As `core_owner`: `npx prisma migrate deploy`.
+5. As `core_owner`: `npx prisma migrate deploy`. **EP45 and later:** first run the read-only
+   `DATABASE_URL=… npm run db:department-check`; any BLOCK line must be resolved by the company administrator
+   before migrating (the migration refuses ambiguous department data and changes nothing).
 6. Point the supervisor to the new folder and start it.
 7. `/health/ready` must answer 200 with `schema: ok`. Then a smoke test: sign in as one user per role, open a sales
    order and a warehouse list, check the dashboard counts.
@@ -179,3 +181,13 @@ Escalate to the **owner** for any data loss, restore, credential exposure or pro
 | B9  | WAL archiving / PITR (if an RPO under 24 h is required)                                                               |
 | B10 | Removal of the 21 leftover scratch databases on the development machine                                               |
 | B11 | Data-retention periods (accounting, PDPA)                                                                             |
+
+## EP45 — department administration
+
+- One department per regular employee (Manager / Staff / Viewer); Owner, System Admin and Executive have none.
+  Administrators set it on People → member → Department (one choice, or "No department").
+- A person who suddenly sees "No department yet" in CORE has no assignment: assign one; nothing else is needed — the
+  change applies on their next request, no sign-out required.
+- `ROLE_DEPARTMENT_CONFLICT` when promoting someone to System Admin / Executive: remove their department first.
+- Before upgrading a database to EP45: back up, run `npm run db:department-check`, resolve BLOCK lines
+  ([EP45_MIGRATION_AND_ROLLBACK.md](EP45_MIGRATION_AND_ROLLBACK.md)).

@@ -20,7 +20,7 @@ import { clearIdentity } from '@/features/auth/session';
 import { departmentId } from '@/features/company/api';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
-import { ApiError, setOwnerOverrideHandler } from '@/lib/api';
+import { ApiError, AUTHORIZATION_CHANGED, setOwnerOverrideHandler } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { usePageMeta } from '@/lib/usePageMeta';
 import type { BranchInfo } from '@/features/company/api';
@@ -155,8 +155,27 @@ export function CoreArea({ identity }: { identity: Identity }) {
         if (e instanceof ApiError && e.status >= 400 && e.status < 500) fail(e);
       });
     };
+    // EP45: a 403 anywhere in CORE (a department reassigned, a permission removed)
+    // re-reads the context at once, so navigation never keeps showing revoked work.
+    let pending = false;
+    const onRefused = () => {
+      if (pending) return;
+      pending = true;
+      controlApi
+        .context()
+        .then(set, (e: unknown) => {
+          if (e instanceof ApiError && e.status >= 400 && e.status < 500) fail(e);
+        })
+        .finally(() => {
+          pending = false;
+        });
+    };
     document.addEventListener('visibilitychange', revalidate);
-    return () => document.removeEventListener('visibilitychange', revalidate);
+    window.addEventListener(AUTHORIZATION_CHANGED, onRefused);
+    return () => {
+      document.removeEventListener('visibilitychange', revalidate);
+      window.removeEventListener(AUTHORIZATION_CHANGED, onRefused);
+    };
   }, [set, fail]);
 
   if (state.status === 'loading') {
@@ -595,6 +614,7 @@ function OperationsHome({ context }: { context: BranchContext }) {
   const { locale } = useLocale();
   const branchLabel = useBranchLabel();
   const branch = context.selected!;
+  const assignment = context.assignment;
   return (
     <div className="grid gap-8" data-core-home>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -608,6 +628,19 @@ function OperationsHome({ context }: { context: BranchContext }) {
               {c.core.branch}: {branchLabel(branch)}
             </Pill>
             <Pill tone="muted">{a.roles[context.role]}</Pill>
+            {assignment && (
+              <Pill
+                tone={assignment.department ? 'teal' : 'muted'}
+                wrap
+                data-assignment={assignment.status}
+              >
+                {c.core.department}:{' '}
+                {assignment.status === 'ASSIGNED'
+                  ? assignment.department &&
+                    getDepartment(departmentId(assignment.department), locale).name
+                  : c.core.assignment[assignment.status]}
+              </Pill>
+            )}
           </p>
         </div>
       </div>
@@ -619,7 +652,17 @@ function OperationsHome({ context }: { context: BranchContext }) {
           {c.core.departments}
         </h2>
         {context.departments.length === 0 ? (
-          <Notice tone="info">{c.core.none}</Notice>
+          <Notice tone="info">
+            <span data-no-department>
+              {assignment?.status === 'UNASSIGNED'
+                ? c.core.unassigned
+                : assignment?.status === 'AMBIGUOUS'
+                  ? c.core.ambiguous
+                  : assignment?.status === 'ADMINISTRATIVE'
+                    ? c.core.administrative
+                    : c.core.none}
+            </span>
+          </Notice>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-core-departments>
             {context.departments.map((code) => {

@@ -174,11 +174,11 @@ Accounting and Executive, and the per-response data-class rules still apply.
 | Role | Company administration | Operational departments |
 | --- | --- | --- |
 | Company Owner | everything (invariant) | every tier, every enabled department, no assignment needed |
-| System Admin | everything (the owner / peer / self protections still apply), incl. `company.master_data.manage` (EP28) | READ + OPERATE in **assigned** departments — administration is not operations |
+| System Admin | everything (the owner / peer / self protections still apply), incl. `company.master_data.manage` (EP28) | **none** (EP45: administration is not operations; a System Admin holds no department) |
 | Executive | view profile, branches, people, package | READ in every enabled department; no create / edit / approve |
-| Department Manager | view profile, branches | READ + OPERATE + MANAGE in assigned departments |
-| Department Staff | view profile, branches | READ + OPERATE in assigned departments (no approve / manage) |
-| Viewer | view profile, branches | READ in assigned departments |
+| Department Manager | view profile, branches | READ + OPERATE + MANAGE in its **one** assigned department (EP45) |
+| Department Staff | view profile, branches | READ + OPERATE in its **one** assigned department (no approve / manage) |
+| Viewer | view profile, branches | READ in its **one** assigned department |
 
 `/company/permissions` shows this as the read-only **Role profiles** view.
 
@@ -342,3 +342,20 @@ Rules for module authors:
   - `ep41-controls.test.ts` covers the matrix with the real personas;
   - Warehouse money privacy and cross-branch isolation pass in the real-stack E2E
     (`EP41_FINAL_REPORT.md`).
+
+## EP45 — single department (supersedes the "unless assigned" notes above)
+
+- **One department per regular employee per company.** A Department Manager, Department Staff member or Viewer
+  holds zero or one department assignment (database unique index); zero = no operational access. The resolver
+  grants codes of that one department only — role defaults and ALLOW exceptions included. Two rows (impossible in
+  the database) resolve to **no** operational access (`DEPARTMENT_AMBIGUOUS`).
+- **System Admin:** administration only. The earlier notes that a System Admin "gets nothing unless assigned"
+  (EP30–EP38) no longer apply: a System Admin cannot be assigned (`ROLE_TAKES_NO_DEPARTMENT`, database trigger) and
+  holds no operational code.
+- **Owner / Executive:** unchanged (Owner every tier under every control; Executive READ everywhere). Neither holds an
+  assignment.
+- **ALLOW precedence fix:** an ALLOW that cannot apply (outside the person's department) no longer removes a code the
+  role already gives without an assignment (an Executive's READ).
+- No permission code, role tier or catalog entry changed; the override CHECK still lists the same codes.
+- Policy: [EP45_DEPARTMENT_POLICY.md](EP45_DEPARTMENT_POLICY.md) · audit: [EP45_AUTHORIZATION_AUDIT.md](EP45_AUTHORIZATION_AUDIT.md) ·
+  tests: [EP45_SECURITY_TEST_MATRIX.md](EP45_SECURITY_TEST_MATRIX.md).

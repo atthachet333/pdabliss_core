@@ -766,16 +766,26 @@ describeDb('Company Control Center (EP25)', () => {
     }
   });
 
-  it('assigns one person to several departments — one user, only enabled departments, reflected in CORE access', async () => {
+  it('assigns exactly one department (EP45) — one user, only enabled departments, reflected in CORE access', async () => {
     const admin = await as('admin@a.example');
     const staffId = ids['staff@a.example']!;
+    // A second department is refused — nothing is written.
+    expect(
+      code(
+        await admin.put(`/api/v1/company/current/members/${staffId}/departments`, {
+          departments: ['WAREHOUSE', 'SALES'],
+          primary: 'WAREHOUSE',
+        }),
+      ),
+    ).toBe('ONE_DEPARTMENT_ONLY');
+    expect(
+      await h.db.membership.count({ where: { user: { emailNormalized: 'staff@a.example' } } }),
+    ).toBe(0);
     const res = await admin.put(`/api/v1/company/current/members/${staffId}/departments`, {
-      departments: ['WAREHOUSE', 'SALES'],
-      primary: 'WAREHOUSE',
+      departments: ['WAREHOUSE'],
     });
     expect(res.statusCode, res.body).toBe(200);
     expect(j(res).members.find((m: J) => m.id === staffId).departments).toEqual([
-      { code: 'SALES', primary: false, active: true },
       { code: 'WAREHOUSE', primary: true, active: true },
     ]);
     expect(await h.db.user.count({ where: { emailNormalized: 'staff@a.example' } })).toBe(1);
@@ -795,21 +805,31 @@ describeDb('Company Control Center (EP25)', () => {
     ).toBe(400);
 
     const staff = await as('staff@a.example');
-    expect(j(await staff.get('/api/v1/company/context')).departments).toEqual([
-      'SALES',
-      'WAREHOUSE',
-    ]);
+    expect(j(await staff.get('/api/v1/company/context')).departments).toEqual(['WAREHOUSE']);
+    // Reassignment replaces — never adds.
+    await admin.put(`/api/v1/company/current/members/${staffId}/departments`, {
+      departments: ['SALES'],
+    });
+    expect(j(await staff.get('/api/v1/company/context')).departments).toEqual(['SALES']);
     // A disabled department leaves CORE access but keeps the assignment.
     const owner = await as('owner@a.example');
     await owner.put('/api/v1/company/current/departments', {
       departments: ['WAREHOUSE', 'EXECUTIVE'],
     });
+    expect(j(await staff.get('/api/v1/company/context')).departments).toEqual([]);
+    expect(
+      await h.db.membership.count({ where: { user: { emailNormalized: 'staff@a.example' } } }),
+    ).toBe(1);
+    // Assigning an enabled department replaces the disabled one (still exactly one row).
+    await admin.put(`/api/v1/company/current/members/${staffId}/departments`, {
+      departments: ['WAREHOUSE'],
+    });
     expect(j(await staff.get('/api/v1/company/context')).departments).toEqual(['WAREHOUSE']);
     expect(
       await h.db.membership.count({ where: { user: { emailNormalized: 'staff@a.example' } } }),
-    ).toBe(2);
+    ).toBe(1);
     // EP27: Executives read every enabled department (cross-functional view, READ only);
-    // System Admin only what is assigned.
+    // EP45: a System Admin holds no department and reaches none.
     expect(
       j(await (await as('exec@a.example')).get('/api/v1/company/context')).departments,
     ).toEqual(['WAREHOUSE', 'EXECUTIVE']);

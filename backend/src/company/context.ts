@@ -12,9 +12,11 @@ import {
   type PermissionCode,
 } from '../permissions/catalog.js';
 import {
+  departmentAssignment,
   effectivePermissions,
   loadPermissionInputs,
   workspaceDepartments,
+  type DepartmentAssignment,
 } from '../permissions/resolver.js';
 import { branchView, type BranchView } from './views.js';
 
@@ -112,7 +114,7 @@ export async function enabledDepartments(db: Db, companyId: string): Promise<Dep
 /** A member's department assignments inside one company. */
 export async function assignedDepartments(db: Db, userId: string, companyId: string) {
   const rows = await db.membership.findMany({
-    where: { userId, department: { companyId } },
+    where: { userId, companyId },
     include: { department: { select: { code: true, isActive: true } } },
   });
   return rows.map((r) => ({
@@ -130,7 +132,11 @@ export async function assignedDepartments(db: Db, userId: string, companyId: str
 export async function memberPermissions(db: Db, access: CompanyAccess) {
   const inputs = await loadPermissionInputs(db, access.member, access.subscription);
   const permissions = effectivePermissions(inputs);
-  return { permissions, departments: workspaceDepartments(permissions) };
+  return {
+    permissions,
+    departments: workspaceDepartments(permissions),
+    assignment: departmentAssignment(inputs),
+  };
 }
 
 /** Departments this member may open in CORE (workspace view permission). */
@@ -154,6 +160,8 @@ export interface BranchContextView {
   departments: DepartmentCode[];
   /** EP27: this person's effective permission codes (for showing actions only). */
   permissions: PermissionCode[];
+  /** EP45: the person's one department, or why they have none (Owner / Executive / System Admin). */
+  assignment: DepartmentAssignment;
 }
 
 /**
@@ -191,6 +199,7 @@ export async function branchContext(db: Db, ctx: AuthContext): Promise<BranchCon
     blocked: branches.length === 0 ? 'NO_BRANCH_ACCESS' : null,
     departments: granted.departments,
     permissions: granted.permissions,
+    assignment: granted.assignment,
   };
 }
 
@@ -224,6 +233,8 @@ export interface OperationsContext {
   departments: DepartmentCode[];
   /** EP27: effective permission codes in this context. */
   permissions: PermissionCode[];
+  /** EP45: the member's one department (or role-level status). */
+  assignment: DepartmentAssignment;
 }
 
 /**
@@ -263,6 +274,7 @@ export async function requireOperationsContext(
     role: access.member.role,
     departments: granted.departments,
     permissions: granted.permissions,
+    assignment: granted.assignment,
   };
 }
 

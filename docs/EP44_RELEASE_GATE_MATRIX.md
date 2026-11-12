@@ -66,3 +66,10 @@ Everything in B, plus:
 | C-8  | Monitoring with external alerting (e-mail / LINE), on-call owner                   | incidents unnoticed                   | name an on-call           | alert adapters wired                       | test alerts delivered; dedup verified                     |
 | C-9  | Terms of service, PDPA notices, support process, storage limits enforcement        | legal / operational                   | legal + product           | —                                          | published documents                                       |
 | C-10 | PDA ONE accounting integration                                                     | —                                     | product decision          | —                                          | **future feature, not a blocker** unless sold as included |
+
+## EP45 update — B-9 / C-3
+
+Single-department enforcement is **implemented and tested in development** (EP45, not deployed). B-9 / C-3 move from
+"absent" to **code ready — awaiting owner UAT (DP-01 … DP-08) and the approved UAT / production migration**
+(preflight `npm run db:department-check`, procedure in [EP45_MIGRATION_AND_ROLLBACK.md](EP45_MIGRATION_AND_ROLLBACK.md)).
+No other gate changed.

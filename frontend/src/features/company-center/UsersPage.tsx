@@ -501,7 +501,9 @@ function InviteForm({
     roles.includes('DEPARTMENT_STAFF') ? 'DEPARTMENT_STAFF' : roles[0]!,
   );
   const [locale, setLocale] = useState<Locale>(defaultLocale);
-  const [departments, setDepartments] = useState<DepartmentCode[]>([]);
+  // EP45: one department at most, and only for a department role.
+  const [department, setDepartment] = useState<DepartmentCode | null>(null);
+  const takesDepartment = ['DEPARTMENT_MANAGER', 'DEPARTMENT_STAFF', 'VIEWER'].includes(role);
   const [scope, setScope] = useState<BranchScope>('ALL_BRANCHES');
   const [branchIds, setBranchIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -528,7 +530,7 @@ function InviteForm({
         email: value,
         role,
         locale,
-        departments,
+        departments: takesDepartment && department ? [department] : [],
         branchScope: scope,
         ...(scope === 'SELECTED_BRANCHES' ? { branchIds } : {}),
       });
@@ -578,30 +580,32 @@ function InviteForm({
           ))}
         </SelectField>
       </div>
-      {enabled.length > 0 && (
+      {enabled.length > 0 && takesDepartment && (
         <FieldGroup legend={a.invite.departments}>
           <p className="-mt-2 text-caption text-text-muted">{a.invite.departmentsHint}</p>
           <ul className="flex flex-wrap gap-2">
-            {enabled.map((d) => (
-              <li key={d}>
+            {[...enabled, null].map((d) => (
+              <li key={d ?? 'none'}>
                 <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-label text-text-primary shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)] has-[:checked]:bg-brand-primary/[0.06] has-[:checked]:shadow-[inset_0_0_0_1px_rgb(62_240_192/0.25)]">
                   <input
-                    type="checkbox"
-                    checked={departments.includes(d)}
-                    onChange={() =>
-                      setDepartments((list) =>
-                        list.includes(d) ? list.filter((x) => x !== d) : [...list, d],
-                      )
-                    }
+                    type="radio"
+                    name={`${base}-department`}
+                    checked={department === d}
+                    onChange={() => setDepartment(d)}
                     className="size-4 accent-[var(--color-brand-primary)]"
-                    data-invite-department={d}
+                    data-invite-department={d ?? 'NONE'}
                   />
-                  {deptName(d)}
+                  {d ? deptName(d) : a.member.noDepartment}
                 </label>
               </li>
             ))}
           </ul>
         </FieldGroup>
+      )}
+      {!takesDepartment && (role === 'SYSTEM_ADMIN' || role === 'EXECUTIVE') && (
+        <p className="text-caption text-text-muted" data-invite-no-department>
+          {a.member.departmentRole[role]}
+        </p>
       )}
       <FieldGroup legend={a.invite.branches}>
         <BranchScopeEditor

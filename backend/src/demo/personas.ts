@@ -43,7 +43,7 @@ export interface DemoPersona {
   fullName: string;
   jobTitle: string;
   role: CompanyRole;
-  /** Department assignments (the first is primary). Only what the persona needs. */
+  /** EP45: the ONE department of a Manager / Staff / Viewer persona; empty for the others. */
   departments: readonly DepartmentCode[];
   /** 'ALL' or the branch codes of a SELECTED_BRANCHES scope. */
   branches: 'ALL' | readonly string[];
@@ -77,7 +77,7 @@ export const DEMO_PERSONAS: readonly DemoPersona[] = [
     departments: [],
     branches: 'ALL',
     purpose:
-      'Company administration (branches, people, permissions, master data) below the owner; no department work unless assigned.',
+      'Company administration (branches, people, permissions, master data) below the owner; never department work (EP45: a System Admin holds no department).',
   },
   {
     key: 'EXECUTIVE',

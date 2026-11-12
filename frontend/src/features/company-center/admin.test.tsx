@@ -532,6 +532,47 @@ describe('People (EP26)', () => {
   });
 });
 
+describe('EP45 single department — invitations', () => {
+  it('offers one department for a department role, none for an Executive', async () => {
+    const api = fakeApi({
+      ...control('COMPANY_OWNER'),
+      'GET /api/v1/company/current/members': membersEndpoint(PEOPLE),
+      'POST /api/v1/company/invitations': ok({
+        id: 'i9',
+        email: 'new@alpha.example',
+        role: 'EXECUTIVE',
+        expiresAt: '',
+      }),
+    });
+    const user = userEvent.setup();
+    renderRoute('/company/users?lang=en');
+    await user.click(await screen.findByRole('button', { name: 'Invite user' }));
+    const form = document.querySelector<HTMLElement>('[data-invite-form]')!;
+    const f = within(form);
+    const group = f.getByRole('group', { name: 'Department (choose one)' });
+    expect(within(group).queryAllByRole('checkbox')).toHaveLength(0);
+    const option = (d: string) =>
+      form.querySelector<HTMLInputElement>(`[data-invite-department="${d}"]`);
+    await user.click(option('SALES')!);
+    await user.click(option('WAREHOUSE')!);
+    expect(option('SALES')!.checked).toBe(false);
+    expect(option('WAREHOUSE')!.checked).toBe(true);
+    // An Executive takes no department: the choice disappears and is explained.
+    await user.selectOptions(f.getByLabelText('Company role'), 'EXECUTIVE');
+    expect(form.querySelector('[data-invite-department]')).toBeNull();
+    expect(form.querySelector('[data-invite-no-department]')).toHaveTextContent(
+      /view only — no department is assigned/,
+    );
+    await user.type(f.getByLabelText('Email'), 'new@alpha.example');
+    await user.click(f.getByRole('button', { name: 'Send invitation' }));
+    await waitFor(() => expect(api.called('POST /api/v1/company/invitations')).toHaveLength(1));
+    expect(api.called('POST /api/v1/company/invitations')[0]!.body).toMatchObject({
+      role: 'EXECUTIVE',
+      departments: [],
+    });
+  });
+});
+
 describe('Member detail and branch access (EP26)', () => {
   const detail = (m: Member, over: Partial<MemberDetail> = {}): MemberDetail => ({
     member: m,
@@ -677,6 +718,101 @@ describe('Member detail and branch access (EP26)', () => {
       cleanup();
       resetIdentityForTests();
     }
+  });
+});
+
+describe('EP45 single department — member administration', () => {
+  const detail = (m: Member, over: Partial<MemberDetail> = {}): MemberDetail => ({
+    member: m,
+    protection: null,
+    assignableRoles: ['EXECUTIVE', 'DEPARTMENT_MANAGER', 'DEPARTMENT_STAFF', 'VIEWER'],
+    enabledDepartments: ['SALES', 'WAREHOUSE'],
+    branches: [HEAD, BRANCH_A, BRANCH_B].map(ref),
+    history: [],
+    canManage: true,
+    ...over,
+  });
+
+  it('chooses exactly one department (or none) — a radio choice that replaces, never adds', async () => {
+    let current = RESTRICTED;
+    const api = fakeApi({
+      ...control('COMPANY_OWNER'),
+      'GET /api/v1/company/current/members/m_staff': () => ok(detail(current)),
+      'PUT /api/v1/company/current/members/m_staff/departments': (body) => {
+        const b = body as { departments: ('SALES' | 'WAREHOUSE')[] };
+        current = {
+          ...current,
+          departments: b.departments.map((code) => ({ code, primary: true, active: true })),
+        };
+        return ok({ members: [current], total: 1, page: 1, pageSize: 25 });
+      },
+    });
+    const user = userEvent.setup();
+    renderRoute('/company/users/m_staff?lang=en');
+    const editor = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-editor="departments"]');
+      if (!el) throw new Error('department editor not rendered yet');
+      return el;
+    });
+    // Radios, not checkboxes: one choice in one group, "No department" included.
+    expect(within(editor).queryAllByRole('checkbox')).toHaveLength(0);
+    expect(within(editor).getAllByRole('radio')).toHaveLength(3);
+    expect(within(editor).getByRole('radio', { name: 'Warehouse' })).toBeChecked();
+    const none = () =>
+      within(editor).getByRole('radio', { name: 'No department (no department work)' });
+    expect(none()).not.toBeChecked();
+    expect(within(editor).getByText(/one enabled department per person/)).toBeVisible();
+
+    await user.click(within(editor).getByRole('radio', { name: 'Sales' }));
+    expect(within(editor).getByRole('radio', { name: 'Warehouse' })).not.toBeChecked();
+    await user.click(within(editor).getByRole('button', { name: 'Save departments' }));
+    const puts = () => api.called('PUT /api/v1/company/current/members/m_staff/departments');
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    expect(puts()[0]!.body).toEqual({ departments: ['SALES'], primary: 'SALES' });
+
+    await user.click(none());
+    await user.click(within(editor).getByRole('button', { name: 'Save departments' }));
+    await waitFor(() => expect(puts()).toHaveLength(2));
+    expect(puts()[1]!.body).toEqual({ departments: [], primary: null });
+  });
+
+  it('explains why System Admin and Executive hold no department instead of offering one', async () => {
+    for (const [role, text] of [
+      ['SYSTEM_ADMIN', /administers the company only — no department work/],
+      ['EXECUTIVE', /read every department, view only — no department is assigned/],
+    ] as const) {
+      const m = person({ id: `m_${role}`, email: `${role}@alpha.example`, role });
+      fakeApi({
+        ...control('COMPANY_OWNER'),
+        [`GET /api/v1/company/current/members/${m.id}`]: ok(detail(m)),
+      });
+      renderRoute(`/company/users/${m.id}?lang=en`);
+      expect(await screen.findByText(text)).toBeVisible();
+      expect(document.querySelector('[data-editor="departments"]')).toBeNull();
+      expect(document.querySelector(`[data-department-role="${role}"]`)).not.toBeNull();
+      cleanup();
+      resetIdentityForTests();
+    }
+  });
+
+  it('shows the server refusal of a role change that conflicts with the department in words', async () => {
+    fakeApi({
+      ...control('COMPANY_OWNER'),
+      'GET /api/v1/company/current/members/m_staff': ok(detail(RESTRICTED)),
+      'PATCH /api/v1/company/current/members/m_staff': () => fail(409, 'ROLE_DEPARTMENT_CONFLICT'),
+    });
+    const user = userEvent.setup();
+    renderRoute('/company/users/m_staff?lang=en');
+    const role = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-editor="role"]');
+      if (!el) throw new Error('role editor not rendered yet');
+      return el;
+    });
+    await user.selectOptions(within(role).getByLabelText('Company role'), 'EXECUTIVE');
+    await user.click(within(role).getByRole('button', { name: /Save/ }));
+    expect(
+      await within(role).findByText('Remove the department assignment before giving this role.'),
+    ).toBeVisible();
   });
 });
 
@@ -1015,6 +1151,81 @@ describe('CORE branch selector and context (EP26)', () => {
     await screen.findByRole('heading', { level: 1, name: 'No branch is open to you yet' });
     expect(document.querySelector('[data-branch-selector]')).toBeNull();
     expect(api.called('GET /api/v1/company/context')).toHaveLength(1);
+  });
+});
+
+describe('EP45 department identity in CORE', () => {
+  const ctx = (over: Partial<BranchContext> = {}): BranchContext => ({
+    company: { id: 'c1', displayName: 'Alpha Trading' },
+    role: 'DEPARTMENT_STAFF',
+    scope: 'SELECTED_BRANCHES',
+    branches: [BRANCH_B],
+    selected: BRANCH_B,
+    needsSelection: false,
+    blocked: null,
+    departments: ['WAREHOUSE'],
+    permissions: ['warehouse.workspace.view', 'warehouse.inventory.view'],
+    assignment: { status: 'ASSIGNED', department: 'WAREHOUSE' },
+    ...over,
+  });
+
+  it('names the one department next to the branch and role', async () => {
+    fakeApi({
+      ...signedIn(member('DEPARTMENT_STAFF')),
+      'GET /api/v1/company/context': ok(ctx()),
+    });
+    renderRoute('/core?lang=en');
+    await screen.findByRole('heading', { level: 1, name: 'CORE Operations' });
+    expect(document.querySelector('[data-assignment="ASSIGNED"]')).toHaveTextContent(
+      'Department: Warehouse',
+    );
+  });
+
+  it('explains a missing department (no operational access until one is assigned)', async () => {
+    fakeApi({
+      ...signedIn(member('DEPARTMENT_STAFF')),
+      'GET /api/v1/company/context': ok(
+        ctx({
+          departments: [],
+          permissions: [],
+          assignment: { status: 'UNASSIGNED', department: null },
+        }),
+      ),
+    });
+    renderRoute('/core?lang=th');
+    await screen.findByRole('heading', { level: 1, name: 'CORE Operations' });
+    expect(document.querySelector('[data-assignment="UNASSIGNED"]')).toHaveTextContent(
+      'แผนก: ยังไม่มีแผนก',
+    );
+    expect(document.querySelector('[data-no-department]')).toHaveTextContent(
+      /ยังไม่ได้มอบหมายแผนกให้คุณ/,
+    );
+    expect(document.querySelector('[data-core-departments]')).toBeNull();
+  });
+
+  it('re-reads the context when the server says the permission set is stale', async () => {
+    let reassigned = false;
+    const api = fakeApi({
+      ...signedIn(member('DEPARTMENT_STAFF')),
+      'GET /api/v1/company/context': () =>
+        ok(
+          reassigned
+            ? ctx({
+                departments: ['SALES'],
+                permissions: ['sales.workspace.view', 'sales.orders.view'],
+                assignment: { status: 'ASSIGNED', department: 'SALES' },
+              })
+            : ctx(),
+        ),
+    });
+    renderRoute('/core?lang=zh');
+    await screen.findByRole('heading', { level: 1, name: 'CORE Operations' });
+    expect(document.querySelector('[data-assignment]')).toHaveTextContent('部门');
+    reassigned = true;
+    window.dispatchEvent(new CustomEvent('core:authorization-changed'));
+    await waitFor(() => expect(api.called('GET /api/v1/company/context')).toHaveLength(2));
+    await waitFor(() => expect(document.querySelector('[data-department="SALES"]')).not.toBeNull());
+    expect(document.querySelector('[data-department="WAREHOUSE"]')).toBeNull();
   });
 });
 

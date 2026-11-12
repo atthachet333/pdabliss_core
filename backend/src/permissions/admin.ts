@@ -17,7 +17,7 @@ import {
   isPermissionCode,
   type OperationalPermission,
 } from './catalog.js';
-import { loadPermissionInputs, resolvePermissions } from './resolver.js';
+import { departmentAssignment, loadPermissionInputs, resolvePermissions } from './resolver.js';
 
 /*
  * Permission administration (EP27) — /company/permissions.
@@ -179,8 +179,10 @@ export class PermissionAdminService {
         ? 'DEPARTMENT_DISABLED'
         : dept === 'EXECUTIVE' && !inputs.executiveAllowed
           ? 'NOT_IN_PACKAGE'
-          : !inputs.assigned.includes(dept)
-            ? 'NOT_ASSIGNED'
+          : departmentAssignment(inputs).department !== dept
+            ? departmentAssignment(inputs).status === 'AMBIGUOUS'
+              ? 'DEPARTMENT_AMBIGUOUS'
+              : 'NOT_ASSIGNED'
             : null;
       if (reason) {
         throw new AppError(

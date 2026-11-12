@@ -349,6 +349,9 @@ function RoleEditor({ data, replace }: { data: MemberDetail; replace: (d: Member
   );
 }
 
+/** EP45: only department roles hold a department (one); the others get none, by role. */
+const DEPARTMENT_ROLES: readonly string[] = ['DEPARTMENT_MANAGER', 'DEPARTMENT_STAFF', 'VIEWER'];
+
 function DepartmentEditor({
   data,
   replace,
@@ -361,19 +364,22 @@ function DepartmentEditor({
   const deptName = useDepartmentName();
   const base = useId();
   const m = data.member;
-  const assigned = m.departments.filter((d) => d.active).map((d) => d.code);
-  const [departments, setDepartments] = useState<DepartmentCode[]>(assigned);
-  const [primary, setPrimary] = useState<DepartmentCode | null>(
-    m.departments.find((d) => d.primary && d.active)?.code ?? null,
+  // EP45 single department: the current one (also when its department was disabled since).
+  const current = m.departments[0]?.code ?? null;
+  const [department, setDepartment] = useState<DepartmentCode | null>(
+    m.departments.find((d) => d.active)?.code ?? null,
   );
   const { busy, result, run } = useSave(data, replace);
-  const toggle = (code: DepartmentCode) =>
-    setDepartments((list) => {
-      const next = list.includes(code) ? list.filter((d) => d !== code) : [...list, code];
-      if (!next.includes(primary as DepartmentCode))
-        setPrimary(next.length === 1 ? next[0]! : null);
-      return next;
-    });
+  if (!DEPARTMENT_ROLES.includes(m.role)) {
+    return (
+      <Section id="member-departments-title" title={a.member.departmentsTitle}>
+        <p className="text-label text-text-secondary" data-department-role={m.role}>
+          {a.member.departmentRole[m.role as keyof typeof a.member.departmentRole]}
+        </p>
+      </Section>
+    );
+  }
+  const options: (DepartmentCode | null)[] = [...data.enabledDepartments, null];
   return (
     <Editor
       id="member-departments-title"
@@ -383,46 +389,39 @@ function DepartmentEditor({
       busy={busy}
       result={result}
       data="departments"
-      onSubmit={() => void run(() => controlApi.setMemberDepartments(m.id, departments, primary))}
+      onSubmit={() =>
+        void run(() =>
+          controlApi.setMemberDepartments(m.id, department ? [department] : [], department),
+        )
+      }
     >
-      {data.enabledDepartments.length === 0 ? (
+      {data.enabledDepartments.length === 0 && !current ? (
         <p className="text-caption text-text-muted">{c.users.noDepartmentsEnabled}</p>
       ) : (
         <fieldset>
           <legend className="sr-only">{a.member.departmentsTitle}</legend>
           <ul className="grid gap-2 sm:grid-cols-2">
-            {data.enabledDepartments.map((code) => {
-              const on = departments.includes(code);
+            {options.map((code) => {
+              const on = department === code;
               return (
                 <li
-                  key={code}
+                  key={code ?? 'none'}
                   className={cn(
-                    'flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]',
+                    'flex min-h-11 items-center rounded-xl px-3 py-2 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]',
                     on && 'bg-brand-primary/[0.06] shadow-[inset_0_0_0_1px_rgb(62_240_192/0.25)]',
                   )}
                 >
-                  <label className="flex min-h-9 cursor-pointer items-center gap-2.5 text-label text-text-primary">
+                  <label className="flex min-h-9 w-full cursor-pointer items-center gap-2.5 text-label text-text-primary">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name={`${base}-department`}
                       checked={on}
-                      onChange={() => toggle(code)}
+                      onChange={() => setDepartment(code)}
                       className="size-4 accent-[var(--color-brand-primary)]"
-                      data-assign={code}
+                      data-assign={code ?? 'NONE'}
                     />
-                    {deptName(code)}
+                    {code ? deptName(code) : a.member.noDepartment}
                   </label>
-                  {on && departments.length > 1 && (
-                    <label className="flex min-h-9 cursor-pointer items-center gap-1.5 text-caption text-text-secondary">
-                      <input
-                        type="radio"
-                        name={`${base}-primary`}
-                        checked={primary === code}
-                        onChange={() => setPrimary(code)}
-                        className="size-3.5 accent-[var(--color-brand-primary)]"
-                      />
-                      {c.users.primary}
-                    </label>
-                  )}
                 </li>
               );
             })}

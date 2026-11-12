@@ -27,6 +27,16 @@ type Method = 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT';
  * anyway. Only then is the SAME request sent once more, carrying
  * `ownerOverride` (the refused attempt wrote nothing). Never automatic.
  */
+/** EP45: fired when a 403 says the tab's permission set is stale (see apiRequest). */
+export const AUTHORIZATION_CHANGED = 'core:authorization-changed';
+/** Refusals of WHAT the person may do (branch refusals have their own screens). */
+const STALE_AUTHORIZATION = new Set([
+  'PERMISSION_DENIED',
+  'DEPARTMENT_NOT_ALLOWED',
+  'MEMBERSHIP_INACTIVE',
+  'FORBIDDEN',
+]);
+
 type OverrideHandler = (details: Record<string, unknown>) => Promise<string | null>;
 let overrideHandler: OverrideHandler | null = null;
 export function setOwnerOverrideHandler(handler: OverrideHandler | null) {
@@ -97,6 +107,12 @@ export async function apiRequest<T>(
           signal,
         );
       }
+    }
+    // EP45: an authorization refusal means what this tab believes it may do is stale
+    // (department reassigned, permission or membership removed). The CORE shell
+    // listens and re-reads its context; the server stays the only authority.
+    if (res.status === 403 && STALE_AUTHORIZATION.has(code) && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(AUTHORIZATION_CHANGED, { detail: code }));
     }
     throw new ApiError(res.status, code, parsed?.error?.message ?? res.statusText, details);
   }

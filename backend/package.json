@@ -26,6 +26,7 @@
     "db:status": "prisma migrate status",
     "db:seed": "tsx src/cli/seed.ts",
     "db:seed:demo": "tsx src/cli/seed.ts --demo",
+    "db:department-check": "tsx src/cli/department-check.ts",
     "auth:cleanup": "tsx src/cli/cleanup.ts",
     "mail:latest": "tsx src/cli/mail-latest.ts"
   },

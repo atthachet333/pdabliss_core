@@ -143,13 +143,19 @@ describe('Permission resolver (EP27)', () => {
     });
   });
 
-  it('System Admin: all administration; operations only where assigned, never MANAGE', () => {
+  it('System Admin: all administration, nothing operational — even with an assignment row (EP45)', () => {
     const none = has(inputs({ role: 'SYSTEM_ADMIN', assigned: [] }));
     for (const a of ADMIN_PERMISSIONS) expect(none.has(a)).toBe(true);
     expect([...none].some((c) => !c.startsWith('company.'))).toBe(false);
-    const wh = has(inputs({ role: 'SYSTEM_ADMIN', assigned: ['WAREHOUSE'] }));
-    expect(wh.has('warehouse.stock_adjustment.create')).toBe(true);
-    expect(wh.has('warehouse.stock_adjustment.approve')).toBe(false);
+    // A row written past the database guards still gives nothing; an ALLOW neither.
+    const wh = has(
+      inputs({
+        role: 'SYSTEM_ADMIN',
+        assigned: ['WAREHOUSE'],
+        overrides: [{ permission: 'warehouse.receiving.process', effect: 'ALLOW' }],
+      }),
+    );
+    expect([...wh].some((c) => !c.startsWith('company.'))).toBe(false);
   });
 
   it('Executive: READ across enabled departments, no create / edit / approve, no administration', () => {
@@ -303,7 +309,9 @@ describeDb('Permission enforcement (EP27)', () => {
     for (const email of ['manager@a.example', 'staff@a.example', 'viewer@a.example']) {
       const userId = (await h.db.companyMember.findUniqueOrThrow({ where: { id: ids[email] } }))
         .userId;
-      await h.db.membership.create({ data: { userId, departmentId: wh.id, isPrimary: true } });
+      await h.db.membership.create({
+        data: { userId, companyId: wh.companyId, departmentId: wh.id, isPrimary: true },
+      });
     }
     // Staff: Branch A only. Manager: A + B.
     const grant = (email: string, branches: string[]) =>
@@ -506,7 +514,9 @@ describeDb('Permission enforcement (EP27)', () => {
     const staffB = await h.db.companyMember.findUniqueOrThrow({
       where: { id: ids['staff@b.example'] },
     });
-    await h.db.membership.create({ data: { userId: staffB.userId, departmentId: dept.id } });
+    await h.db.membership.create({
+      data: { userId: staffB.userId, companyId: dept.companyId, departmentId: dept.id },
+    });
     await h.db.memberPermissionOverride.create({
       data: {
         companyId: B.companyId,

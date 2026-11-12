@@ -13,7 +13,7 @@ Every customer request resolves, on the server, per request:
 Company Membership   CompanyMember (ACTIVE) — one company per account
 + Company Role       COMPANY_OWNER · SYSTEM_ADMIN · EXECUTIVE · DEPARTMENT_MANAGER · DEPARTMENT_STAFF · VIEWER
 + Enabled Depts      Department.isActive within the subscription snapshot
-+ Dept Assignments   Membership (user × department, optional primary)
++ Dept Assignment    Membership (EP45: at most ONE per person and company; none for Owner / System Admin / Executive)
 + Branch Access      CompanyMember.branchScope + MemberBranchAccess
 + Selected Branch    Session.branchId (re-validated on every request)
 ```
@@ -160,3 +160,13 @@ only inside a selected branch the member may work in, and never grants a branch.
 in CORE is now the effective `<dept>.workspace.view` (it replaces EP25's `departmentAccess()`).
 The legacy EP00 `Role` / `Permission` / `RolePermission` tables stay unused; role defaults live in
 code.
+
+## EP45 — one department per person
+
+- The member page offers **one** department (radio choice, plus "No department"); saving replaces the assignment in
+  one transaction and records `MEMBER_DEPARTMENTS_CHANGED {from, to}`. The invitation form offers one department for
+  department roles and none for System Admin / Executive.
+- Refusals: `ONE_DEPARTMENT_ONLY` (422), `ROLE_TAKES_NO_DEPARTMENT` (422), `ROLE_DEPARTMENT_CONFLICT` (409, role change
+  while a department is assigned), `DEPARTMENT_NOT_ENABLED` (422). Messages in Thai, English and Chinese.
+- Assigning an enabled department also replaces an assignment to a since-disabled department (a person never ends
+  up with two). See [EP45_DEPARTMENT_POLICY.md](EP45_DEPARTMENT_POLICY.md).

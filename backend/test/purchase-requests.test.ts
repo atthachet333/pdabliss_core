@@ -128,7 +128,8 @@ describeDb('Purchase requests (EP29)', () => {
       ['wh.staff@a.example', 'DEPARTMENT_STAFF', 'A', ['WAREHOUSE'], ['Y']],
       ['wh.mgr@a.example', 'DEPARTMENT_MANAGER', 'A', ['WAREHOUSE'], null],
       ['sales.staff@a.example', 'DEPARTMENT_STAFF', 'A', ['SALES'], ['HO']],
-      ['multi@a.example', 'DEPARTMENT_STAFF', 'A', ['SALES', 'WAREHOUSE'], null],
+      // EP45: one department per person — the former two-department fixture is Sales only.
+      ['multi@a.example', 'DEPARTMENT_STAFF', 'A', ['SALES'], null],
       ['viewer@a.example', 'VIEWER', 'A', ['PURCHASING'], null],
       ['owner@b.example', 'COMPANY_OWNER', 'B', [], null],
     ];
@@ -171,7 +172,9 @@ describeDb('Purchase requests (EP29)', () => {
       ids[email] = m.id;
       for (const d of depts) {
         const dept = await h.db.department.findFirstOrThrow({ where: { companyId, code: d } });
-        await h.db.membership.create({ data: { userId: u.id, departmentId: dept.id } });
+        await h.db.membership.create({
+          data: { userId: u.id, companyId: dept.companyId, departmentId: dept.id },
+        });
       }
       if (branches) {
         await h.db.companyMember.update({
@@ -623,11 +626,13 @@ describeDb('Purchase requests (EP29)', () => {
       'PERMISSION_DENIED',
     );
 
-    // Several departments: choose among one's own only.
+    // EP45: one department — a forged department in the payload is refused, nothing is written.
     const multi = await as('multi@a.example', 'X');
-    expect(j(await multi.get(`${PR}/context`)).createDepartments).toEqual(['SALES', 'WAREHOUSE']);
-    expect((await multi.post(PR, { department: 'WAREHOUSE' })).statusCode).toBe(201);
+    expect(j(await multi.get(`${PR}/context`)).createDepartments).toEqual(['SALES']);
+    const before = await h.db.purchaseRequest.count();
+    expect(code(await multi.post(PR, { department: 'WAREHOUSE' }))).toBe('DEPARTMENT_NOT_ALLOWED');
     expect(code(await multi.post(PR, { department: 'OPERATIONS' }))).toBe('DEPARTMENT_NOT_ALLOWED');
+    expect(await h.db.purchaseRequest.count()).toBe(before);
     const own = j(await multi.post(PR, { department: 'SALES' })).request;
     expect(code(await multi.patch(`${PR}/${own.id}`, { department: 'PURCHASING' }))).toBe(
       'DEPARTMENT_NOT_ALLOWED',

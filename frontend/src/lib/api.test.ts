@@ -3,6 +3,7 @@ import { fail, fakeApi, ok } from '@/test/fakeApi';
 import {
   ApiError,
   apiRequest,
+  AUTHORIZATION_CHANGED,
   NETWORK_ERROR,
   REQUEST_TIMEOUT_MS,
   setOwnerOverrideHandler,
@@ -133,5 +134,35 @@ describe('Owner override (EP41)', () => {
     });
     expect(handler).toHaveBeenCalledTimes(1);
     expect(api.calls).toHaveLength(3);
+  });
+});
+
+describe('EP45 stale authorization signal', () => {
+  it('announces a 403 that means the permission set changed — never a branch refusal or another status', async () => {
+    const seen: unknown[] = [];
+    const listen = (e: Event) => seen.push((e as CustomEvent).detail);
+    window.addEventListener(AUTHORIZATION_CHANGED, listen);
+    try {
+      fakeApi({
+        'GET /api/v1/sales/orders': fail(403, 'PERMISSION_DENIED'),
+        'GET /api/v1/warehouse/stock': fail(403, 'DEPARTMENT_NOT_ALLOWED'),
+        'POST /api/v1/company/context/branch': fail(403, 'BRANCH_NOT_ALLOWED'),
+        'GET /api/v1/sales/orders/x': fail(404, 'SO_NOT_FOUND'),
+        'GET /api/v1/sales/context': ok({}),
+      });
+      for (const [m, url] of [
+        ['GET', '/api/v1/sales/orders'],
+        ['GET', '/api/v1/warehouse/stock'],
+        ['POST', '/api/v1/company/context/branch'],
+        ['GET', '/api/v1/sales/orders/x'],
+      ] as const)
+        await expect(apiRequest(m, url, m === 'POST' ? {} : undefined)).rejects.toBeInstanceOf(
+          ApiError,
+        );
+      await apiRequest('GET', '/api/v1/sales/context');
+      expect(seen).toEqual(['PERMISSION_DENIED', 'DEPARTMENT_NOT_ALLOWED']);
+    } finally {
+      window.removeEventListener(AUTHORIZATION_CHANGED, listen);
+    }
   });
 });

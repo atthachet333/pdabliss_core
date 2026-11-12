@@ -152,3 +152,10 @@ exception (`sales.demo` still has `00000` + `00001` as Sales Staff; `warehouse.d
 `npm --prefix backend run db:seed:demo` once. It reports `master data created 11, … integration
 created 12` the first time and `unchanged` afterwards. No reset, no deletion, no migration
 (EP39 has no schema change).
+
+## EP45 — single department
+
+No persona changed role, department or branches: each department persona already held exactly one department, and
+Owner / System Admin / Executive hold none. The seed now writes the assignment's company (`Membership.companyId`) and a
+test refuses a persona definition with zero or several departments for a department role. The System Admin persona's
+description changed from "no department work unless assigned" to "never department work" (EP45 policy).

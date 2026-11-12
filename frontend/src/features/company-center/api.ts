@@ -359,7 +359,8 @@ export type PermissionNamespace = 'COMPANY_ADMIN' | DepartmentCode;
 export type PermissionTier = 'READ' | 'OPERATE' | 'MANAGE';
 export type PermissionSource =
   'INVARIANT' | 'ROLE_DEFAULT' | 'ALLOW_OVERRIDE' | 'DENY_OVERRIDE' | 'NONE';
-export type PermissionBlock = 'DEPARTMENT_DISABLED' | 'NOT_IN_PACKAGE' | 'NOT_ASSIGNED';
+export type PermissionBlock =
+  'DEPARTMENT_DISABLED' | 'NOT_IN_PACKAGE' | 'NOT_ASSIGNED' | 'DEPARTMENT_AMBIGUOUS';
 export type PermissionEffect = 'ALLOW' | 'DENY';
 
 export interface PermissionDefinition {
@@ -433,6 +434,15 @@ export interface BranchContext {
   departments: DepartmentCode[];
   /** EP27: effective permission codes (to show actions; the server checks again). */
   permissions?: PermissionCode[];
+  /** EP45: the person's one department, or the role-level status (presentation only). */
+  assignment?: DepartmentAssignment;
+}
+
+/** EP45: where a person stands in the single-department model (from the server). */
+export interface DepartmentAssignment {
+  status:
+    'ASSIGNED' | 'UNASSIGNED' | 'AMBIGUOUS' | 'CROSS_DEPARTMENT' | 'OVERSIGHT' | 'ADMINISTRATIVE';
+  department: DepartmentCode | null;
 }
 
 const C = '/api/v1/company';

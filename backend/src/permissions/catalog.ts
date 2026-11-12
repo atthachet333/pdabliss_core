@@ -352,11 +352,17 @@ export const ROLE_ADMIN_PERMISSIONS: Readonly<Record<CompanyRole, readonly Admin
  * the person must be assigned to it.
  *
  *   COMPANY_OWNER       every tier, every enabled department, no assignment needed
- *   SYSTEM_ADMIN        READ + OPERATE in assigned departments (administration is not operations)
+ *   SYSTEM_ADMIN        nothing operational (EP45: administration is not operations, and a
+ *                       System Admin holds no department assignment)
  *   EXECUTIVE           READ in every enabled department (cross-functional view), nothing more
- *   DEPARTMENT_MANAGER  READ + OPERATE + MANAGE in assigned departments
- *   DEPARTMENT_STAFF    READ + OPERATE in assigned departments
- *   VIEWER              READ in assigned departments
+ *   DEPARTMENT_MANAGER  READ + OPERATE + MANAGE in their ONE assigned department
+ *   DEPARTMENT_STAFF    READ + OPERATE in their ONE assigned department
+ *   VIEWER              READ in their ONE assigned department
+ *
+ * EP45 single-department rule: a Manager, Staff member or Viewer belongs to exactly one
+ * operational department of their company (a database unique index + guard triggers,
+ * docs/EP45_DEPARTMENT_POLICY.md). Department membership alone grants nothing — the role
+ * decides the tiers inside it. Owner, System Admin and Executive hold no assignment.
  */
 export interface OperationalProfile {
   tiers: readonly PermissionTier[];
@@ -366,12 +372,19 @@ export interface OperationalProfile {
 
 export const ROLE_OPERATIONAL_PROFILE: Readonly<Record<CompanyRole, OperationalProfile>> = {
   COMPANY_OWNER: { tiers: ['READ', 'OPERATE', 'MANAGE'], requiresAssignment: false },
-  SYSTEM_ADMIN: { tiers: ['READ', 'OPERATE'], requiresAssignment: true },
+  SYSTEM_ADMIN: { tiers: [], requiresAssignment: true },
   EXECUTIVE: { tiers: ['READ'], requiresAssignment: false },
   DEPARTMENT_MANAGER: { tiers: ['READ', 'OPERATE', 'MANAGE'], requiresAssignment: true },
   DEPARTMENT_STAFF: { tiers: ['READ', 'OPERATE'], requiresAssignment: true },
   VIEWER: { tiers: ['READ'], requiresAssignment: true },
 };
+
+/** EP45: the roles that belong to exactly one department (the "regular employees"). */
+export const DEPARTMENT_ROLES = ['DEPARTMENT_MANAGER', 'DEPARTMENT_STAFF', 'VIEWER'] as const;
+
+/** EP45: may this role hold a department assignment at all? (Owner / System Admin / Executive: no.) */
+export const takesDepartment = (role: CompanyRole) =>
+  (DEPARTMENT_ROLES as readonly CompanyRole[]).includes(role);
 
 /** Is `code` part of this role's default profile (before department eligibility)? */
 export function isRoleDefault(role: CompanyRole, code: PermissionCode): boolean {

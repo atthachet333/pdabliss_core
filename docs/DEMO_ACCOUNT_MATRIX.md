@@ -61,3 +61,19 @@ steps are the owner's in the demo; adding such personas would change the persona
 a product decision (see `docs/EP39_INTEGRATION_REPORT.md` → limitations).
 
 Detailed, click-by-click test steps: `docs/DEMO_WORKFLOW_GUIDE.md`. Data: `docs/DEMO_DATA_CATALOG.md`.
+
+## EP45 — department identity (re-verified on a disposable stack)
+
+| Account | `assignment.status` | Department |
+| --- | --- | --- |
+| `owner.demo` | `CROSS_DEPARTMENT` | — (all, by role) |
+| `admin.demo` | `ADMINISTRATIVE` | — (cannot be assigned) |
+| `executive.demo` | `OVERSIGHT` | — (all, read only) |
+| `sales.demo` | `ASSIGNED` | Sales |
+| `operations.demo` | `ASSIGNED` | Operations |
+| `warehouse.demo` | `ASSIGNED` | Warehouse |
+| `purchasing.demo` | `ASSIGNED` | Purchasing |
+| `accounting.demo` | `ASSIGNED` | Accounting |
+| `staff.demo` | `ASSIGNED` | Warehouse (+ the receiving DENY exception) |
+
+No persona's effective permissions changed. CORE shows "Department: …" next to the branch and role.

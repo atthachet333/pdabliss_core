@@ -109,7 +109,9 @@ describeDb('Production output, receipt and completion (EP38)', () => {
       const m = await h.db.companyMember.findUniqueOrThrow({ where: { userId: u.id } });
       for (const d of depts) {
         const dept = await h.db.department.findFirstOrThrow({ where: { companyId, code: d } });
-        await h.db.membership.create({ data: { userId: u.id, departmentId: dept.id } });
+        await h.db.membership.create({
+          data: { userId: u.id, companyId: dept.companyId, departmentId: dept.id },
+        });
       }
       if (branches) {
         await h.db.companyMember.update({

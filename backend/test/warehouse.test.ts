@@ -160,7 +160,9 @@ describeDb('Goods receipts and inventory (EP31)', () => {
       ids[email] = m.id;
       for (const d of depts) {
         const dept = await h.db.department.findFirstOrThrow({ where: { companyId, code: d } });
-        await h.db.membership.create({ data: { userId: u.id, departmentId: dept.id } });
+        await h.db.membership.create({
+          data: { userId: u.id, companyId: dept.companyId, departmentId: dept.id },
+        });
       }
       if (branches) {
         await h.db.companyMember.update({

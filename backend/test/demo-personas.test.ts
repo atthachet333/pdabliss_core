@@ -2,7 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { bootstrapPlatform, parseSeedEnv, seedDemo } from '../src/auth/bootstrap.js';
 import { DEMO_BYPASS_EMAILS } from '../src/auth/demo-bypass.js';
 import { DEMO_PERSONA_EMAILS, DEMO_PERSONAS, DEMO_PERSONA_MARKER } from '../src/demo/personas.js';
-import { isPermissionCode, ROLE_ADMIN_PERMISSIONS } from '../src/permissions/catalog.js';
+import {
+  isPermissionCode,
+  ROLE_ADMIN_PERMISSIONS,
+  takesDepartment,
+} from '../src/permissions/catalog.js';
 import {
   Browser,
   createHarness,
@@ -61,8 +65,8 @@ describe('Demo persona definitions (EP28.1)', () => {
       'staff.demo@pdabliss.com',
     ]);
     for (const p of DEMO_PERSONAS) {
-      // A department persona has only the department it needs — never all of them.
-      expect(p.departments.length, p.key).toBeLessThanOrEqual(1);
+      // EP45: a department role has exactly ONE department; Owner / System Admin / Executive none.
+      expect(p.departments.length, p.key).toBe(takesDepartment(p.role) ? 1 : 0);
       expect(p.passwordEnv, p.key).toMatch(/^DEMO_[A-Z_]+_PASSWORD$/);
       if (p.branches !== 'ALL') for (const b of p.branches) expect(b).toMatch(/^\d{5}$/);
       if (p.exception) {
@@ -182,10 +186,10 @@ describeDb('Demo personas (EP28.1)', () => {
         .statusCode,
     ).toBe(200);
     expect(
+      // EP45: a reassignment (one department), not a second department.
       (
         await owner.put(`${C}/current/members/${sales.id}/departments`, {
-          departments: ['SALES', 'ACCOUNTING'],
-          primary: 'SALES',
+          departments: ['ACCOUNTING'],
         })
       ).statusCode,
     ).toBe(200);
@@ -206,10 +210,7 @@ describeDb('Demo personas (EP28.1)', () => {
     const wh2 = await member('warehouse.demo@pdabliss.com');
     expect(wh2.branchScope).toBe('ALL_BRANCHES');
     const sales2 = await member('sales.demo@pdabliss.com');
-    expect(sales2.user.memberships.map((x) => x.department.code).sort()).toEqual([
-      'ACCOUNTING',
-      'SALES',
-    ]);
+    expect(sales2.user.memberships.map((x) => x.department.code).sort()).toEqual(['ACCOUNTING']);
     expect(sales2.jobTitle).toBe('Key Account Lead');
     expect((await member('staff.demo@pdabliss.com')).permissionOverrides).toEqual([]);
   });

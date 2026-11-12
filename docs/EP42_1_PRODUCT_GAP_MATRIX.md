@@ -73,3 +73,9 @@ hands-on check in the app's browser pane.
 
 None of these is a blocker for the **internal** owner UAT in EP42.2: every main department has
 records, a working journey and server-enforced boundaries today.
+
+## EP45 update — gap #1 (one department per operational employee)
+
+**Code delivered (EP45), owner UAT pending.** Enforced in the database (unique assignment per person and company,
+company-bound keys, role guard triggers), in the resolver (fails closed) and in administration
+(`ONE_DEPARTMENT_ONLY`). System Admin is administration only. See [EP45_FINAL_REPORT.md](EP45_FINAL_REPORT.md).

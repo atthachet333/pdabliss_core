@@ -7,6 +7,7 @@ import type { Db, Prisma } from '../db/client.js';
 import type { AuditLog, CompanyMember } from '../generated/prisma/client.js';
 import type { AuthEventType } from '../generated/prisma/enums.js';
 import { AppError, ValidationError } from '../lib/errors.js';
+import { takesDepartment } from '../permissions/catalog.js';
 import { recordCompanyEvent, type CompanyAuditAction, type AuditEntityType } from './audit.js';
 import { clearStaleBranchSessions, effectiveScope, worksInBranch } from './branch-access.js';
 import {
@@ -15,6 +16,11 @@ import {
   requireCompanyAccess,
   type CompanyAccess,
 } from './context.js';
+import {
+  assertDepartmentIntent,
+  assignmentConflict,
+  roleDepartmentConflict,
+} from './department-policy.js';
 import { assertDepartments, readSnapshot } from './entitlements.js';
 import {
   INVITATION_STATES,
@@ -866,16 +872,26 @@ export class CompanyControlService {
     }
     await this.db.$transaction(async (tx) => {
       if (input.role && input.role !== target.role) {
+        // EP45: Owner / System Admin / Executive hold no department. The assignment is never
+        // removed silently: the administrator removes it first (the database refuses too).
+        if (!takesDepartment(input.role)) {
+          const held = await tx.membership.count({
+            where: { userId: target.userId, companyId: access.company.id },
+          });
+          if (held) throw roleDepartmentConflict(input.role);
+        }
         // Never the owner row, even if something above were bypassed.
-        const { count } = await tx.companyMember.updateMany({
-          where: {
-            id: target.id,
-            companyId: access.company.id,
-            role: target.role,
-            ownerSlot: null,
-          },
-          data: { role: input.role },
-        });
+        const { count } = await tx.companyMember
+          .updateMany({
+            where: {
+              id: target.id,
+              companyId: access.company.id,
+              role: target.role,
+              ownerSlot: null,
+            },
+            data: { role: input.role },
+          })
+          .catch((e: unknown) => assignmentConflict(e, input.role!));
         if (count === 0)
           throw new AppError(409, 'MEMBER_CHANGED', 'This member changed meanwhile.');
         await this.event(tx, meta, access, 'MEMBER_ROLE_CHANGED', 'CompanyMember', target.id, {
@@ -924,9 +940,16 @@ export class CompanyControlService {
   }
 
   /**
-   * Department assignments (EP25 foundation): one person, several departments,
-   * one account. Only enabled departments can be assigned; assignments to a
-   * soft-disabled department are kept untouched for when it returns.
+   * Department assignment (EP45 single department). A Manager, Staff member or
+   * Viewer belongs to exactly ONE department — `departments` is `[]` (no
+   * operational access) or `[code]`; Owner, System Admin and Executive take
+   * none. Only an enabled department can be assigned. Changing department
+   * REPLACES the assignment (including one to a since-disabled department) in
+   * one transaction that locks the member row, so concurrent changes are
+   * serialized and two assignments can never exist; the database unique index
+   * and role triggers are the backstop. The change takes effect on the
+   * person's next request (permissions are resolved per request, never cached)
+   * and is audited with from / to.
    */
   async setMemberDepartments(
     ctx: AuthContext,
@@ -936,39 +959,57 @@ export class CompanyControlService {
   ) {
     const { access, target } = await this.manageable(ctx, memberId);
     const companyId = access.company.id;
-    const departments = await this.db.department.findMany({ where: { companyId, isActive: true } });
-    const byCode = new Map(departments.map((d) => [d.code, d]));
-    const missing = input.departments.filter((code) => !byCode.has(code));
-    if (missing.length) {
+    assertDepartmentIntent(target.role, input.departments);
+    const code = input.departments[0] ?? null;
+    const department = code
+      ? await this.db.department.findFirst({ where: { companyId, code, isActive: true } })
+      : null;
+    if (code && !department) {
       throw new AppError(422, 'DEPARTMENT_NOT_ENABLED', 'Assign only enabled departments.', {
-        departments: missing,
+        departments: [code],
       });
     }
-    const primary = input.primary ?? (input.departments.length === 1 ? input.departments[0] : null);
-    await this.db.$transaction(async (tx) => {
-      const enabledIds = departments.map((d) => d.id);
-      const wanted = input.departments.map((code) => byCode.get(code)!.id);
-      await tx.membership.deleteMany({
-        where: {
-          userId: target.userId,
-          departmentId: { in: enabledIds.filter((id) => !wanted.includes(id)) },
-        },
-      });
-      for (const code of input.departments) {
-        const departmentId = byCode.get(code)!.id;
-        await tx.membership.upsert({
-          where: { userId_departmentId: { userId: target.userId, departmentId } },
-          create: { userId: target.userId, departmentId, isPrimary: code === primary },
-          update: { isPrimary: code === primary },
+    await this.db
+      .$transaction(async (tx) => {
+        // Serialize concurrent edits of the same member, then re-read it as locked.
+        const [locked] = await tx.$queryRaw<{ role: CompanyMember['role'] }[]>`
+          SELECT "role" FROM "CompanyMember"
+           WHERE "id" = ${target.id} AND "companyId" = ${companyId} FOR UPDATE`;
+        if (!locked) throw notFound('Member');
+        assertDepartmentIntent(locked.role, input.departments);
+        const before = await tx.membership.findFirst({
+          where: { userId: target.userId, companyId },
+          include: { department: { select: { code: true } } },
         });
-      }
-      await this.event(tx, meta, access, 'MEMBER_DEPARTMENTS_CHANGED', 'CompanyMember', target.id, {
-        departments: [...input.departments].sort(
-          (a, b) => DEPARTMENT_CODES.indexOf(a) - DEPARTMENT_CODES.indexOf(b),
-        ),
-        primary: primary ?? null,
-      });
-    });
+        const from = before?.department.code ?? null;
+        if (from === code) return;
+        await tx.membership.deleteMany({ where: { userId: target.userId, companyId } });
+        if (department) {
+          await tx.membership.create({
+            data: {
+              userId: target.userId,
+              companyId,
+              departmentId: department.id,
+              isPrimary: true,
+            },
+          });
+        }
+        await this.event(
+          tx,
+          meta,
+          access,
+          'MEMBER_DEPARTMENTS_CHANGED',
+          'CompanyMember',
+          target.id,
+          {
+            from,
+            to: code,
+            departments: code ? [code] : [],
+            primary: code,
+          },
+        );
+      })
+      .catch((e: unknown) => assignmentConflict(e, target.role));
     return this.members(ctx);
   }
 

@@ -440,13 +440,19 @@ describeDb('Branch & user administration (EP26)', () => {
         }),
       ),
     ).toBe('DEPARTMENT_NOT_ENABLED');
-    await owner.put(`${C}/current/members/${staff}/departments`, {
-      departments: ['WAREHOUSE', 'SALES'],
-      primary: 'WAREHOUSE',
-    });
+    // EP45: one department per person — a second one is refused, nothing written.
+    expect(
+      code(
+        await owner.put(`${C}/current/members/${staff}/departments`, {
+          departments: ['WAREHOUSE', 'SALES'],
+          primary: 'WAREHOUSE',
+        }),
+      ),
+    ).toBe('ONE_DEPARTMENT_ONLY');
+    await owner.put(`${C}/current/members/${staff}/departments`, { departments: ['WAREHOUSE'] });
     await restrict(owner, staff, [br.B]);
     const browser = await as('staff@a.example');
-    expect(j(await browser.get(`${C}/context`)).departments).toEqual(['SALES', 'WAREHOUSE']);
+    expect(j(await browser.get(`${C}/context`)).departments).toEqual(['WAREHOUSE']);
 
     await owner.post(`${C}/current/members/${staff}/deactivate`);
     expect(code(await browser.get(`${C}/context`))).toBe('MEMBERSHIP_INACTIVE');
@@ -454,13 +460,13 @@ describeDb('Branch & user administration (EP26)', () => {
     // Nothing deleted: the account, its assignments and its branch access stay.
     expect(
       await h.db.membership.count({ where: { user: { emailNormalized: 'staff@a.example' } } }),
-    ).toBe(2);
+    ).toBe(1);
     expect(await h.db.memberBranchAccess.count({ where: { memberId: staff } })).toBe(1);
 
     await owner.post(`${C}/current/members/${staff}/reactivate`);
     const ctx = j(await browser.get(`${C}/context`));
     expect(ctx.branches.map((b: J) => b.code)).toEqual(['00002']);
-    expect(ctx.departments).toEqual(['SALES', 'WAREHOUSE']);
+    expect(ctx.departments).toEqual(['WAREHOUSE']);
     const statusEvents = await h.db.auditLog.findMany({
       where: { action: 'MEMBER_STATUS_CHANGED', entityId: staff },
     });
@@ -591,11 +597,21 @@ describeDb('Branch & user administration (EP26)', () => {
       ),
     ).toBe('DEPARTMENT_NOT_ENABLED');
 
+    // EP45: one department per invitation, and none for System Admin / Executive.
+    expect(code(await send({ departments: ['WAREHOUSE', 'SALES'] }))).toBe('ONE_DEPARTMENT_ONLY');
+    expect(code(await send({ role: 'SYSTEM_ADMIN', departments: ['SALES'] }))).toBe(
+      'ROLE_TAKES_NO_DEPARTMENT',
+    );
+    expect(code(await send({ role: 'EXECUTIVE', departments: ['SALES'] }))).toBe(
+      'ROLE_TAKES_NO_DEPARTMENT',
+    );
+    expect(await h.db.invitation.count({ where: { emailNormalized: 'x@person.example' } })).toBe(0);
+
     // Valid when sent, stale when accepted: only what is still valid is applied.
     expect(
       (
         await send({
-          departments: ['WAREHOUSE', 'SALES'],
+          departments: ['WAREHOUSE'],
           branchScope: 'SELECTED_BRANCHES',
           branchIds: [br.A],
         })
@@ -608,12 +624,17 @@ describeDb('Branch & user administration (EP26)', () => {
     const token = tokenFrom(h.mailer, 'x@person.example', 'invitation');
     expect((await invitee.post('/api/v1/auth/invitations/accept', { token })).statusCode).toBe(200);
     const ctx = j(await invitee.get(`${C}/context`));
-    expect(ctx).toMatchObject({ blocked: 'NO_BRANCH_ACCESS', departments: ['SALES'] });
+    // The department was disabled meanwhile: no department, so no operational access yet.
+    expect(ctx).toMatchObject({
+      blocked: 'NO_BRANCH_ACCESS',
+      departments: [],
+      assignment: { status: 'UNASSIGNED', department: null },
+    });
     const accepted = await h.db.auditLog.findFirstOrThrow({
       where: { action: 'INVITATION_ACCEPTED', companyId: A.companyId },
     });
     expect(accepted.changes).toMatchObject({
-      departments: ['SALES'],
+      departments: [],
       droppedDepartments: ['WAREHOUSE'],
       branchScope: 'SELECTED_BRANCHES',
       branches: [],

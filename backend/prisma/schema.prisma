@@ -163,6 +163,8 @@ model Department {
   memberships Membership[]
 
   @@unique([companyId, code])
+  /// Target of Membership's company-bound foreign key (EP45).
+  @@unique([id, companyId])
 }
 
 /// Which branches a membership may work in (EP26). Every membership that
@@ -288,9 +290,14 @@ model CompanyMember {
   fgReceiptsPosted                ProductionGoodsReceipt[]       @relation("FgReceiptPoster")
   fgReceiptsCancelled             ProductionGoodsReceipt[]       @relation("FgReceiptCanceller")
   fgReceiptsReversed              ProductionGoodsReceipt[]       @relation("FgReceiptReverser")
+  /// EP45: the ONE operational department of a Manager / Staff / Viewer (none for Owner,
+  /// System Admin, Executive — guarded by database triggers).
+  departmentAssignment            Membership?
 
   /// v1 policy: one company per user (no company switching).
   @@unique([userId])
+  /// Target of Membership's company-bound foreign key (EP45).
+  @@unique([userId, companyId])
   @@unique([companyId, ownerSlot])
   /// Target of MemberBranchAccess's company-bound foreign key (EP26).
   @@unique([id, companyId])
@@ -891,22 +898,29 @@ model AuthAuditEvent {
 // ---------------------------------------------------------------------------
 
 /// A user's access inside a department (EP25: the department assignment).
-/// One human = one User; working in several departments means several rows,
-/// never several accounts. The optional department Role (fine-grained
-/// permissions) arrives with EP27.
+/// One human = one User = one account. EP45: at most ONE per person and company (single-department
+/// rule), only for a Manager / Staff / Viewer (triggers), and the department, the member and
+/// the assignment always share one company (composite foreign keys). Changing department
+/// replaces the row in one transaction; the history is in AuditLog (MEMBER_DEPARTMENTS_CHANGED).
 model Membership {
-  id           String     @id @default(cuid())
+  id           String        @id @default(cuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  /// EP45: the company of both the department and the member (composite foreign keys).
+  companyId    String
+  member       CompanyMember @relation(fields: [userId, companyId], references: [userId, companyId])
   departmentId String
-  department   Department @relation(fields: [departmentId], references: [id])
+  department   Department    @relation(fields: [departmentId, companyId], references: [id, companyId])
+  /// Legacy EP23 role link — unused by authorization since EP27 (roles live on CompanyMember).
   roleId       String?
-  role         Role?      @relation(fields: [roleId], references: [id])
-  isPrimary    Boolean    @default(false)
-  createdAt    DateTime   @default(now())
+  role         Role?         @relation(fields: [roleId], references: [id])
+  /// Always true since EP45 (the one department is the primary one).
+  isPrimary    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
 
-  @@unique([userId, departmentId])
+  @@unique([userId, companyId])
   @@index([departmentId])
+  @@index([companyId])
 }
 
 model Role {

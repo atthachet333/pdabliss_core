@@ -314,7 +314,7 @@ show the pattern; demo routes are disabled in production (`ENABLE_DEMO_ROUTES` d
 
 Six departments: Executive, Sales, Operations, Warehouse, Purchasing, Accounting. EP25: the
 company enables them (soft) within its package, and people are assigned through `Membership`
-(one account, several departments)
+(one account; EP45: one department per regular employee)
 (`backend/src/domain/access/workspaces.ts` adds `admin`). Module episodes EP29–EP34 build the real
 department modules behind the existing `/app` routes; the public department pages stay frozen.
 Lot / Expiry / FEFO is core whenever Warehouse is enabled. Accounting is operational finance and

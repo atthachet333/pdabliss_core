@@ -146,7 +146,8 @@ describeDb('Production planning (EP36)', () => {
   const PEOPLE: [string, CompanyRole, 'A' | 'B', DepartmentCode[], ('HO' | 'X')[] | null][] = [
     ['owner@a.example', 'COMPANY_OWNER', 'A', [], null],
     ['admin@a.example', 'SYSTEM_ADMIN', 'A', [], null],
-    ['admin.ops@a.example', 'SYSTEM_ADMIN', 'A', ['OPERATIONS'], null],
+    // EP45: a System Admin holds no department (formerly assigned to Operations here).
+    ['admin.ops@a.example', 'SYSTEM_ADMIN', 'A', [], null],
     ['exec@a.example', 'EXECUTIVE', 'A', [], null],
     ['opm@a.example', 'DEPARTMENT_MANAGER', 'A', ['OPERATIONS'], ['X']],
     ['ops@a.example', 'DEPARTMENT_STAFF', 'A', ['OPERATIONS'], ['X']],
@@ -191,7 +192,9 @@ describeDb('Production planning (EP36)', () => {
       const m = await h.db.companyMember.findUniqueOrThrow({ where: { userId: u.id } });
       for (const d of depts) {
         const dept = await h.db.department.findFirstOrThrow({ where: { companyId, code: d } });
-        await h.db.membership.create({ data: { userId: u.id, departmentId: dept.id } });
+        await h.db.membership.create({
+          data: { userId: u.id, companyId: dept.companyId, departmentId: dept.id },
+        });
       }
       if (branches) {
         await h.db.companyMember.update({
@@ -949,12 +952,25 @@ describeDb('Production planning (EP36)', () => {
       ).toBe(403);
       expect((await b.get(`${P}/demand`)).statusCode, email).toBe(403);
     }
-    // A System Admin assigned to Operations may plan but never approve (no MANAGE).
+    // EP45: a System Admin is administrative only — it cannot even be assigned to Operations,
+    // so it can neither plan nor approve.
     const sa = await as('admin.ops@a.example');
-    expect((await ok(sa.get(`${P}/context`))).orders).toMatchObject({
-      create: true,
-      approve: false,
-    });
+    const saId = (
+      await h.db.companyMember.findFirstOrThrow({
+        where: { user: { emailNormalized: 'admin.ops@a.example' } },
+      })
+    ).id;
+    expect(
+      code(
+        await (
+          await owner()
+        ).put(`/api/v1/company/current/members/${saId}/departments`, {
+          departments: ['OPERATIONS'],
+        }),
+      ),
+    ).toBe('ROLE_TAKES_NO_DEPARTMENT');
+    expect((await sa.get(`${P}/context`)).statusCode).toBe(403);
+    expect((await sa.post(`${P}/orders`, { itemId: it_.fg, quantity: '1' })).statusCode).toBe(403);
     expect((await act(sa, d.id, 'approve')).statusCode).toBe(403);
     expect(
       (await sa.post(`${P}/boms`, { itemId: it_.fg2, outputQuantity: '1', lines: [] })).statusCode,

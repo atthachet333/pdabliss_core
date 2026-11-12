@@ -81,9 +81,13 @@ describe('Master data contracts (EP28)', () => {
     expect(staff.locations).toEqual({ view: true, manage: false });
     expect(staff.suppliers).toEqual({ view: false, manage: false });
     expect(staff.customers).toEqual({ view: false, manage: false });
-    const viewer = caps('VIEWER', ['SALES', 'WAREHOUSE']);
+    const viewer = caps('VIEWER', ['SALES']);
     expect(Object.values(viewer).every((c) => !c.manage)).toBe(true);
     expect(viewer.customers.view && viewer.items.view).toBe(true);
+    expect(viewer.locations.view).toBe(false);
+    // EP45: two assignments (impossible in the database) fail closed — nothing at all.
+    const ambiguous = caps('VIEWER', ['SALES', 'WAREHOUSE']);
+    expect(Object.values(ambiguous).some((c) => c.view || c.manage)).toBe(false);
     expect(caps('DEPARTMENT_MANAGER', ['SALES']).customers.manage).toBe(true);
     expect(caps('DEPARTMENT_MANAGER', ['SALES']).items.manage).toBe(false);
     expect(caps('DEPARTMENT_MANAGER', ['OPERATIONS']).units.manage).toBe(true);
@@ -157,7 +161,9 @@ describeDb('Operational master data (EP28)', () => {
     ['wh.mgr@a.example', 'DEPARTMENT_MANAGER', 'A', ['WAREHOUSE'], ['A']],
     ['buy.mgr@a.example', 'DEPARTMENT_MANAGER', 'A', ['PURCHASING'], null],
     ['acct.staff@a.example', 'DEPARTMENT_STAFF', 'A', ['ACCOUNTING'], null],
-    ['viewer@a.example', 'VIEWER', 'A', ['SALES', 'WAREHOUSE', 'OPERATIONS'], null],
+    // EP45: one department each (formerly one viewer in Sales, Warehouse and Operations).
+    ['viewer@a.example', 'VIEWER', 'A', ['SALES'], null],
+    ['viewer.wh@a.example', 'VIEWER', 'A', ['WAREHOUSE'], null],
     ['owner@b.example', 'COMPANY_OWNER', 'B', [], null],
   ];
 
@@ -200,7 +206,9 @@ describeDb('Operational master data (EP28)', () => {
       ids[email] = member.id;
       for (const d of depts) {
         const dept = await h.db.department.findFirstOrThrow({ where: { companyId, code: d } });
-        await h.db.membership.create({ data: { userId: u.id, departmentId: dept.id } });
+        await h.db.membership.create({
+          data: { userId: u.id, companyId: dept.companyId, departmentId: dept.id },
+        });
       }
       if (branches) {
         await h.db.companyMember.update({
@@ -977,14 +985,19 @@ describeDb('Operational master data (EP28)', () => {
     const loc = j(
       await owner.post(`${MD}/locations`, { branchId: br.A, code: 'MAIN', name: 'M' }),
     ).location;
-    const viewer = await as('viewer@a.example');
-    for (const url of [
-      `${MD}/customers/${cus.id}`,
-      `${MD}/items/${item.id}`,
-      `${MD}/locations/${loc.id}`,
-    ])
-      expect((await viewer.get(url)).statusCode, url).toBe(200);
-    expect(j(await viewer.get(`${MD}/items`)).canManage).toBe(false);
+    const salesViewer = await as('viewer@a.example');
+    const whViewer = await as('viewer.wh@a.example');
+    // Each viewer reads its own department's records only (EP45 single department).
+    for (const [b, url, status] of [
+      [salesViewer, `${MD}/customers/${cus.id}`, 200],
+      [salesViewer, `${MD}/items/${item.id}`, 200],
+      [salesViewer, `${MD}/locations/${loc.id}`, 403],
+      [whViewer, `${MD}/customers/${cus.id}`, 403],
+      [whViewer, `${MD}/items/${item.id}`, 200],
+      [whViewer, `${MD}/locations/${loc.id}`, 200],
+    ] as const)
+      expect((await b.get(url)).statusCode, url).toBe(status);
+    expect(j(await salesViewer.get(`${MD}/items`)).canManage).toBe(false);
     const attempts: [string, string, unknown][] = [
       ['POST', `${MD}/customers`, { name: 'x' }],
       ['PATCH', `${MD}/customers/${cus.id}`, { name: 'x' }],
@@ -1002,10 +1015,11 @@ describeDb('Operational master data (EP28)', () => {
       ['POST', `${MD}/locations/${loc.id}/deactivate`, {}],
       ['POST', `${MD}/suppliers`, { name: 'x' }],
     ];
-    for (const [method, url, body] of attempts) {
-      const res = await viewer.request(method as 'POST', url, body);
-      expect(res.statusCode, `${method} ${url}`).toBe(403);
-    }
+    for (const viewer of [salesViewer, whViewer])
+      for (const [method, url, body] of attempts) {
+        const res = await viewer.request(method as 'POST', url, body);
+        expect(res.statusCode, `${method} ${url}`).toBe(403);
+      }
     expect(await h.db.customer.count()).toBe(1);
     expect((await h.db.item.findUniqueOrThrow({ where: { id: item.id } })).name).toBe('I');
   });

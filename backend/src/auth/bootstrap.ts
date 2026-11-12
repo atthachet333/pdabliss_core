@@ -591,9 +591,12 @@ async function applyPersona(
     const memberId = target.id;
 
     if (departments.length && (fresh || !(await tx.membership.count({ where: { userId } })))) {
+      // EP45: a persona names at most one department (demo-personas test), and the
+      // database allows one assignment per person and company.
       await tx.membership.createMany({
         data: departments.map((d) => ({
           userId,
+          companyId,
           departmentId: d.id,
           isPrimary: d.code === primary,
         })),

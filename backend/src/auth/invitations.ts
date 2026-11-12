@@ -2,11 +2,13 @@ import type { Env } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import { recordCompanyEvent } from '../company/audit.js';
 import { requireCompanyAccess, type CompanyAccess } from '../company/context.js';
+import { assertDepartmentIntent } from '../company/department-policy.js';
 import type { InvitationInput } from '../company/input.js';
 import { ASSIGNABLE_ROLES } from '../company/policy.js';
 import type { DepartmentCode } from '../billing/catalog.js';
 import type { AppLocale, BranchAccessScope, CompanyRole } from '../generated/prisma/enums.js';
 import { AppError } from '../lib/errors.js';
+import { takesDepartment } from '../permissions/catalog.js';
 import type { Mailer } from '../mail/mailer.js';
 import { appLink, invitationMail } from '../mail/templates.js';
 import { recordAuthEvent, type RequestMeta } from './audit.js';
@@ -75,6 +77,8 @@ export class InvitationService {
       });
     }
     const companyId = access.company.id;
+    // EP45: one department at most, none for Owner / System Admin / Executive.
+    assertDepartmentIntent(intent.role, intent.departments);
     if (intent.departments.length) {
       const enabled = await this.db.department.findMany({
         where: { companyId, isActive: true, code: { in: intent.departments } },
@@ -378,14 +382,17 @@ export class InvitationService {
           branchScope: invitation.branchScope,
         },
       });
-      // Primary only when there is exactly one department (as on the Users page).
-      if (departments.length) {
-        await tx.membership.createMany({
-          data: departments.map((d) => ({
+      // EP45: one department at most, and only for a department role (the invitation CHECK
+      // and the assignment triggers enforce the same in the database).
+      if (departments.length > 1) throw tokenInvalid();
+      if (departments.length && takesDepartment(invitation.role)) {
+        await tx.membership.create({
+          data: {
             userId: ctx.user.id,
-            departmentId: d.id,
-            isPrimary: departments.length === 1,
-          })),
+            companyId: invitation.companyId,
+            departmentId: departments[0]!.id,
+            isPrimary: true,
+          },
         });
       }
       if (branches.length) {
@@ -398,7 +405,7 @@ export class InvitationService {
           })),
         });
       }
-      const applied = departments.map((d) => d.code);
+      const applied = takesDepartment(invitation.role) ? departments.map((d) => d.code) : [];
       const intentApplied = {
         departments: applied,
         droppedDepartments: invitation.departments.filter((d) => !applied.includes(d)),

@@ -176,6 +176,14 @@ See `backend/.env.example`. Secrets only via environment variables; `.env` is gi
    query parameter.
 5. **Every important mutation is audited** with actor, request ID, reason and before/after
    field values (`domain/audit/audit-entry.ts`).
+6. **One operational department per regular employee (EP45).** Department membership decides
+   where a Manager / Staff member / Viewer may work (exactly one department, enforced by the
+   database: unique assignment per person and company, company-bound composite keys, role
+   guard triggers); the role and permissions decide what they may do there. The effective-
+   permission resolver (`permissions/resolver.ts`) is the single decision point for every
+   module, recomputed per request and failing closed. Owner = explicit cross-department
+   authority under every control; Executive = read-only oversight; System Admin =
+   administration only. See `EP45_DEPARTMENT_POLICY.md`.
 
 ### Human-error prevention architecture
 

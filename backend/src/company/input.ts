@@ -298,7 +298,8 @@ export const InvitationBody = z
     role: AssignableRole,
     /** Language of the email; the company default when left out. */
     locale: z.enum(API_LOCALES).optional(),
-    /** EP26 intent — re-validated when the invitation is accepted. */
+    /** EP26 intent — re-validated when the invitation is accepted. EP45: at most one (checked
+     *  with the role in the service, so the answer is ONE_DEPARTMENT_ONLY, not a shape error). */
     departments: z.array(z.enum(DEPARTMENT_CODES)).max(DEPARTMENT_CODES.length).optional(),
     branchScope: BranchAccessFields.branchScope.default('ALL_BRANCHES'),
     branchIds: BranchAccessFields.branchIds,

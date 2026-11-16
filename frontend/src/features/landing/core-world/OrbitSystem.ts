@@ -1,13 +1,12 @@
-import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
 import {
   BufferGeometry,
   Float32BufferAttribute,
   LineBasicMaterial,
   LineDashedMaterial,
+  Group,
   LineLoop,
-  type Group,
 } from 'three';
+import type { FrameCallback } from './engine';
 import { COLOR, INTRO } from './constants';
 import { NODE_LAYOUT } from './constants';
 import { damp, reveal, type SceneClock } from './sceneClock';
@@ -33,62 +32,49 @@ const MEAN_RADIUS =
  * Rendered inside the tilted ring group, so the department orbit stays aligned
  * with the nodes. Lines are drawn in with the intro.
  */
-export function OrbitSystem({ clock, runtime }: { clock: SceneClock; runtime: WorldRuntime }) {
-  const inner = useRef<Group>(null);
-  const outer = useRef<Group>(null);
+export function createOrbitSystem(clock: SceneClock, runtime: WorldRuntime) {
+  const mat = new LineDashedMaterial({
+    color: COLOR.teal,
+    dashSize: 0.07,
+    gapSize: 0.11,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const loop = new LineLoop(circle(MEAN_RADIUS), mat);
+  loop.computeLineDistances();
 
-  const deptLoop = useMemo(() => {
-    const mat = new LineDashedMaterial({
-      color: COLOR.teal,
-      dashSize: 0.07,
-      gapSize: 0.11,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-    });
-    const loop = new LineLoop(circle(MEAN_RADIUS), mat);
-    loop.computeLineDistances();
-    return { loop, mat };
-  }, []);
+  const mk = (r: number) =>
+    new LineLoop(
+      circle(r),
+      new LineBasicMaterial({
+        color: COLOR.teal,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      }),
+    );
+  const deco = { a: mk(1.62), b: mk(3.55) };
+  const inner = new Group();
+  inner.rotation.set(0.55, 0, 0.32);
+  inner.add(deco.a);
+  const outer = new Group();
+  outer.rotation.set(-0.28, 0, -0.18);
+  outer.add(deco.b);
 
-  const deco = useMemo(() => {
-    const mk = (r: number) =>
-      new LineLoop(
-        circle(r),
-        new LineBasicMaterial({
-          color: COLOR.teal,
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-        }),
-      );
-    return { a: mk(1.62), b: mk(3.55) };
-  }, []);
-
-  useFrame((_, dt) => {
+  const tick: FrameCallback = (_, dt) => {
     const m = clock.motion;
     const r = reveal(clock.time, INTRO.orbits, 0.7);
     const spread = runtime.mix.spread;
     // Department orbit widens with the nodes in story stage 2, then fades back.
     const s = 1 + spread * 0.18;
-    deptLoop.loop.scale.setScalar(s);
+    loop.scale.setScalar(s);
     const deptTarget = r * (0.32 - runtime.mix.separate * 0.18);
-    deptLoop.mat.opacity = damp(deptLoop.mat.opacity, deptTarget, 6, dt);
+    mat.opacity = damp(mat.opacity, deptTarget, 6, dt);
     (deco.a.material as LineBasicMaterial).opacity = r * 0.16;
     (deco.b.material as LineBasicMaterial).opacity = r * 0.08 * (1 - runtime.mix.recede * 0.5);
-    if (inner.current) inner.current.rotation.y = m * 0.021;
-    if (outer.current) outer.current.rotation.y = -m * 0.009;
-  });
-
-  return (
-    <>
-      <primitive object={deptLoop.loop} />
-      <group ref={inner} rotation={[0.55, 0, 0.32]}>
-        <primitive object={deco.a} />
-      </group>
-      <group ref={outer} rotation={[-0.28, 0, -0.18]}>
-        <primitive object={deco.b} />
-      </group>
-    </>
-  );
+    inner.rotation.y = m * 0.021;
+    outer.rotation.y = -m * 0.009;
+  };
+  return { objects: [loop, inner, outer], tick };
 }

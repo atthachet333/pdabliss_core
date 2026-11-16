@@ -84,3 +84,11 @@ No other gate changed.
   ([EP46_RECIPE_CONFIDENTIALITY_MATRIX.md](EP46_RECIPE_CONFIDENTIALITY_MATRIX.md)). Status: **code ready — awaiting UAT**.
   Residual (by design): people executing a *released* order see that batch's quantities.
 - No other gate changed.
+
+## EP47 update — department dashboards
+
+- Operational dashboards for Sales, Production, Warehouse, Purchasing and Accounting are **implemented and tested in
+  development** (EP47, not deployed): read-only projections of canonical documents, branch / company / department
+  scoped, Warehouse without money, Production without recipe data
+  ([EP47_FINAL_REPORT.md](EP47_FINAL_REPORT.md)). Status: **code ready — awaiting owner UAT (DB-01 … DB-10)**.
+- Not a release gate by itself; no blocker of this matrix changed. The Executive Command Center remains EP48.

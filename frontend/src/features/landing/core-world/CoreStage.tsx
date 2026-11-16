@@ -15,7 +15,7 @@ const STAGE_COPY: Localized<{ back: string }> = {
   'zh-CN': { back: '返回 CORE 概览' },
 };
 
-// three.js + react-three-fiber live in this chunk only.
+// three.js lives in this chunk only (EP47: no react-three-fiber).
 const CoreWorld = lazy(() => import('./CoreWorld'));
 
 const DRAG_YAW = 0.0045;

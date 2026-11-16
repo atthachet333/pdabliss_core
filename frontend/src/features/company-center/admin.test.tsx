@@ -1224,8 +1224,10 @@ describe('EP45 department identity in CORE', () => {
     reassigned = true;
     window.dispatchEvent(new CustomEvent('core:authorization-changed'));
     await waitFor(() => expect(api.called('GET /api/v1/company/context')).toHaveLength(2));
-    await waitFor(() => expect(document.querySelector('[data-department="SALES"]')).not.toBeNull());
+    // EP47: a one-department member lands on that department's dashboard (not a card list).
+    await waitFor(() => expect(document.querySelector('[data-dashboard="SALES"]')).not.toBeNull());
     expect(document.querySelector('[data-department="WAREHOUSE"]')).toBeNull();
+    expect(document.querySelector('[data-dashboard="WAREHOUSE"]')).toBeNull();
   });
 });
 

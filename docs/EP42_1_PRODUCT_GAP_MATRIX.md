@@ -84,3 +84,11 @@ company-bound keys, role guard triggers), in the resolver (fails closed) and in 
 
 **Code delivered (EP46), owner UAT pending.** Owner-chosen BOM-optional manufacturing with explicit material plans, and
 confidential recipe access (`operations.recipes.view`). See [EP46_FINAL_REPORT.md](EP46_FINAL_REPORT.md).
+
+## EP47 update — gap #9 (department dashboards)
+
+**Code delivered (EP47), owner UAT pending.** Gap #9 moves from PARTIAL to **DELIVERED IN CODE** for the operational
+departments: each department member lands on a dashboard of real counts and a work queue (what needs attention, what is
+waiting, what is blocked or late, what was completed, who owns the next step); the Owner and the Executive navigate to
+every department's dashboard. Still open: targets / trends / charts (no trend data yet), notifications, and the
+cross-department **Executive Command Center** (gap #10, EP48). See [EP47_FINAL_REPORT.md](EP47_FINAL_REPORT.md).

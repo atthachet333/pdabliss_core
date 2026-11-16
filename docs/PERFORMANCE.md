@@ -208,6 +208,14 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP47 — no budget changed; JS recovered first.** A source-mapped build showed no duplicated module and no dead
+  weight left except **@react-three/fiber (≈ 160 KiB)**, a reconciler used for one homepage scene. The CORE World now
+  renders the same scene directly on three.js (`core-world/engine.ts`; same graph, frame order, renderer settings and
+  pointer behaviour — compared in the browser with the EP46 build) and the dependency was removed: all JS
+  **4,286.0 → 4,124.9 KiB (−161.1)**, CORE World chunk **182.5 → 133.2 KiB gzip**. Then the department dashboards:
+  one lazy `DepartmentDashboard` chunk (≈ 36 KiB raw, TH / EN / ZH copy) and the CORE-home landing: all JS **4,163.5 /
+  4,300 KiB** (headroom ≈ 136.5 KiB); initial JS **182.8 / 205 KiB gzip**; initial CSS 50.8 / 52 KiB gzip unchanged;
+  static HTML 525.1 / 560 KiB (111 / 111 files). Details: [EP47_PERFORMANCE_REPORT.md](EP47_PERFORMANCE_REPORT.md).
 - **EP43 — no frontend change; budgets unchanged.** EP43 added a backend readiness route and the
   `ops/` operations tooling only. All JS 4,270.0 / 4,300 KiB, initial JS 182.9 / 205 KiB gzip,
   static HTML 525.6 / 560 KiB (re-measured by the EP43 build). Operations overhead measured: a

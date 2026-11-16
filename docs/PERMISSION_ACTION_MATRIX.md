@@ -371,3 +371,14 @@ Rules for module authors:
 - Company setting `manufacturingMode` (BOM required / optional) — owner only (`OWNER_ONLY`), like the approval policy.
 - Matrix and projections: [EP46_RECIPE_CONFIDENTIALITY_MATRIX.md](EP46_RECIPE_CONFIDENTIALITY_MATRIX.md); policy:
   [EP46_MANUFACTURING_POLICY.md](EP46_MANUFACTURING_POLICY.md).
+
+## EP47 — department dashboards
+
+- **No new permission code.** A dashboard opens with the department's existing `<department>.workspace.view`; every
+  metric and queue also needs the read code of the screen it summarizes, or it is left out (no count leaks). Executive
+  dashboards are READ-only; System Admin and unassigned members have none; the Executive Command Center is EP48.
+- Work-queue rows mark "Your step" (`canAct`) from the person's effective permission for that step; the step itself is
+  taken on the document screen, where EP41 independent approval and owner override apply unchanged. There is no
+  dashboard write route.
+- Matrix: [EP47_PERMISSION_MATRIX.md](EP47_PERMISSION_MATRIX.md); metric contract:
+  [EP47_METRIC_DEFINITIONS.md](EP47_METRIC_DEFINITIONS.md).

@@ -35,7 +35,7 @@ const BUDGET = {
   initialJsGzip: 205, // public entry + its static imports [179; EP19 was 275]
   initialCssGzip: 52, // the one Tailwind stylesheet [44.5]
   largestRouteGzip: 72, // largest page closure beyond the entry [≈60, Resources]
-  coreWorldGzip: 265, // three.js + react-three-fiber scene beyond the homepage [≈236]
+  coreWorldGzip: 265, // three.js scene beyond the homepage (EP47: without react-three-fiber) [≈236]
   criticalFontsKb: 100, // Thai + Latin woff2, weights 400/500/600 [88.4]
   heroAssetsKb: 45, // hero atmosphere + six department thumbnails [36.9]
   // EP25: +200 for the lazy, signed-in-only Company Control Center / CORE entry

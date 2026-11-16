@@ -8,7 +8,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { getDepartment } from '@/config/departments';
@@ -17,8 +17,13 @@ import { Notice } from '@/features/auth/AuthFrame';
 import { AUTH_COPY } from '@/features/auth/copy';
 import { withLocale } from '@/features/auth/localeState';
 import { clearIdentity } from '@/features/auth/session';
-import { departmentId } from '@/features/company/api';
-import { useCopy } from '@/i18n/useCopy';
+import { departmentId, type DepartmentCode } from '@/features/company/api';
+import {
+  DASHBOARD_DEPARTMENTS,
+  isDashboardDepartment,
+  type DashboardDepartment,
+} from '@/features/dashboards/dashApi';
+import { useCopy, type Localized } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { ApiError, AUTHORIZATION_CHANGED, setOwnerOverrideHandler } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -76,6 +81,47 @@ const ShortagesArea = lazy(() => import('@/features/production/ShortagesArea'));
 /** EP37: Warehouse's read-only production material issue handoff — its own tiny chunk. */
 const MaterialIssueHandoff = lazy(() => import('@/features/production/MaterialIssueHandoff'));
 const FinishedGoodsArea = lazy(() => import('@/features/production/FinishedGoodsArea'));
+/** EP47: department dashboards — one generic, data-driven view in its own lazy chunk. */
+const DepartmentDashboard = lazy(() => import('@/features/dashboards/DepartmentDashboard'));
+
+/** EP47: the dashboards the server's permissions open for this person (presentation only). */
+const dashboardsOf = (permissions: readonly string[] = []) =>
+  DASHBOARD_DEPARTMENTS.filter((d) => permissions.includes(`${d.toLowerCase()}.workspace.view`));
+
+const DASHBOARD_LABEL: Localized<string> = { th: 'แดชบอร์ด', en: 'Dashboard', 'zh-CN': '仪表板' };
+
+/** Where a department's own screens start, when this person may open them. */
+function workspaceOf(code: DepartmentCode, permissions: readonly string[] = []) {
+  if (code === 'PURCHASING') return '/core/purchasing';
+  const l = DEPARTMENT_LINKS[code];
+  return l && permissions.includes(l.permission) ? l.to : null;
+}
+
+/** /core/dashboards/:department — one department's dashboard (Owner / Executive navigation). */
+function DashboardRoute({ context }: { context: BranchContext }) {
+  const { department = '' } = useParams();
+  const c = useCopy(CONTROL_COPY);
+  const code = department.toUpperCase();
+  if (!isDashboardDepartment(code)) return <Navigate to="/core" replace />;
+  return (
+    <div className="grid gap-6">
+      <AreaLink
+        to="/core"
+        className="inline-flex min-h-11 w-fit items-center text-label text-text-secondary hover:text-text-primary"
+      >
+        ← CORE
+      </AreaLink>
+      <Suspense fallback={<Loading label={c.shell.loading} />}>
+        <DepartmentDashboard
+          key={`${code}:${context.selected!.id}`}
+          department={code}
+          branchId={context.selected!.id}
+          workspace={workspaceOf(code, context.permissions)}
+        />
+      </Suspense>
+    </div>
+  );
+}
 
 /** EP30: a department card's way into its first EP30 screen (presentation only). */
 const DEPARTMENT_LINKS: Partial<
@@ -274,6 +320,7 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['purchasing/production-shortages', <ShortagesArea key="ps" />],
             ['warehouse/material-issues', <MaterialIssueHandoff key="mih" />],
             ['warehouse/finished-goods/*', <FinishedGoodsArea key="fga" />],
+            ['dashboards/:department', <DashboardRoute key="dash" context={ctx} />],
           ] as const
         ).map(([path, area]) => (
           <Route
@@ -615,6 +662,16 @@ function OperationsHome({ context }: { context: BranchContext }) {
   const branchLabel = useBranchLabel();
   const branch = context.selected!;
   const assignment = context.assignment;
+  const dashboards = dashboardsOf(context.permissions);
+  const dashboardLabel = useCopy(DASHBOARD_LABEL);
+  // EP47: a member of ONE department lands on that department's dashboard.
+  const own: DashboardDepartment | null =
+    assignment?.status === 'ASSIGNED' &&
+    assignment.department &&
+    isDashboardDepartment(assignment.department) &&
+    dashboards.includes(assignment.department)
+      ? assignment.department
+      : null;
   return (
     <div className="grid gap-8" data-core-home>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -647,106 +704,142 @@ function OperationsHome({ context }: { context: BranchContext }) {
 
       <QuickActions context={context} />
 
-      <section aria-labelledby="core-departments-title" className="grid gap-4">
-        <h2 id="core-departments-title" className="text-body font-semibold text-text-primary">
-          {c.core.departments}
-        </h2>
-        {context.departments.length === 0 ? (
-          <Notice tone="info">
-            <span data-no-department>
-              {assignment?.status === 'UNASSIGNED'
-                ? c.core.unassigned
-                : assignment?.status === 'AMBIGUOUS'
-                  ? c.core.ambiguous
-                  : assignment?.status === 'ADMINISTRATIVE'
-                    ? c.core.administrative
-                    : c.core.none}
-            </span>
-          </Notice>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-core-departments>
-            {context.departments.map((code) => {
-              const d = getDepartment(departmentId(code), locale);
-              // What the server says this person may do here — presentation only.
-              const mine = (context.permissions ?? []).filter((x) =>
-                x.startsWith(`${code.toLowerCase()}.`),
-              );
-              const level = mine.some((x) => MANAGE_ACTIONS.test(x))
-                ? p.coreLevel.manage
-                : mine.some((x) => !x.endsWith('.view'))
-                  ? p.coreLevel.work
-                  : p.coreLevel.readOnly;
-              return (
-                <li
-                  key={code}
-                  data-department={code}
-                  className="flex gap-4 rounded-2xl bg-white/[0.025] p-5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]"
+      {own && (
+        <Suspense fallback={<Loading label={c.shell.loading} />}>
+          <DepartmentDashboard
+            key={`${own}:${branch.id}`}
+            department={own}
+            branchId={branch.id}
+            workspace={workspaceOf(own, context.permissions)}
+            embedded
+          />
+        </Suspense>
+      )}
+
+      {!own && (
+        <section aria-labelledby="core-departments-title" className="grid gap-4">
+          <h2 id="core-departments-title" className="text-body font-semibold text-text-primary">
+            {c.core.departments}
+          </h2>
+          {context.departments.length === 0 ? (
+            <>
+              <Notice tone="info">
+                <span data-no-department>
+                  {assignment?.status === 'UNASSIGNED'
+                    ? c.core.unassigned
+                    : assignment?.status === 'AMBIGUOUS'
+                      ? c.core.ambiguous
+                      : assignment?.status === 'ADMINISTRATIVE'
+                        ? c.core.administrative
+                        : c.core.none}
+                </span>
+              </Notice>
+              {/* EP47: a System Admin's work is company administration, never a work queue. */}
+              {assignment?.status === 'ADMINISTRATIVE' && (
+                <AreaLink
+                  to="/company"
+                  className={buttonClasses('secondary', 'md', 'w-fit')}
+                  data-admin-functions
                 >
-                  <span
-                    aria-hidden
-                    className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-primary/[0.12] text-brand-soft"
+                  {c.core.controlCenter}
+                  <ArrowRight aria-hidden className="size-4" />
+                </AreaLink>
+              )}
+            </>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-core-departments>
+              {context.departments.map((code) => {
+                const d = getDepartment(departmentId(code), locale);
+                // What the server says this person may do here — presentation only.
+                const mine = (context.permissions ?? []).filter((x) =>
+                  x.startsWith(`${code.toLowerCase()}.`),
+                );
+                const level = mine.some((x) => MANAGE_ACTIONS.test(x))
+                  ? p.coreLevel.manage
+                  : mine.some((x) => !x.endsWith('.view'))
+                    ? p.coreLevel.work
+                    : p.coreLevel.readOnly;
+                return (
+                  <li
+                    key={code}
+                    data-department={code}
+                    className="flex gap-4 rounded-2xl bg-white/[0.025] p-5 shadow-[inset_0_0_0_1px_rgb(190_235_222/0.1)]"
                   >
-                    <d.icon className="size-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="text-label font-semibold text-text-primary">{d.name}</h3>
-                    <p className="mt-0.5 text-caption text-text-muted">{d.purpose}</p>
-                    <p className="mt-3 flex flex-wrap items-center gap-2 text-caption text-text-secondary">
-                      <Pill tone="muted" data-level>
-                        {level}
-                      </Pill>
-                      {code === 'PURCHASING' ? (
-                        <AreaLink
-                          to="/core/purchasing"
-                          className="font-semibold text-brand-soft underline-offset-4 hover:underline"
-                          data-open-workspace
-                        >
-                          {c.core.openPurchasing}
-                        </AreaLink>
-                      ) : DEPARTMENT_LINKS[code] &&
-                        mine.includes(
-                          DEPARTMENT_LINKS[code].permission as (typeof mine)[number],
-                        ) ? (
-                        <AreaLink
-                          to={DEPARTMENT_LINKS[code].to}
-                          className="font-semibold text-brand-soft underline-offset-4 hover:underline"
-                          data-open-workspace
-                        >
-                          {c.core[DEPARTMENT_LINKS[code].label]}
-                        </AreaLink>
-                      ) : (
-                        c.core.later
-                      )}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {(context.permissions ?? []).includes('purchasing.production_shortages.view') && (
-          <AreaLink
-            to="/core/purchasing/production-shortages"
-            className={buttonClasses('secondary', 'md', 'w-fit')}
-            data-production-shortages-link
-          >
-            {c.core.shortages}
-          </AreaLink>
-        )}
-        {(context.permissions ?? []).some((x) => REQUESTS.test(x)) && (
-          <AreaLink
-            to="/core/purchasing/requests"
-            className={buttonClasses('secondary', 'md', 'w-fit')}
-            data-purchase-requests
-          >
-            {c.core.requests}
-          </AreaLink>
-        )}
-        <p className="flex items-start gap-2 text-caption text-text-muted">
-          <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-soft" />
-          {c.core.rule}
-        </p>
-      </section>
+                    <span
+                      aria-hidden
+                      className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-primary/[0.12] text-brand-soft"
+                    >
+                      <d.icon className="size-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-label font-semibold text-text-primary">{d.name}</h3>
+                      <p className="mt-0.5 text-caption text-text-muted">{d.purpose}</p>
+                      <p className="mt-3 flex flex-wrap items-center gap-2 text-caption text-text-secondary">
+                        <Pill tone="muted" data-level>
+                          {level}
+                        </Pill>
+                        {code === 'PURCHASING' ? (
+                          <AreaLink
+                            to="/core/purchasing"
+                            className="font-semibold text-brand-soft underline-offset-4 hover:underline"
+                            data-open-workspace
+                          >
+                            {c.core.openPurchasing}
+                          </AreaLink>
+                        ) : DEPARTMENT_LINKS[code] &&
+                          mine.includes(
+                            DEPARTMENT_LINKS[code].permission as (typeof mine)[number],
+                          ) ? (
+                          <AreaLink
+                            to={DEPARTMENT_LINKS[code].to}
+                            className="font-semibold text-brand-soft underline-offset-4 hover:underline"
+                            data-open-workspace
+                          >
+                            {c.core[DEPARTMENT_LINKS[code].label]}
+                          </AreaLink>
+                        ) : (
+                          c.core.later
+                        )}
+                        {isDashboardDepartment(code) && dashboards.includes(code) && (
+                          <AreaLink
+                            to={`/core/dashboards/${code.toLowerCase()}`}
+                            className="font-semibold text-brand-soft underline-offset-4 hover:underline"
+                            data-open-dashboard={code}
+                          >
+                            {dashboardLabel}
+                          </AreaLink>
+                        )}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {(context.permissions ?? []).includes('purchasing.production_shortages.view') && (
+            <AreaLink
+              to="/core/purchasing/production-shortages"
+              className={buttonClasses('secondary', 'md', 'w-fit')}
+              data-production-shortages-link
+            >
+              {c.core.shortages}
+            </AreaLink>
+          )}
+          {(context.permissions ?? []).some((x) => REQUESTS.test(x)) && (
+            <AreaLink
+              to="/core/purchasing/requests"
+              className={buttonClasses('secondary', 'md', 'w-fit')}
+              data-purchase-requests
+            >
+              {c.core.requests}
+            </AreaLink>
+          )}
+          <p className="flex items-start gap-2 text-caption text-text-muted">
+            <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-soft" />
+            {c.core.rule}
+          </p>
+        </section>
+      )}
     </div>
   );
 }

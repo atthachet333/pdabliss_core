@@ -42,13 +42,14 @@ features/landing/
 └── core-world/
     ├── CoreStage.tsx        quality decision, lazy WebGL, pointer/drag input, visibility pause,
     │                        fallback cross-fade, DOM labels, branding overlay, cursor glow
-    ├── CoreWorld.tsx        <Canvas> + scene root (lazy chunk with three + R3F)
-    ├── CoreSphere.tsx       obsidian shell shader, halo, lattice
-    ├── OrbitSystem.tsx      department orbit (dashed) + two decorative orbits
-    ├── DepartmentNode.tsx   glass bead, halo sprite, workspace ring, hit area
-    ├── DataConnections.tsx  spokes to CORE, process arcs, all pulses in one draw call
-    ├── Atmosphere.tsx       volumetric-like glow plane, distant network geometry
-    ├── ParticleField.tsx    sparse motes, drift in the vertex shader
+    ├── CoreWorld.tsx        scene root (lazy chunk with three; EP47: no R3F)
+    ├── engine.ts            EP47: renderer, frame loop, resize, raycast pointer events
+    ├── CoreSphere.ts        obsidian shell shader, halo, lattice
+    ├── OrbitSystem.ts       department orbit (dashed) + two decorative orbits
+    ├── DepartmentNode.ts    glass bead, halo sprite, workspace ring, hit area
+    ├── DataConnections.ts   spokes to CORE, process arcs, all pulses in one draw call
+    ├── Atmosphere.ts        volumetric-like glow plane, distant network geometry
+    ├── ParticleField.ts     sparse motes, drift in the vertex shader
     ├── CoreWorldFallback.tsx static SVG CORE (no three.js) — loading state and fallback
     ├── WebGLBoundary.tsx    error boundary → fallback
     ├── DepartmentSelector.tsx accessible department buttons + detail panel
@@ -58,7 +59,9 @@ features/landing/
     ├── constants.ts · types.ts · runtime.ts · controls.ts · sceneClock.ts · orbitList.ts
 ```
 
-**Stack:** `three` (pinned to the r182 line) + `@react-three/fiber` 9. Framer Motion stays
+**Stack:** `three` (pinned to the r182 line). **EP47:** `@react-three/fiber` was removed — the same scene is
+built directly on three.js through `engine.ts` (≈ 160 KiB less JS; see [EP47_PERFORMANCE_REPORT.md](EP47_PERFORMANCE_REPORT.md)).
+Framer Motion stays
 for DOM motion. **drei is not used**: the only pieces we would take from it (HTML labels,
 orbit controls) are replaced by ~100 lines of purpose-built code — projected DOM labels that
 stay crisp and accessible, and a clamped drag rig with inertia that cannot reach ugly angles.

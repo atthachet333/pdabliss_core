@@ -1,15 +1,16 @@
-import { useFrame, useThree } from '@react-three/fiber';
-import { useMemo } from 'react';
 import {
   AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   Color,
   Line,
+  Group,
   LineBasicMaterial,
+  Points,
   ShaderMaterial,
   Vector3,
 } from 'three';
+import type { FrameCallback } from './engine';
 import { COLOR, INTRO, PROCESS_FLOW } from './constants';
 import { coreAnchor } from './layout';
 import { activeId, ORBIT_IDS, type WorldRuntime } from './runtime';
@@ -90,60 +91,58 @@ function controlFor(link: Link, a: Vector3, b: Vector3, out: Vector3) {
   return out.multiplyScalar(1.32).add(tmpC.set(0, 0.18, 0));
 }
 
-export function DataConnections({
-  clock,
-  runtime,
-  pulsesPerLink,
-}: {
-  clock: SceneClock;
-  runtime: WorldRuntime;
-  pulsesPerLink: number;
-}) {
-  const dpr = useThree((s) => s.viewport.dpr);
+function makePulses(links: readonly Link[], pulsesPerLink: number) {
+  const perSpoke = pulsesPerLink;
+  const perArc = pulsesPerLink > 0 ? 1 : 0;
+  const items: { link: number; offset: number }[] = [];
+  links.forEach((l, i) => {
+    const n = l.to === 'core' ? perSpoke : perArc;
+    for (let k = 0; k < n; k++) items.push({ link: i, offset: k / Math.max(1, n) + i * 0.137 });
+  });
+  const count = Math.max(items.length, 1);
+  const geo = new BufferGeometry();
+  geo.setAttribute('position', new BufferAttribute(new Float32Array(count * 3), 3));
+  geo.setAttribute('aAlpha', new BufferAttribute(new Float32Array(count), 1));
+  geo.setAttribute('aSize', new BufferAttribute(new Float32Array(count), 1));
+  const mat = new ShaderMaterial({
+    vertexShader: pulseVertex,
+    fragmentShader: pulseFragment,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    uniforms: {
+      uPixelRatio: { value: 1 },
+      uColor: { value: new Color(COLOR.glow) },
+      uCore: { value: new Color('#f0fffa') },
+    },
+  });
+  const points = new Points(geo, mat);
+  points.frustumCulled = false;
+  return { items, geo, mat, points, phase: items.map(() => 0) };
+}
 
-  const links = useMemo<Link[]>(() => {
-    const spokes = ORBIT_IDS.map((id) => ({
-      ...makeLine(COLOR.glow),
-      from: id,
-      to: 'core' as const,
-    }));
-    const process = PROCESS_FLOW.slice(0, -1).map((id, i) => ({
-      ...makeLine(COLOR.cyan),
-      from: id,
-      to: PROCESS_FLOW[i + 1]!,
-    }));
-    return [...spokes, ...process];
-  }, []);
+export function createDataConnections(
+  clock: SceneClock,
+  runtime: WorldRuntime,
+  pulsesPerLink: number,
+) {
+  const spokes = ORBIT_IDS.map((id) => ({
+    ...makeLine(COLOR.glow),
+    from: id,
+    to: 'core' as const,
+  }));
+  const process = PROCESS_FLOW.slice(0, -1).map((id, i) => ({
+    ...makeLine(COLOR.cyan),
+    from: id,
+    to: PROCESS_FLOW[i + 1]!,
+  }));
+  const links: Link[] = [...spokes, ...process];
+  // The pulses live in their own group so a quality step can swap them in place.
+  const pulseSlot = new Group();
+  let pulses = makePulses(links, pulsesPerLink);
+  if (pulses.items.length > 0) pulseSlot.add(pulses.points);
 
-  const pulses = useMemo(() => {
-    const perSpoke = pulsesPerLink;
-    const perArc = pulsesPerLink > 0 ? 1 : 0;
-    const items: { link: number; offset: number }[] = [];
-    links.forEach((l, i) => {
-      const n = l.to === 'core' ? perSpoke : perArc;
-      for (let k = 0; k < n; k++) items.push({ link: i, offset: k / Math.max(1, n) + i * 0.137 });
-    });
-    const count = Math.max(items.length, 1);
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new BufferAttribute(new Float32Array(count * 3), 3));
-    geo.setAttribute('aAlpha', new BufferAttribute(new Float32Array(count), 1));
-    geo.setAttribute('aSize', new BufferAttribute(new Float32Array(count), 1));
-    const mat = new ShaderMaterial({
-      vertexShader: pulseVertex,
-      fragmentShader: pulseFragment,
-      transparent: true,
-      depthWrite: false,
-      blending: AdditiveBlending,
-      uniforms: {
-        uPixelRatio: { value: 1 },
-        uColor: { value: new Color(COLOR.glow) },
-        uCore: { value: new Color('#f0fffa') },
-      },
-    });
-    return { items, geo, mat, phase: items.map(() => 0) };
-  }, [links, pulsesPerLink]);
-
-  useFrame((_, dt) => {
+  const tick: FrameCallback = ({ dpr }, dt) => {
     const rt = runtime;
     const focus = activeId(rt);
     const drawn = reveal(clock.time, INTRO.links, 0.7);
@@ -207,16 +206,15 @@ export function DataConnections({
     alphaAttr.needsUpdate = true;
     sizeAttr.needsUpdate = true;
     pulses.mat.uniforms.uPixelRatio!.value = dpr;
-  });
+  };
 
-  return (
-    <>
-      {links.map((l, i) => (
-        <primitive key={i} object={l.line} />
-      ))}
-      {pulses.items.length > 0 && (
-        <points geometry={pulses.geo} material={pulses.mat} frustumCulled={false} />
-      )}
-    </>
-  );
+  /** A quality step: new pulses for the new count (the lines stay). */
+  const setPulses = (next: number) => {
+    pulseSlot.clear();
+    pulses.geo.dispose();
+    pulses.mat.dispose();
+    pulses = makePulses(links, next);
+    if (pulses.items.length > 0) pulseSlot.add(pulses.points);
+  };
+  return { objects: [...links.map((l) => l.line), pulseSlot], tick, setPulses };
 }

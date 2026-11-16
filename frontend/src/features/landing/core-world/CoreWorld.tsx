@@ -1,27 +1,31 @@
-import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
-import { Vector3, type Group, type PerspectiveCamera } from 'three';
-import { Atmosphere } from './Atmosphere';
+import { useEffect, useInsertionEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+import { Group, Mesh, MeshBasicMaterial, SphereGeometry, Vector3, type Object3D } from 'three';
+import { createAtmosphere } from './Atmosphere';
 import { INTRO, QUALITY_SETTINGS } from './constants';
-import { CoreCanvas } from './CoreCanvas';
-import { CoreSphere } from './CoreSphere';
-import { DataConnections } from './DataConnections';
-import { DepartmentNode } from './DepartmentNode';
+import { createCoreSphere } from './CoreSphere';
+import { createDataConnections } from './DataConnections';
+import { createDepartmentNode } from './DepartmentNode';
+import { Engine, pixelRatio, type FrameCallback, type Frameloop } from './engine';
 import { releaseSharedResources } from './halo';
 import { WebGLBoundary } from './WebGLBoundary';
 import { cameraDistance, CAMERA, nodeLocal, TILT } from './layout';
-import { OrbitSystem } from './OrbitSystem';
-import { ParticleField } from './ParticleField';
+import { createOrbitSystem } from './OrbitSystem';
+import { createParticleField } from './ParticleField';
 import type { ControlState } from './controls';
-import { activeId, createRuntime, ORBIT_IDS, type WorldRuntime } from './runtime';
+import { activeId, createRuntime, ORBIT_IDS } from './runtime';
 import { createClock, damp, reveal } from './sceneClock';
 import type { OrbitDepartmentId, Quality, StoryStage } from './types';
 
 /*
- * CORE World — the WebGL scene (lazy chunk: three + @react-three/fiber load
- * only when this module is imported). The DOM around it (labels, branding,
- * department controls, fallback) lives in CoreStage so that text stays crisp,
- * selectable and accessible.
+ * CORE World — the WebGL scene (lazy chunk: three.js loads only when this
+ * module is imported). The DOM around it (labels, branding, department
+ * controls, fallback) lives in CoreStage so that text stays crisp, selectable
+ * and accessible.
+ *
+ * EP47: built directly on three.js through ./engine (no @react-three/fiber).
+ * The scene graph, the per-frame order (the rig first, then atmosphere, CORE,
+ * orbits, connections, departments, particles), the renderer settings and the
+ * pointer behaviour are those of the EP36 R3F scene.
  */
 
 export interface CoreWorldProps {
@@ -49,42 +53,81 @@ export interface CoreWorldProps {
 const MAX_YAW = 0.6;
 const MAX_PITCH = 0.15;
 
-function Scene(props: CoreWorldProps) {
-  const settings = QUALITY_SETTINGS[props.quality];
-  const reduced = props.quality === 'reduced';
-  const clock = useMemo(() => createClock(reduced), [reduced]);
-  const runtime = useMemo<WorldRuntime>(() => createRuntime(), []);
-  const rig = useRef<Group>(null);
-  const yawGroup = useRef<Group>(null);
-  const focus = useRef(0);
-  const light = useRef(new Vector3(0.6, 0.7, 0.9));
-  const state = useRef({ frames: 0, ready: false, slowFrames: 0, sampled: 0 });
-  const { camera, size, invalidate } = useThree();
+type Props = RefObject<CoreWorldProps>;
 
-  // React props → per-frame runtime (no scene re-render on hover).
-  useLayoutEffect(() => {
-    runtime.hovered = props.hovered;
-    runtime.selected = props.selected;
-    runtime.stage = props.stage;
-    invalidate();
-  }, [runtime, props.hovered, props.selected, props.stage, invalidate]);
-  // EP21: shared GPU resources must not keep this renderer alive (see halo.ts).
-  useEffect(() => releaseSharedResources, []);
+/** Build the renderer and the scene for one canvas. Throws when WebGL cannot start. */
+function buildWorld(canvas: HTMLCanvasElement, wrap: HTMLElement, props: Props) {
+  const p0 = props.current;
+  let settings = QUALITY_SETTINGS[p0.quality];
+  const engine = new Engine({
+    canvas,
+    wrap,
+    antialias: settings.antialias,
+    camera: { y: CAMERA.y, z: 11, fov: CAMERA.fov },
+    onFail: () => props.current.onFail(),
+  });
+  const reduced = p0.quality === 'reduced';
+  const clock = createClock(reduced);
+  const runtime = createRuntime();
+  runtime.hovered = p0.hovered;
+  runtime.selected = p0.selected;
+  runtime.stage = p0.stage;
+  const focus = { current: 0 };
+  const light = { current: new Vector3(0.6, 0.7, 0.9) };
+  const state = { frames: 0, ready: false, slowFrames: 0, sampled: 0 };
+  const tmp = new Vector3();
+  const ignoreClick = () => (props.current.controls.current?.travel ?? 0) > 6;
 
-  const { invalidateRef } = props;
-  useEffect(() => {
-    invalidateRef.current = invalidate;
-    return () => {
-      invalidateRef.current = null;
-    };
-  }, [invalidate, invalidateRef]);
+  // ---- graph (EP36 order): atmosphere, then the rig with CORE, its hit area,
+  // the tilted ring (orbits, connections, departments) and the particles.
+  const atmosphere = createAtmosphere(clock);
+  const rig = new Group();
+  const core = createCoreSphere({
+    clock,
+    detail: settings.shaderDetail,
+    segments: settings.sphereDetail,
+    focus,
+    light,
+  });
+  // Clicking CORE itself returns to the overview (clears department focus).
+  const coreHit = new Mesh(
+    new SphereGeometry(1.05, 24, 16),
+    new MeshBasicMaterial({ visible: false }),
+  );
+  engine.setHit(coreHit, {
+    click: () => {
+      if (!ignoreClick()) props.current.onSelect(null);
+    },
+  });
+  const tilt = new Group();
+  tilt.rotation.set(TILT, 0, 0);
+  const yawGroup = new Group();
+  const orbits = createOrbitSystem(clock, runtime);
+  const links = createDataConnections(clock, runtime, settings.pulsesPerLink);
+  const nodes = ORBIT_IDS.map((id, index) =>
+    createDepartmentNode({
+      id,
+      index,
+      clock,
+      runtime,
+      engine,
+      onHover: (d) => props.current.onHover(d),
+      onSelect: (d) => props.current.onSelect(d),
+      shouldIgnoreClick: ignoreClick,
+    }),
+  );
+  const particles = createParticleField(settings.particles, clock);
+  const add = (parent: Object3D, ...objects: Object3D[]) => parent.add(...objects);
+  add(yawGroup, ...orbits.objects, ...links.objects, ...nodes.map((n) => n.object));
+  add(tilt, yawGroup);
+  add(rig, core.object, coreHit, tilt, particles.object);
+  add(engine.scene, ...atmosphere.objects, rig);
 
-  const tmp = useMemo(() => new Vector3(), []);
-
-  // Runs first each frame: clock, story blends, node positions, rig, camera, labels.
-  useFrame((_, rawDt) => {
+  // ---- the rig: clock, story blends, node positions, drag, camera, labels — first each frame.
+  const rigFrame: FrameCallback = ({ camera: cam, size }, rawDt) => {
+    const props_ = props.current;
     const dt = Math.min(rawDt, 1 / 20);
-    const c = props.controls.current;
+    const c = props_.controls.current;
     const now = performance.now();
     let moving = false;
 
@@ -138,28 +181,26 @@ function Scene(props: CoreWorldProps) {
     // The composition is design-locked: no camera move or ring turn on selection,
     // and only a whisper of idle drift (±0.025 rad, ≈ 3 px at the nodes) so the
     // world feels alive without travelling. Only a deliberate drag rotates it.
-    const st = state.current;
     const idle = settings.animate
       ? Math.sin(clock.motion * 0.071) * 0.016 + Math.sin(clock.motion * 0.029) * 0.009
       : 0;
-    if (yawGroup.current) yawGroup.current.rotation.y = idle + (c?.yaw ?? 0);
+    yawGroup.rotation.y = idle + (c?.yaw ?? 0);
 
     // Drag pitch on the outer rig + a tiny depth response to the pointer
     // (≤ 0.012 rad, ≈ 2–4 px). The pointer mostly moves the light, not the scene.
-    if (rig.current && c) {
+    if (c) {
       const tx = c.pitch + (reduced ? 0 : c.py * 0.008);
       const ty = reduced ? 0 : c.px * 0.012;
-      rig.current.rotation.x = damp(rig.current.rotation.x, tx, 4, dt);
-      rig.current.rotation.y = damp(rig.current.rotation.y, ty, 4, dt);
+      rig.rotation.x = damp(rig.rotation.x, tx, 4, dt);
+      rig.rotation.y = damp(rig.rotation.y, ty, 4, dt);
       const recede = 1 - m.recede * 0.12;
-      rig.current.scale.setScalar(recede);
+      rig.scale.setScalar(recede);
       light.current.set(0.35 + c.px * 0.6, 0.65 - c.py * 0.45, 0.85).normalize();
     }
 
     // Camera: framed for the stage's aspect, fixed during interaction.
-    const cam = camera as PerspectiveCamera;
     const aspect = size.width / Math.max(1, size.height);
-    const dist = cameraDistance(aspect, props.withLabels);
+    const dist = cameraDistance(aspect, props_.withLabels);
     cam.position.z = damp(cam.position.z, dist, 5, dt);
     cam.position.y = CAMERA.y;
     cam.lookAt(0, 0, 0);
@@ -168,14 +209,14 @@ function Scene(props: CoreWorldProps) {
     focus.current = activeId(runtime) ? 1 : 0;
 
     // DOM labels follow their 3D nodes.
-    const labels = props.labels.current;
-    if (labels && yawGroup.current) {
+    const labels = props_.labels.current;
+    if (labels) {
       const focusId = activeId(runtime);
       ORBIT_IDS.forEach((id, i) => {
         const el = labels[id];
         if (!el) return;
         tmp.copy(runtime.nodes[id]);
-        yawGroup.current!.localToWorld(tmp);
+        yawGroup.localToWorld(tmp);
         const depth = tmp.z;
         tmp.project(cam);
         const x = (tmp.x * 0.5 + 0.5) * size.width;
@@ -192,107 +233,152 @@ function Scene(props: CoreWorldProps) {
     }
 
     // Ready after the first frames; runtime guard steps quality down on sustained slow frames.
-    st.frames++;
-    if (!st.ready && st.frames > 2) {
-      st.ready = true;
-      props.onReady();
+    state.frames++;
+    if (!state.ready && state.frames > 2) {
+      state.ready = true;
+      props_.onReady();
     }
-    if (settings.animate && st.frames > 30 && rawDt < 0.5) {
-      st.sampled++;
-      if (rawDt > 1 / 32) st.slowFrames++;
-      if (st.sampled >= 150) {
-        if (st.slowFrames > 100) props.onSlow();
-        st.sampled = 0;
-        st.slowFrames = 0;
+    if (settings.animate && state.frames > 30 && rawDt < 0.5) {
+      state.sampled++;
+      if (rawDt > 1 / 32) state.slowFrames++;
+      if (state.sampled >= 150) {
+        if (state.slowFrames > 100) props_.onSlow();
+        state.sampled = 0;
+        state.slowFrames = 0;
       }
     }
 
     // On-demand rendering (reduced motion): keep frames coming only while something eases.
-    if (!settings.animate && moving) invalidate();
-  }, -1);
+    if (!settings.animate && moving) engine.invalidate();
+  };
 
-  const ignoreClick = () => (props.controls.current?.travel ?? 0) > 6;
+  engine.onFrame(rigFrame, -1);
+  for (const part of [atmosphere, core, orbits, links, ...nodes, particles])
+    engine.onFrame(part.tick);
+
+  const measure = () => {
+    const r = wrap.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) engine.resize(r.width, r.height, pixelRatio(settings.dpr));
+  };
+
+  return {
+    engine,
+    runtime,
+    measure,
+    /** A runtime quality step (never to or from 'reduced', so the clock stays). */
+    setQuality(quality: Exclude<Quality, 'static'>) {
+      const next = QUALITY_SETTINGS[quality];
+      if (next === settings) return;
+      settings = next;
+      core.setDetail(next.shaderDetail, next.sphereDetail);
+      particles.setCount(next.particles);
+      links.setPulses(next.pulsesPerLink);
+      measure();
+      engine.invalidate();
+    },
+    frameloop(active: boolean): Frameloop {
+      return !active ? 'never' : settings.animate ? 'always' : 'demand';
+    },
+    dispose() {
+      engine.dispose();
+    },
+  };
+}
+
+type World = ReturnType<typeof buildWorld>;
+
+function Stage(props: CoreWorldProps) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const latest = useRef(props);
+  const world = useRef<World | null>(null);
+
+  useLayoutEffect(() => {
+    latest.current = props;
+  });
+
+  // One renderer per canvas. StrictMode replays layout effects, not insertion
+  // effects, so the context is released only on real removal (as in R3F's <Canvas>).
+  useLayoutEffect(() => {
+    if (!world.current) {
+      try {
+        world.current = buildWorld(canvas.current!, wrap.current!, latest);
+      } catch (e) {
+        console.warn('CORE World: WebGL scene failed, using static fallback.', e);
+        latest.current.onFail();
+        return;
+      }
+    }
+    const w = world.current;
+    const ro = new ResizeObserver(w.measure);
+    ro.observe(wrap.current!);
+    w.measure();
+    w.engine.connect();
+    w.engine.setFrameloop(w.frameloop(latest.current.active));
+    return () => {
+      ro.disconnect();
+      w.engine.disconnect();
+      w.engine.setFrameloop('never');
+    };
+  }, []);
+  // EP21: shared GPU resources must not keep this renderer alive (see halo.ts).
+  useEffect(() => releaseSharedResources, []);
+  useInsertionEffect(
+    () => () => {
+      world.current?.dispose();
+      world.current = null;
+    },
+    [],
+  );
+
+  const { quality, active, hovered, selected, stage, invalidateRef } = props;
+  useLayoutEffect(() => {
+    const w = world.current;
+    if (!w) return;
+    w.setQuality(quality);
+    w.engine.setFrameloop(w.frameloop(active));
+  }, [quality, active]);
+
+  // React props → per-frame runtime (no scene rebuild on hover).
+  useLayoutEffect(() => {
+    const w = world.current;
+    if (!w) return;
+    w.runtime.hovered = hovered;
+    w.runtime.selected = selected;
+    w.runtime.stage = stage;
+    w.engine.invalidate();
+  }, [hovered, selected, stage]);
+
+  useEffect(() => {
+    const w = world.current;
+    if (!w) return;
+    invalidateRef.current = w.engine.invalidate;
+    return () => {
+      invalidateRef.current = null;
+    };
+  }, [invalidateRef]);
 
   return (
-    <>
-      <Atmosphere clock={clock} />
-      <group ref={rig}>
-        <CoreSphere
-          clock={clock}
-          detail={settings.shaderDetail}
-          segments={settings.sphereDetail}
-          focus={focus}
-          light={light}
-        />
-        {/* Clicking CORE itself returns to the overview (clears department focus). */}
-        <mesh
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!ignoreClick()) props.onSelect(null);
-          }}
-        >
-          <sphereGeometry args={[1.05, 24, 16]} />
-          <meshBasicMaterial visible={false} />
-        </mesh>
-        <group rotation={[TILT, 0, 0]}>
-          <group ref={yawGroup}>
-            <OrbitSystem clock={clock} runtime={runtime} />
-            <DataConnections
-              clock={clock}
-              runtime={runtime}
-              pulsesPerLink={settings.pulsesPerLink}
-            />
-            {ORBIT_IDS.map((id, i) => (
-              <DepartmentNode
-                key={id}
-                id={id}
-                index={i}
-                clock={clock}
-                runtime={runtime}
-                onHover={props.onHover}
-                onSelect={props.onSelect}
-                shouldIgnoreClick={ignoreClick}
-              />
-            ))}
-          </group>
-        </group>
-        <ParticleField count={settings.particles} clock={clock} />
-      </group>
-    </>
+    <div
+      ref={wrap}
+      aria-hidden
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        touchAction: 'pan-y',
+      }}
+    >
+      <canvas ref={canvas} style={{ display: 'block' }} />
+    </div>
   );
 }
 
 export default function CoreWorld(props: CoreWorldProps) {
-  const settings = QUALITY_SETTINGS[props.quality];
-  const frameloop = !props.active ? 'never' : settings.animate ? 'always' : 'demand';
   return (
     <WebGLBoundary onFail={props.onFail}>
-      <CoreCanvas
-        onFail={props.onFail}
-        style={{ touchAction: 'pan-y' }}
-        config={{
-          flat: true,
-          linear: true,
-          dpr: settings.dpr,
-          frameloop,
-          camera: { position: [0, CAMERA.y, 11], fov: CAMERA.fov, near: 0.1, far: 60 },
-          gl: {
-            antialias: settings.antialias,
-            alpha: true,
-            powerPreference: 'high-performance',
-            stencil: false,
-          },
-          onCreated: ({ gl }) => {
-            gl.setClearColor(0x000000, 0);
-            gl.domElement.addEventListener('webglcontextlost', (e) => {
-              e.preventDefault();
-              props.onFail();
-            });
-          },
-        }}
-      >
-        <Scene {...props} />
-      </CoreCanvas>
+      <Stage {...props} />
     </WebGLBoundary>
   );
 }

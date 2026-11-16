@@ -1,18 +1,18 @@
-import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
 import {
   AdditiveBlending,
   BackSide,
   Color,
   EdgesGeometry,
+  Group,
   IcosahedronGeometry,
   LineBasicMaterial,
+  LineSegments,
+  Mesh,
   ShaderMaterial,
+  SphereGeometry,
   Vector3,
-  type Group,
-  type LineSegments,
-  type Mesh,
 } from 'three';
+import type { FrameCallback } from './engine';
 import { COLOR, CORE_RADIUS, INTRO } from './constants';
 import { reveal, type SceneClock } from './sceneClock';
 
@@ -138,7 +138,29 @@ const haloFragment = /* glsl */ `
   }
 `;
 
-export function CoreSphere({
+function shellMaterial(detail: number) {
+  return new ShaderMaterial({
+    vertexShader: shellVertex,
+    fragmentShader: shellFragment,
+    transparent: true,
+    uniforms: {
+      uTime: { value: 0 },
+      uReveal: { value: 0 },
+      uRim: { value: 0 },
+      uDetail: { value: detail },
+      uFocus: { value: 0 },
+      uLight: { value: new Vector3(0.6, 0.7, 0.9) },
+      uBase: { value: new Color(COLOR.ink) },
+      uEmerald: { value: new Color(COLOR.emerald) },
+      uCyan: { value: new Color(COLOR.cyan) },
+      uLine: { value: new Color(COLOR.teal) },
+    },
+  });
+}
+const shellGeometry = (segments: number) =>
+  new SphereGeometry(CORE_RADIUS, segments, Math.round(segments * 0.66));
+
+export function createCoreSphere({
   clock,
   detail,
   segments,
@@ -149,98 +171,69 @@ export function CoreSphere({
   detail: number;
   segments: number;
   /** 0…1 — a department is hovered/selected (CORE answers with a pulse). */
-  focus: React.RefObject<number>;
+  focus: { current: number };
   /** View-space light direction, steered by the pointer. */
-  light: React.RefObject<Vector3>;
+  light: { current: Vector3 };
 }) {
-  const shell = useRef<Mesh>(null);
-  const lattice = useRef<LineSegments>(null);
-  const group = useRef<Group>(null);
-
-  const shellMat = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader: shellVertex,
-        fragmentShader: shellFragment,
-        transparent: true,
-        uniforms: {
-          uTime: { value: 0 },
-          uReveal: { value: 0 },
-          uRim: { value: 0 },
-          uDetail: { value: detail },
-          uFocus: { value: 0 },
-          uLight: { value: new Vector3(0.6, 0.7, 0.9) },
-          uBase: { value: new Color(COLOR.ink) },
-          uEmerald: { value: new Color(COLOR.emerald) },
-          uCyan: { value: new Color(COLOR.cyan) },
-          uLine: { value: new Color(COLOR.teal) },
-        },
-      }),
-    [detail],
+  const shell = new Mesh(shellGeometry(segments), shellMaterial(detail));
+  const haloMat = new ShaderMaterial({
+    vertexShader: haloVertex,
+    fragmentShader: haloFragment,
+    side: BackSide,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    uniforms: { uIntensity: { value: 0 }, uColor: { value: new Color(COLOR.emerald) } },
+  });
+  const halo = new Mesh(new SphereGeometry(CORE_RADIUS, 48, 32), haloMat);
+  halo.scale.setScalar(1.24);
+  const latticeMat = new LineBasicMaterial({
+    color: COLOR.teal,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const lattice = new LineSegments(
+    new EdgesGeometry(new IcosahedronGeometry(CORE_RADIUS * 1.36, 1)),
+    latticeMat,
   );
+  const group = new Group();
+  group.add(shell, halo, lattice);
 
-  const haloMat = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader: haloVertex,
-        fragmentShader: haloFragment,
-        side: BackSide,
-        transparent: true,
-        depthWrite: false,
-        blending: AdditiveBlending,
-        uniforms: { uIntensity: { value: 0 }, uColor: { value: new Color(COLOR.emerald) } },
-      }),
-    [],
-  );
-
-  const latticeGeo = useMemo(
-    () => new EdgesGeometry(new IcosahedronGeometry(CORE_RADIUS * 1.36, 1)),
-    [],
-  );
-  const latticeMat = useMemo(
-    () =>
-      new LineBasicMaterial({
-        color: COLOR.teal,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      }),
-    [],
-  );
-
-  useFrame((_, dt) => {
+  const tick: FrameCallback = (_, dt) => {
     const t = clock.time;
     const r = reveal(t, INTRO.core, 0.6);
-    const u = shellMat.uniforms;
+    const u = (shell.material as ShaderMaterial).uniforms;
     u.uTime!.value = clock.motion;
     u.uReveal!.value = r;
-    const f = focus.current ?? 0;
+    const f = focus.current;
     u.uFocus!.value += (f - u.uFocus!.value) * Math.min(1, dt * 4);
     // Rim breathes on a long, irregular cycle (two incommensurate sines).
     const breathe =
       0.92 + 0.05 * Math.sin(clock.motion * 0.31) + 0.03 * Math.sin(clock.motion * 0.173);
     u.uRim!.value = reveal(t, INTRO.rim, 0.6) * (0.95 + f * 0.35) * breathe;
-    if (light.current) (u.uLight!.value as Vector3).lerp(light.current, Math.min(1, dt * 3));
+    (u.uLight!.value as Vector3).lerp(light.current, Math.min(1, dt * 3));
     haloMat.uniforms.uIntensity!.value = reveal(t, INTRO.rim, 0.8) * (0.5 + f * 0.25) * breathe;
     latticeMat.opacity = reveal(t, INTRO.orbits, 0.8) * 0.13;
 
-    if (group.current) group.current.scale.setScalar(0.86 + 0.14 * r);
-    if (shell.current) shell.current.rotation.y = clock.motion * 0.028;
-    if (lattice.current) {
-      lattice.current.rotation.y = -clock.motion * 0.017;
-      lattice.current.rotation.x = clock.motion * 0.006;
-    }
-  });
+    group.scale.setScalar(0.86 + 0.14 * r);
+    shell.rotation.y = clock.motion * 0.028;
+    lattice.rotation.y = -clock.motion * 0.017;
+    lattice.rotation.x = clock.motion * 0.006;
+  };
 
-  return (
-    <group ref={group}>
-      <mesh ref={shell} material={shellMat}>
-        <sphereGeometry args={[CORE_RADIUS, segments, Math.round(segments * 0.66)]} />
-      </mesh>
-      <mesh material={haloMat} scale={1.24}>
-        <sphereGeometry args={[CORE_RADIUS, 48, 32]} />
-      </mesh>
-      <lineSegments ref={lattice} geometry={latticeGeo} material={latticeMat} />
-    </group>
-  );
+  /** A quality step: a new shell material / geometry when its detail changes. */
+  const setDetail = (nextDetail: number, nextSegments: number) => {
+    const mat = shell.material as ShaderMaterial;
+    if (mat.uniforms.uDetail!.value !== nextDetail) {
+      mat.dispose();
+      shell.material = shellMaterial(nextDetail);
+    }
+    const geo = shell.geometry as SphereGeometry;
+    if (geo.parameters.widthSegments !== nextSegments) {
+      geo.dispose();
+      shell.geometry = shellGeometry(nextSegments);
+    }
+  };
+  return { object: group, tick, setDetail };
 }

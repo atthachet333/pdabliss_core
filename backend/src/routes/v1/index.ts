@@ -14,6 +14,7 @@ import { API_VERSION, SERVICE_NAME } from '../../meta.js';
 import { accountRoutes } from './account.js';
 import { authRoutes } from './auth.js';
 import { companyRoutes } from './company.js';
+import { dashboardRoutes } from './dashboards.js';
 import { demoRoutes } from './demo.js';
 import { masterDataRoutes } from './master-data.js';
 import { operationsRoutes } from './operations.js';
@@ -123,6 +124,8 @@ export const v1Routes: FastifyPluginAsync<{
       prefix: '/warehouse/finished-goods',
       db: services.db,
     });
+    // EP47: read-only department dashboards (metrics and work queues).
+    await app.register(dashboardRoutes, { prefix: '/dashboards', db: services.db });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });
   } else {
     // No DATABASE_URL (development only — production refuses to start without it).
@@ -140,6 +143,7 @@ export const v1Routes: FastifyPluginAsync<{
       '/sales',
       '/production',
       '/purchasing',
+      '/dashboards',
     ]) {
       app.all(`${prefix}/*`, () => {
         throw authUnavailable();

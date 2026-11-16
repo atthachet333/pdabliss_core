@@ -1,5 +1,5 @@
 import { ArrowRight, CircleCheck, RefreshCw, TriangleAlert } from 'lucide-react';
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { getDepartment } from '@/config/departments';
 import { Notice } from '@/features/auth/AuthFrame';
@@ -9,12 +9,10 @@ import { AreaLink, Loading, Pill } from '@/features/company-center/parts';
 import { useCopy } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { LOCALE_META } from '@/i18n/locales';
-import { ApiError, AUTHORIZATION_CHANGED } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import {
   dashApi,
-  REFRESH_EVERY_MS,
-  REFRESH_ON_RETURN_AFTER_MS,
   type Dashboard,
   type DashboardDepartment,
   type Metric,
@@ -22,6 +20,7 @@ import {
   type QueueItem,
 } from './dashApi';
 import { DASH_COPY, type DashCopy } from './dashCopy';
+import { useLiveResource } from './liveResource';
 
 /*
  * EP47 — one department's operational dashboard (its own lazy chunk; the same
@@ -39,79 +38,12 @@ import { DASH_COPY, type DashCopy } from './dashCopy';
  * keys this component by branch, so a branch change starts from nothing.
  */
 
-type State =
-  | { status: 'loading' }
-  | { status: 'ready'; data: Dashboard; stale: boolean; busy: boolean }
-  | { status: 'error'; error: unknown };
-
-const refused = (e: unknown) => e instanceof ApiError && e.status >= 400 && e.status < 500;
-
+/** EP48: the shared freshness rules (./liveResource.ts). */
 function useDashboard(department: DashboardDepartment, branchId: string) {
-  const [state, setState] = useState<State>({ status: 'loading' });
-  const last = useRef(0);
-  const inflight = useRef<AbortController | null>(null);
-  /** True while a request is out (its own 403 also announces changed authorization). */
-  const pending = useRef(false);
-  const shown = useRef(false);
-
-  const load = useCallback(async () => {
-    inflight.current?.abort();
-    const ctl = new AbortController();
-    inflight.current = ctl;
-    pending.current = true;
-    setState((s) => (s.status === 'ready' ? { ...s, busy: true } : s));
-    try {
-      const data = await dashApi.get(department, ctl.signal);
-      if (ctl.signal.aborted) return;
-      last.current = Date.now();
-      if (data.branch.id !== branchId) {
-        // The session's branch changed elsewhere: never show another branch's numbers here.
-        shown.current = false;
-        setState({ status: 'error', error: new ApiError(409, 'BRANCH_CHANGED', 'branch') });
-        window.dispatchEvent(new CustomEvent(AUTHORIZATION_CHANGED, { detail: 'BRANCH' }));
-        return;
-      }
-      shown.current = true;
-      setState({ status: 'ready', data, stale: false, busy: false });
-    } catch (error) {
-      if (ctl.signal.aborted || (error instanceof DOMException && error.name === 'AbortError'))
-        return;
-      if (refused(error)) shown.current = false;
-      setState((s) =>
-        s.status === 'ready' && !refused(error)
-          ? { ...s, stale: true, busy: false }
-          : { status: 'error', error },
-      );
-    } finally {
-      if (inflight.current === ctl) pending.current = false;
-    }
-  }, [department, branchId]);
-
-  useEffect(() => {
-    void load();
-    const visible = () => document.visibilityState === 'visible';
-    const timer = window.setInterval(() => {
-      if (visible()) void load();
-    }, REFRESH_EVERY_MS);
-    const onVisible = () => {
-      if (visible() && Date.now() - last.current > REFRESH_ON_RETURN_AFTER_MS) void load();
-    };
-    // Another CORE request was refused: numbers on screen may no longer be permitted — check
-    // again. Never while this dashboard's own request is out (its 403 raises the same event).
-    const onAuthorization = (e: Event) => {
-      if ((e as CustomEvent).detail !== 'BRANCH' && !pending.current && shown.current) void load();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener(AUTHORIZATION_CHANGED, onAuthorization);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener(AUTHORIZATION_CHANGED, onAuthorization);
-      inflight.current?.abort();
-    };
-  }, [load]);
-
-  return { state, load };
+  return useLiveResource<Dashboard>(
+    (signal) => dashApi.get(department, signal),
+    (data) => data.branch.id === branchId,
+  );
 }
 
 export default function DepartmentDashboard({
@@ -428,7 +360,7 @@ function QueueRow({ item: i, c }: { item: QueueItem; c: DashCopy }) {
     : null;
   const title: ReactNode = (
     <>
-      <span className="block text-caption text-text-muted">{kind}</span>
+      <span className="block text-caption text-text-muted">{kind}</span>{' '}
       <span className="font-mono text-label font-semibold text-text-primary">{i.number}</span>
     </>
   );

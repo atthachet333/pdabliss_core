@@ -92,3 +92,11 @@ departments: each department member lands on a dashboard of real counts and a wo
 waiting, what is blocked or late, what was completed, who owns the next step); the Owner and the Executive navigate to
 every department's dashboard. Still open: targets / trends / charts (no trend data yet), notifications, and the
 cross-department **Executive Command Center** (gap #10, EP48). See [EP47_FINAL_REPORT.md](EP47_FINAL_REPORT.md).
+
+## EP48 update — gap #10 (Executive Command Center)
+
+**Code delivered (EP48), owner UAT pending.** Gap #10 moves to **DELIVERED IN CODE**: the Owner and the Executive see
+the whole company (or one branch) — work per department, cross-department bottlenecks with evidence and the next
+responsible department, a deterministic priority queue, branch comparison, recent activity and a document
+investigation — read-only, from canonical documents. Still open: trends / history / SLAs (CORE stores states, not
+snapshots), notifications, exports, PDA ONE financial integration. See [EP48_FINAL_REPORT.md](EP48_FINAL_REPORT.md).

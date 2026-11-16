@@ -71,6 +71,5 @@ export const dashApi = {
     apiGet<Dashboard>(`${D}/${department.toLowerCase()}`, signal),
 };
 
-/** Refresh rules (docs/EP47_METRIC_DEFINITIONS.md §Refresh). */
-export const REFRESH_EVERY_MS = 120_000;
-export const REFRESH_ON_RETURN_AFTER_MS = 30_000;
+/** Refresh rules: ./liveResource.ts (shared with the EP48 Command Center). */
+export { REFRESH_EVERY_MS, REFRESH_ON_RETURN_AFTER_MS } from './liveResource';

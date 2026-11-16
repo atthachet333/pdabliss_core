@@ -16,6 +16,7 @@ import { authRoutes } from './auth.js';
 import { companyRoutes } from './company.js';
 import { dashboardRoutes } from './dashboards.js';
 import { demoRoutes } from './demo.js';
+import { executiveRoutes } from './executive.js';
 import { masterDataRoutes } from './master-data.js';
 import { operationsRoutes } from './operations.js';
 import { platformRoutes } from './platform.js';
@@ -126,6 +127,8 @@ export const v1Routes: FastifyPluginAsync<{
     });
     // EP47: read-only department dashboards (metrics and work queues).
     await app.register(dashboardRoutes, { prefix: '/dashboards', db: services.db });
+    // EP48: the read-only Executive Command Center (Owner / Executive).
+    await app.register(executiveRoutes, { prefix: '/executive', db: services.db });
     await app.register(accountRoutes, { prefix: '/account', companies: services.companies });
   } else {
     // No DATABASE_URL (development only — production refuses to start without it).
@@ -144,6 +147,7 @@ export const v1Routes: FastifyPluginAsync<{
       '/production',
       '/purchasing',
       '/dashboards',
+      '/executive',
     ]) {
       app.all(`${prefix}/*`, () => {
         throw authUnavailable();

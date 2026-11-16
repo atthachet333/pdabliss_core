@@ -201,3 +201,13 @@ Escalate to the **owner** for any data loss, restore, credential exposure or pro
 - `ROLE_DEPARTMENT_CONFLICT` when promoting someone to System Admin / Executive: remove their department first.
 - Before upgrading a database to EP45: back up, run `npm run db:department-check`, resolve BLOCK lines
   ([EP45_MIGRATION_AND_ROLLBACK.md](EP45_MIGRATION_AND_ROLLBACK.md)).
+
+## EP48 — Executive Command Center
+
+- Read-only endpoints `GET /api/v1/executive/overview?branch=all|<id>` and `GET /api/v1/executive/documents/:kind/:id`
+  (Owner / Executive). No configuration, no migration, no background job.
+- Cost per overview: a constant ≈ 59 SQL statements (development measurement, [EP48_PERFORMANCE_REPORT.md](EP48_PERFORMANCE_REPORT.md));
+  pages refresh every 120 s only while visible. A burst of scripted calls can reach the API rate limit (`RATE_LIMIT_MAX`,
+  300 / min by default) — normal use cannot.
+- If an Executive reports "no access": check the role (Executive), the Executive department is enabled, and no DENY on
+  `executive.overview.view` (Company Control Center → People → Permissions).

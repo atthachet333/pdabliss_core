@@ -141,3 +141,12 @@ ledger, receivables, tax filing or bank reconciliation (and no PDA ONE integrati
 
 The cross-department Executive Command Center (EP48), targets / trends / charts (no meaningful trend data yet — no
 chart was added), notifications, exports.
+
+## EP48 changes
+
+- The Sales stage, request-ordering and receive-progress aggregates moved to `backend/src/dashboards/facts.ts`, shared
+  with the EP48 Command Center (same definitions; any set of authorized branches). EP47 folds the shared PICK / DISPATCH
+  stages into its FULFILMENT stage — results unchanged (EP47 suite 18 / 18).
+- **Fix:** the Executive role no longer sees `ordersToIssue` or DRAFT purchase-order rows on the Purchasing dashboard —
+  the Purchasing module hides draft orders from the Executive, and the dashboard now does too.
+- The refresh rules (§1) live in `frontend/src/features/dashboards/liveResource.ts`, shared with EP48.

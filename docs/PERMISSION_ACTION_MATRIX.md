@@ -382,3 +382,12 @@ Rules for module authors:
   dashboard write route.
 - Matrix: [EP47_PERMISSION_MATRIX.md](EP47_PERMISSION_MATRIX.md); metric contract:
   [EP47_METRIC_DEFINITIONS.md](EP47_METRIC_DEFINITIONS.md).
+
+## EP48 — Executive Command Center
+
+- **No new permission code.** `GET /api/v1/executive/*` requires the role **Company Owner or Executive** and the
+  effective `executive.overview.view` (EP27 code; a disabled Executive department or a DENY closes it). Managers, Staff
+  and Viewers — including a member assigned to the Executive department — and the System Admin get 403.
+- Each department's information needs that department's existing read code; no money, quantity or recipe field exists
+  in the answers; no write, export or download route.
+- Matrix and tests: [EP48_SECURITY_MATRIX.md](EP48_SECURITY_MATRIX.md).

@@ -14,6 +14,7 @@ import { ProductionOrderService } from '../production/service.js';
 import { companyDay } from '../purchasing/service.js';
 import { Decimal, ZERO } from '../purchasing/money.js';
 import { EXPIRING_SOON_DAYS } from '../warehouse/service.js';
+import { receivingProgress, requestsToOrder, salesProgress, salesStage } from './facts.js';
 import {
   DashboardIndexView,
   DashboardView,
@@ -211,65 +212,15 @@ export class DashboardService {
         },
         take: 500,
       }),
-      this.db.$queryRaw<
-        {
-          id: string;
-          number: string;
-          customerName: string;
-          requestedDate: Date | null;
-          lines: number;
-          unallocated: number;
-          undispatched: number;
-          undelivered: number;
-          someDelivered: boolean;
-          exception: boolean;
-          lastDelivered: Date | null;
-        }[]
-      >`
-        SELECT o."id", o."number", o."customerName", o."requestedDate",
-          COUNT(*)::int AS "lines",
-          COUNT(*) FILTER (WHERE a.q < l."quantity")::int AS "unallocated",
-          COUNT(*) FILTER (WHERE s.dq < l."quantity")::int AS "undispatched",
-          COUNT(*) FILTER (WHERE s.vq < l."quantity")::int AS "undelivered",
-          BOOL_OR(s.vq > 0) AS "someDelivered",
-          EXISTS (SELECT 1 FROM "SalesShipment" x WHERE x."salesOrderId" = o."id"
-                  AND x."status" = 'DELIVERY_EXCEPTION') AS "exception",
-          (SELECT MAX(x."deliveredAt") FROM "SalesShipment" x WHERE x."salesOrderId" = o."id"
-                  AND x."status" = 'DELIVERED') AS "lastDelivered"
-        FROM "SalesOrder" o
-        JOIN "SalesOrderLine" l ON l."salesOrderId" = o."id" AND l."inventoryTracked"
-        LEFT JOIN LATERAL (
-          SELECT COALESCE(SUM(sa."quantity"), 0) AS q FROM "SalesAllocation" sa
-          WHERE sa."salesOrderLineId" = l."id" AND sa."status" IN ('ACTIVE', 'CONSUMED')
-        ) a ON TRUE
-        LEFT JOIN LATERAL (
-          SELECT COALESCE(SUM(sl."quantity"), 0) AS dq, COALESCE(SUM(sl."deliveredQuantity"), 0) AS vq
-          FROM "SalesShipmentLine" sl JOIN "SalesShipment" sh ON sh."id" = sl."shipmentId"
-          WHERE sl."salesOrderLineId" = l."id"
-            AND sh."status" IN ('DISPATCHED', 'DELIVERED', 'DELIVERY_EXCEPTION')
-        ) s ON TRUE
-        WHERE o."companyId" = ${s.companyId} AND o."branchId" = ${s.branchId}
-          AND o."status" = 'CONFIRMED'
-        GROUP BY o."id"
-        HAVING COUNT(*) FILTER (WHERE s.vq < l."quantity") > 0
-          OR EXISTS (SELECT 1 FROM "SalesShipment" x WHERE x."salesOrderId" = o."id"
-                     AND x."status" = 'DELIVERED' AND x."deliveredAt" >= ${since})
-        ORDER BY o."requestedDate" ASC NULLS LAST, o."number" ASC
-        LIMIT 2000
-      `,
+      salesProgress(this.db, s.companyId, [s.branchId], since),
     ]);
 
     type Stage = 'EXCEPTION' | 'ALLOCATION' | 'FULFILMENT' | 'DELIVERY' | 'COMPLETED';
-    const stageOf = (o: (typeof fulfilment)[number]): Stage =>
-      o.undelivered === 0
-        ? 'COMPLETED'
-        : o.exception
-          ? 'EXCEPTION'
-          : o.unallocated > 0
-            ? 'ALLOCATION'
-            : o.undispatched > 0
-              ? 'FULFILMENT'
-              : 'DELIVERY';
+    // The shared stage (dashboards/facts.ts); picking and dispatch are one Warehouse stage here.
+    const stageOf = (o: (typeof fulfilment)[number]): Stage => {
+      const st = salesStage(o);
+      return st === 'PICK' || st === 'DISPATCH' ? 'FULFILMENT' : st;
+    };
     const open = fulfilment.map((o) => ({ o, stage: stageOf(o) }));
     const count = (st: Stage) => open.filter((x) => x.stage === st).length;
     const live = open.filter((x) => x.stage !== 'COMPLETED');
@@ -390,37 +341,7 @@ export class DashboardService {
 
   /** Purchase orders waiting to be received, with line-level receive progress (POSTED receipts). */
   private receiving(s: Scope) {
-    return this.db.$queryRaw<
-      {
-        id: string;
-        number: string;
-        supplierName: string | null;
-        expectedDate: Date | null;
-        lines: number;
-        open: number;
-        someReceived: boolean;
-      }[]
-    >`
-      SELECT po."id", po."number", po."supplierName", po."expectedDate",
-        COUNT(*)::int AS "lines",
-        COUNT(*) FILTER (WHERE g.acc + g.closed < ol."quantity")::int AS "open",
-        BOOL_OR(g.acc + g.rej > 0) AS "someReceived"
-      FROM "PurchaseOrder" po
-      JOIN "PurchaseOrderLine" ol ON ol."purchaseOrderId" = po."id" AND ol."type" = 'ITEM'
-      JOIN "Item" i ON i."id" = ol."itemId" AND i."inventoryTracked"
-      LEFT JOIN LATERAL (
-        SELECT COALESCE(SUM(gl."acceptedQuantity"), 0) AS acc,
-               COALESCE(SUM(gl."rejectedQuantity"), 0) AS rej,
-               COALESCE(SUM(gl."rejectedQuantity") FILTER (WHERE NOT gl."replacementRequired"), 0) AS closed
-        FROM "GoodsReceiptLine" gl JOIN "GoodsReceipt" gr ON gr."id" = gl."goodsReceiptId"
-        WHERE gl."purchaseOrderLineId" = ol."id" AND gr."status" = 'POSTED'
-      ) g ON TRUE
-      WHERE po."companyId" = ${s.companyId} AND po."branchId" = ${s.branchId}
-        AND po."status" = 'PENDING_RECEIVE'
-      GROUP BY po."id"
-      ORDER BY po."expectedDate" ASC NULLS LAST, po."number" ASC
-      LIMIT 2000
-    `;
+    return receivingProgress(this.db, s.companyId, [s.branchId]);
   }
 
   private async purchasing(s: Scope, ctx: AuthContext) {
@@ -444,34 +365,7 @@ export class DashboardService {
           },
           take: 500,
         }),
-        this.db.$queryRaw<
-          {
-            id: string;
-            number: string;
-            department: DepartmentCode;
-            needByDate: Date | null;
-            lines: number;
-            open: number;
-          }[]
-        >`
-          SELECT r."id", r."number", r."department", r."needByDate",
-            COUNT(*)::int AS "lines",
-            COUNT(*) FILTER (WHERE o.q < rl."quantity")::int AS "open"
-          FROM "PurchaseRequest" r
-          JOIN "PurchaseRequestLine" rl ON rl."purchaseRequestId" = r."id"
-          LEFT JOIN LATERAL (
-            SELECT COALESCE(SUM(ol."quantity"), 0) AS q
-            FROM "PurchaseOrderLine" ol JOIN "PurchaseOrder" po ON po."id" = ol."purchaseOrderId"
-            WHERE ol."purchaseRequestLineId" = rl."id"
-              AND po."status" IN ('ISSUED', 'WAITING_DEPOSIT', 'PENDING_RECEIVE', 'RECEIVED')
-          ) o ON TRUE
-          WHERE r."companyId" = ${s.companyId} AND r."branchId" = ${s.branchId}
-            AND r."status" = 'APPROVED'
-          GROUP BY r."id"
-          HAVING COUNT(*) FILTER (WHERE o.q < rl."quantity") > 0
-          ORDER BY r."needByDate" ASC NULLS LAST, r."number" ASC
-          LIMIT 2000
-        `,
+        requestsToOrder(this.db, s.companyId, [s.branchId]),
       ]);
       const list = '/core/purchasing/requests';
       const link = (id: string) => `/core/purchasing/requests/${id}`;
@@ -518,13 +412,18 @@ export class DashboardService {
     }
 
     if (poView) {
+      // EP48 fix: the Purchasing module hides DRAFT orders from the Executive role
+      // (order-service purchasingVisible) — so does this dashboard (no count, no row).
+      const seesDrafts = s.op.role !== 'EXECUTIVE';
       const [drafts, waitingDeposit, receiving] = await Promise.all([
-        this.db.purchaseOrder.findMany({
-          where: { ...base, status: 'DRAFT' },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-          select: { id: true, number: true, supplierName: true, expectedDate: true },
-          take: 500,
-        }),
+        seesDrafts
+          ? this.db.purchaseOrder.findMany({
+              where: { ...base, status: 'DRAFT' },
+              orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+              select: { id: true, number: true, supplierName: true, expectedDate: true },
+              take: 500,
+            })
+          : Promise.resolve([]),
         this.db.purchaseOrder.findMany({
           where: { ...base, status: 'WAITING_DEPOSIT' },
           orderBy: [{ depositDueDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
@@ -537,7 +436,7 @@ export class DashboardService {
       const link = (id: string) => `/core/purchasing/orders/${id}`;
       const overdue = receiving.filter((o) => isOverdue(day(o.expectedDate), s.today));
       metrics.push(
-        metric('ordersToIssue', drafts.length, 'attention', list),
+        ...(seesDrafts ? [metric('ordersToIssue', drafts.length, 'attention', list)] : []),
         metric('ordersWaitingDeposit', waitingDeposit.length, 'progress', list),
         metric('ordersOpen', receiving.length, 'progress', list),
         metric(

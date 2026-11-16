@@ -92,3 +92,11 @@ No other gate changed.
   scoped, Warehouse without money, Production without recipe data
   ([EP47_FINAL_REPORT.md](EP47_FINAL_REPORT.md)). Status: **code ready — awaiting owner UAT (DB-01 … DB-10)**.
 - Not a release gate by itself; no blocker of this matrix changed. The Executive Command Center remains EP48.
+
+## EP48 update — Executive Command Center
+
+- The read-only, company-wide Executive Command Center is **implemented and tested in development** (EP48, not
+  deployed): cross-department pulse, department health, five handoff flows, priority queue, branch comparison, recent
+  activity, document investigation ([EP48_FINAL_REPORT.md](EP48_FINAL_REPORT.md)). Status: **code ready — awaiting
+  owner UAT (EX-01 … EX-12)**. No migration.
+- Not a release gate by itself; no blocker of this matrix changed.

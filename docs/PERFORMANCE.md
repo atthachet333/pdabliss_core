@@ -208,6 +208,11 @@ right fonts), never another route's.
 
 **Changing a budget:** only with a reason recorded here (what grew, why it is worth it).
 
+- **EP48 — no budget changed; no recovery needed.** The Executive Command Center is one lazy `CommandCenter`
+  chunk (≈ 55 KiB raw, page + investigation + TH / EN / ZH copy); the EP47 refresh hook became a shared 1.5 KiB
+  `liveResource` chunk. All JS **4,163.5 → 4,223.1 / 4,300 KiB (+59.6)**; headroom ≈ 76.9 KiB. Initial JS 182.8 / 205 KiB
+  gzip unchanged; initial CSS 50.8 → 50.9 / 52 KiB gzip; static HTML 525.1 / 560 KiB (111 / 111). Backend cost and latency:
+  [EP48_PERFORMANCE_REPORT.md](EP48_PERFORMANCE_REPORT.md). The next large screens should recover JS first.
 - **EP47 — no budget changed; JS recovered first.** A source-mapped build showed no duplicated module and no dead
   weight left except **@react-three/fiber (≈ 160 KiB)**, a reconciler used for one homepage scene. The CORE World now
   renders the same scene directly on three.js (`core-world/engine.ts`; same graph, frame order, renderer settings and

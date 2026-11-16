@@ -18,6 +18,7 @@ import { AUTH_COPY } from '@/features/auth/copy';
 import { withLocale } from '@/features/auth/localeState';
 import { clearIdentity } from '@/features/auth/session';
 import { departmentId, type DepartmentCode } from '@/features/company/api';
+import { canOpenCommandCenter } from '@/features/executive/execApi';
 import {
   DASHBOARD_DEPARTMENTS,
   isDashboardDepartment,
@@ -89,6 +90,17 @@ const dashboardsOf = (permissions: readonly string[] = []) =>
   DASHBOARD_DEPARTMENTS.filter((d) => permissions.includes(`${d.toLowerCase()}.workspace.view`));
 
 const DASHBOARD_LABEL: Localized<string> = { th: 'แดชบอร์ด', en: 'Dashboard', 'zh-CN': '仪表板' };
+
+/** EP48: the read-only Executive Command Center and its document investigation — one lazy chunk. */
+const CommandCenter = lazy(() => import('@/features/executive/CommandCenter'));
+const ExecutiveTrace = lazy(() =>
+  import('@/features/executive/CommandCenter').then((m) => ({ default: m.TracePage })),
+);
+const COMMAND_CENTER_LABEL: Localized<string> = {
+  th: 'ศูนย์บัญชาการผู้บริหาร',
+  en: 'Executive Command Center',
+  'zh-CN': '管理层指挥中心',
+};
 
 /** Where a department's own screens start, when this person may open them. */
 function workspaceOf(code: DepartmentCode, permissions: readonly string[] = []) {
@@ -321,6 +333,8 @@ export function CoreArea({ identity }: { identity: Identity }) {
             ['warehouse/material-issues', <MaterialIssueHandoff key="mih" />],
             ['warehouse/finished-goods/*', <FinishedGoodsArea key="fga" />],
             ['dashboards/:department', <DashboardRoute key="dash" context={ctx} />],
+            ['executive', <CommandCenter key="exec" />],
+            ['executive/documents/:kind/:id', <ExecutiveTrace key="exec-doc" />],
           ] as const
         ).map(([path, area]) => (
           <Route
@@ -664,6 +678,8 @@ function OperationsHome({ context }: { context: BranchContext }) {
   const assignment = context.assignment;
   const dashboards = dashboardsOf(context.permissions);
   const dashboardLabel = useCopy(DASHBOARD_LABEL);
+  const commandCenterLabel = useCopy(COMMAND_CENTER_LABEL);
+  const commandCenter = canOpenCommandCenter(context.role, context.permissions);
   // EP47: a member of ONE department lands on that department's dashboard.
   const own: DashboardDepartment | null =
     assignment?.status === 'ASSIGNED' &&
@@ -703,6 +719,18 @@ function OperationsHome({ context }: { context: BranchContext }) {
       </div>
 
       <QuickActions context={context} />
+
+      {/* EP48: Owner / Executive — the company-wide, read-only Command Center. */}
+      {commandCenter && (
+        <AreaLink
+          to="/core/executive"
+          className={buttonClasses('primary', 'lg', 'w-fit')}
+          data-open-command-center
+        >
+          {commandCenterLabel}
+          <ArrowRight aria-hidden className="size-5" />
+        </AreaLink>
+      )}
 
       {own && (
         <Suspense fallback={<Loading label={c.shell.loading} />}>
@@ -796,6 +824,14 @@ function OperationsHome({ context }: { context: BranchContext }) {
                             data-open-workspace
                           >
                             {c.core[DEPARTMENT_LINKS[code].label]}
+                          </AreaLink>
+                        ) : code === 'EXECUTIVE' && commandCenter ? (
+                          <AreaLink
+                            to="/core/executive"
+                            className="font-semibold text-brand-soft underline-offset-4 hover:underline"
+                            data-open-workspace
+                          >
+                            {commandCenterLabel}
                           </AreaLink>
                         ) : (
                           c.core.later

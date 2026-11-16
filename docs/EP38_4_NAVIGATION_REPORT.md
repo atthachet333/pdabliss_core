@@ -70,3 +70,13 @@ Menu entries by permission (shown only when held):
 - Performance: all JS 4,247.4 / 4,300 KiB · initial JS 182.7 / 205 KiB gzip ·
   static HTML 526.9 / 560 KiB — within budget, no cap changed.
 - No backend change, so the backend suites were not re-run for this episode.
+
+## EP48 update — Executive Command Center entry
+
+For the Company Owner and the Executive only (role + `executive.overview.view`; presentation — the server decides):
+
+- CORE home: an **Executive Command Center** button under the quick actions, and the Executive department card links to
+  it (it used to say "later phase");
+- CORE menu: an **Executive Command Center** entry under "CORE overview" (current on `/core/executive…`);
+- routes: `/core/executive` (company or one branch via `?branch=`) and `/core/executive/documents/:kind/:id`
+  (investigation). Everyone else sees no entry; a typed URL shows "You do not have access…".

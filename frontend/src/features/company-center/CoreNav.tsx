@@ -8,6 +8,7 @@ import { useCopy, type Localized } from '@/i18n/useCopy';
 import { useLocale } from '@/i18n/useLocale';
 import { cn } from '@/lib/cn';
 import type { BranchContext } from './api';
+import { canOpenCommandCenter } from '@/features/executive/execApi';
 import { AreaLink } from './parts';
 
 /*
@@ -22,6 +23,7 @@ import { AreaLink } from './parts';
 const th = {
   label: 'เมนู CORE',
   home: 'ภาพรวม CORE',
+  commandCenter: 'ศูนย์บัญชาการผู้บริหาร',
   menu: 'เมนู',
   close: 'ปิดเมนู',
   workingIn: 'สาขาที่ทำงาน',
@@ -71,6 +73,7 @@ const CORE_NAV_COPY: Localized<NavCopy> = {
   en: {
     label: 'CORE menu',
     home: 'CORE overview',
+    commandCenter: 'Executive Command Center',
     menu: 'Menu',
     close: 'Close menu',
     workingIn: 'Working branch',
@@ -115,6 +118,7 @@ const CORE_NAV_COPY: Localized<NavCopy> = {
   'zh-CN': {
     label: 'CORE 菜单',
     home: 'CORE 概览',
+    commandCenter: '管理层指挥中心',
     menu: '菜单',
     close: '关闭菜单',
     workingIn: '工作分支',
@@ -371,6 +375,16 @@ function NavList({
       )}
       <ul className="grid gap-1">
         <li>{link('/core', n.home)}</li>
+        {canOpenCommandCenter(context.role, context.permissions) && (
+          <li data-nav-command-center>
+            {link(
+              '/core/executive',
+              n.commandCenter,
+              false,
+              pathname === '/core/executive' || pathname.startsWith('/core/executive/'),
+            )}
+          </li>
+        )}
       </ul>
       {groups.map((g) => {
         const here = g.items.some((i) => i.to === current);

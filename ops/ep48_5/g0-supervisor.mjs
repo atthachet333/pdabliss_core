@@ -140,12 +140,40 @@ export function descendants(facts, rootPid) {
 }
 
 const DAEMON_RE = /pm2[\\/]lib[\\/]daemon\.js/i;
+/** EP48.5 O1: everything CORE runs on the host lives under this root (its cluster, services, tunnel connector, G0). */
+export const CORE_ROOT = "D:\\pdabliss-core-staging";
+export const SHARED_PG_PORT = 5432;
+/**
+ * True when the process or one of its ancestors (up to 6 levels, each created no later than its child) names the CORE
+ * root: the CORE PostgreSQL (pg_ctl runservice -D <root>\pgdata), the WinSW wrappers under <root> and everything they
+ * start (API, web, the CORE cloudflared connector), and G0. A production process never runs from that folder.
+ */
+export function coreOwnedPids(facts, coreRoot = CORE_ROOT) {
+  const root = normPath(coreRoot);
+  const { byPid } = indexFacts(facts);
+  const owned = new Set();
+  if (!root) return owned;
+  for (const p of facts.processes) {
+    let cur = p;
+    for (let depth = 0; cur && depth < 7; depth++) {
+      if (normPath(cur.cmd).includes(root)) {
+        owned.add(p.pid);
+        break;
+      }
+      const parent = byPid.get(cur.parent);
+      if (!parent || !(timeMs(parent.created) <= timeMs(cur.created))) break;
+      cur = parent;
+    }
+  }
+  return owned;
+}
 /** Production identity: the PM2 daemon with the most children, its tree, the shared postmaster, MariaDB, cloudflared. */
-export function identifyProduction(facts, { g0Dir } = {}) {
+export function identifyProduction(facts, { g0Dir, coreRoot = CORE_ROOT } = {}) {
   const { byPid, kids } = indexFacts(facts);
   const g0 = g0Dir ? normPath(g0Dir) : null;
-  const inG0 = (p) => Boolean(g0) && normPath(p.cmd).includes(g0);
-  const daemons = facts.processes.filter((p) => p.name === "node.exe" && DAEMON_RE.test(p.cmd));
+  const core = coreOwnedPids(facts, coreRoot);
+  const inG0 = (p) => (Boolean(g0) && normPath(p.cmd).includes(g0)) || core.has(p.pid);
+  const daemons = facts.processes.filter((p) => p.name === "node.exe" && DAEMON_RE.test(p.cmd) && !core.has(p.pid));
   const daemon = [...daemons].sort((a, b) => (kids.get(b.pid)?.length ?? 0) - (kids.get(a.pid)?.length ?? 0))[0] ?? null;
   const tree = {};
   const pm2Pids = new Set();
@@ -154,9 +182,13 @@ export function identifyProduction(facts, { g0Dir } = {}) {
     for (const c of kids.get(daemon.pid) ?? []) tree[String(c.pid)] = c.created;
     for (const d of descendants(facts, daemon.pid)) pm2Pids.add(d.pid);
   }
-  const postmaster = facts.processes.find((p) => p.name === "postgres.exe" && byPid.get(p.parent)?.name === "pg_ctl.exe" && !inG0(p)) ?? null;
-  const mariadb = facts.processes.filter((p) => /^(mysqld|mariadbd)\.exe$/.test(p.name));
-  const cloudflared = facts.processes.filter((p) => p.name === "cloudflared.exe");
+  // The shared postmaster: a service postmaster (parent pg_ctl.exe) outside CORE / G0; if more than one, the one that
+  // listens on 5432. Still ambiguous → none (the baseline is then invalid: fail closed, never a guess by list order).
+  const candidates = facts.processes.filter((p) => p.name === "postgres.exe" && byPid.get(p.parent)?.name === "pg_ctl.exe" && !inG0(p));
+  const on5432 = candidates.filter((p) => facts.listeners.some((l) => l.pid === p.pid && l.port === SHARED_PG_PORT));
+  const postmaster = candidates.length === 1 ? candidates[0] : on5432.length === 1 ? on5432[0] : null;
+  const mariadb = facts.processes.filter((p) => /^(mysqld|mariadbd)\.exe$/.test(p.name) && !core.has(p.pid));
+  const cloudflared = facts.processes.filter((p) => p.name === "cloudflared.exe" && !core.has(p.pid));
   const sig = (list) => list.map((p) => `${p.pid}@${p.created}`).sort().join(",");
   const infra = { postmaster: postmaster ? `${postmaster.pid}@${postmaster.created}` : null, mariadb: sig(mariadb), cloudflared: sig(cloudflared) };
   const infraPids = new Set([...(postmaster ? [postmaster.pid] : []), ...mariadb.map((p) => p.pid), ...cloudflared.map((p) => p.pid)]);
@@ -432,12 +464,13 @@ export function classifyIsolation({ facts, tasks, now, windowMinutes = 180, g0Di
   const prod = identifyProduction(facts, { g0Dir });
   const { byPid } = indexFacts(facts);
   const production = new Set([...prod.protectedPids, ...prod.pm2Pids]);
+  const coreOwned = coreOwnedPids(facts);
   const own = new Set();
   for (let p = byPid.get(selfPid); p && !own.has(p.pid); p = byPid.get(p.parent)) own.add(p.pid); // this check and its callers
   const agents = [];
   const agentPids = new Set();
   for (const p of facts.processes) {
-    if (production.has(p.pid) || own.has(p.pid) || agentPids.has(p.pid)) continue;
+    if (production.has(p.pid) || own.has(p.pid) || agentPids.has(p.pid) || coreOwned.has(p.pid)) continue;
     const rule = AGENT_RULES.find((r) => r.name.test(p.name) || r.cmd.test(p.cmd));
     if (!rule) continue;
     for (const x of [p, ...descendants(facts, p.pid)]) {
@@ -447,8 +480,13 @@ export function classifyIsolation({ facts, tasks, now, windowMinutes = 180, g0Di
     }
   }
   const review = [];
+  const core = [];
   for (const p of facts.processes) {
     if (production.has(p.pid) || own.has(p.pid) || agentPids.has(p.pid)) continue;
+    if (coreOwned.has(p.pid)) {
+      core.push({ pid: p.pid, name: p.name, created: p.created });
+      continue;
+    }
     if (IDE_NAME.test(p.name)) review.push({ kind: "ide", pid: p.pid, name: p.name, created: p.created, cmd: redactText(p.cmd) });
     else if (RUNTIME_NAME.test(p.name)) review.push({ kind: "runtime outside production", pid: p.pid, parent: p.parent, name: p.name, created: p.created, cmd: redactText(p.cmd) });
   }
@@ -473,6 +511,7 @@ export function classifyIsolation({ facts, tasks, now, windowMinutes = 180, g0Di
     production: { pm2Daemon: prod.daemon ? `${prod.daemon.pid}@${prod.daemon.created}` : null, pm2Daemons: prod.daemonCount, protectedProcesses: production.size, postmaster: prod.infra.postmaster, mariadb: prod.infra.mariadb, cloudflared: prod.infra.cloudflared },
     agents,
     blockingTasks,
+    core,
     review,
     reviewTasks,
     tasksSeen: taskRows.length,

@@ -1,0 +1,29 @@
+<!--
+  EP48.5 O1 - WinSW v2.12 service template: CORE API (online profile). PREPARED ONLY: installed at O4 after owner approval.
+  Wrapper: D:\pdabliss-core-staging\services\pdabliss-core-api.exe (WinSW-x64 v2.12.0, SHA-256 checked) + this file.
+  Identity: virtual account NT SERVICE\pdabliss-core-api, set after install with
+    sc.exe config pdabliss-core-api obj= "NT SERVICE\pdabliss-core-api"
+  Rights: read on releases\ and config\core-online.env; modify on logs\api and run\ (refusal markers). No PM2, no other service.
+  Secrets live ONLY in config\core-online.env (ACL: Administrators, SYSTEM, the service account read); never in this file.
+-->
+<service>
+  <id>pdabliss-core-api</id>
+  <name>PDA BLISS CORE API (online)</name>
+  <description>PDA BLISS CORE API, production mode, 127.0.0.1:1312 only (fail-closed launcher ops\ep48_5\online-launch.mjs).</description>
+  <executable>C:\Program Files\nodejs\node.exe</executable>
+  <arguments>--env-file=D:\pdabliss-core-staging\config\core-online.env --max-old-space-size=512 ops\ep48_5\online-launch.mjs</arguments>
+  <workingdirectory>D:\pdabliss-core-staging\current</workingdirectory>
+  <depend>pdabliss-core-staging-pg</depend>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="none"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>D:\pdabliss-core-staging\logs\api</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

@@ -14,6 +14,7 @@ import {
   LIMITS, buildHttpBaseline, describeExitCode, evaluateRound, evaluateTempPg, finalComparison, freshFindings, g0ProcessIds, identifyProduction,
   latencyLimit, normalizeFacts, normalizeHttpBaseline, planStopTree, executeStopTree, probeHost, runMonitor, toInt, validateBaseline, validateHttpBaseline,
   buildProductionBaseline, classifyIsolation, classifyMonitorEnd, httpPreservation, portOwnerIdentities, probeEndpoint, stopOrigin,
+  coreOwnedPids,
 } from "../ep48_5/g0-supervisor.mjs";
 import { createdOf, isAlive as testIsAlive, realProcesses } from "./g0-fixtures/test-facts.mjs";
 
@@ -820,4 +821,78 @@ test("R15j shutdown order and gates: temp PG stopped -> census -> runner-owned I
     assert.notEqual(mutated, runner, `mutation "${name}" did not apply`);
     assert.ok(checkRunner(mutated).length > 0, `mutation "${name}" is not caught by the preflight`);
   }
+});
+
+// ---------------------------------------------------------------- R16 EP48.5 O1: CORE's own processes are not production
+// Before O1 the shared postmaster was "the first postgres.exe under pg_ctl.exe" — with CORE's own cluster on 5433 that
+// choice depended on list order, and CORE's own cloudflared connector would have read as a production change.
+const LATER = "2026-11-18T09:00:00.000Z";
+function hostFacts({ coreFirst = true, extra = [], patch = (f) => f } = {}) {
+  const core = [
+    { pid: 8100, parent: 1, name: "pg_ctl.exe", cmd: "pg_ctl.exe runservice -N pdabliss-core-staging-pg -D D:\\pdabliss-core-staging\\pgdata -w", created: LATER },
+    { pid: 8101, parent: 8100, name: "postgres.exe", cmd: "postgres.exe -D D:/pdabliss-core-staging/pgdata", created: LATER },
+    { pid: 8200, parent: 1, name: "pdabliss-core-tunnel.exe", cmd: "D:\\pdabliss-core-staging\\services\\pdabliss-core-tunnel.exe", created: LATER },
+    { pid: 8201, parent: 8200, name: "cloudflared.exe", cmd: '"C:\\Program Files (x86)\\cloudflared\\cloudflared.exe" tunnel run', created: LATER },
+    { pid: 8300, parent: 1, name: "pdabliss-core-api.exe", cmd: "D:\\pdabliss-core-staging\\services\\pdabliss-core-api.exe", created: LATER },
+    { pid: 8301, parent: 8300, name: "node.exe", cmd: "node.exe --env-file=x ops\\ep48_5\\online-launch.mjs", created: LATER },
+  ];
+  const prod = prodFacts().processes.concat([
+    { pid: 9300, parent: 1, name: "cloudflared.exe", cmd: '"C:\\Program Files (x86)\\cloudflared\\cloudflared.exe" tunnel run', created: T0 },
+  ]);
+  const listeners = [
+    ...prodFacts().listeners,
+    { address: "0.0.0.0", port: 5432, pid: 9201 },
+    { address: "127.0.0.1", port: 20241, pid: 9300 },
+    { address: "127.0.0.1", port: 5433, pid: 8101 },
+    { address: "127.0.0.1", port: 20243, pid: 8201 },
+    { address: "127.0.0.1", port: 1312, pid: 8301 },
+  ];
+  const facts = normalizeFacts({ at: "x", cpuPct: 1, freeRamGB: 30, freeDiskDGB: 500, processes: coreFirst ? [...core, ...prod, ...extra] : [...prod, ...core, ...extra], listeners });
+  return patch(facts);
+}
+const prodOnly = () => {
+  const f = hostFacts();
+  return normalizeFacts({ ...f, processes: f.processes.filter((p) => p.pid >= 9000), listeners: f.listeners.filter((l) => l.pid >= 9000) });
+};
+test("R16 CORE's own cluster, tunnel connector and services do not read as production (any list order)", async () => {
+  for (const coreFirst of [true, false]) {
+    const facts = hostFacts({ coreFirst });
+    const prod = identifyProduction(facts, { g0Dir: "D:\\pdabliss-core-staging\\gates\\g0-x" });
+    assert.equal(prod.postmaster?.pid, 9201, "the shared postmaster is the one on 5432, never CORE's");
+    assert.equal(prod.infra.cloudflared, `9300@${T0}`, "only the production connector");
+    assert.ok(!prod.protectedPids.has(8101) && !prod.protectedPids.has(8201), "CORE processes are not protected production");
+    assert.deepEqual([...coreOwnedPids(facts)].sort(), [8100, 8101, 8200, 8201, 8300, 8301]);
+  }
+  // baseline before CORE existed, i5-check after CORE was added: PASS
+  const b = await buildProductionBaseline({ facts0: prodOnly(), probe: fixedProbe(() => 200), tempPgPort: 55443, g0Dir: "D:\\g0", now: () => Date.parse(T0) });
+  assert.equal(b.valid, true, JSON.stringify(b.problems));
+  const r = httpPreservation({ baseline: b, facts: hostFacts(), probes: answers(b), ctx: ctx3, expectEndpoints: 2 });
+  assert.equal(r.verdict, "PASS", JSON.stringify(r.problems));
+});
+test("R16b a real change to a protected production process still FAILS (postmaster, connector, PM2 child, 5432 owner, impostor)", async () => {
+  const b = await buildProductionBaseline({ facts0: prodOnly(), probe: fixedProbe(() => 200), tempPgPort: 55443, g0Dir: "D:\\g0", now: () => Date.parse(T0) });
+  const verdict = (patch) => httpPreservation({ baseline: b, facts: hostFacts({ patch }), probes: answers(b), ctx: ctx3, expectEndpoints: 2 });
+  const restarted = (pid) => (f) => ({ ...f, processes: f.processes.map((p) => (p.pid === pid ? { ...p, created: LATER } : p)) });
+  for (const [what, patch, re] of [
+    ["shared postmaster restarted", restarted(9201), /postmaster process changed/],
+    ["production connector restarted", restarted(9300), /cloudflared process changed/],
+    ["PM2 child restarted", restarted(9100), /PM2 tree/],
+    ["5432 now held by another process", (f) => ({ ...f, listeners: f.listeners.map((l) => (l.port === 5432 ? { ...l, pid: 8101 } : l)) }), /listeners changed/],
+    ["a new cloudflared outside the CORE root", (f) => ({ ...f, processes: [...f.processes, { pid: 9400, parent: 1, name: "cloudflared.exe", cmd: "cloudflared.exe tunnel run", created: LATER }] }), /cloudflared process changed/],
+  ]) {
+    const r = verdict(patch);
+    assert.equal(r.verdict, "FAIL", what);
+    assert.match(r.problems.map((x) => x.message).join("; "), re, what);
+  }
+  // two service postmasters outside CORE and none on 5432: ambiguous → no postmaster → the baseline is refused
+  const ambiguous = normalizeFacts({ ...prodOnly(), processes: [...prodOnly().processes, { pid: 9202, parent: 9200, name: "postgres.exe", cmd: "postgres -D E:\\other", created: T0 }], listeners: prodOnly().listeners.filter((l) => l.port !== 5432) });
+  assert.equal(identifyProduction(ambiguous).postmaster, null);
+});
+test("R16c isolation lists CORE's own processes separately: never agents, never owner review items", () => {
+  const facts = hostFacts();
+  const r = classifyIsolation({ facts, tasks: [], now: Date.parse(LATER), g0Dir: "D:\\g0", selfPid: 1 });
+  assert.deepEqual(r.core.map((c) => c.pid).sort(), [8100, 8101, 8200, 8201, 8300, 8301]);
+  assert.ok(!r.review.some((x) => x.pid >= 8100 && x.pid < 8400));
+  assert.equal(r.agents.length, 0);
+  assert.equal(r.status, "CLEAR");
 });

@@ -21,6 +21,22 @@ export const API_ORIGIN = `http://${BIND_HOST}:${API_PORT}`;
 /** The staging root on S2A-SERVER. Tests may pass another root to the run functions; the CLIs never do. */
 export const STAGING_ROOT = "D:\\pdabliss-core-staging";
 
+// ---------------------------------------------------------------- EP48.5 online profile (O1, docs/EP48_5_ONLINE_DEPLOYMENT_PLAN.md)
+// The same constant 127.0.0.1 binds, the same database; reached only through the dedicated Cloudflare tunnel
+// `pdabliss-core`. The browser origin is the permanent public hostname (same origin for the web and /api).
+export const ONLINE_MARKER = "online-uat";
+export const PUBLIC_HOST = "core.pdabliss.com";
+export const PUBLIC_ORIGIN = `https://${PUBLIC_HOST}`;
+/** Metrics listener of the CORE tunnel connector (20241 / 20242 belong to the production connectors). */
+export const CORE_TUNNEL_METRICS = Object.freeze({ host: BIND_HOST, port: 20243 });
+/** The only SMTP transports the online profile accepts: authenticated submission with STARTTLS, or implicit TLS. */
+export const SMTP_MODES = Object.freeze([
+  Object.freeze({ port: "587", secure: "false", what: "STARTTLS (required by the application: requireTLS)" }),
+  Object.freeze({ port: "465", secure: "true", what: "implicit TLS" }),
+]);
+/** The sender domain: pdabliss.com publishes DMARC p=reject with strict alignment (O0 report §4). */
+export const MAIL_DOMAIN = "pdabliss.com";
+
 export class Refusal extends Error {
   constructor(rule, message) {
     super(message);

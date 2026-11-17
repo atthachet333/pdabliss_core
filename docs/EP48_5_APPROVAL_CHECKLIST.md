@@ -158,3 +158,13 @@ Checkpoints O0b–O8 and the public-exposure checks P1–P10 are in plan §0; th
 | OD-P9  | hardened static server instead of Vite `preview()` for the online profile                                                            |        |
 | OD-P10 | O1 (repository-only), then O2 … O8 separately; agents paused during change windows                                                  |        |
 
+### 6.4 O1 — online deployment tooling (repository only)
+
+| Item                                                                                                                                                         | Evidence                                                    | Status                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | ---------------------------------------- |
+| Online launcher profile; hardened static server; production-preservation fix; online checks; prepared tunnel / Access / WinSW (`docs/EP48_5_O1_REPORT.md` §1) | local commit (not pushed); backend / frontend = `cb21be1`   | implemented                              |
+| Tests: P7 133 / 133 (manifest exact), G0 expectation 155; 17 mutations caught                                                                                | Linux device VM run (report §2)                             | PASS (Linux)                             |
+| Windows: harness P1–P12, preflight, `core-online-check release` / `local --expect absent` (report §3)                                                       | owner run                                                   | **pending — not declared PASS**          |
+| Blockers: B1 sign-up (edge block before O7), B4 SMTP decision (OD-P6), B6 remaining dashboard checks                                                         | report §4                                                   | open                                     |
+| **O2** release on disk (report §5)                                                                                                                           | —                                                           | **needs separate authorization**         |
+

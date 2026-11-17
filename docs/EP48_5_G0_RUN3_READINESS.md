@@ -167,3 +167,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core
 - **A legitimate production change during the window FAILs I5 and stops G0** (fail closed). That includes a PM2 restart, an app crash and restart, or a deployment. The owner then decides.
 - **I5 checks `GET /`** status and process identity per endpoint, like the monitor. It does not test application behaviour beyond that.
 - **The new Windows-only parts are not yet verified on Windows.** That covers the PowerShell 5.1 code, the reporter under Windows Node 24, `g0-tasks.ps1` and the real-host I5. They are covered by static checks and Linux tests only, until harness P7, P11 and P12 and the preflight run on S2A-SERVER.
+
+> **Updated by O1 (2026-11-17):** the test counts changed with the O1 tooling (`docs/EP48_5_O1_REPORT.md` §2). P7 = **133** in 7 files, G0 `-ExpectOps` = **155**. Full G0 is now C1 (EP48.6); the command above takes `-ExpectOps 155`.

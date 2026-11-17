@@ -1,0 +1,31 @@
+<!--
+  EP48.5 O1 - WinSW v2.12 service template: the DEDICATED CORE tunnel connector (tunnel 'pdabliss-core').
+  PREPARED ONLY: installed at O5 after owner approval; the public hostname is added only at O6.
+  Binary: a pinned copy D:\pdabliss-core-staging\tools\cloudflared\cloudflared.exe (copied at O2 from the installed
+  cloudflared, version and SHA-256 recorded), so an update of the production connectors' binary never changes CORE's and
+  the reverse. The production services 'Cloudflared' / 'CloudflaredS2A' and their token files are never touched.
+  Identity: sc.exe config pdabliss-core-tunnel obj= "NT SERVICE\pdabliss-core-tunnel"; read on config\core-tunnel.token only.
+  Starts only after the API and web services (if either refuses, the door stays closed). Outbound only; metrics on 127.0.0.1.
+-->
+<service>
+  <id>pdabliss-core-tunnel</id>
+  <name>PDA BLISS CORE tunnel connector</name>
+  <description>Cloudflare tunnel pdabliss-core for core.pdabliss.com (outbound only; ingress rules in ops\ep48_5\online\pdabliss-core.tunnel.json).</description>
+  <executable>D:\pdabliss-core-staging\tools\cloudflared\cloudflared.exe</executable>
+  <arguments>tunnel --no-autoupdate --metrics 127.0.0.1:20243 run --token-file D:\pdabliss-core-staging\config\core-tunnel.token</arguments>
+  <workingdirectory>D:\pdabliss-core-staging\run</workingdirectory>
+  <depend>pdabliss-core-api</depend>
+  <depend>pdabliss-core-web</depend>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="none"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>D:\pdabliss-core-staging\logs\tunnel</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

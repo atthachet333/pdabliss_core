@@ -82,6 +82,12 @@ Every P-check has a scripted, read-only outside test in `Verify-CoreOnline.ps1` 
 - **R-P:** re-enable A2, which returns to mode R in seconds.
 - R0 (stop `core-tunnel`), R1, R1b, R2–R4 are as in §5.2.
 
+### 0.4a O1 status (2026-11-17)
+
+O1 is implemented: `EP48_5_O1_REPORT.md`. The final service names are `pdabliss-core-api`, `pdabliss-core-web` and `pdabliss-core-tunnel`; they replace `core-staging-api`, `core-staging-web` and `core-tunnel` in this plan. The database service `pdabliss-core-staging-pg` and the root `D:\pdabliss-core-staging` are unchanged.
+
+The checks named above are `ops/ep48_5/core-online-check.mjs` (`release`, `build`, `smtp`, `db-target`, `local`, `remote`); `Verify-CoreOnline.ps1` was not needed. The O2 proposal is in O1 report §5. Windows verification of O1 is in report §3 (pending).
+
 ### 0.5 Deferred to EP48.6 (in addition to C1–C8)
 
 - a code-level switch for self-registration and activation (replacing the edge block);
@@ -213,7 +219,7 @@ Disallowed in the online profile (refused if present):
 
 | #   | Item                                                                                                                                                                                                                                         |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | **Full environment qualification of the release on the host:**<br>• backend 611, frontend 1,192 and ops 130 on a disposable cluster;<br>• the migration scratch run;<br>• the launcher smoke.<br>That is G0 run 3, or an equivalent CI. A PASS is required; the run-1 / run-2 failures stay recorded. |
+| C1  | **Full environment qualification of the release on the host:**<br>• backend 611, frontend 1,192 and ops 155 (O1) on a disposable cluster;<br>• the migration scratch run;<br>• the launcher smoke.<br>That is G0 run 3, or an equivalent CI. A PASS is required; the run-1 / run-2 failures stay recorded. |
 | C2  | **A real production profile:**<br>• a separate production database / cluster and roles for commercial data;<br>• no demo data or demo accounts;<br>• an explicit runtime identity in code (architecture §4.4) instead of the OO-2 exception. |
 | C3  | **Backups and recovery:**<br>• daily verified backups;<br>• an off-machine copy;<br>• retention;<br>• a restore drill;<br>• monitoring with alert delivery.                                                                                  |
 | C4  | **Web hardening:**<br>• hardened static serving instead of `vite preview`;<br>• security headers (CSP, HSTS policy, frame / referrer policy);<br>• origin-side validation of the Cloudflare Access JWT (defence in depth);<br>• edge rate-limit / WAF rules. |

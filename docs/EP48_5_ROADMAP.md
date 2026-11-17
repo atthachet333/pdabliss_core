@@ -13,3 +13,12 @@ The full feature history (EP20 … EP48) is in `README.md` → "Roadmap". This f
 | 5 | **EP50.1** | SEO Enhancement, in the separate **`pdablissv2`** repository                                                                                                                                                  |                                 |
 
 New feature development (EP49 onward) does not start before EP48.6 is complete.
+
+## Status (2026-11-17)
+
+| Step                       | Status                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| EP48.5 O0 readiness        | done (`EP48_5_O0_REPORT.md`)                                                              |
+| EP48.5 O1 tooling          | implemented, local commit; Windows verification pending (`EP48_5_O1_REPORT.md` §3)       |
+| EP48.5 O2 … O8             | each needs separate authorization; O2 proposal in `EP48_5_O1_REPORT.md` §5               |
+| EP48.6                     | after EP48.5 sign-off; includes full G0 (C1, `-ExpectOps 155`)                            |

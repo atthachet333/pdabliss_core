@@ -4,13 +4,18 @@
 // It never imports backend/dist/server.js, which binds to whatever HOST says. Any failed check → exit 78, a sticky
 // refusal marker, and no listener. Specification: docs/EP48_5_STAGING_ARCHITECTURE.md §4.2 (P1–P8, L1–L14).
 // The application code (backend/, frontend/) is unchanged from EP48 (cb21be1).
+//
+// Two fixed profiles, one per entry point: `staging` (staging-launch.mjs, loopback-only UAT, development mode locked
+// down) and `online` (online-launch.mjs, EP48.5 O1: production mode behind the dedicated Cloudflare tunnel —
+// __Host- Secure cookies, TRUST_PROXY=loopback, real SMTP with STARTTLS / TLS, no demo bypass, no development
+// activation). The profile is chosen by the entry point, never by the environment; CORE_ENVIRONMENT must match it.
 import fs from "node:fs";
 import inspector from "node:inspector";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
-  API_PORT, BIND_HOST, STAGING_DB, STAGING_ROOT, WEB_ORIGIN,
+  API_PORT, BIND_HOST, MAIL_DOMAIN, ONLINE_MARKER, PUBLIC_ORIGIN, SMTP_MODES, STAGING_DB, STAGING_ROOT, WEB_ORIGIN,
   assertAllowList, assertBoundAddress, assertNoInspector, assertNoStickyMarker, assertNotExposed, assertReleaseLocation,
   assertReleaseSha, envFilesIn, hasReparsePoint, probeExposure, redact, refuse, requireExact, samePath,
 } from "./launch-common.mjs";
@@ -24,6 +29,61 @@ export const API_ALLOWED = new Set([
   "DATABASE_URL", "MAIL_TRANSPORT", "DEV_MAIL_DIR", "LOG_LEVEL", "MAIL_FROM", "RATE_LIMIT_MAX", "RATE_LIMIT_WINDOW",
 ]);
 const REQUIRED = ["CORE_ENVIRONMENT", "NODE_ENV", "ENABLE_DEMO_ROUTES", "HOST", "PORT", "CORS_ORIGINS", "PUBLIC_APP_URL", "AUTH_SECRET", "DATABASE_URL", "MAIL_TRANSPORT", "DEV_MAIL_DIR"];
+
+/**
+ * P6 for the online profile. Not allowed (refused if present): DEV_MAIL_DIR, RATE_LIMIT_* (the application's defaults
+ * apply — no weakening by configuration), PLATFORM_* / DEMO_* / BOOTSTRAP_* (seed only), TEST_DATABASE_URL, VITE_*,
+ * PG*, NODE_OPTIONS, NODE_TLS_REJECT_UNAUTHORIZED.
+ */
+export const ONLINE_API_ALLOWED = new Set([
+  "CORE_ENVIRONMENT", "NODE_ENV", "ENABLE_DEMO_ROUTES", "HOST", "PORT", "CORS_ORIGINS", "PUBLIC_APP_URL", "AUTH_SECRET",
+  "DATABASE_URL", "TRUST_PROXY", "MAIL_TRANSPORT", "MAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER",
+  "SMTP_PASSWORD", "LOG_LEVEL",
+]);
+const ONLINE_REQUIRED = [
+  "CORE_ENVIRONMENT", "NODE_ENV", "ENABLE_DEMO_ROUTES", "HOST", "PORT", "CORS_ORIGINS", "PUBLIC_APP_URL", "AUTH_SECRET",
+  "DATABASE_URL", "TRUST_PROXY", "MAIL_TRANSPORT", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD",
+];
+
+/** The two fixed launcher profiles. */
+export const PROFILES = Object.freeze({
+  staging: Object.freeze({
+    name: "staging", marker: "staging", nodeEnv: "development", origin: WEB_ORIGIN, trustProxy: null, mail: "dev",
+    allowed: API_ALLOWED, required: REQUIRED, label: "CORE Internal Staging",
+  }),
+  online: Object.freeze({
+    name: "online", marker: ONLINE_MARKER, nodeEnv: "production", origin: PUBLIC_ORIGIN, trustProxy: "loopback", mail: "smtp",
+    allowed: ONLINE_API_ALLOWED, required: ONLINE_REQUIRED, label: "CORE online (core.pdabliss.com, production mode)",
+  }),
+});
+
+const HOSTNAME_RE = /^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+const addressOf = (v) => {
+  const m = /<([^<>\s]+)>\s*$/.exec(String(v ?? "")) ?? /^\s*([^<>\s]+)\s*$/.exec(String(v ?? ""));
+  return m ? m[1] : null;
+};
+/**
+ * L7 (online): real SMTP, never clear text. Names the rule, never a value. The application itself adds `requireTLS`
+ * when SMTP_SECURE=false (backend/src/mail/mailer.ts), so 587 + STARTTLS cannot fall back to clear text.
+ */
+export function checkSmtpConfig(env) {
+  if (env.MAIL_TRANSPORT !== "smtp") refuse("L7_MAIL_TRANSPORT", "MAIL_TRANSPORT must be smtp in the online profile");
+  const host = String(env.SMTP_HOST ?? "").toLowerCase();
+  if (!HOSTNAME_RE.test(host) || /^\d+(\.\d+){3}$/.test(host) || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local"))
+    refuse("L7_SMTP_HOST", "SMTP_HOST must be the mail provider's DNS host name (no IP literal, no local name)");
+  const mode = SMTP_MODES.find((m) => m.port === env.SMTP_PORT && m.secure === env.SMTP_SECURE);
+  if (!mode) refuse("L7_SMTP_TLS", "SMTP_PORT / SMTP_SECURE must be 587 / false (STARTTLS) or 465 / true (implicit TLS)");
+  const user = String(env.SMTP_USER ?? "");
+  if (!new RegExp(`^[^@\\s]+@${MAIL_DOMAIN.replace(".", "\\.")}$`, "i").test(user))
+    refuse("L7_SMTP_USER", `SMTP_USER must be a mailbox of ${MAIL_DOMAIN} (DMARC p=reject, strict alignment)`);
+  if (String(env.SMTP_PASSWORD ?? "").length < 8) refuse("L7_SMTP_PASSWORD", "SMTP_PASSWORD is missing or too short");
+  if (env.MAIL_FROM !== undefined) {
+    const from = addressOf(env.MAIL_FROM);
+    if (!from || !new RegExp(`@${MAIL_DOMAIN.replace(".", "\\.")}$`, "i").test(from))
+      refuse("L7_MAIL_FROM", `MAIL_FROM must be an address of ${MAIL_DOMAIN}`);
+  }
+  return mode;
+}
 
 /** L5: the runtime connection, parsed and checked without ever printing it. */
 export function checkDatabaseUrl(value) {
@@ -72,27 +132,31 @@ export async function checkDatabaseIdentity({ url, pg, expect = STAGING_DB, time
 }
 
 /** Phase A: checks that need no application code (P6, L1–L8, L10, L13, L14). */
-export function preflight({ env, root, releaseRoot, cwd, execArgv, inspectorUrl }) {
+export function preflight({ env, root, releaseRoot, cwd, execArgv, inspectorUrl, profile = PROFILES.staging }) {
   assertNoStickyMarker(root, SERVICE);
   assertNoInspector({ env, execArgv, inspectorUrl });
-  assertAllowList(env, API_ALLOWED);
-  for (const k of REQUIRED) if (env[k] === undefined) refuse("P6_REQUIRED", `${k} is not set`);
-  requireExact(env, "CORE_ENVIRONMENT", "staging", "L1_MARKER");
-  requireExact(env, "NODE_ENV", "development", "L2_NODE_ENV");
+  assertAllowList(env, profile.allowed);
+  for (const k of profile.required) if (env[k] === undefined) refuse("P6_REQUIRED", `${k} is not set`);
+  requireExact(env, "CORE_ENVIRONMENT", profile.marker, "L1_MARKER");
+  requireExact(env, "NODE_ENV", profile.nodeEnv, "L2_NODE_ENV");
   requireExact(env, "ENABLE_DEMO_ROUTES", "false", "L2_DEMO_ROUTES");
   requireExact(env, "HOST", BIND_HOST, "L3_HOST");
   requireExact(env, "PORT", String(API_PORT), "L3_PORT");
   const secret = env.AUTH_SECRET;
   if (secret.length < 43 || /\s/.test(secret)) refuse("L4_AUTH_SECRET", "AUTH_SECRET must be at least 43 characters without whitespace");
   checkDatabaseUrl(env.DATABASE_URL);
-  requireExact(env, "CORS_ORIGINS", WEB_ORIGIN, "L6_CORS");
-  requireExact(env, "PUBLIC_APP_URL", WEB_ORIGIN, "L6_PUBLIC_URL");
-  requireExact(env, "MAIL_TRANSPORT", "dev", "L7_MAIL_TRANSPORT");
-  const mailDir = path.join(root, "mail");
-  if (!path.isAbsolute(env.DEV_MAIL_DIR) || !samePath(env.DEV_MAIL_DIR, mailDir))
-    refuse("L7_MAIL_DIR", "DEV_MAIL_DIR must be <staging root>\\mail");
-  if (!fs.existsSync(mailDir) || !fs.statSync(mailDir).isDirectory() || hasReparsePoint(mailDir, root))
-    refuse("L7_MAIL_DIR", "<staging root>\\mail must be an existing folder (no junction or link)");
+  requireExact(env, "CORS_ORIGINS", profile.origin, "L6_CORS");
+  requireExact(env, "PUBLIC_APP_URL", profile.origin, "L6_PUBLIC_URL");
+  if (profile.trustProxy) requireExact(env, "TRUST_PROXY", profile.trustProxy, "L6_TRUST_PROXY");
+  if (profile.mail === "smtp") checkSmtpConfig(env);
+  else {
+    requireExact(env, "MAIL_TRANSPORT", "dev", "L7_MAIL_TRANSPORT");
+    const mailDir = path.join(root, "mail");
+    if (!path.isAbsolute(env.DEV_MAIL_DIR) || !samePath(env.DEV_MAIL_DIR, mailDir))
+      refuse("L7_MAIL_DIR", "DEV_MAIL_DIR must be <staging root>\\mail");
+    if (!fs.existsSync(mailDir) || !fs.statSync(mailDir).isDirectory() || hasReparsePoint(mailDir, root))
+      refuse("L7_MAIL_DIR", "<staging root>\\mail must be an existing folder (no junction or link)");
+  }
   if (env.LOG_LEVEL !== undefined && !["fatal", "error", "warn", "info"].includes(env.LOG_LEVEL))
     refuse("L7_LOG_LEVEL", "LOG_LEVEL must be fatal, error, warn or info");
   assertReleaseLocation(root, releaseRoot);
@@ -102,13 +166,18 @@ export function preflight({ env, root, releaseRoot, cwd, execArgv, inspectorUrl 
 }
 
 /** L11: the application's own reading of the environment must agree with the launcher. */
-export function checkParsedEnv(parsed, devAuthSecret) {
-  const ok =
-    parsed && parsed.ENABLE_DEMO_ROUTES === false && parsed.NODE_ENV === "development" && parsed.HOST === BIND_HOST &&
-    parsed.PORT === API_PORT && parsed.MAIL_TRANSPORT === "dev" && parsed.TRUST_PROXY === false &&
-    Array.isArray(parsed.CORS_ORIGINS) && parsed.CORS_ORIGINS.length === 1 && parsed.CORS_ORIGINS[0] === WEB_ORIGIN &&
-    typeof parsed.AUTH_SECRET === "string" && parsed.AUTH_SECRET !== devAuthSecret;
-  if (!ok) refuse("L11_PARSED_ENV", "the application's parsed configuration differs from the locked staging profile");
+export function checkParsedEnv(parsed, devAuthSecret, profile = PROFILES.staging, env = {}) {
+  const common =
+    parsed && parsed.ENABLE_DEMO_ROUTES === false && parsed.NODE_ENV === profile.nodeEnv && parsed.HOST === BIND_HOST &&
+    parsed.PORT === API_PORT && Array.isArray(parsed.CORS_ORIGINS) && parsed.CORS_ORIGINS.length === 1 &&
+    parsed.CORS_ORIGINS[0] === profile.origin && typeof parsed.AUTH_SECRET === "string" && parsed.AUTH_SECRET !== devAuthSecret;
+  const specific =
+    profile.mail === "smtp"
+      ? parsed?.MAIL_TRANSPORT === "smtp" && Array.isArray(parsed?.TRUST_PROXY) && parsed.TRUST_PROXY.length === 1 &&
+        parsed.TRUST_PROXY[0] === profile.trustProxy && parsed.PUBLIC_APP_URL === profile.origin &&
+        parsed.SMTP_HOST === env.SMTP_HOST && parsed.SMTP_PORT === Number(env.SMTP_PORT) && parsed.SMTP_SECURE === (env.SMTP_SECURE === "true")
+      : parsed?.MAIL_TRANSPORT === "dev" && parsed?.TRUST_PROXY === false;
+  if (!(common && specific)) refuse("L11_PARSED_ENV", `the application's parsed configuration differs from the locked ${profile.name} profile`);
 }
 
 const releasePaths = (releaseRoot) => ({
@@ -136,9 +205,10 @@ export async function runApiLauncher({
   inspectorUrl = () => inspector.url(),
   chdir = (dir) => process.chdir(dir),
   log = (line) => process.stdout.write(`${line}\n`),
+  profile = PROFILES.staging,
 } = {}) {
   // Phase A — no application code loaded yet.
-  const releaseSha = preflight({ env, root, releaseRoot, cwd, execArgv, inspectorUrl });
+  const releaseSha = preflight({ env, root, releaseRoot, cwd, execArgv, inspectorUrl, profile });
   const files = releasePaths(releaseRoot);
 
   // Phase B — the configuration module only (schema + constants; no I/O or listener at import).
@@ -157,7 +227,7 @@ export async function runApiLauncher({
   } catch (err) {
     refuse("L11_PARSED_ENV", `the application rejected the configuration (${redact(err?.message)})`);
   }
-  checkParsedEnv(parsed, envModule.DEV_AUTH_SECRET);
+  checkParsedEnv(parsed, envModule.DEV_AUTH_SECRET, profile, env);
 
   // Phase C — live database identity.
   const pgModule = pg ?? createRequire(files.backendPackage)("pg");
@@ -185,7 +255,7 @@ export async function runApiLauncher({
       assertBoundAddress(all[0], port, "L12_BOUND_ADDRESS");
     }
     const r = await assertNotExposed(addr.port, probe, "L12_EXPOSED");
-    log(`[core-staging-api] CORE Internal Staging — all launcher checks passed; listening on ${BIND_HOST}:${addr.port} only; exposure probe clean on ${r.checked} address(es); release ${releaseSha}`);
+    log(`[core-staging-api] ${profile.label} — all launcher checks passed; listening on ${BIND_HOST}:${addr.port} only; exposure probe clean on ${r.checked} address(es); release ${releaseSha}`);
   } catch (err) {
     await Promise.resolve(app.close?.()).catch(() => {});
     throw err;

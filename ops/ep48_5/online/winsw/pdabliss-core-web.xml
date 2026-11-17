@@ -1,0 +1,28 @@
+<!--
+  EP48.5 O1 - WinSW v2.12 service template: CORE web (online profile, hardened static server, never Vite preview).
+  PREPARED ONLY: installed at O4 after owner approval.
+  Wrapper: D:\pdabliss-core-staging\services\pdabliss-core-web.exe + this file.
+  Identity: sc.exe config pdabliss-core-web obj= "NT SERVICE\pdabliss-core-web"
+  Rights: read on releases\; modify on logs\web and run\. It needs no secret and no CORE variable except its marker.
+-->
+<service>
+  <id>pdabliss-core-web</id>
+  <name>PDA BLISS CORE web (online)</name>
+  <description>PDA BLISS CORE compiled frontend, 127.0.0.1:1311 only (fail-closed launcher ops\ep48_5\online-web-launch.mjs).</description>
+  <executable>C:\Program Files\nodejs\node.exe</executable>
+  <arguments>--max-old-space-size=256 ops\ep48_5\online-web-launch.mjs</arguments>
+  <workingdirectory>D:\pdabliss-core-staging\current</workingdirectory>
+  <env name="CORE_ENVIRONMENT" value="online-uat"/>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="none"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>D:\pdabliss-core-staging\logs\web</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "EP48.5 O1 - ingress for the DEDICATED Cloudflare tunnel 'pdabliss-core' (remotely managed). PREPARED ONLY: nothing is created at O1.",
+    "Applied at O5 (tunnel, no public hostname) / O6 (public hostname + DNS) only, after separate owner approval.",
+    "The 'config' object is the body of the Cloudflare API call 'PUT /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations'",
+    "(or the same rules entered in the dashboard: Zero Trust > Networks > Tunnels > pdabliss-core > Public hostnames, in this order).",
+    "The existing tunnels (Cloudflared, CloudflaredS2A / 's2aconsultant-server') are NOT touched.",
+    "Rules are evaluated top to bottom; 'path' is a regular expression matched against the decoded request path.",
+    "Contracts verified in cb21be1: the API lives under /api/v1 (backend/src/app.ts prefix '/api/v1'); /health and /health/ready",
+    "are backend routes (backend/src/routes/health.ts); sign-up is POST /api/v1/auth/register and POST /api/v1/auth/verification/resend;",
+    "the sign-up pages are /register, /en/register, /zh/register (frontend dist/_redirects)."
+  ],
+  "tunnel": "pdabliss-core",
+  "hostname": "core.pdabliss.com",
+  "connector": {
+    "service": "pdabliss-core-tunnel",
+    "metrics": "127.0.0.1:20243",
+    "tokenFile": "D:\\pdabliss-core-staging\\config\\core-tunnel.token"
+  },
+  "config": {
+    "ingress": [
+      { "hostname": "core.pdabliss.com", "path": "^/api/v1/auth/(register|verification/resend)/?$", "service": "http_status:404" },
+      { "hostname": "core.pdabliss.com", "path": "^/((en|zh)/)?register/?$", "service": "http_status:404" },
+      { "hostname": "core.pdabliss.com", "path": "^/api(/.*)?$", "service": "http://127.0.0.1:1312", "originRequest": { "connectTimeout": 10, "noTLSVerify": false } },
+      { "hostname": "core.pdabliss.com", "path": "^/health(/ready)?$", "service": "http://127.0.0.1:1312", "originRequest": { "connectTimeout": 10, "noTLSVerify": false } },
+      { "hostname": "core.pdabliss.com", "service": "http://127.0.0.1:1311", "originRequest": { "connectTimeout": 10, "noTLSVerify": false } },
+      { "service": "http_status:404" }
+    ]
+  },
+  "fallbackIfHttpStatusUnavailable": {
+    "_comment": "If the dashboard cannot set http_status:404 for a public-hostname path, the two sign-up rules become ONE hostname-scoped WAF custom rule (block), with owner approval (OD-P3). No zone-wide rule.",
+    "expression": "(http.host eq \"core.pdabliss.com\" and (http.request.uri.path matches \"^/api/v1/auth/(register|verification/resend)/?$\" or http.request.uri.path matches \"^/((en|zh)/)?register/?$\"))",
+    "action": "block"
+  }
+}

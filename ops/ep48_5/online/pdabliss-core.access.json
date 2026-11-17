@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "EP48.5 O1 - Cloudflare Access applications for core.pdabliss.com. PREPARED ONLY: created at O5 after owner approval (OD-P2, OD-P7).",
+    "A1 (admin paths) stays until EP48.6. A2 (whole hostname) exists only in restricted mode R; removing A2 at O7 = public login.",
+    "Policies name people (e-mail addresses filled in at O5 from the owner's list); never 'Everyone', a whole e-mail domain or a bypass rule.",
+    "Created BEFORE the public hostname (O5), so the hostname never exists without them."
+  ],
+  "applications": [
+    {
+      "id": "A1",
+      "name": "PDA BLISS CORE - administration",
+      "type": "self_hosted",
+      "domains": ["core.pdabliss.com/platform", "core.pdabliss.com/platform/*", "core.pdabliss.com/api/v1/platform/*"],
+      "sessionDuration": "8h",
+      "policies": [{ "name": "named operators", "decision": "allow", "include": { "emails": ["<operator e-mails from OD-P7>"] } }],
+      "modes": ["R", "P"],
+      "until": "EP48.6"
+    },
+    {
+      "id": "A2",
+      "name": "PDA BLISS CORE - restricted UAT (mode R only)",
+      "type": "self_hosted",
+      "domains": ["core.pdabliss.com"],
+      "sessionDuration": "24h",
+      "policies": [{ "name": "named testers", "decision": "allow", "include": { "emails": ["<tester e-mails from OD-P7>"] } }],
+      "modes": ["R"],
+      "removedAt": "O7 (public login), only after P1-P10 pass; re-enabled at once if any P-check fails (rollback R-P)"
+    }
+  ]
+}

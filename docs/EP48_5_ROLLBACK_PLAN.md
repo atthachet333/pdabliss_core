@@ -135,3 +135,18 @@ Alternative: drop, then repeat B4 steps 2–6.
 - the tunnel token file.
 
 It also adds two levels, **R0** (stop the tunnel connector: the door closes in seconds) and **R1b** (remove the public hostname, restore the prior DNS record, then remove the Access application last). The rules of §5 apply unchanged: no rollback touches the production tunnels `Cloudflared` / `CloudflaredS2A`, their ingress, other Access applications or zone-wide settings.
+
+## 8. Online rollback with the final O1 names (`docs/EP48_5_O1_REPORT.md`)
+
+| Level | Commands (administrator)                                                                                                                                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R-P   | Re-enable Access application A2 (whole hostname) in the dashboard: public mode returns to restricted mode R                                                                                                                    |
+| R0    | `Stop-Service pdabliss-core-tunnel`: the door closes; CORE keeps running on loopback                                                                                                                                           |
+| R1    | `Stop-Service pdabliss-core-tunnel, pdabliss-core-web, pdabliss-core-api` (the database stays up). Start again in the reverse order after the cause is fixed. A sticky refusal marker in `run\` is removed by an administrator only after the fix. |
+| R1b   | In the dashboard:<br>1. delete the `pdabliss-core` public hostname and its DNS record (no previous record exists: NXDOMAIN at O0);<br>2. then remove Access A2, and A1 last.                                                  |
+| R2    | Point the `current` junction at the previous `releases\<sha>` and start R1's services again                                                                                                                                   |
+| R3–R4 | As §4 (need A-8b), plus:<br>• `services\pdabliss-core-*.exe uninstall` (WinSW) for the three services;<br>• delete the tunnel `pdabliss-core`;<br>• empty `config\core-tunnel.token`.                                        |
+
+O2 itself starts nothing, so its rollback is "leave the files". Deleting the release, `npm-cache` or the `tools` copies needs A-8b.
+
+The rules of §5 apply unchanged.

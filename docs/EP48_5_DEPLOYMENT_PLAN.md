@@ -4,6 +4,8 @@
 >
 > The governing plan is now **`docs/EP48_5_ONLINE_DEPLOYMENT_PLAN.md`** (Minimum Safe Deployment Gate, checkpoints O0–O7). This document stays as the record and as the source of the B1–B6 host steps that the new plan reuses. Its loopback-only access model (OD-5) and its "full G0 before any host change" ordering are **superseded**.
 >
+> **O1 (2026-11-17):** the online deployment tooling is implemented — `docs/EP48_5_O1_REPORT.md` (online launcher profile, hardened static server, production-preservation fix, online checks, prepared tunnel / Access / WinSW). G0 `ops-tests` expectation is now **155** (P7: 133).
+>
 > **Full G0 has not passed** (runs 1 and 2 failed; see the incident record). It is not counted as PASS; it moves to EP48.6 as a requirement before commercial customers (C1).
 
 **Status:** ready for owner approval. **Nothing in this plan has run.** Every value comes from the verified host audit
@@ -116,7 +118,7 @@ unless they pass there.
 > # read-only preflight (also run automatically by the runner):
 > powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Preflight-G0.ps1 -Release <sha>
 > # full G0 — only after the owner's separate confirmation:
-> powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <sha> -ExpectOps 130 -ExpectHttpEndpoints 21 -AgentIsolationConfirmed
+> powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <sha> -ExpectOps 155 -ExpectHttpEndpoints 21 -AgentIsolationConfirmed
 > ```
 
 **Isolation design:**
@@ -167,8 +169,8 @@ $S = "$G\src"
 node "$S\ops\ep48_5\g0-guard.mjs" backend-tests  --gates $G --src $S --expect 611
 # frontend: npm ci; typecheck; lint; format:check; npm run build (prerender + budgets) — then:
 node "$S\ops\ep48_5\g0-guard.mjs" frontend-tests --gates $G --src $S --expect 1192
-# ops: EP43 suite (21) + EP48.5 tests (109, including T10 on the live temporary instance) = 130; files listed explicitly, concurrency 2
-node "$S\ops\ep48_5\g0-guard.mjs" ops-tests      --gates $G --src $S --expect 130
+# ops: EP43 suite (21) + EP48.5 tests (134, including T10 on the live temporary instance) = 155 (O1); files listed explicitly, concurrency 2
+node "$S\ops\ep48_5\g0-guard.mjs" ops-tests      --gates $G --src $S --expect 155
 # migration scratch on 55443 (after `g0-guard.mjs check`): roles via ops/roles.mjs, migrate deploy as core_owner → 28/28,
 # ownershipAudit 0, forbiddenAttempts 17/17
 # I5 after G0 — the elevated collector again, then:
@@ -181,7 +183,7 @@ Pass (**zero skipped tests anywhere** — a missing database URL makes suites sk
 | ---------------------- | ------------------------------------------------------------------------- |
 | Backend                | 611 / 611, 0 skipped                                                      |
 | Frontend               | 1,192 / 1,192, 0 skipped                                                  |
-| Ops                    | **130 / 130** (EP43 21 + EP48.5 109 incl. T10), 0 skipped                 |
+| Ops                    | **155 / 155** (EP43 21 + EP48.5 134 incl. T10; O1), 0 skipped            |
 | Static checks          | typecheck, lint and format clean                                          |
 | Budgets                | ≤ 4,300 KiB, ≤ 205 KiB, ≤ 560 KiB                                         |
 | Migrations             | 28 / 28                                                                   |

@@ -28,13 +28,43 @@ function procProcesses() {
   }
   return out;
 }
+/** Appends one line per facts call to G0_TEST_FACTS_COUNTER (lets the tests assert how many snapshots a command takes). */
+const count = (kind) => {
+  if (process.env.G0_TEST_FACTS_COUNTER) fs.appendFileSync(process.env.G0_TEST_FACTS_COUNTER, `${kind}\n`);
+};
 export function realProcesses() {
-  const list = process.platform === "win32" ? [].concat(collectFactsWindows().processes ?? []) : procProcesses();
+  const list = process.platform === "win32" ? [].concat(collectFactsWindows({ scope: "processes" }).processes ?? []) : procProcesses();
   return list.filter((p) => !PRODUCTION_NAME.test(String(p.name)) && !PM2_DAEMON.test(String(p.cmd)));
 }
 export const createdOf = (pid) => realProcesses().find((p) => Number(p.pid) === pid)?.created;
 
-export async function collectFacts() {
+/** Identity of the given PIDs only (start times), like g0-facts.ps1 -Scope identity. */
+export async function identifyProcesses(pids) {
+  count("identity");
+  const wanted = new Set(pids.map(Number));
+  const list = process.platform === "win32" ? [].concat(collectFactsWindows({ scope: "identity", pids: [...wanted] }).processes ?? []) : procProcesses().filter((p) => wanted.has(p.pid));
+  return list.filter((p) => wanted.has(Number(p.pid)));
+}
+/** Liveness without a snapshot; on Linux an ended-but-unreaped (zombie) process counts as ended. */
+export function isAlive(pid) {
+  if (process.platform !== "win32") {
+    try {
+      const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+      return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[0] !== "Z";
+    } catch {
+      return false;
+    }
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === "EPERM";
+  }
+}
+
+export async function collectFacts({ scope = "full" } = {}) {
+  count(scope);
   const extra = process.env.G0_TEST_FACTS_EXTRA ? JSON.parse(fs.readFileSync(process.env.G0_TEST_FACTS_EXTRA, "utf8")) : {};
   return { at: new Date().toISOString(), processes: [...realProcesses(), ...(extra.processes ?? [])], listeners: extra.listeners ?? [], to5432: extra.to5432 ?? [], cpuPct: 1, freeRamGB: 30, freeDiskDGB: 500 };
 }

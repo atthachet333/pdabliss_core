@@ -6,7 +6,7 @@
 # Safe for the host: no G0 run, no database, no npm, no service / task / firewall / PM2 / PostgreSQL change, no
 # listener outside 127.0.0.1 (the Node suites run under the loopback-only guard). It only starts its own short-lived
 # helper processes (ping.exe to 127.0.0.1, cmd.exe, powershell.exe, node.exe) in a new folder under %TEMP%, stops only
-# its own ping.exe through g0-supervisor.mjs stop-tree, and asks the supervisor for a PLAN (never an action) against
+# its own ping.exe processes through g0-supervisor.mjs stop-tree (verified identity), checks that none is left (P8), and asks the supervisor for a PLAN (never an action) against
 # production PIDs. Results: ops-logs\ep48_5-g0\harness-test-<timestamp>\ (git-ignored). Exit 0 = all PASS.
 param([string]$Dev = 'D:\S2A_PROJECT\pdabliss_core')
 $ErrorActionPreference = 'Stop'
@@ -62,21 +62,45 @@ try {
 } catch { Add-Outcome 'P3' 'start returns control' $false $_.Exception.Message }
 
 # P4 - STOP during a blocked step: the step returns within seconds and ONLY its own process is stopped (verified).
+# C-A0.2: also proves that an unrelated process (a decoy started by this test, outside the step) survives, that a
+# wrong start time is refused on a real process, and records the stop-tree's own timings (plan / verify / gone).
 try {
   $stopMarker = Join-Path $workDir 'STOP'
   $markerScript = Join-Path $workDir 'p4-write-stop.ps1'
   Set-Content -LiteralPath $markerScript -Encoding ASCII -Value ("Start-Sleep -Seconds 3; Set-Content -LiteralPath '" + $stopMarker + "' -Value 'test stop'")
+  $pingExe = Join-Path $env:SystemRoot 'System32\PING.EXE'
+  $decoy = Start-Process -FilePath $pingExe -ArgumentList '-n 300 127.0.0.1' -WindowStyle Hidden -PassThru
+  $decoyCreated = (Get-CimInstance Win32_Process -Filter "ProcessId=$($decoy.Id)").CreationDate.ToString('o')
   $markerWriter = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList (ConvertTo-G0ArgLine @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $markerScript)) -WindowStyle Hidden -PassThru
   $stopCalls = @()
-  $blocked = Invoke-G0Bounded -Name 'p4-blocked-step' -FilePath (Join-Path $env:SystemRoot 'System32\PING.EXE') -ArgumentValues @('-n', '120', '127.0.0.1') -WorkingDirectory $workDir -LogDir $workDir -TimeoutSec 90 -StopFile $stopMarker -OnAbort {
+  $stopTreeRun = $null
+  $blocked = Invoke-G0Bounded -Name 'p4-blocked-step' -FilePath $pingExe -ArgumentValues @('-n', '120', '127.0.0.1') -WorkingDirectory $workDir -LogDir $workDir -TimeoutSec 90 -StopFile $stopMarker -OnAbort {
     param($ChildPid, $ChildCreated, $Why)
     $script:stopCalls += $ChildPid
-    $null = Invoke-Node 'p4-stop-tree' @($supervisorScript, 'stop-tree', '--root', "$ChildPid", '--root-created', $ChildCreated, '--not-before', $testStart, '--g0-dir', $workDir, '--out', $workDir, '--reason', $Why) 60
+    $script:stopTreeRun = Invoke-Node 'p4-stop-tree' @($supervisorScript, 'stop-tree', '--root', "$ChildPid", '--root-created', $ChildCreated, '--not-before', $testStart, '--g0-dir', $workDir, '--out', $workDir, '--reason', $Why) 60
   }
+  $returnedAt = Get-Date
+  $stopToReturn = [math]::Round(($returnedAt - (Get-Item -LiteralPath $stopMarker).LastWriteTime).TotalSeconds, 1)
   Start-Sleep -Seconds 1
   $stillThere = $null -ne (Get-Process -Id $blocked.childPid -ErrorAction SilentlyContinue)
-  $passed = ($null -ne $markerWriter) -and ($blocked.status -eq 'STOPPED') -and ($blocked.seconds -le 15) -and (-not $stillThere) -and ($stopCalls.Count -eq 1)
-  Add-Outcome 'P4' 'STOP propagates during a blocked step; its own process stopped via verified stop-tree' $passed ([ordered]@{ status = $blocked.status; seconds = $blocked.seconds; reason = $blocked.reason; childStillRunning = $stillThere })
+  $treeTimings = $null
+  $treeRecord = Get-ChildItem -LiteralPath $workDir -Filter ("stop-tree-{0}-*.json" -f $blocked.childPid) | Select-Object -First 1
+  if ($treeRecord) { $treeTimings = (Get-Content -LiteralPath $treeRecord.FullName -Raw | ConvertFrom-Json).executed.timings }
+  # A real process with a WRONG start time (as after PID reuse) must be refused - the decoy keeps running.
+  $wrongTime = Invoke-Node 'p4-wrong-start-time' @($supervisorScript, 'stop-tree', '--root', "$($decoy.Id)", '--root-created', '2020-01-01T00:00:00.0000000+07:00', '--not-before', $testStart, '--g0-dir', $workDir, '--out', $workDir, '--reason', 'p4 wrong start time') 60
+  $wrongPlan = (Get-Content -LiteralPath $wrongTime.stdout -Raw | ConvertFrom-Json).plan
+  $decoyAlive = ($null -ne (Get-Process -Id $decoy.Id -ErrorAction SilentlyContinue))
+  # Cleanup of the test's own decoy through the same verified path (correct identity) - no process left behind.
+  $cleanup = Invoke-Node 'p4-cleanup-decoy' @($supervisorScript, 'stop-tree', '--root', "$($decoy.Id)", '--root-created', $decoyCreated, '--not-before', $testStart, '--g0-dir', $workDir, '--out', $workDir, '--reason', 'p4 cleanup of the test decoy') 60
+  Start-Sleep -Seconds 1
+  $decoyGone = ($null -eq (Get-Process -Id $decoy.Id -ErrorAction SilentlyContinue))
+  $passed = ($null -ne $markerWriter) -and ($blocked.status -eq 'STOPPED') -and ($blocked.seconds -le 15) -and ($stopToReturn -le 10) -and (-not $stillThere) -and ($stopCalls.Count -eq 1) -and
+    ($null -ne $stopTreeRun) -and ($stopTreeRun.status -eq 'OK') -and ($stopTreeRun.exit -eq 0) -and ($null -ne $treeTimings) -and
+    (@($wrongPlan.stop).Count -eq 0) -and ("$(@($wrongPlan.refused)[0].reason)" -match 'start time differs') -and $decoyAlive -and ($cleanup.exit -eq 0) -and $decoyGone
+  Add-Outcome 'P4' 'STOP during a blocked step: own process stopped via verified stop-tree; decoy untouched; wrong start time refused' $passed ([ordered]@{
+      status = $blocked.status; seconds = $blocked.seconds; stopToReturnSeconds = $stopToReturn; reason = $blocked.reason; childStillRunning = $stillThere
+      stopTreeSeconds = $(if ($stopTreeRun) { $stopTreeRun.seconds } else { $null }); stopTreeExit = $(if ($stopTreeRun) { $stopTreeRun.exit } else { $null }); stopTreeTimingsMs = $treeTimings
+      wrongStartTimeRefused = "$(@($wrongPlan.refused)[0].reason)"; decoyAliveAfterRefusal = $decoyAlive; decoyCleanedUp = $decoyGone })
 } catch { Add-Outcome 'P4' 'STOP propagation' $false $_.Exception.Message }
 
 # P5 - production protection: the supervisor PLANS (never acts) against the PM2 daemon and the shared postmaster.
@@ -123,10 +147,25 @@ try {
   Add-Outcome 'P7' 'EP48.5 Node suites on Windows (loopback-only guard, concurrency 2): 0 fail, 0 skipped, 0 non-loopback attempts' $passed ([ordered]@{ files = $suiteFiles; counts = $count; nonLoopbackAttempts = $violations })
 } catch { Add-Outcome 'P7' 'Node suites on Windows' $false $_.Exception.Message }
 
+# P8 - no process leak: nothing this harness started is still running (its own children, anything naming its work
+# folder, any ping.exe to 127.0.0.1 started since the harness began). Waits up to 20 s for P3's short ping to end.
+try {
+  $leaks = @()
+  for ($waitRound = 0; $waitRound -lt 20; $waitRound++) {
+    $leaks = @(Get-CimInstance Win32_Process | Where-Object {
+        $_.ProcessId -ne $PID -and $_.CreationDate -and $_.CreationDate -ge [datetime]$testStart -and $_.Name -ne 'conhost.exe' -and
+        ($_.ParentProcessId -eq $PID -or "$($_.CommandLine)" -like "*$workDir*" -or ($_.Name -eq 'PING.EXE' -and "$($_.CommandLine)" -match '127\.0\.0\.1'))
+      } | ForEach-Object { "$($_.ProcessId) $($_.Name) $($_.CommandLine)" })
+    if (-not $leaks.Count) { break }
+    Start-Sleep -Seconds 1
+  }
+  Add-Outcome 'P8' 'no process leak after the harness (its children, work-folder processes, its ping.exe)' ($leaks.Count -eq 0) ([ordered]@{ leftRunning = $leaks })
+} catch { Add-Outcome 'P8' 'no process leak' $false $_.Exception.Message }
+
 $allPassed = @($outcomes | Where-Object { -not $_.pass }).Count -eq 0
-[ordered]@{ tool = 'EP48.5 Test-G0Harness (PowerShell 5.1)'; at = (Get-Date).ToString('o'); psVersion = "$($PSVersionTable.PSVersion)"; node = (& $nodePath -v); result = $(if ($allPassed) { 'PASS' } else { 'FAIL' }); tests = $outcomes } |
+[ordered]@{ tool = 'EP48.5 Test-G0Harness (PowerShell 5.1)'; at = (Get-Date).ToString('o'); gate = $(if ($allPassed) { 'CLEAR' } else { 'BLOCK' }); psVersion = "$($PSVersionTable.PSVersion)"; node = (& $nodePath -v); result = $(if ($allPassed) { 'PASS' } else { 'FAIL' }); tests = $outcomes } |
   ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $reportDir 'harness-test.json') -Encoding UTF8
 Copy-Item -Path (Join-Path $workDir '*') -Destination $reportDir -Recurse -Force -ErrorAction SilentlyContinue   # copy, never move
 Write-Host ''
-Write-Host ("HARNESS TESTS: {0} - report {1}" -f $(if ($allPassed) { 'PASS' } else { 'FAIL' }), $reportDir)
+Write-Host ("HARNESS TESTS: {0} - report {1}" -f $(if ($allPassed) { 'PASS' } else { 'FAIL (BLOCK)' }), $reportDir)
 if ($allPassed) { exit 0 } else { exit 1 }

@@ -13,8 +13,10 @@
 //   node g0-supervisor.mjs plan-stop-tree   --root <pid> --root-created <iso> --not-before <iso> --g0-dir <G0>        (plan only)
 //   node g0-supervisor.mjs stop-tree        --root <pid> --root-created <iso> --not-before <iso> --g0-dir <G0> --out <G0\g0> --reason <text>
 //
-// Nothing here listens, connects to PostgreSQL or deletes anything. Processes are stopped only by `stop-tree`: one
-// re-verified PID at a time, never a protected production process, never PostgreSQL (pg_ctl stop does that).
+// Nothing here listens, connects to PostgreSQL or deletes anything. Processes are stopped only by `stop-tree`: each
+// PID re-verified (start time) right before it is stopped, never a protected production process, never PostgreSQL
+// (pg_ctl stop does that). C-A0.2 P4 fix: stop-tree plans from ONE process-only snapshot, verifies all targets with
+// ONE filtered identity query and then polls cheap liveness - it no longer takes a full Windows snapshot per PID.
 // Test hooks (`--facts-module`, `--interval-ms`, `--ack-timeout-ms`) exist for the unit tests; the runner never passes
 // them (g0-preflight.mjs C2 checks it).
 import { spawnSync } from "node:child_process";
@@ -348,14 +350,27 @@ export function planStopTree({ facts, rootPid, rootCreated, notBefore, g0Dir }) 
   }
   return { stop, refused, rootFound: true };
 }
-/** Executes a plan: each PID is re-verified (same start time) on fresh facts right before it is stopped. */
-export async function executeStopTree(plan, { collectFacts, kill, sleep, waitMs = 10_000 }) {
+/**
+ * Executes a plan with a bounded, deterministic cost (C-A0.2 P4 fix):
+ *   1. ONE identity query for all targets (PID → start time) immediately before stopping;
+ *   2. every target whose start time still matches is stopped (deepest first); a missing PID is "already ended", a
+ *      different start time is a reused PID and is never touched;
+ *   3. cheap liveness polling (`isAlive`, no snapshot) every `pollMs` until all are gone or `waitMs` has passed;
+ *   4. only if some still look alive: ONE more identity query, so a PID reused meanwhile is not reported as a survivor.
+ * deps: { identify(pids) → [{ pid, created }], kill(pid), isAlive(pid), sleep(ms), now() }
+ */
+export async function executeStopTree(plan, { identify, kill, isAlive, sleep, now = () => Date.now(), waitMs = 10_000, pollMs = 250 }) {
+  const t0 = now();
   const results = [];
+  if (!plan.stop.length) return { results, survivors: [], timings: { verifyMs: 0, goneMs: 0, totalMs: 0 } };
+  const startTimes = async (pids) => new Map(asArray(await identify(pids)).map((p) => [toInt(p?.pid), String(p?.created ?? "")]));
+  const current = await startTimes(plan.stop.map((t) => t.pid));
+  const verifyMs = now() - t0;
+  const requested = [];
   for (const target of plan.stop) {
-    const fresh = normalizeFacts(await collectFacts());
-    const now = fresh.processes.find((p) => p.pid === target.pid);
-    if (!now) results.push({ pid: target.pid, result: "already ended" });
-    else if (!sameInstant(now.created, target.created)) results.push({ pid: target.pid, result: "skipped: PID reused" });
+    const created = current.get(target.pid);
+    if (created === undefined) results.push({ pid: target.pid, result: "already ended" });
+    else if (!sameInstant(created, target.created)) results.push({ pid: target.pid, result: "skipped: PID reused (start time differs)" });
     else {
       try {
         kill(target.pid);
@@ -363,21 +378,30 @@ export async function executeStopTree(plan, { collectFacts, kill, sleep, waitMs 
       } catch (e) {
         results.push({ pid: target.pid, result: `stop failed: ${e.code ?? e.message}` });
       }
+      requested.push(target);
     }
   }
-  let survivors = [];
-  for (let waited = 0; waited <= waitMs; waited += 500) {
-    const after = normalizeFacts(await collectFacts());
-    survivors = plan.stop.filter((t) => after.processes.some((p) => p.pid === t.pid && sameInstant(p.created, t.created))).map((t) => t.pid);
-    if (!survivors.length) break;
-    await sleep(500);
+  const t1 = now();
+  let alive = requested.filter((t) => isAlive(t.pid));
+  while (alive.length && now() - t1 < waitMs) {
+    await sleep(pollMs);
+    alive = alive.filter((t) => isAlive(t.pid));
   }
-  return { results, survivors };
+  const goneMs = now() - t1;
+  let survivors = [];
+  if (alive.length) {
+    const again = await startTimes(alive.map((t) => t.pid));
+    survivors = alive.filter((t) => again.has(t.pid) && sameInstant(again.get(t.pid), t.created)).map((t) => t.pid);
+  }
+  return { results, survivors, timings: { verifyMs, goneMs, totalMs: now() - t0 } };
 }
 
 // ---------------------------------------------------------------- I/O (Windows facts, HTTP probe)
-export function collectFactsWindows({ factsScript = FACTS_SCRIPT, timeoutMs = 60_000 } = {}) {
-  const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", factsScript], { encoding: "utf8", timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+/** scope: "full" (monitor), "processes" (stop-tree planning) or "identity" (only `pids`: one filtered query). */
+export function collectFactsWindows({ factsScript = FACTS_SCRIPT, timeoutMs = 60_000, scope = "full", pids = [] } = {}) {
+  const args = ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", factsScript, "-Scope", scope];
+  if (scope === "identity") args.push("-ProcessIds", pids.filter(Number.isInteger).join(","));
+  const r = spawnSync("powershell.exe", args, { encoding: "utf8", timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
   if (r.error || r.status !== 0) throw new Error(`g0-facts.ps1 failed (${r.error?.code ?? `exit ${r.status}`})`);
   return JSON.parse(String(r.stdout).replace(/^﻿/, ""));
 }
@@ -536,17 +560,29 @@ function argOf(argv, name) {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 ? argv[i + 1] : undefined;
 }
+/** Facts sources: Windows (g0-facts.ps1) or, for the unit tests only, `--facts-module` (may also export identifyProcesses / isAlive). */
 async function loadFacts(argv) {
   const mod = argOf(argv, "facts-module");
   if (mod) {
     const m = await import(pathToFileURL(path.resolve(mod)).href);
-    return () => m.collectFacts();
+    return {
+      collect: () => m.collectFacts({ scope: "full" }),
+      collectProcesses: () => m.collectFacts({ scope: "processes" }),
+      identify: m.identifyProcesses ? (pids) => m.identifyProcesses(pids) : async (pids) => asArray((await m.collectFacts({ scope: "processes" })).processes).filter((p) => pids.includes(toInt(p.pid))),
+      isAlive: m.isAlive ?? isAliveDefault,
+    };
   }
-  return async () => collectFactsWindows();
+  return {
+    collect: async () => collectFactsWindows({ scope: "full" }),
+    collectProcesses: async () => collectFactsWindows({ scope: "processes" }),
+    identify: async (pids) => asArray(collectFactsWindows({ scope: "identity", pids }).processes),
+    isAlive: isAliveDefault,
+  };
 }
 async function main(argv) {
   const cmd = argv[0];
-  const collect = await loadFacts(argv);
+  const sources = await loadFacts(argv);
+  const collect = sources.collect;
   const say = (o) => process.stdout.write(`${JSON.stringify(o)}\n`);
   if (cmd === "monitor") {
     const opts = {
@@ -574,13 +610,16 @@ async function main(argv) {
     return r.ok ? 0 : 1;
   }
   if (cmd === "plan-stop-tree" || cmd === "stop-tree") {
-    const facts = normalizeFacts(await collect());
+    const tPlan = Date.now();
+    const facts = normalizeFacts(await sources.collectProcesses());
     const plan = planStopTree({ facts, rootPid: toInt(argOf(argv, "root")), rootCreated: argOf(argv, "root-created"), notBefore: argOf(argv, "not-before"), g0Dir: argOf(argv, "g0-dir") });
     if (cmd === "plan-stop-tree") {
       say({ plan });
       return plan.refused.length ? 3 : 0;
     }
-    const executed = await executeStopTree(plan, { collectFacts: collect, kill: (pid) => process.kill(pid), sleep: (ms) => new Promise((r) => setTimeout(r, ms)) });
+    const planMs = Date.now() - tPlan;
+    const executed = await executeStopTree(plan, { identify: sources.identify, isAlive: sources.isAlive, kill: (pid) => process.kill(pid), sleep: (ms) => new Promise((r) => setTimeout(r, ms)) });
+    executed.timings = { planMs, ...executed.timings };
     const record = { at: new Date().toISOString(), reason: argOf(argv, "reason") ?? "", root: toInt(argOf(argv, "root")), plan, executed };
     const out = argOf(argv, "out");
     if (out && fs.existsSync(out)) fs.writeFileSync(path.join(out, `stop-tree-${record.root}-${Date.now()}.json`), `${JSON.stringify(record, null, 2)}\n`);

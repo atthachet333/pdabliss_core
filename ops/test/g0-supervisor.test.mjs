@@ -14,7 +14,7 @@ import {
   LIMITS, buildHttpBaseline, evaluateRound, evaluateTempPg, finalComparison, freshFindings, g0ProcessIds, identifyProduction,
   latencyLimit, normalizeFacts, normalizeHttpBaseline, planStopTree, executeStopTree, probeHost, runMonitor, toInt, validateBaseline, validateHttpBaseline,
 } from "../ep48_5/g0-supervisor.mjs";
-import { createdOf } from "./g0-fixtures/test-facts.mjs";
+import { createdOf, isAlive as testIsAlive, realProcesses } from "./g0-fixtures/test-facts.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..", "..");
@@ -382,7 +382,7 @@ test("R12 production PIDs (PM2 daemon and children, shared postmaster, MariaDB, 
   // The runner itself (wrong start time = reused PID) is refused; the executor never touches refused PIDs.
   assert.match(planStopTree({ facts, rootPid: 23604, rootCreated: "2026-11-17T13:00:00Z", notBefore: nb, g0Dir: G0_DIR }).refused[0].reason, /PID reused/);
   const killed = [];
-  await executeStopTree({ stop: [], refused: [{ pid: 2228 }] }, { collectFacts: async () => ({ processes: [] }), kill: (p) => killed.push(p), sleep: async () => {}, waitMs: 0 });
+  await executeStopTree({ stop: [], refused: [{ pid: 2228 }] }, { identify: async () => [], isAlive: () => true, kill: (p) => killed.push(p), sleep: async () => {}, waitMs: 0 });
   assert.deepEqual(killed, []);
   // The CLI's plan command has no action path at all.
   const src = read(SUPERVISOR);
@@ -400,4 +400,108 @@ test("findings are de-duplicated by condition; final comparison sees production 
   const restarted = { ...incidentFacts(), processes: incidentFacts().processes.map((p) => (p.pid === 7712 ? { ...p, created: "2026-11-17T14:00:00Z" } : p)) };
   assert.ok(finalComparison({ baseline: b, facts: restarted, probes: healthyProbes(b), ctx: { tempPgPort: 55443, g0Dir: G0_DIR } }).includes("production PM2 tree changed"));
   assert.ok(LIMITS.intervalMs === 15000 && LIMITS.ackTimeoutMs === 300000);
+});
+
+// ---------------------------------------------------------------- R13 C-A0.2 P4: bounded, deterministic stop-tree cost
+// Root cause of the Windows harness P4 failure: stop-tree took a FULL Windows snapshot (all processes, TCP tables,
+// performance counters, volume; ~2.5 s each on S2A-SERVER) to plan, then another one PER target PID, then more while
+// waiting - 14 s from STOP to termination for ONE process, growing with every process in a step's tree.
+function fakeTargets(n) {
+  return Array.from({ length: n }, (_, i) => ({ pid: 9000 + i, name: "node.exe", created: `2026-11-17T13:50:${String(i).padStart(2, "0")}.000Z` }));
+}
+function fakeHost(targets, { snapshotMs = 2500 } = {}) {
+  const host = { clock: 0, alive: new Set(targets.map((t) => t.pid)), identifyCalls: [], killed: [], ignoresKill: new Set(), startTimes: new Map(targets.map((t) => [t.pid, t.created])) };
+  host.deps = {
+    now: () => host.clock,
+    sleep: async (ms) => {
+      host.clock += ms;
+    },
+    identify: async (pids) => {
+      host.identifyCalls.push([...pids]);
+      host.clock += snapshotMs;
+      return pids.filter((p) => host.alive.has(p)).map((p) => ({ pid: p, created: host.startTimes.get(p) }));
+    },
+    kill: (p) => {
+      host.killed.push(p);
+      if (!host.ignoresKill.has(p)) host.alive.delete(p);
+    },
+    isAlive: (p) => host.alive.has(p),
+  };
+  return host;
+}
+test("R13 stop-tree verifies ALL targets with ONE identity query, stops only verified PIDs, then polls liveness (no snapshot per PID)", async () => {
+  const targets = fakeTargets(12);
+  const host = fakeHost(targets);
+  host.alive.add(4242); // an unrelated process: not in the plan
+  const r = await executeStopTree({ stop: targets }, { ...host.deps, waitMs: 10_000, pollMs: 250 });
+  assert.equal(host.identifyCalls.length, 1, "one identity query for 12 targets (the old code took 12+ full snapshots)");
+  assert.deepEqual(host.identifyCalls[0], targets.map((t) => t.pid));
+  assert.deepEqual(host.killed, targets.map((t) => t.pid), "every verified target, in plan order (deepest first)");
+  assert.ok(host.alive.has(4242) && !host.killed.includes(4242), "no unrelated process is touched");
+  assert.deepEqual(r.survivors, []);
+  assert.equal(r.timings.totalMs, 2500, "cost = one identity query; no waiting when all are gone");
+});
+test("R13b PID reuse and start time: a reused PID is never stopped; a PID reused after the stop is not reported as a survivor", async () => {
+  const targets = fakeTargets(3);
+  const host = fakeHost(targets);
+  host.startTimes.set(9001, "2026-11-17T15:00:00.000Z"); // 9001 now belongs to a different (newer) process
+  const r = await executeStopTree({ stop: targets }, { ...host.deps, waitMs: 1000 });
+  assert.deepEqual(host.killed, [9000, 9002]);
+  assert.deepEqual(r.results.find((x) => x.pid === 9001).result, "skipped: PID reused (start time differs)");
+  assert.ok(host.alive.has(9001), "the process that now owns PID 9001 keeps running");
+  const host2 = fakeHost(fakeTargets(1));
+  host2.deps.kill = (p) => {
+    host2.killed.push(p);
+    host2.startTimes.set(p, "2026-11-17T16:00:00.000Z"); // ended, and the PID was immediately reused
+  };
+  const r2 = await executeStopTree({ stop: fakeTargets(1) }, { ...host2.deps, waitMs: 1000, pollMs: 250 });
+  assert.deepEqual(r2.survivors, [], "a reused PID is not a survivor of ours");
+  assert.equal(host2.identifyCalls.length, 2, "a second identity query only because something still looked alive");
+});
+test("R13c deterministic timeout: a target that ignores the stop is reported as a survivor after exactly waitMs (→ non-zero exit, BLOCK)", async () => {
+  const targets = fakeTargets(2);
+  const host = fakeHost(targets);
+  host.ignoresKill.add(9001);
+  const r = await executeStopTree({ stop: targets }, { ...host.deps, waitMs: 4000, pollMs: 250 });
+  assert.deepEqual(r.survivors, [9001]);
+  assert.equal(r.timings.goneMs, 4000);
+  assert.equal(r.timings.totalMs, 2500 + 4000 + 2500, "one query, the bounded wait, one confirming query - nothing unbounded");
+  const src = read(SUPERVISOR);
+  assert.match(src, /return executed\.survivors\.length \? 1 : 0;/, "survivors make stop-tree exit 1, which the runner records");
+});
+test("R13d real processes: a 6-process step tree is stopped with 1 process-only snapshot + 1 identity query; an unrelated decoy survives; nothing leaks", async () => {
+  const notBefore = new Date(Date.now() - 5000).toISOString();
+  const chain = 'const d = Number(process.argv[1]); if (d > 0) require("node:child_process").spawn(process.execPath, ["-e", process.env.G0_CHAIN, String(d - 1)], { stdio: "ignore" }); setTimeout(() => {}, 60000);';
+  const root = spawn(process.execPath, ["-e", chain, "5"], { stdio: "ignore", env: { ...process.env, G0_CHAIN: chain } });
+  const decoy = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" });
+  const treeOf = () => {
+    const procs = realProcesses();
+    const ids = new Set([root.pid]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const p of procs) if (ids.has(Number(p.parent)) && !ids.has(Number(p.pid))) ids.add(Number(p.pid)), (grew = true);
+    }
+    return [...ids].filter((id) => procs.some((p) => Number(p.pid) === id));
+  };
+  try {
+    assert.ok(await waitFor(() => treeOf().length === 6 && createdOf(decoy.pid), 20_000), "6-process tree started");
+    const tree = treeOf();
+    const out = tmp("g0-r13d-");
+    const counter = path.join(out, "facts-calls.txt");
+    const started = Date.now();
+    const r = spawnSync(process.execPath, [SUPERVISOR, "stop-tree", "--root", String(root.pid), "--root-created", createdOf(root.pid), "--not-before", notBefore, "--g0-dir", out, "--out", out, "--reason", "R13d", "--facts-module", TEST_FACTS], { encoding: "utf8", timeout: 60_000, env: { ...process.env, G0_TEST_FACTS_COUNTER: counter } });
+    const elapsed = Date.now() - started;
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const record = JSON.parse(r.stdout.trim().split("\n").pop());
+    assert.equal(record.plan.stop.length, 6);
+    assert.deepEqual(record.executed.survivors, []);
+    assert.deepEqual(read(counter).trim().split("\n"), ["processes", "identity"], "one process-only snapshot to plan, one identity query to verify");
+    for (const k of ["planMs", "verifyMs", "goneMs", "totalMs"]) assert.ok(Number.isFinite(record.executed.timings[k]), `timing ${k} recorded`);
+    assert.ok(elapsed < 20_000, `bounded (${elapsed} ms)`);
+    assert.deepEqual(tree.filter((id) => testIsAlive(id)), [], "no process of the tree is left (no leak)");
+    assert.ok(testIsAlive(decoy.pid), "the unrelated decoy is not touched");
+  } finally {
+    decoy.kill();
+    root.kill();
+  }
 });

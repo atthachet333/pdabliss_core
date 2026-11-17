@@ -253,7 +253,8 @@ async function startMonitor({ statusOf, ackTimeoutMs = 60_000 }) {
   let stderr = "";
   monitor.stderr.on("data", (d) => (stderr += d));
   const exited = new Promise((resolve) => monitor.on("exit", (code) => resolve(code)));
-  return { server, out, runner, monitor, exited, stderr: () => stderr };
+  const exitedWith = new Promise((resolve) => monitor.on("exit", (code, signal) => resolve({ code, signal })));
+  return { server, out, runner, monitor, exited, exitedWith, stderr: () => stderr };
 }
 test("R10 the monitor ends by itself when the runner process ends, and still writes the final I5 comparison", async () => {
   const m = await startMonitor({ statusOf: () => 200 });
@@ -543,14 +544,19 @@ test("R14c a stop request is logged and fails closed (STOP raised); a terminatio
     assert.ok(await waitFor(() => fs.existsSync(path.join(m.out, "baseline.json")), 30_000), m.stderr());
     await sleep(300);
     m.monitor.kill("SIGTERM");
-    const code = await Promise.race([m.exited, sleep(30_000).then(() => "timeout")]);
+    const ended = await Promise.race([m.exitedWith, sleep(30_000).then(() => "timeout")]);
     const log = read(path.join(m.out, "monitor.log"));
     if (process.platform === "win32") {
-      // On Windows every Node kill is TerminateProcess: no handler runs - the silent signature seen in G0 run 2.
-      assert.equal(code, 1);
+      // On Windows a Node kill is TerminateProcess (OS exit code 1): no handler runs - the silent signature seen in
+      // G0 run 2. Node reports such an end as code null + the signal it was asked to send (Windows harness
+      // harness-test-20261117-170714 P7: "null !== 1" - the C-A0.3 expectation of code 1 was wrong).
+      assert.deepEqual(ended, { code: null, signal: "SIGTERM" });
+      assert.match(log, /monitor started/, "the monitor was running and logging before it was terminated");
       assert.doesNotMatch(log, /exit code/);
+      assert.doesNotMatch(log, /received SIGTERM/);
+      assert.ok(!fs.existsSync(path.join(m.out, "STOP")) || !/monitor: received/.test(read(path.join(m.out, "STOP"))), "no STOP from the monitor itself");
     } else {
-      assert.equal(code, 143);
+      assert.deepEqual(ended, { code: 143, signal: null });
       assert.match(log, /received SIGTERM - ending \(STOP raised\)/);
       assert.match(log, /exit code 143/);
       assert.match(read(path.join(m.out, "STOP")), /monitor: received SIGTERM/);

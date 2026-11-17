@@ -10,7 +10,9 @@
 //   C1 constants      the guard and the runner both target 127.0.0.1:55443 only
 //   C2 runner         every step goes through g0-guard.mjs; no DATABASE_URL / PG* / NODE_OPTIONS assignment; no 5432;
 //                     no database tool outside the guard; nothing deleted; preflight runs first; instance identity recorded
-//   C3 monitor        a non-loopback listener by any G0 process stops G0 at once
+//   C3 supervisor     incident replay: the 2026-11-17 baseline and a healthy round give 0 findings; a production port on
+//                     0.0.0.0 is NOT a temporary-instance finding; 55443 on 0.0.0.0 IS; the retired PS monitor is gone
+//   C10 PowerShell    one spelling per variable, no loop / assignment reusing a script parameter (incident cause 1)
 //   C4 harness URLs   every connection string in the harness and the guard targets port 55443 (marked refusal fixtures excepted)
 //   C5 backend Prisma every Prisma CLI call in the backend test setup passes DATABASE_URL explicitly
 //   C6 listeners      no test / harness file listens on a wildcard address, without an address, or on a bare port
@@ -22,23 +24,31 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { G0, OPS_TEST_FLAGS, PRELOAD, STATIC_DATABASE_URL, childEnv, discoverOpsTests, opsTestArgs } from "./g0-guard.mjs";
+import { evaluateRound, normalizeFacts, normalizeHttpBaseline, validateHttpBaseline } from "./g0-supervisor.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ALLOW_FIXTURE = "g0-preflight: allowed-fixture";
 const ALLOW_REFUSED = "g0-preflight: refused-by-guard";
 const codeLines = (text) => text.split(/\r?\n/).map((l, i) => ({ n: i + 1, l })).filter(({ l }) => !/^\s*#/.test(l));
 
-/** C1 + C2: the runner's text. Returns a list of problems (empty = pass). */
+/** C1 + C2: the runner's text (Run-G0 v3). Returns a list of problems (empty = pass). */
 export function checkRunner(text) {
   const p = [];
   const lines = codeLines(text);
-  if (!lines.some(({ l }) => /^\s*\$Port\s*=\s*55443\s*$/.test(l))) p.push("runner: $Port is not 55443");
+  const allowedPhaseFiles = /-FilePath\s+(\$script:NodeExe\s+-ArgumentValues\s+@\(\$Supervisor,|\$script:GitExe\b|\(Join-Path \$PgBin '(initdb|pg_ctl|pg_controldata)\.exe'\)|\$script:PowerShellExe\s+-ArgumentValues\s+@\('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', \(Join-Path \$(HarnessDir 'Preflight-G0|Dev 'ops\\ep48_5\\Collect-HostAudit)\.ps1'\))/;
+  if (!lines.some(({ l }) => /^\s*\$TempPgPort\s*=\s*55443\s*$/.test(l))) p.push("runner: $TempPgPort is not 55443");
   for (const { n, l } of lines) {
-    if (/\bStep\s+'/.test(l) && !/^\s*function\s+Step\b/.test(l)) {
-      if (!/^\s*Step\s+'[a-z0-9-]+'\s+\$nodeExe\s+@\(\$guard,\s*'(exec|check|create-test-db|backend-tests|frontend-tests|ops-tests)'/.test(l))
-        p.push(`runner line ${n}: a step that does not run through g0-guard.mjs`);
-      if (/'exec'/.test(l) && !/'--target',\s*'(none|static|test)'/.test(l)) p.push(`runner line ${n}: an exec step without an explicit --target`);
+    if (/^\s*Step\s+'/.test(l)) {
+      if (!/^\s*Step\s+'[a-z0-9-]+'\s+@\('(exec|check|create-test-db|backend-tests|frontend-tests|ops-tests)'/.test(l)) p.push(`runner line ${n}: a project step that does not run through g0-guard.mjs`);
+      if (/@\('exec'/.test(l) && !/'--target',\s*'(none|static|test)'/.test(l)) p.push(`runner line ${n}: an exec step without an explicit --target`);
     }
+    if (/Invoke-G0Phase\s+-Name\s+'/.test(l) && !allowedPhaseFiles.test(l)) p.push(`runner line ${n}: an infrastructure phase runs a program outside the allow-list`);
+    if (/\*>|\s2>&1|\s>\s*\$|\bOut-File\b/.test(l)) p.push(`runner line ${n}: output redirection of a program (a pipe can block the runner; use Invoke-G0Bounded)`);
+    if (/^\s*(\$\w+\s*=\s*)?Native\b/.test(l)) p.push(`runner line ${n}: the retired Native helper (pipe capture) is used`);
+    if (/\bStart-Job\b|\btaskkill\b|\bStop-Process\b|\.Kill\(/i.test(l)) p.push(`runner line ${n}: background job or direct process termination (only g0-supervisor.mjs stop-tree may stop a process)`);
+    if (/\bStart-Process\b/.test(l) && !/\$Supervisor, 'monitor'|\$monitorArgLine/.test(l)) p.push(`runner line ${n}: Start-Process outside Invoke-G0Bounded (only the monitor is started directly)`);
+    if (/--facts-module|--interval-ms|--ack-timeout-ms/.test(l)) p.push(`runner line ${n}: a supervisor test hook is used`);
+    if (/\$PgBin\b/.test(l) && !/Invoke-G0Phase -Name '|'-PgBin', \$PgBin|^\s*\[string\]\$PgBin\s*=/.test(l)) p.push(`runner line ${n}: a PostgreSQL program is used outside the bounded helper (Invoke-G0Phase)`);
     if (/\$env:(DATABASE_URL|DIRECT_URL|SHADOW_DATABASE_URL|NODE_OPTIONS|PG[A-Za-z_]+)\s*=/i.test(l)) p.push(`runner line ${n}: sets a database / PG* / NODE_OPTIONS variable directly`);
     if (/\b5432\b/.test(l)) p.push(`runner line ${n}: mentions port 5432 outside a comment`);
     if (/\b(createdb|dropdb|psql|pg_restore|pg_dump)(\.exe)?\b/i.test(l)) p.push(`runner line ${n}: a database tool outside the guard`);
@@ -48,20 +58,67 @@ export function checkRunner(text) {
     if (/DROP\s+(DATABASE|SCHEMA|ROLE|TABLE)/i.test(l)) p.push(`runner line ${n}: a DROP statement`);
   }
   const firstStep = lines.find(({ l }) => /^\s*Step\s+'/.test(l));
-  const preflight = lines.find(({ l }) => /Preflight-G0\.ps1/.test(l) && !/^\s*\$\w+\s*=\s*'/.test(l));
+  const preflight = lines.find(({ l }) => /Invoke-G0Phase -Name 'preflight'/.test(l));
+  const monitorStart = lines.find(({ l }) => /\$script:MonitorProc = Start-Process/.test(l));
   if (!preflight || (firstStep && preflight.n > firstStep.n)) p.push("runner: Preflight-G0.ps1 is not run before the first step");
+  if (!monitorStart || (firstStep && monitorStart.n > firstStep.n)) p.push("runner: the supervisor monitor is not started before the first step");
+  if (!lines.some(({ l }) => /\$monitorBaseline\.valid -ne \$true/.test(l))) p.push("runner: an invalid monitor baseline does not stop G0");
   if (!lines.some(({ l }) => /\$env:CORE_G0_PG_SYSID\s*=/.test(l)) || !lines.some(({ l }) => /pg_controldata\.exe/.test(l)))
     p.push("runner: the temporary instance's system identifier is not recorded from pg_controldata");
+  if (!lines.some(({ l }) => /Invoke-G0Phase -Name 'temp-pg-start' -FilePath \(Join-Path \$PgBin 'pg_ctl\.exe'\)/.test(l))) p.push("runner: pg_ctl start is not run through the bounded helper");
+  if (!lines.some(({ l }) => /'temp-pg-identity-before-stop'/.test(l)) || !lines.some(({ l }) => /'temp-pg-stop'.*'stop', '-m', 'fast'/.test(l))) p.push("runner: the temporary PostgreSQL is not stopped with a verified, graceful pg_ctl stop");
   return p;
 }
 
-/** C3: a G0 process listening on a non-loopback address must stop G0 in the same round. */
-export function checkMonitor(text) {
-  const lines = codeLines(text).map(({ l }) => l).join("\n");
+/** C3: the supervisor replays the incident correctly (pure functions, no I/O). */
+export function checkSupervisor({ src }) {
   const p = [];
-  if (!/if \(\$exposed\.Count\) \{ Breach /.test(lines)) p.push("monitor: a non-loopback G0 listener does not stop G0 immediately");
-  if (/strikesExpose/.test(lines)) p.push("monitor: a non-loopback G0 listener is tolerated for more than one round");
-  if (!/RemotePort 5432/.test(lines)) p.push("monitor: connections to port 5432 are not watched");
+  if (fs.existsSync(path.join(src, "ops", "ep48_5", "g0-harness", "g0-monitor.ps1"))) p.push("the retired PowerShell monitor g0-monitor.ps1 is still present");
+  const fx = path.join(src, "ops", "test", "g0-fixtures", "incident-20261117");
+  const legacy = JSON.parse(fs.readFileSync(path.join(fx, "baseline.json"), "utf8").replace(/^\uFEFF/, ""));
+  const facts = normalizeFacts(JSON.parse(fs.readFileSync(path.join(fx, "facts.json"), "utf8")));
+  const http = normalizeHttpBaseline(legacy.http, legacy.listeners);
+  p.push(...validateHttpBaseline(http).map((x) => `incident baseline: ${x}`));
+  const baseline = { tree: legacy.tree, infra: legacy.infra, http };
+  const healthy = new Map(http.map((e) => [e.appPort, { status: e.status, ms: 2 }]));
+  const ctx = { tempPgPort: 55443, g0Pids: new Set([23604, 24376, 32200, 26852, 4996]), g0Dir: "D:\\pdabliss-core-staging\\gates\\g0-20261117-134458" };
+  const r1 = evaluateRound({ baseline, facts, probes: healthy, state: {}, ctx });
+  if (r1.findings.length) p.push(`incident replay: a healthy round gave ${r1.findings.length} finding(s): ${r1.findings.map((f) => f.message).join("; ")}`);
+  const exposed = { ...facts, listeners: facts.listeners.map((l) => (l.port === 55443 ? { ...l, address: "0.0.0.0" } : l)) };
+  const r2 = evaluateRound({ baseline, facts: exposed, probes: healthy, state: {}, ctx });
+  if (!r2.findings.some((f) => f.key.startsWith("temp-pg-address"))) p.push("incident replay: 55443 on 0.0.0.0 was not detected");
+  return p;
+}
+
+/** C10: PowerShell variable-name hazards (incident cause 1). Pure text analysis; the host preflight repeats it with the AST. */
+export function psVariableProblems(text, label = "script") {
+  const p = [];
+  const code = text.replace(/<#[\s\S]*?#>/g, "").split(/\r?\n/).filter((l) => !/^\s*#/.test(l)).join("\n");
+  const spellings = new Map();
+  for (const m of code.matchAll(/\$(?:\{([^}]+)\}|((?:[A-Za-z]+:)?[A-Za-z_][A-Za-z0-9_]*))/g)) {
+    const raw = m[1] ?? m[2];
+    if (/^env:/i.test(raw)) continue;
+    const bare = raw.replace(/^(script|global|local|private|using):/i, "");
+    const lower = bare.toLowerCase();
+    if (!spellings.has(lower)) spellings.set(lower, new Set());
+    spellings.get(lower).add(bare);
+  }
+  for (const [, set] of spellings) if (set.size > 1) p.push(`${label}: one variable with several spellings: ${[...set].sort().join(" / ")}`);
+  const pm = /(^|\n)\s*(\[CmdletBinding\([^)]*\)\]\s*)?param\s*\(/i.exec(code);
+  if (pm) {
+    let depth = 0;
+    let i = pm.index + pm[0].length - 1;
+    const start = i;
+    for (; i < code.length; i++) {
+      if (code[i] === "(") depth++;
+      else if (code[i] === ")" && --depth === 0) break;
+    }
+    const block = code.slice(start, i + 1);
+    const params = new Set([...block.matchAll(/\]\s*\$([A-Za-z_]\w*)|^\(?\s*\$([A-Za-z_]\w*)|,\s*\$([A-Za-z_]\w*)/gm)].map((x) => (x[1] ?? x[2] ?? x[3]).toLowerCase()));
+    const rest = code.slice(0, pm.index) + code.slice(i + 1);
+    for (const m of rest.matchAll(/foreach\s*\(\s*\$([A-Za-z_]\w*)\s+in\b/gi)) if (params.has(m[1].toLowerCase())) p.push(`${label}: foreach variable $${m[1]} reuses a script parameter`);
+    for (const m of rest.matchAll(/\$([A-Za-z_]\w*)(?:\s*(?:=(?!=)|\+=|-=|\*=|\/=)|\+\+|--(?![\w-]|\s+\w))/g)) if (params.has(m[1].toLowerCase())) p.push(`${label}: assignment to the script parameter $${m[1]}`);
+  }
   return p;
 }
 
@@ -187,7 +244,7 @@ export function runPreflight({ src }) {
   const read = (f) => fs.readFileSync(f, "utf8");
   add("C1", "constants: 127.0.0.1:55443 only", G0.host === "127.0.0.1" && G0.port === 55443 ? [] : ["g0-guard.mjs G0 constants changed"], { host: G0.host, port: G0.port });
   add("C2", "runner routes everything through the guard", checkRunner(read(path.join(harness, "Run-G0.ps1"))));
-  add("C3", "monitor stops on any non-loopback G0 listener", checkMonitor(read(path.join(harness, "g0-monitor.ps1"))));
+  add("C3", "supervisor replays the incident correctly; PS monitor retired", checkSupervisor({ src }));
   const urlFiles = [...walk(harness, (p) => p.endsWith(".mjs")), path.join(src, "ops", "ep48_5", "g0-guard.mjs")];
   add("C4", "harness connection strings target 55443", scanConnectionStrings(urlFiles), { files: urlFiles.length });
   const bp = checkBackendPrisma(walk(path.join(src, "backend", "test"), (p) => /\.(ts|mts|js|mjs)$/.test(p)));
@@ -209,6 +266,8 @@ export function runPreflight({ src }) {
     disc.push(e.message);
   }
   add("C9", "ops test discovery is explicit", disc, { files });
+  const psFiles = [...walk(harness, (p) => p.endsWith(".ps1")), path.join(src, "ops", "ep48_5", "Collect-HostAudit.ps1")];
+  add("C10", "PowerShell: one spelling per variable, no parameter reuse", psFiles.flatMap((f) => psVariableProblems(read(f), path.basename(f))), { files: psFiles.map((f) => path.basename(f)) });
   return { tool: "EP48.5 g0-preflight (static + self-test)", ok: checks.every((c) => c.ok), checks };
 }
 

@@ -1,28 +1,32 @@
-# PDA BLISS CORE - EP48.5 A-1 / G0 runner (isolated quality validation on S2A-SERVER).
+# PDA BLISS CORE - EP48.5 A-1 / G0 runner (isolated quality validation on S2A-SERVER).    Run-G0 v3
 #
-# Owner authorization: A-1 / G0 ONLY (2026-11-17 11:28). -Release is REQUIRED: pass exactly the commit the owner approved.
+# v3 = G0 incident amendment 2026-11-17 (docs/EP48_5_G0_INCIDENT_20261117.md). Incident g0-20261117-134458:
+#   * the PowerShell monitor's loop variable `$port` overwrote its `[int]$Port` parameter (PowerShell names are
+#     case-insensitive) -> empty expected values -> false STOP at 13:49:09;
+#   * this runner blocked in `& pg_ctl.exe start *> log` (the postmaster inherited the output pipe), so it never
+#     checked STOP; the monitor job waited for MONITOR-END that never came.
+# Now: every external program runs through Invoke-G0Bounded (files, not pipes; polled STOP / monitor health /
+# deadline); the monitor is g0-supervisor.mjs (typed, unit-tested); shutdown is bounded and identity-checked.
 #
+# Owner authorization required before EVERY run. -Release and -ExpectOps are REQUIRED.
+#   * Preflight-G0.ps1 runs first; a BLOCK stops G0 before anything is created.
 #   * Everything happens in a NEW folder D:\pdabliss-core-staging\gates\g0-<timestamp> (never reused, never deleted).
 #   * One TEMPORARY PostgreSQL (plain process, not a service): 127.0.0.1:55443, SCRAM, random password in memory only.
-#   * The shared PostgreSQL (5432), PM2, MariaDB, Cloudflare, the firewall, scheduled tasks and production apps are
-#     never changed. No service, task or permanent database is created. Nothing is pushed or deployed.
-#   * Preflight-G0.ps1 runs first; a BLOCK stops G0 before anything is created.
-#   * A background monitor checks every 15 s and STOPS G0 on: a production PM2 / PostgreSQL / MariaDB / cloudflared
-#     process change, a production HTTP status change, a latency regression (2 consecutive rounds above
-#     max(1.5 x baseline, baseline + 50 ms)), CPU > 80 % for 3 rounds, free RAM < 8 GB, D: free < 10 GB, the temporary
-#     instance listening on anything but 127.0.0.1, any G0 process connected to port 5432, or ANY G0 process
-#     listening on a non-loopback address (first round).
-#   * EVERY step runs through ops\ep48_5\g0-guard.mjs (A-0.1): ambiguous inherited settings refused; an explicit
-#     database target per step (none / static / test - never Prisma's localhost:5432 fallback); host, port, database,
-#     role and the instance's system identifier (recorded from pg_controldata right after initdb) verified before any
-#     connection; the loopback-only listener guard preloaded into every process; exact counts, 0 skipped.
-#     Test concurrency: 2 (vitest forks, node --test); Rolldown threads: 2; G0 processes run at BelowNormal priority.
-#   * The harness .mjs files run from the G0 checkout of the release commit (the reviewed code).
-#   * On a stop: the running step is killed (its own process tree only), the temporary instance is stopped (not
-#     deleted), the report is written. Nothing is deleted in any case (cleanup only under A-8a).
+#   * The shared PostgreSQL, PM2, MariaDB, Cloudflare, the firewall, scheduled tasks and production apps are never
+#     changed. No service, task or permanent database is created. Nothing is pushed, deployed or deleted.
+#   * The monitor (g0-supervisor.mjs monitor) refuses to start on an invalid baseline and STOPs G0 on: a production
+#     PM2 / PostgreSQL / MariaDB / cloudflared change, a production HTTP status change, a latency regression
+#     (2 consecutive rounds above max(1.5 x median, median + 50 ms)), CPU > 80 % for 3 rounds, free RAM < 8 GB,
+#     D: < 10 GB, the temporary port bound to anything but 127.0.0.1 or held by a non-G0 process, a G0 process on
+#     the shared PostgreSQL port, or a G0 process listening on a non-loopback address. Each condition is logged once.
+#   * EVERY project step runs through ops\ep48_5\g0-guard.mjs (explicit database target, instance identity,
+#     loopback-only listener guard, exact counts, 0 skipped). Test concurrency 2; G0 processes at BelowNormal priority.
+#   * On STOP / failure / timeout / monitor loss: the running step's OWN process tree is stopped (re-verified PIDs,
+#     production protected); the temporary PostgreSQL is stopped with pg_ctl stop after its identity is verified
+#     (never killed); the monitor gets MONITOR-END (verified stop only if it does not end in 90 s); logs are kept.
 #
 # Run in an ELEVATED Windows PowerShell (the production PM2 tree runs as SYSTEM):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <approved sha>
+#   powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <approved sha> -ExpectOps <n>
 #
 [CmdletBinding()]
 param(
@@ -33,252 +37,276 @@ param(
   [string]$GatesRoot = 'D:\pdabliss-core-staging\gates',
   [int]$ExpectBackend = 611,
   [int]$ExpectFrontend = 1192,
-  [int]$ExpectOps = 0   # set by the owner from the C-A0.1 report (verified discovery); 0 = refuse to run
+  [int]$ExpectOps = 0
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Off
-$Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$G = Join-Path $GatesRoot "g0-$Stamp"
-$Root = Join-Path $G 'root'                         # test-only staging root for the launcher smoke
-$S = Join-Path $Root "releases\$Release"            # the G0 checkout of the release commit
-$Pg = Join-Path $G 'pg'
-$Out = Join-Path $G 'g0'
-$StopFile = Join-Path $Out 'STOP'
-$EndFile = Join-Path $Out 'MONITOR-END'
+$TempPgPort = 55443
+$RunStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$G0Dir = Join-Path $GatesRoot "g0-$RunStamp"
+$StagingRoot = Join-Path $G0Dir 'root'                          # test-only staging root for the launcher smoke
+$Checkout = Join-Path $StagingRoot "releases\$Release"          # the G0 checkout of the release commit
+$PgDataDir = Join-Path $G0Dir 'pg'
+$OutDir = Join-Path $G0Dir 'g0'
+$StopFile = Join-Path $OutDir 'STOP'
+$MonitorEndFile = Join-Path $OutDir 'MONITOR-END'
 $HarnessDir = $PSScriptRoot
-$Port = 55443
-$script:Steps = @()
-$script:StepNo = 0
+$Supervisor = Join-Path (Split-Path $HarnessDir -Parent) 'g0-supervisor.mjs'
+. (Join-Path $HarnessDir 'g0-common.ps1')
+$script:NodeExe = $null
+$script:GitExe = $null
+$script:PowerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$script:RunnerCreated = (Get-CimInstance Win32_Process -Filter "ProcessId=$PID").CreationDate.ToString('o')
+$script:PhaseRecords = @()
+$script:PhaseCounter = 0
 $script:PgStarted = $false
-$script:Monitor = $null
-$script:Summary = [ordered]@{ runner = 'EP48.5 Run-G0 v2 (A-0.1)'; release = $Release; baseline = $Baseline; folder = $G; startedAt = (Get-Date).ToString('o'); result = 'RUNNING'; stopReason = $null; steps = @() }
+$script:MonitorProc = $null
+$script:MonitorCreated = $null
+$script:Finishing = $false
+$script:Summary = [ordered]@{ runner = 'EP48.5 Run-G0 v3 (incident amendment)'; release = $Release; baseline = $Baseline; folder = $G0Dir; startedAt = (Get-Date).ToString('o'); result = 'RUNNING'; stopReason = $null; phases = @() }
 
-New-Item -ItemType Directory -Force -Path $Out | Out-Null
-Start-Transcript -Path (Join-Path $Out 'transcript.txt') | Out-Null
-function Log([string]$m) { $line = "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m; Write-Host $line; Add-Content -Path (Join-Path $Out 'runner.log') -Value $line }
-function Q([string]$a) { if ($a -match '[\s"]') { '"' + ($a -replace '"', '\"') + '"' } else { $a } }
-function Native([string]$exe, [string[]]$argv, [string]$logName) {
-  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-  try { & $exe @argv *> (Join-Path $Out $logName); return $LASTEXITCODE } finally { $ErrorActionPreference = $old }
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+Start-Transcript -Path (Join-Path $OutDir 'transcript.txt') | Out-Null
+function Write-G0Log([string]$Message) { $line = "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message; Write-Host $line; Add-Content -LiteralPath (Join-Path $OutDir 'runner.log') -Value $line }
+
+function Test-MonitorHealth {
+  if (-not $script:MonitorProc -or $script:Finishing) { return $null }
+  if ($script:MonitorProc.HasExited) { return "the G0 monitor process ended unexpectedly (exit $($script:MonitorProc.ExitCode))" }
+  return $null
 }
-function Kill-Tree([int]$id) { & taskkill.exe /PID $id /T /F *> $null }
 
-function Write-Report {
+function Stop-OwnTree([int]$RootPid, [string]$RootCreated, [string]$Why) {
+  # Stops ONE of G0's own process trees through the supervisor: every PID re-verified (start time), protected
+  # production processes and anything older than this runner are refused, PostgreSQL is never killed.
+  $script:PhaseCounter++
+  $label = '{0:D2}-stop-tree-{1}' -f $script:PhaseCounter, $RootPid
+  $stopResult = Invoke-G0Bounded -Name $label -FilePath $script:NodeExe -ArgumentValues @($Supervisor, 'stop-tree', '--root', "$RootPid", '--root-created', $RootCreated, '--not-before', $script:RunnerCreated, '--g0-dir', $G0Dir, '--out', $OutDir, '--reason', $Why) -WorkingDirectory $G0Dir -LogDir $OutDir -TimeoutSec 120
+  Write-G0Log "stop-tree $RootPid ($Why) -> $($stopResult.status) (exit $($stopResult.exit))"
+}
+
+function Invoke-G0Phase {
+  param([string]$Name, [string]$FilePath, [string[]]$ArgumentValues, [string]$WorkingDirectory, [int]$TimeoutMin = 45, [string]$Note = '', [switch]$Final)
+  if (-not $Final) {
+    if (Test-Path -LiteralPath $StopFile) { Stop-G0 ("STOP before $Name" + ': ' + "$(Get-Content -LiteralPath $StopFile -Raw)".Trim()) }
+    $unhealthy = Test-MonitorHealth
+    if ($unhealthy) { Stop-G0 $unhealthy }
+  }
+  $script:PhaseCounter++
+  $label = '{0:D2}-{1}' -f $script:PhaseCounter, $Name
+  Write-G0Log "phase $label ..."
+  $stopPath = ''; $abortBlock = $null
+  if (-not $Final) { $stopPath = $StopFile; $abortBlock = { Test-MonitorHealth } }
+  $phaseResult = Invoke-G0Bounded -Name $label -FilePath $FilePath -ArgumentValues $ArgumentValues -WorkingDirectory $WorkingDirectory -LogDir $OutDir -TimeoutSec ($TimeoutMin * 60) -StopFile $stopPath -AbortCheck $abortBlock -OnAbort { param($ChildPid, $ChildCreated, $Why) Stop-OwnTree $ChildPid $ChildCreated $Why }
+  $script:PhaseRecords += [ordered]@{ no = $script:PhaseCounter; name = $Name; status = $phaseResult.status; exit = $phaseResult.exit; seconds = $phaseResult.seconds; note = $Note; reason = $phaseResult.reason }
+  Write-G0Log "phase $label -> $($phaseResult.status) (exit $($phaseResult.exit), $($phaseResult.seconds)s) $($phaseResult.reason)"
+  if (-not $Final -and $phaseResult.status -ne 'OK') { Stop-G0 "$Name $($phaseResult.status): $($phaseResult.reason) - see $OutDir\$label.*.txt" }
+  return $phaseResult
+}
+
+# Project steps: always through the guard (explicit database target, identity checks, loopback-only listeners).
+function Step([string]$Name, [string[]]$GuardArgs, [string]$WorkingDirectory, [int]$TimeoutMin = 45, [string]$Note = '') {
+  Invoke-G0Phase -Name $Name -FilePath $script:NodeExe -ArgumentValues (@($Guard) + $GuardArgs) -WorkingDirectory $WorkingDirectory -TimeoutMin $TimeoutMin -Note $Note | Out-Null
+}
+
+function Write-G0Report {
   $script:Summary.finishedAt = (Get-Date).ToString('o')
-  $script:Summary.steps = $script:Steps
-  $script:Summary | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $Out 'G0-SUMMARY.json') -Encoding UTF8
-  $t = @("EP48.5 G0 - $($script:Summary.result)", "release $Release | folder $G", "started $($script:Summary.startedAt) | finished $($script:Summary.finishedAt)")
-  if ($script:Summary.stopReason) { $t += "STOP REASON: $($script:Summary.stopReason)" }
-  foreach ($s in $script:Steps) { $t += ("{0,-3} {1,-34} {2,-6} {3,7}s  {4}" -f $s.no, $s.name, $s.status, $s.seconds, $s.note) }
-  $t | Set-Content -Path (Join-Path $Out 'G0-SUMMARY.txt') -Encoding UTF8
-  # Copy (never move) the logs to the repository's git-ignored ops-logs so the review can read them.
+  $script:Summary.phases = $script:PhaseRecords
+  $script:Summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $OutDir 'G0-SUMMARY.json') -Encoding UTF8
+  $lines = @("EP48.5 G0 - $($script:Summary.result)", "release $Release | folder $G0Dir", "started $($script:Summary.startedAt) | finished $($script:Summary.finishedAt)")
+  if ($script:Summary.stopReason) { $lines += "STOP REASON: $($script:Summary.stopReason)" }
+  foreach ($rec in $script:PhaseRecords) { $lines += ("{0,-3} {1,-34} {2,-8} {3,7}s  {4} {5}" -f $rec.no, $rec.name, $rec.status, $rec.seconds, $rec.note, $rec.reason) }
+  $lines | Set-Content -LiteralPath (Join-Path $OutDir 'G0-SUMMARY.txt') -Encoding UTF8
   try {
-    $dest = Join-Path $Dev "ops-logs\ep48_5-g0\g0-$Stamp"
+    $dest = Join-Path $Dev "ops-logs\ep48_5-g0\g0-$RunStamp"
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    Copy-Item -Path (Join-Path $Out '*') -Destination $dest -Recurse -Force
-  } catch { Log "WARNING: could not copy logs to ops-logs: $($_.Exception.Message)" }
+    Copy-Item -Path (Join-Path $OutDir '*') -Destination $dest -Recurse -Force   # copy, never move
+  } catch { Write-G0Log "WARNING: could not copy logs to ops-logs: $($_.Exception.Message)" }
 }
 
-function Stop-G0([string]$reason) {
-  Log "STOP: $reason"
+function Complete-G0 {
+  if ($script:Finishing) { return }
+  $script:Finishing = $true
+  try {
+  if (Test-Path Env:TEST_DATABASE_URL) { Remove-Item Env:TEST_DATABASE_URL }
+  # 1. temporary PostgreSQL: identity verified -> graceful pg_ctl stop -> verified stopped. Never killed.
+  if ($script:PgStarted) {
+    $identity = Invoke-G0Phase -Name 'temp-pg-identity-before-stop' -FilePath $script:NodeExe -ArgumentValues @($Supervisor, 'temp-pg-identity', '--pg-data', $PgDataDir, '--g0-dir', $G0Dir, '--temp-pg-port', "$TempPgPort", '--out', $OutDir, '--expect', 'running') -WorkingDirectory $G0Dir -TimeoutMin 2 -Final
+    if ($identity.status -eq 'OK') {
+      Invoke-G0Phase -Name 'temp-pg-stop' -FilePath (Join-Path $PgBin 'pg_ctl.exe') -ArgumentValues @('-D', $PgDataDir, 'stop', '-m', 'fast', '-w', '-t', '90') -WorkingDirectory $G0Dir -TimeoutMin 3 -Final | Out-Null
+    } else { Write-G0Log 'temporary PostgreSQL identity not confirmed (see the identity log): pg_ctl stop NOT issued' }
+    $stoppedCheck = Invoke-G0Phase -Name 'temp-pg-stopped-check' -FilePath $script:NodeExe -ArgumentValues @($Supervisor, 'temp-pg-identity', '--pg-data', $PgDataDir, '--g0-dir', $G0Dir, '--temp-pg-port', "$TempPgPort", '--out', $OutDir, '--expect', 'stopped') -WorkingDirectory $G0Dir -TimeoutMin 2 -Final
+    $script:Summary.temporaryPostgresStopped = ($stoppedCheck.status -eq 'OK')
+    if ($stoppedCheck.status -ne 'OK') {
+      $script:Summary.result = 'STOPPED'
+      if (-not $script:Summary.stopReason) { $script:Summary.stopReason = 'temporary PostgreSQL is still running - left for an owner decision (never killed)' }
+    }
+    $script:PgStarted = $false
+  }
+  # 2. monitor: end signal, bounded wait, verified stop only as a last resort
+  if ($script:MonitorProc) {
+    if (-not (Test-Path -LiteralPath $MonitorEndFile)) { New-Item -ItemType File -Path $MonitorEndFile | Out-Null }
+    if (-not $script:MonitorProc.WaitForExit(90000)) {
+      Stop-OwnTree $script:MonitorProc.Id $script:MonitorCreated 'monitor did not end within 90 s of MONITOR-END'
+      $null = $script:MonitorProc.WaitForExit(15000)
+    }
+    $finalFile = Join-Path $OutDir 'monitor-final.json'
+    if (Test-Path -LiteralPath $finalFile) {
+      $monitorFinal = Get-Content -LiteralPath $finalFile -Raw | ConvertFrom-Json
+      $script:Summary.monitor = $monitorFinal
+      if ($script:Summary.result -eq 'RUNNING' -and $monitorFinal.i5ok -ne $true) { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "I5 after-baseline: $(@($monitorFinal.i5diffs) -join '; ')" }
+    } elseif ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = 'monitor did not write a final I5 comparison' }
+  }
+  if ((Test-Path -LiteralPath $StopFile) -and $script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "$(Get-Content -LiteralPath $StopFile -Raw)".Trim() }
+  # 3. host collector "after" (read-only, bounded)
+  Invoke-G0Phase -Name 'collector-after' -FilePath $script:PowerShellExe -ArgumentValues @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $Dev 'ops\ep48_5\Collect-HostAudit.ps1'), '-NoHttpProbe') -WorkingDirectory $G0Dir -TimeoutMin 15 -Final | Out-Null
+  if ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'PASS' }
+  } catch {
+    Write-G0Log "shutdown error: $($_.Exception.Message)"
+    $script:Summary.result = 'STOPPED'
+    if (-not $script:Summary.stopReason) { $script:Summary.stopReason = "shutdown error: $($_.Exception.Message)" }
+  } finally {
+    Write-G0Report
+    try { Stop-Transcript | Out-Null } catch { }
+  }
+}
+
+function Stop-G0([string]$Reason) {
+  if ($script:Finishing) { Write-G0Log "(during shutdown) $Reason"; return }
+  Write-G0Log "STOP: $Reason"
   $script:Summary.result = 'STOPPED'
-  if (-not $script:Summary.stopReason) { $script:Summary.stopReason = $reason }
-  Finish-G0
+  if (-not $script:Summary.stopReason) { $script:Summary.stopReason = $Reason }
+  if (-not (Test-Path -LiteralPath $StopFile)) { Set-Content -LiteralPath $StopFile -Value "runner: $Reason" -Encoding UTF8 }
+  Complete-G0
   exit 1
 }
 
-function Finish-G0 {
-  if ($script:PgStarted) {
-    $code = Native "$PgBin\pg_ctl.exe" @('-D', $Pg, 'stop', '-m', 'fast', '-w') 'pg-stop.log'
-    Log "temporary PostgreSQL stopped (exit $code); its data folder is preserved"
-    $script:PgStarted = $false
-  }
-  if ($script:Monitor) {
-    New-Item -ItemType File -Force -Path $EndFile | Out-Null
-    Wait-Job $script:Monitor -Timeout 120 | Out-Null
-    Receive-Job $script:Monitor *> (Join-Path $Out 'monitor-job-output.txt')
-    $finalFile = Join-Path $Out 'monitor-final.json'
-    if (Test-Path $finalFile) {
-      $final = Get-Content $finalFile -Raw | ConvertFrom-Json
-      $script:Summary.monitor = $final
-      if ($script:Summary.result -eq 'RUNNING' -and -not $final.i5ok) { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "I5 after-baseline: $($final.i5diffs -join '; ')" }
-    } elseif ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = 'monitor did not report a final I5 comparison' }
-    if ((Test-Path $StopFile) -and $script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "monitor: $(Get-Content $StopFile -Raw)" }
-    $script:Monitor = $null
-  }
-  try {
-    $collector = Join-Path $Dev 'ops\ep48_5\Collect-HostAudit.ps1'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector -NoHttpProbe *> (Join-Path $Out 'collector-after.txt')
-    Log 'host collector "after" written (no PostgreSQL connection)'
-  } catch { Log "collector after: $($_.Exception.Message)" }
-  if ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'PASS' }
-  Write-Report
-  Stop-Transcript | Out-Null
-}
-
-function Check-Stop { if (Test-Path $StopFile) { Stop-G0 "monitor: $(Get-Content $StopFile -Raw)" } }
-
-function Step([string]$name, [string]$file, [string[]]$argv, [string]$cwd, [int]$timeoutMin = 45, [string]$note = '') {
-  Check-Stop
-  $script:StepNo++
-  $no = $script:StepNo
-  $log = Join-Path $Out ('{0:D2}-{1}' -f $no, $name)
-  Log "step $no $name ..."
-  $t0 = Get-Date
-  $p = Start-Process -FilePath $file -ArgumentList (($argv | ForEach-Object { Q $_ }) -join ' ') -WorkingDirectory $cwd -NoNewWindow -PassThru -RedirectStandardOutput "$log.out.txt" -RedirectStandardError "$log.err.txt"
-  $null = $p.Handle   # PS 5.1: keeps ExitCode available after exit
-  $deadline = $t0.AddMinutes($timeoutMin)
-  while (-not $p.HasExited) {
-    Start-Sleep -Seconds 2
-    if (Test-Path $StopFile) { Kill-Tree $p.Id; $script:Steps += [ordered]@{ no = $no; name = $name; status = 'KILLED'; seconds = [int]((Get-Date) - $t0).TotalSeconds; note = 'monitor stop' }; Stop-G0 "monitor: $(Get-Content $StopFile -Raw)" }
-    if ((Get-Date) -gt $deadline) { Kill-Tree $p.Id; $script:Steps += [ordered]@{ no = $no; name = $name; status = 'TIMEOUT'; seconds = [int]((Get-Date) - $t0).TotalSeconds; note = "> $timeoutMin min" }; Stop-G0 "$name timed out" }
-  }
-  $p.WaitForExit()
-  $code = $p.ExitCode
-  $secs = [int]((Get-Date) - $t0).TotalSeconds
-  $status = 'PASS'; if ($code -ne 0) { $status = 'FAIL' }
-  $script:Steps += [ordered]@{ no = $no; name = $name; status = $status; exit = $code; seconds = $secs; note = $note }
-  Log "step $no $name -> $status (exit $code, ${secs}s)"
-  if ($code -ne 0) { Stop-G0 "$name failed (exit $code) - see $log.*.txt" }
-}
-
 try {
-  # ------------------------------------------------------------------ 0. preconditions (read-only)
-  Log "EP48.5 G0 runner - folder $G"
+  # ------------------------------------------------------------------ 0. preconditions + preflight (read-only)
+  Write-G0Log "EP48.5 G0 runner v3 - folder $G0Dir"
+  if ($ExpectOps -le 0) { throw '-ExpectOps <exact ops test count from the approved amendment report> is required' }
   (Get-Process -Id $PID).PriorityClass = 'BelowNormal'   # children inherit BelowNormal
-  $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-  $elevated = (New-Object Security.Principal.WindowsPrincipal($id)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  if (-not $elevated) { throw 'run this in an ELEVATED PowerShell (the production PM2 tree runs as SYSTEM)' }
+  $identityNow = [Security.Principal.WindowsIdentity]::GetCurrent()
+  if (-not (New-Object Security.Principal.WindowsPrincipal($identityNow)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'run this in an ELEVATED PowerShell (the production PM2 tree runs as SYSTEM)' }
   if ($env:COMPUTERNAME -ne 'S2A-SERVER') { throw "this is $env:COMPUTERNAME, not S2A-SERVER" }
-  if ($ExpectOps -le 0) { throw '-ExpectOps <exact ops test count from the C-A0.1 report> is required' }
-  $nodeV = (& node -v); if ($nodeV -notmatch '^v(\d+)\.' -or [int]$Matches[1] -lt 24) { throw "Node 24+ required, found $nodeV" }
-  $script:Summary.node = $nodeV
+  $script:NodeExe = (Get-Command node.exe).Source
+  $script:GitExe = (Get-Command git.exe).Source
+  $nodeVersion = (& $script:NodeExe -v)
+  if ($nodeVersion -notmatch '^v(\d+)\.' -or [int]$Matches[1] -lt 24) { throw "Node 24+ required, found $nodeVersion" }
+  $script:Summary.node = $nodeVersion
   # Neutralise inherited settings in THIS process (children inherit this process's block, not the registry).
   $hazards = @(Get-ChildItem Env: | Where-Object { $_.Name.ToUpper() -match '^(PG[A-Z0-9_]+|DATABASE_URL|TEST_DATABASE_URL|DIRECT_URL|SHADOW_DATABASE_URL|NODE_OPTIONS|CORE_G0[A-Z0-9_]*)$' } | ForEach-Object { $_.Name })
-  foreach ($k in $hazards) { Remove-Item "Env:$k" }
+  foreach ($hazardName in $hazards) { Remove-Item "Env:$hazardName" }
   $script:Summary.neutralisedVariables = $hazards
-  $code = Native powershell.exe @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $HarnessDir 'Preflight-G0.ps1'), '-Release', $Release, '-Baseline', $Baseline, '-Dev', $Dev, '-PgBin', $PgBin, '-GatesRoot', $GatesRoot, '-Port', "$Port", '-ReportDir', (Join-Path $Out 'preflight'), '-FromRunner') 'preflight.txt'
-  $script:Summary.preflight = $(if ($code -eq 0) { 'PASS' } else { 'BLOCK' })
-  if ($code -ne 0) { throw "PREFLIGHT BLOCKED G0 - see $Out\preflight\preflight.txt" }
-  Log 'preflight PASS (read-only checks W1-W9)'
-  if (-not (Test-Path "$PgBin\initdb.exe")) { throw "PostgreSQL binaries not found in $PgBin" }
-  $pgV = (& "$PgBin\pg_ctl.exe" --version); $script:Summary.postgresBinaries = $pgV
-  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-  $commitType = (& git -C $Dev cat-file -t $Release 2>$null)
-  & git -C $Dev diff --quiet $Baseline $Release -- backend frontend; $appDiff = $LASTEXITCODE
-  $changed = @(& git -C $Dev diff --name-only $Baseline $Release)
-  $ErrorActionPreference = $old
+  Invoke-G0Phase -Name 'preflight' -FilePath $script:PowerShellExe -ArgumentValues @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $HarnessDir 'Preflight-G0.ps1'), '-Release', $Release, '-Baseline', $Baseline, '-Dev', $Dev, '-PgBin', $PgBin, '-GatesRoot', $GatesRoot, '-TempPgPort', "$TempPgPort", '-ReportDir', (Join-Path $OutDir 'preflight'), '-FromRunner') -WorkingDirectory $Dev -TimeoutMin 15 -Note 'read-only W1-W9' | Out-Null
+  $commitType = (& $script:GitExe -C $Dev cat-file -t $Release)
   if ($commitType -ne 'commit') { throw "release commit $Release not found in $Dev" }
-  if ($appDiff -ne 0) { throw 'backend/ or frontend/ differ between cb21be1 and the release commit' }
-  $outside = @($changed | Where-Object { $_ -notmatch '^(docs/EP48_5_|ops/ep48_5/|ops/test/(staging-launch|g0-))' })
-  if ($outside.Count) { throw "release commit changes files outside the EP48.5 scope: $($outside -join ', ')" }
-  $script:Summary.commitCheck = "commit ok; backend/ and frontend/ identical to $Baseline; $($changed.Count) files changed, all within the EP48.5 scope"
-  Log $script:Summary.commitCheck
-  if (@(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue).Count) { throw "port $Port is in use" }
-  $excl = (netsh interface ipv4 show excludedportrange protocol=tcp) -match '^\s*\d+\s+\d+' | ForEach-Object { $a = $_.Trim() -split '\s+'; ,@([int]$a[0], [int]$a[1]) }
-  foreach ($r in $excl) { if ($Port -ge $r[0] -and $Port -le $r[1]) { throw "port $Port is inside an excluded port range" } }
-  $freeD = [math]::Round((Get-Volume -DriveLetter D).SizeRemaining / 1GB, 1)
-  if ($freeD -lt 20) { throw "D: has only $freeD GB free (need 20)" }
-  $script:Summary.harnessSha256 = @{}; Get-ChildItem $HarnessDir -File | ForEach-Object { $script:Summary.harnessSha256[$_.Name] = (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
+  & $script:GitExe -C $Dev diff --quiet $Baseline $Release -- backend frontend
+  if ($LASTEXITCODE -ne 0) { throw 'backend/ or frontend/ differ between cb21be1 and the release commit' }
+  $changedFiles = @(& $script:GitExe -C $Dev diff --name-only $Baseline $Release)
+  $outsideScope = @($changedFiles | Where-Object { $_ -notmatch '^(docs/EP48_5_|ops/ep48_5/|ops/test/(staging-launch|g0-))' })
+  if ($outsideScope.Count) { throw "release commit changes files outside the EP48.5 scope: $($outsideScope -join ', ')" }
+  $script:Summary.commitCheck = "commit ok; backend/ and frontend/ identical to $Baseline; $($changedFiles.Count) files changed, all within the EP48.5 scope"
+  Write-G0Log $script:Summary.commitCheck
 
-  # ------------------------------------------------------------------ 1. "before" record + monitor baseline
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Dev 'ops\ep48_5\Collect-HostAudit.ps1') -NoHttpProbe *> (Join-Path $Out 'collector-before.txt')
-  Log 'host collector "before" written (run without -PgUser: no PostgreSQL connection)'
-  $monitorScript = Get-Content (Join-Path $HarnessDir 'g0-monitor.ps1') -Raw
-  $script:Monitor = Start-Job -ScriptBlock ([scriptblock]::Create($monitorScript)) -ArgumentList $PID, $Out, $Pg, $Port
-  $waited = 0
-  while (-not (Test-Path (Join-Path $Out 'baseline.json'))) { Start-Sleep 2; $waited += 2; if ($waited -gt 180) { throw 'monitor did not produce its baseline' }; if ($script:Monitor.State -ne 'Running') { throw "monitor job ended: $(Receive-Job $script:Monitor 2>&1 | Out-String)" } }
-  Check-Stop
-  Log 'monitor running; baseline captured (production PM2 tree, PostgreSQL / MariaDB / cloudflared PIDs, HTTP status + latency)'
+  # ------------------------------------------------------------------ 1. "before" record + monitor with a VALID baseline
+  Invoke-G0Phase -Name 'collector-before' -FilePath $script:PowerShellExe -ArgumentValues @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $Dev 'ops\ep48_5\Collect-HostAudit.ps1'), '-NoHttpProbe') -WorkingDirectory $G0Dir -TimeoutMin 15 -Note 'no PostgreSQL connection' | Out-Null
+  $monitorArgLine = ConvertTo-G0ArgLine @($Supervisor, 'monitor', '--out', $OutDir, '--g0-dir', $G0Dir, '--runner-pid', "$PID", '--runner-created', $script:RunnerCreated, '--temp-pg-port', "$TempPgPort")
+  $script:MonitorProc = Start-Process -FilePath $script:NodeExe -ArgumentList $monitorArgLine -WorkingDirectory $G0Dir -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $OutDir 'monitor.out.txt') -RedirectStandardError (Join-Path $OutDir 'monitor.err.txt')
+  $null = $script:MonitorProc.Handle
+  $script:MonitorCreated = (Get-CimInstance Win32_Process -Filter "ProcessId=$($script:MonitorProc.Id)").CreationDate.ToString('o')
+  $baselineFile = Join-Path $OutDir 'baseline.json'
+  $waitedSec = 0
+  while (-not (Test-Path -LiteralPath $baselineFile)) {
+    Start-Sleep -Seconds 1
+    $waitedSec++
+    if ($script:MonitorProc.HasExited) { Stop-G0 "monitor ended before writing its baseline (exit $($script:MonitorProc.ExitCode)) - see monitor.err.txt" }
+    if ($waitedSec -gt 240) { Stop-G0 'monitor did not write a baseline within 240 s' }
+  }
+  $monitorBaseline = Get-Content -LiteralPath $baselineFile -Raw | ConvertFrom-Json
+  if ($monitorBaseline.valid -ne $true) { Stop-G0 ('monitor baseline invalid: ' + (@($monitorBaseline.problems) -join '; ')) }
+  Write-G0Log "monitor running (PID $($script:MonitorProc.Id)); baseline valid: $(@($monitorBaseline.http).Count) production ports, PM2 tree, PostgreSQL / MariaDB / cloudflared"
 
   # ------------------------------------------------------------------ 2. checkout of the exact release commit
-  New-Item -ItemType Directory -Force -Path (Split-Path $S) | Out-Null
-  if ((Native git @('clone', '--no-local', '--quiet', $Dev, $S) 'git-clone.log') -ne 0) { throw 'git clone failed' }
-  if ((Native git @('-C', $S, 'checkout', '--quiet', '--detach', $Release) 'git-checkout.log') -ne 0) { throw 'git checkout failed' }
-  $head = (& git -C $S rev-parse HEAD)
-  if ($head -ne $Release) { throw "checkout HEAD $head is not $Release" }
-  if (@(& git -C $S status --porcelain).Count) { throw 'checkout is not clean' }
-  $SH = Join-Path $S 'ops\ep48_5\g0-harness'   # harness .mjs files: from the reviewed commit
-  $guard = Join-Path $S 'ops\ep48_5\g0-guard.mjs'
-  Log "checkout $S at $head (clean)"
+  New-Item -ItemType Directory -Force -Path (Split-Path $Checkout) | Out-Null
+  Invoke-G0Phase -Name 'git-clone' -FilePath $script:GitExe -ArgumentValues @('clone', '--no-local', '--quiet', $Dev, $Checkout) -WorkingDirectory $G0Dir -TimeoutMin 30 | Out-Null
+  Invoke-G0Phase -Name 'git-checkout' -FilePath $script:GitExe -ArgumentValues @('-C', $Checkout, 'checkout', '--quiet', '--detach', $Release) -WorkingDirectory $G0Dir -TimeoutMin 5 | Out-Null
+  $checkoutHead = (& $script:GitExe -C $Checkout rev-parse HEAD)
+  if ($checkoutHead -ne $Release) { throw "checkout HEAD $checkoutHead is not $Release" }
+  if (@(& $script:GitExe -C $Checkout status --porcelain).Count) { throw 'checkout is not clean' }
+  $Guard = Join-Path $Checkout 'ops\ep48_5\g0-guard.mjs'
+  $CheckoutHarness = Join-Path $Checkout 'ops\ep48_5\g0-harness'   # harness .mjs files: from the reviewed commit
+  Write-G0Log "checkout $Checkout at $checkoutHead (clean)"
 
   # ------------------------------------------------------------------ 3. temporary PostgreSQL: SCRAM, 127.0.0.1:55443, not a service
-  $bytes = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-  $gatePw = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-  $pwFile = Join-Path $G 'initdb.pw'
+  $randomBytes = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($randomBytes)
+  $gatePw = [Convert]::ToBase64String($randomBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+  $pwFile = Join-Path $G0Dir 'initdb.pw'
   [IO.File]::WriteAllText($pwFile, $gatePw)
-  $code = Native "$PgBin\initdb.exe" @('-D', $Pg, '-U', 'gate', "--pwfile=$pwFile", '-A', 'scram-sha-256', '-E', 'UTF8', '--locale=English_United States.1252') 'initdb.log'
+  $initdbResult = Invoke-G0Phase -Name 'initdb' -FilePath (Join-Path $PgBin 'initdb.exe') -ArgumentValues @('-D', $PgDataDir, '-U', 'gate', "--pwfile=$pwFile", '-A', 'scram-sha-256', '-E', 'UTF8', '--locale=English_United States.1252') -WorkingDirectory $G0Dir -TimeoutMin 10 -Final
   [IO.File]::WriteAllText($pwFile, '')   # emptied, not deleted (nothing is deleted in G0)
-  if ($code -ne 0) { throw "initdb failed (exit $code)" }
+  if ($initdbResult.status -ne 'OK') { Stop-G0 "initdb $($initdbResult.status)" }
+  $hbaLines = Get-Content -LiteralPath (Join-Path $PgDataDir 'pg_hba.conf') | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*#' }
+  if (@($hbaLines | Where-Object { $_ -match '\b(trust|md5|password|peer|ident)\b' }).Count) { throw 'pg_hba.conf of the temporary instance contains a non-SCRAM method' }
   # Instance identity: the system identifier is unique per initdb; the guard compares it before every connection.
-  $ctl = @(& "$PgBin\pg_controldata.exe" -D $Pg) | Where-Object { $_ -match 'system identifier:\s+(\d{10,20})' } | Select-Object -First 1
-  if (-not $ctl -or $ctl -notmatch '(\d{10,20})\s*$') { throw 'pg_controldata did not report the system identifier' }
+  $controlResult = Invoke-G0Phase -Name 'pg-controldata' -FilePath (Join-Path $PgBin 'pg_controldata.exe') -ArgumentValues @('-D', $PgDataDir) -WorkingDirectory $G0Dir -TimeoutMin 2
+  $sysidLine = @(Get-Content -LiteralPath $controlResult.stdout) | Where-Object { $_ -match 'system identifier:\s+(\d{10,20})\s*$' } | Select-Object -First 1
+  if (-not $sysidLine -or $sysidLine -notmatch '(\d{10,20})\s*$') { throw 'pg_controldata did not report the system identifier' }
   $env:CORE_G0_PG_SYSID = $Matches[1]
   $script:Summary.temporaryInstanceSystemId = $Matches[1]
-  $hba = Get-Content (Join-Path $Pg 'pg_hba.conf') | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*#' }
-  if (@($hba | Where-Object { $_ -match '\b(trust|md5|password|peer|ident)\b' }).Count) { throw 'pg_hba.conf of the temporary instance contains a non-SCRAM method' }
-  $code = Native "$PgBin\pg_ctl.exe" @('-D', $Pg, '-o', "-p $Port -c listen_addresses=127.0.0.1", '-l', (Join-Path $G 'pg.log'), '-w', 'start') 'pg-start.log'
-  if ($code -ne 0) { throw "temporary PostgreSQL did not start (exit $code)" }
-  $script:PgStarted = $true
-  Start-Sleep 2
-  $lst = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
-  if (-not $lst.Count -or @($lst | Where-Object { $_.LocalAddress -ne '127.0.0.1' }).Count) { throw "temporary PostgreSQL is not listening on 127.0.0.1:$Port only" }
-  $owner = Get-CimInstance Win32_Process -Filter "ProcessId=$($lst[0].OwningProcess)"
-  if ($owner.Name -ne 'postgres.exe' -or "$($owner.CommandLine)" -notlike "*$Pg*") { throw 'port 55443 is not owned by the temporary instance' }
-  Log "temporary PostgreSQL up: 127.0.0.1:$Port only, SCRAM, data $Pg (plain process, PID $($owner.ProcessId))"
-  $script:Summary.temporaryPostgres = [ordered]@{ address = "127.0.0.1:$Port"; auth = 'scram-sha-256'; dataDir = $Pg; pid = $owner.ProcessId; service = $false }
-
+  $script:PgStarted = $true   # from here on the shutdown always attempts a verified pg_ctl stop
+  # pg_ctl start through Invoke-G0Bounded: output goes to FILES, so the postmaster cannot hold the runner (incident cause 2).
+  Invoke-G0Phase -Name 'temp-pg-start' -FilePath (Join-Path $PgBin 'pg_ctl.exe') -ArgumentValues @('-D', $PgDataDir, '-o', "-p $TempPgPort -c listen_addresses=127.0.0.1", '-l', (Join-Path $G0Dir 'pg.log'), '-w', '-t', '120', 'start') -WorkingDirectory $G0Dir -TimeoutMin 3 | Out-Null
+  Invoke-G0Phase -Name 'temp-pg-identity' -FilePath $script:NodeExe -ArgumentValues @($Supervisor, 'temp-pg-identity', '--pg-data', $PgDataDir, '--g0-dir', $G0Dir, '--temp-pg-port', "$TempPgPort", '--out', $OutDir, '--expect', 'running') -WorkingDirectory $G0Dir -TimeoutMin 2 -Note 'postmaster PID, data folder, -p 55443, 127.0.0.1 only' | Out-Null
+  $script:Summary.temporaryPostgres = [ordered]@{ address = "127.0.0.1:$TempPgPort"; auth = 'scram-sha-256'; dataDir = $PgDataDir; service = $false }
   # The only connection setting of the session. Every connection goes through g0-guard.mjs, which checks it first.
-  $env:TEST_DATABASE_URL = "postgresql://gate:$([uri]::EscapeDataString($gatePw))@127.0.0.1:$Port/pdabliss_core_test"
+  $env:TEST_DATABASE_URL = "postgresql://gate:$([uri]::EscapeDataString($gatePw))@127.0.0.1:$TempPgPort/pdabliss_core_test"
   Remove-Variable gatePw
 
   # ------------------------------------------------------------------ 4. install (isolated npm cache), backend static gates and build
-  $env:npm_config_cache = Join-Path $G 'npm-cache'
+  $env:npm_config_cache = Join-Path $G0Dir 'npm-cache'
   $env:RAYON_NUM_THREADS = '2'
-  $nodeExe = (Get-Command node.exe).Source
-  $npmCli = Join-Path (Split-Path $nodeExe) 'node_modules\npm\bin\npm-cli.js'   # run npm through node: no cmd.exe wrapper, so a stop kills the real tree
-  if (-not (Test-Path $npmCli)) { throw "npm-cli.js not found next to $nodeExe" }
-  $B = Join-Path $S 'backend'; $F = Join-Path $S 'frontend'
-  # Target "static": Prisma generate / validate get DATABASE_URL = g0-static@127.0.0.1:55443/g0_no_such_database
-  # (explicit; Prisma's localhost:5432 fallback in prisma.config.ts is never reached).
-  Step 'backend-npm-ci' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'static', '--name', 'backend-npm-ci', '--', $npmCli, 'ci', '--no-audit', '--no-fund') $B 40
-  Step 'backend-db-validate' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'static', '--name', 'backend-db-validate', '--', $npmCli, 'run', 'db:validate') $B
-  Step 'backend-typecheck' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'static', '--name', 'backend-typecheck', '--', $npmCli, 'run', 'typecheck') $B
-  Step 'backend-lint' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'backend-lint', '--', $npmCli, 'run', 'lint') $B
-  Step 'backend-format-check' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'backend-format-check', '--', $npmCli, 'run', 'format:check') $B
-  Step 'backend-build' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'static', '--name', 'backend-build', '--', $npmCli, 'run', 'build') $B
+  $npmCli = Join-Path (Split-Path $script:NodeExe) 'node_modules\npm\bin\npm-cli.js'   # npm through node: no cmd.exe wrapper
+  if (-not (Test-Path -LiteralPath $npmCli)) { throw "npm-cli.js not found next to $($script:NodeExe)" }
+  $BackendDir = Join-Path $Checkout 'backend'; $FrontendDir = Join-Path $Checkout 'frontend'
+  # Target "static": Prisma generate / validate get DATABASE_URL = g0-static@127.0.0.1:55443/g0_no_such_database.
+  Step 'backend-npm-ci' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'static', '--name', 'backend-npm-ci', '--', $npmCli, 'ci', '--no-audit', '--no-fund') $BackendDir 40
+  Step 'backend-db-validate' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'static', '--name', 'backend-db-validate', '--', $npmCli, 'run', 'db:validate') $BackendDir
+  Step 'backend-typecheck' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'static', '--name', 'backend-typecheck', '--', $npmCli, 'run', 'typecheck') $BackendDir
+  Step 'backend-lint' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'backend-lint', '--', $npmCli, 'run', 'lint') $BackendDir
+  Step 'backend-format-check' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'backend-format-check', '--', $npmCli, 'run', 'format:check') $BackendDir
+  Step 'backend-build' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'static', '--name', 'backend-build', '--', $npmCli, 'run', 'build') $BackendDir
 
   # ------------------------------------------------------------------ 5. test database (identity verified, collision refused), guard, backend suite
-  Step 'create-test-db' $nodeExe @($guard, 'create-test-db', '--gates', $G, '--src', $S) $S 5 'I1-I4 on postgres, then CREATE DATABASE'
-  Step 'g0-guard-check' $nodeExe @($guard, 'check', '--gates', $G, '--src', $S) $S 5 'I1-I4'
-  Step 'backend-tests' $nodeExe @($guard, 'backend-tests', '--gates', $G, '--src', $S, '--expect', "$ExpectBackend") $S 90 "expect $ExpectBackend, 0 skipped"
+  Step 'create-test-db' @('create-test-db', '--gates', $G0Dir, '--src', $Checkout) $Checkout 5 'I1-I4 on postgres, then CREATE DATABASE'
+  Step 'g0-guard-check' @('check', '--gates', $G0Dir, '--src', $Checkout) $Checkout 5 'I1-I4'
+  Step 'backend-tests' @('backend-tests', '--gates', $G0Dir, '--src', $Checkout, '--expect', "$ExpectBackend") $Checkout 90 "expect $ExpectBackend, 0 skipped"
 
   # ------------------------------------------------------------------ 6. frontend
-  Step 'frontend-npm-ci' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'frontend-npm-ci', '--', $npmCli, 'ci', '--no-audit', '--no-fund') $F 40
-  Step 'frontend-typecheck' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'frontend-typecheck', '--', $npmCli, 'run', 'typecheck') $F
-  Step 'frontend-lint' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'frontend-lint', '--', $npmCli, 'run', 'lint') $F
-  Step 'frontend-format-check' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'frontend-format-check', '--', $npmCli, 'run', 'format:check') $F
-  Step 'frontend-tests' $nodeExe @($guard, 'frontend-tests', '--gates', $G, '--src', $S, '--expect', "$ExpectFrontend") $S 60 "expect $ExpectFrontend, 0 skipped"
+  Step 'frontend-npm-ci' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'frontend-npm-ci', '--', $npmCli, 'ci', '--no-audit', '--no-fund') $FrontendDir 40
+  Step 'frontend-typecheck' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'frontend-typecheck', '--', $npmCli, 'run', 'typecheck') $FrontendDir
+  Step 'frontend-lint' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'frontend-lint', '--', $npmCli, 'run', 'lint') $FrontendDir
+  Step 'frontend-format-check' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'frontend-format-check', '--', $npmCli, 'run', 'format:check') $FrontendDir
+  Step 'frontend-tests' @('frontend-tests', '--gates', $G0Dir, '--src', $Checkout, '--expect', "$ExpectFrontend") $Checkout 60 "expect $ExpectFrontend, 0 skipped"
   $env:VITE_API_URL = 'http://127.0.0.1:1312'; $env:VITE_SITE_URL = 'http://127.0.0.1:1311'
-  Step 'frontend-build-prerender-budgets' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'frontend-build', '--', $npmCli, 'run', 'build') $F 45 'staging origins baked in'
+  Step 'frontend-build-prerender-budgets' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'frontend-build', '--', $npmCli, 'run', 'build') $FrontendDir 45 'staging origins baked in'
   Remove-Item Env:VITE_API_URL, Env:VITE_SITE_URL
 
-  # ------------------------------------------------------------------ 7. ops + launcher + guard suites (T10 live on 55443)
-  Step 'ops-tests' $nodeExe @($guard, 'ops-tests', '--gates', $G, '--src', $S, '--expect', "$ExpectOps") $S 30 "expect $ExpectOps (explicit file list, concurrency 2), 0 skipped"
+  # ------------------------------------------------------------------ 7. ops + launcher + guard + supervisor suites (T10 live on 55443)
+  Step 'ops-tests' @('ops-tests', '--gates', $G0Dir, '--src', $Checkout, '--expect', "$ExpectOps") $Checkout 30 "expect $ExpectOps (explicit file list, concurrency 2), 0 skipped"
 
   # ------------------------------------------------------------------ 8. migration scratch (guard again first)
-  Step 'g0-guard-check-2' $nodeExe @($guard, 'check', '--gates', $G, '--src', $S) $S 5 'I1-I4 before migrations'
-  Step 'migration-scratch' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'test', '--name', 'migration-scratch', '--', (Join-Path $SH 'g0-migration-check.mjs'), '--src', $S, '--gates', $G) $S 20 '28/28, ownership 0, forbidden 17/17'
+  Step 'g0-guard-check-2' @('check', '--gates', $G0Dir, '--src', $Checkout) $Checkout 5 'I1-I4 before migrations'
+  Step 'migration-scratch' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'test', '--name', 'migration-scratch', '--', (Join-Path $CheckoutHarness 'g0-migration-check.mjs'), '--src', $Checkout, '--gates', $G0Dir) $Checkout 20 '28/28, ownership 0, forbidden 17/17'
 
   # ------------------------------------------------------------------ 9. Windows launcher smoke with the real builds (no database variable at all)
-  Step 'launcher-smoke-windows' $nodeExe @($guard, 'exec', '--gates', $G, '--src', $S, '--target', 'none', '--name', 'launcher-smoke', '--', (Join-Path $SH 'g0-launcher-smoke.mjs'), '--src', $S, '--root', $Root) $S 10 'real buildApp + Vite 8 preview on 127.0.0.1, IPv4/IPv6 exposure'
+  Step 'launcher-smoke-windows' @('exec', '--gates', $G0Dir, '--src', $Checkout, '--target', 'none', '--name', 'launcher-smoke', '--', (Join-Path $CheckoutHarness 'g0-launcher-smoke.mjs'), '--src', $Checkout, '--root', $StagingRoot) $Checkout 10 'real buildApp + Vite 8 preview on 127.0.0.1, IPv4/IPv6 exposure'
 
-  Check-Stop
-  Remove-Item Env:TEST_DATABASE_URL
-  Log 'all G0 steps passed; final I5 comparison follows'
-  Finish-G0
+  Write-G0Log 'all G0 phases passed; shutdown and the final I5 comparison follow'
+  Complete-G0
   exit 0
 } catch {
-  if ($script:Summary.result -eq 'RUNNING') { Stop-G0 "runner error: $($_.Exception.Message)" }
+  if (-not $script:Finishing) { Stop-G0 "runner error: $($_.Exception.Message)" }
+  Write-G0Log "error during shutdown: $($_.Exception.Message)"
+  exit 1
 }

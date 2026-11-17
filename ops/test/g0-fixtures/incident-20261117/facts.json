@@ -1,0 +1,446 @@
+{
+ "note": "Reconstructed for tests from incident g0-20261117-134458 evidence (phaseA.json, baseline.json). Production port-to-child mapping is illustrative.",
+ "at": "2026-11-17T13:49:09.0000000+07:00",
+ "processes": [
+  {
+   "pid": 2228,
+   "parent": 1544,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Users\\This PC\\AppData\\Roaming\\npm\\node_modules\\pm2\\lib\\Daemon.js\"",
+   "created": "2026-11-15T18:39:09.3315100+07:00"
+  },
+  {
+   "pid": 1428,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-1428.js",
+   "created": "2026-11-15T18:39:11.2229690+07:00"
+  },
+  {
+   "pid": 1904,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-1904.js",
+   "created": "2026-11-15T18:39:11.2454610+07:00"
+  },
+  {
+   "pid": 2252,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-2252.js",
+   "created": "2026-11-15T18:39:11.2691090+07:00"
+  },
+  {
+   "pid": 2560,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-2560.js",
+   "created": "2026-11-15T18:39:10.8543300+07:00"
+  },
+  {
+   "pid": 3004,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-3004.js",
+   "created": "2026-11-15T18:39:10.8768990+07:00"
+  },
+  {
+   "pid": 3112,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-3112.js",
+   "created": "2026-11-15T18:39:11.3003160+07:00"
+  },
+  {
+   "pid": 3260,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-3260.js",
+   "created": "2026-11-15T18:39:10.9011890+07:00"
+  },
+  {
+   "pid": 3720,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-3720.js",
+   "created": "2026-11-15T18:39:10.9225720+07:00"
+  },
+  {
+   "pid": 3876,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-3876.js",
+   "created": "2026-11-15T18:39:11.3297170+07:00"
+  },
+  {
+   "pid": 4460,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-4460.js",
+   "created": "2026-11-15T18:39:11.3732530+07:00"
+  },
+  {
+   "pid": 4620,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-4620.js",
+   "created": "2026-11-15T18:39:11.4095860+07:00"
+  },
+  {
+   "pid": 4676,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-4676.js",
+   "created": "2026-11-15T18:39:10.9589430+07:00"
+  },
+  {
+   "pid": 4708,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-4708.js",
+   "created": "2026-11-15T18:39:10.9510430+07:00"
+  },
+  {
+   "pid": 4828,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-4828.js",
+   "created": "2026-11-15T18:39:11.4746020+07:00"
+  },
+  {
+   "pid": 5028,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-5028.js",
+   "created": "2026-11-15T18:39:11.4337350+07:00"
+  },
+  {
+   "pid": 6064,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-6064.js",
+   "created": "2026-11-15T18:39:10.9699230+07:00"
+  },
+  {
+   "pid": 7144,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-7144.js",
+   "created": "2026-11-15T18:39:11.0031800+07:00"
+  },
+  {
+   "pid": 7712,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-7712.js",
+   "created": "2026-11-15T18:39:11.0178570+07:00"
+  },
+  {
+   "pid": 9476,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-9476.js",
+   "created": "2026-11-15T18:39:11.1467750+07:00"
+  },
+  {
+   "pid": 9668,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-9668.js",
+   "created": "2026-11-15T18:39:11.0648460+07:00"
+  },
+  {
+   "pid": 9732,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-9732.js",
+   "created": "2026-11-15T18:39:11.1929580+07:00"
+  },
+  {
+   "pid": 10096,
+   "parent": 2228,
+   "name": "node.exe",
+   "cmd": "\"C:\\Program Files\\nodejs\\node.exe\" app-10096.js",
+   "created": "2026-11-15T18:39:11.1532290+07:00"
+  },
+  {
+   "pid": 4488,
+   "parent": 1012,
+   "name": "pg_ctl.exe",
+   "cmd": "\"C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe\" runservice -N \"postgresql-x64-18\" -D \"C:\\Program Files\\PostgreSQL\\18\\data\" -w",
+   "created": "2026-11-15T18:38:03.9000000+07:00"
+  },
+  {
+   "pid": 5764,
+   "parent": 4488,
+   "name": "postgres.exe",
+   "cmd": "\"C:\\Program Files\\PostgreSQL\\18\\bin\\postgres.exe\" -D \"C:\\Program Files\\PostgreSQL\\18\\data\" ",
+   "created": "2026-11-15T18:38:04.2144480+07:00"
+  },
+  {
+   "pid": 5688,
+   "parent": 1012,
+   "name": "mysqld.exe",
+   "cmd": "\"C:\\Program Files\\MariaDB\\bin\\mysqld.exe\"",
+   "created": "2026-11-15T18:38:04.0687490+07:00"
+  },
+  {
+   "pid": 5084,
+   "parent": 1012,
+   "name": "cloudflared.exe",
+   "cmd": "\"C:\\Program Files (x86)\\cloudflared\\cloudflared.exe\" tunnel run",
+   "created": "2026-11-15T18:38:28.8241850+07:00"
+  },
+  {
+   "pid": 6104,
+   "parent": 1012,
+   "name": "cloudflared.exe",
+   "cmd": "\"C:\\Program Files (x86)\\cloudflared\\cloudflared.exe\" tunnel run",
+   "created": "2026-11-15T18:38:28.8241800+07:00"
+  },
+  {
+   "pid": 30784,
+   "parent": 1200,
+   "name": "powershell.exe",
+   "cmd": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\"",
+   "created": "2026-11-17T13:40:00.0000000+07:00"
+  },
+  {
+   "pid": 23604,
+   "parent": 30784,
+   "name": "powershell.exe",
+   "cmd": "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File D:\\S2A_PROJECT\\pdabliss_core\\ops\\ep48_5\\g0-harness\\Run-G0.ps1 -Release e784ca18594cef9e7a1e50899f64ec38fd9e0b0a -ExpectOps 90",
+   "created": "2026-11-17T13:44:58.5412670+07:00"
+  },
+  {
+   "pid": 24376,
+   "parent": 23604,
+   "name": "powershell.exe",
+   "cmd": "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -Version 5.1 -s -NoLogo -NoProfile",
+   "created": "2026-11-17T13:48:52.1961080+07:00"
+  },
+  {
+   "pid": 32200,
+   "parent": 24376,
+   "name": "conhost.exe",
+   "cmd": "\\??\\C:\\WINDOWS\\system32\\conhost.exe 0x4",
+   "created": "2026-11-17T13:48:52.2000000+07:00"
+  },
+  {
+   "pid": 4996,
+   "parent": 13772,
+   "name": "cmd.exe",
+   "cmd": "\"C:\\WINDOWS\\system32\\cmd.exe\" /C \"\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" -D \"D:/pdabliss-core-staging/gates/g0-20261117-134458/pg\" -p 55443 -c listen_addresses=127.0.0.1 < \"nul\" >> \"D:\\pdabliss-core-staging\\gates\\g0-20261117-134458\\pg.log\" 2>&1\"",
+   "created": "2026-11-17T13:49:03.8778980+07:00"
+  },
+  {
+   "pid": 26852,
+   "parent": 4996,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\"  -D \"D:/pdabliss-core-staging/gates/g0-20261117-134458/pg\" -p 55443 -c listen_addresses=127.0.0.1 ",
+   "created": "2026-11-17T13:49:03.8914720+07:00"
+  },
+  {
+   "pid": 28700,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0000000+07:00"
+  },
+  {
+   "pid": 2572,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0100000+07:00"
+  },
+  {
+   "pid": 31556,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0200000+07:00"
+  },
+  {
+   "pid": 31480,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0300000+07:00"
+  },
+  {
+   "pid": 29728,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0400000+07:00"
+  },
+  {
+   "pid": 28352,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0500000+07:00"
+  },
+  {
+   "pid": 32608,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0600000+07:00"
+  },
+  {
+   "pid": 7892,
+   "parent": 26852,
+   "name": "postgres.exe",
+   "cmd": "\"C:/Program Files/PostgreSQL/18/bin/postgres.exe\" --forkchild",
+   "created": "2026-11-17T13:49:04.0700000+07:00"
+  }
+ ],
+ "listeners": [
+  {
+   "address": "::",
+   "port": 3306,
+   "pid": 5688
+  },
+  {
+   "address": "::",
+   "port": 3333,
+   "pid": 3260
+  },
+  {
+   "address": "::",
+   "port": 4242,
+   "pid": 3720
+  },
+  {
+   "address": "::",
+   "port": 4243,
+   "pid": 3876
+  },
+  {
+   "address": "::",
+   "port": 4547,
+   "pid": 4676
+  },
+  {
+   "address": "::",
+   "port": 5432,
+   "pid": 5764
+  },
+  {
+   "address": "::",
+   "port": 5778,
+   "pid": 7144
+  },
+  {
+   "address": "::",
+   "port": 9898,
+   "pid": 9668
+  },
+  {
+   "address": "::",
+   "port": 9899,
+   "pid": 9732
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 1415,
+   "pid": 2560
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 2234,
+   "pid": 3112
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 3306,
+   "pid": 5688
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 4244,
+   "pid": 4460
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 4546,
+   "pid": 4620
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 5173,
+   "pid": 4828
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 5432,
+   "pid": 5764
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 5555,
+   "pid": 5028
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 5777,
+   "pid": 6064
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 8888,
+   "pid": 7712
+  },
+  {
+   "address": "0.0.0.0",
+   "port": 8889,
+   "pid": 9476
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 1369,
+   "pid": 1428
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 1371,
+   "pid": 1904
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 1414,
+   "pid": 2252
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 20241,
+   "pid": 5084
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 20242,
+   "pid": 5084
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 2233,
+   "pid": 3004
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 4610,
+   "pid": 4708
+  },
+  {
+   "address": "127.0.0.1",
+   "port": 55443,
+   "pid": 26852
+  }
+ ],
+ "to5432": [],
+ "cpuPct": 0,
+ "freeRamGB": 39.08,
+ "freeDiskDGB": 891.1
+}

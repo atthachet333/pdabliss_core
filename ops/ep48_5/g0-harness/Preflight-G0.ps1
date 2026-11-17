@@ -15,14 +15,15 @@ param(
   [string]$Dev = 'D:\S2A_PROJECT\pdabliss_core',
   [string]$PgBin = 'C:\Program Files\PostgreSQL\18\bin',
   [string]$GatesRoot = 'D:\pdabliss-core-staging\gates',
-  [int]$Port = 55443,
+  [int]$TempPgPort = 55443,
   [string]$ReportDir = '',
   [switch]$FromRunner
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Off
-if (-not $ReportDir) { $ReportDir = Join-Path $Dev ("ops-logs\ep48_5-g0\preflight-" + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
-New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
+$reportFolder = $ReportDir
+if (-not $reportFolder) { $reportFolder = Join-Path $Dev ("ops-logs\ep48_5-g0\preflight-" + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
+New-Item -ItemType Directory -Force -Path $reportFolder | Out-Null
 $script:Checks = @()
 function Add-Check([string]$id, [string]$name, [string]$status, $detail) {
   $script:Checks += [ordered]@{ id = $id; name = $name; status = $status; detail = $detail }
@@ -31,7 +32,7 @@ function Add-Check([string]$id, [string]$name, [string]$status, $detail) {
 }
 function Quiet([scriptblock]$b) { $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'; try { & $b } finally { $ErrorActionPreference = $old } }
 $hazardPattern = '^(PG[A-Z0-9_]+|DATABASE_URL|TEST_DATABASE_URL|DIRECT_URL|SHADOW_DATABASE_URL|NODE_OPTIONS|CORE_G0[A-Z0-9_]*)$'
-Write-Host "EP48.5 G0 preflight - release $Release - report $ReportDir"
+Write-Host "EP48.5 G0 preflight - release $Release - report $reportFolder"
 
 # ------------------------------------------------------------------ W1 Windows PowerShell compatibility
 try {
@@ -40,15 +41,17 @@ try {
   if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') { $problems += "language mode $($ExecutionContext.SessionState.LanguageMode)" }
   foreach ($cmd in @('Get-NetTCPConnection', 'Get-CimInstance', 'Get-Volume', 'Start-Job', 'Get-FileHash', 'Invoke-WebRequest', 'Get-NetIPAddress')) { if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) { $problems += "cmdlet $cmd missing" } }
   $parsed = [ordered]@{}
-  foreach ($f in @('ops\ep48_5\g0-harness\Run-G0.ps1', 'ops\ep48_5\g0-harness\g0-monitor.ps1', 'ops\ep48_5\g0-harness\Preflight-G0.ps1', 'ops\ep48_5\Collect-HostAudit.ps1')) {
-    $full = Join-Path $Dev $f; $tokens = $null; $errs = $null
+  if (Test-Path (Join-Path $Dev 'ops\ep48_5\g0-harness\g0-monitor.ps1')) { $problems += 'the retired PowerShell monitor g0-monitor.ps1 is still present' }
+  . (Join-Path $PSScriptRoot 'g0-common.ps1')
+  foreach ($f in @('ops\ep48_5\g0-harness\Run-G0.ps1', 'ops\ep48_5\g0-harness\g0-common.ps1', 'ops\ep48_5\g0-harness\g0-facts.ps1', 'ops\ep48_5\g0-harness\Preflight-G0.ps1', 'ops\ep48_5\g0-harness\Test-G0Harness.ps1', 'ops\ep48_5\Collect-HostAudit.ps1')) {
+    $full = Join-Path $Dev $f
     if (-not (Test-Path $full)) { $problems += "$f missing"; continue }
-    [void][System.Management.Automation.Language.Parser]::ParseFile($full, [ref]$tokens, [ref]$errs)
-    $parsed[$f] = @($errs).Count
-    foreach ($e in @($errs)) { $problems += "$f line $($e.Extent.StartLineNumber): $($e.Message)" }
+    $hazardList = @(Get-G0VariableHazards $full)
+    $parsed[$f] = $hazardList.Count
+    foreach ($hazard in $hazardList) { $problems += "$f $hazard" }
   }
   $st = 'PASS'; if ($problems.Count) { $st = 'FAIL' }
-  Add-Check 'W1' 'Windows PowerShell 5.1 compatibility (parser, language mode, cmdlets)' $st ([ordered]@{ version = "$($PSVersionTable.PSVersion)"; edition = $PSVersionTable.PSEdition; parseErrors = $parsed; problems = $problems })
+  Add-Check 'W1' 'Windows PowerShell 5.1 compatibility (parser, language mode, cmdlets, variable-name collisions)' $st ([ordered]@{ version = "$($PSVersionTable.PSVersion)"; edition = $PSVersionTable.PSEdition; parseErrors = $parsed; problems = $problems })
 } catch { Add-Check 'W1' 'Windows PowerShell 5.1 compatibility' 'FAIL' $_.Exception.Message }
 
 # ------------------------------------------------------------------ W2 host identity and elevation
@@ -116,16 +119,16 @@ try {
 # ------------------------------------------------------------------ W6 port 55443
 try {
   $problems = @()
-  $inUse = @(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue)
-  if ($inUse.Count) { $problems += "port $Port is in use ($($inUse.Count) socket(s))" }
+  $inUse = @(Get-NetTCPConnection -LocalPort $TempPgPort -ErrorAction SilentlyContinue)
+  if ($inUse.Count) { $problems += "port $TempPgPort is in use ($($inUse.Count) socket(s))" }
   $ranges = @()
   foreach ($fam in @('ipv4', 'ipv6')) {
     $lines = Quiet { netsh interface $fam show excludedportrange protocol=tcp }
-    foreach ($l in @($lines)) { if ($l -match '^\s*(\d+)\s+(\d+)') { $ranges += "$fam $($Matches[1])-$($Matches[2])"; if ($Port -ge [int]$Matches[1] -and $Port -le [int]$Matches[2]) { $problems += "port $Port is inside the excluded $fam range $($Matches[1])-$($Matches[2])" } } }
+    foreach ($l in @($lines)) { if ($l -match '^\s*(\d+)\s+(\d+)') { $ranges += "$fam $($Matches[1])-$($Matches[2])"; if ($TempPgPort -ge [int]$Matches[1] -and $TempPgPort -le [int]$Matches[2]) { $problems += "port $TempPgPort is inside the excluded $fam range $($Matches[1])-$($Matches[2])" } } }
   }
   $shared = @(Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { "$($_.LocalAddress)" })
   $st = 'PASS'; if ($problems.Count) { $st = 'FAIL' }
-  Add-Check 'W6' "port $Port free (IPv4 / IPv6) and not excluded" $st ([ordered]@{ excludedRanges = $ranges; sharedPostgres5432ListensOn = $shared; problems = $problems })
+  Add-Check 'W6' "port $TempPgPort free (IPv4 / IPv6) and not excluded" $st ([ordered]@{ excludedRanges = $ranges; sharedPostgres5432ListensOn = $shared; problems = $problems })
 } catch { Add-Check 'W6' 'port availability' 'FAIL' $_.Exception.Message }
 
 # ------------------------------------------------------------------ W7 inherited environment and .env files (names only, never values)
@@ -156,14 +159,14 @@ try {
   $pm = $procs.Values | Where-Object { $_.Name -eq 'postgres.exe' -and $procs[[int]$_.ParentProcessId] -and $procs[[int]$_.ParentProcessId].Name -eq 'pg_ctl.exe' } | Select-Object -First 1
   if (-not $pm) { $problems += 'the shared PostgreSQL postmaster was not found' }
   $prodPids = @(); foreach ($c in $children) { $prodPids += $c; $q = New-Object System.Collections.Queue; $q.Enqueue($c); while ($q.Count) { $x = $q.Dequeue(); foreach ($k in @($kids[$x])) { if ($k) { $prodPids += $k; $q.Enqueue($k) } } } }
-  $ports = @{}; foreach ($l in @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue)) { if ($prodPids -contains [int]$l.OwningProcess) { $k = [int]$l.LocalPort; if (-not $ports.ContainsKey($k)) { $ports[$k] = @() }; $ports[$k] += "$($l.LocalAddress)" } }
+  $appPortAddresses = @{}; foreach ($l in @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue)) { if ($prodPids -contains [int]$l.OwningProcess) { $k = [string][int]$l.LocalPort; if (-not $appPortAddresses.ContainsKey($k)) { $appPortAddresses[$k] = @() }; $appPortAddresses[$k] += "$($l.LocalAddress)" } }
   $http = [ordered]@{}
-  foreach ($port in ($ports.Keys | Sort-Object)) {
-    $h = '127.0.0.1'; if (-not (@($ports[$port] | Where-Object { $_ -in @('0.0.0.0', '127.0.0.1') }).Count)) { $h = '[::1]' }
+  foreach ($appPortKey in @($appPortAddresses.Keys | Sort-Object { [int]$_ })) {
+    $h = '127.0.0.1'; if (-not (@($appPortAddresses[$appPortKey] | Where-Object { $_ -in @('0.0.0.0', '127.0.0.1') }).Count)) { $h = '[::1]' }
     $sw = [Diagnostics.Stopwatch]::StartNew(); $code = 0
-    try { $resp = Invoke-WebRequest -Uri "http://${h}:$port/" -UseBasicParsing -TimeoutSec 5 -MaximumRedirection 0 -ErrorAction Stop; $code = [int]$resp.StatusCode }
+    try { $resp = Invoke-WebRequest -Uri "http://${h}:$appPortKey/" -UseBasicParsing -TimeoutSec 5 -MaximumRedirection 0 -ErrorAction Stop; $code = [int]$resp.StatusCode }
     catch { if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } else { $code = -1 } }
-    $http["$port"] = "$code in $($sw.ElapsedMilliseconds) ms"
+    $http[$appPortKey] = "$code in $($sw.ElapsedMilliseconds) ms"
   }
   $freeRam = [math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB, 1)
   $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'").PercentProcessorTime
@@ -186,7 +189,7 @@ try {
   $out = Quiet { & node (Join-Path $Dev 'ops\ep48_5\g0-preflight.mjs') --src $Dev 2>&1 }
   $code = $LASTEXITCODE
   $text = ($out | Out-String)
-  Set-Content -Path (Join-Path $ReportDir 'g0-preflight-node.json') -Value $text -Encoding UTF8
+  Set-Content -Path (Join-Path $reportFolder 'g0-preflight-node.json') -Value $text -Encoding UTF8
   $j = $null; try { $j = $text | ConvertFrom-Json } catch { }
   $summary = @(); if ($j) { foreach ($c in $j.checks) { $s = 'ok'; if (-not $c.ok) { $s = 'FAIL: ' + (@($c.problems) -join '; ') }; $summary += "$($c.id) $($c.name): $s" } }
   $st = 'PASS'; if ($code -ne 0 -or -not $j -or -not $j.ok) { $st = 'FAIL' }
@@ -197,10 +200,10 @@ try {
 $block = @($script:Checks | Where-Object { $_.status -eq 'FAIL' }).Count
 $result = 'PASS'; if ($block) { $result = 'BLOCK' }
 $report = [ordered]@{ tool = 'EP48.5 Preflight-G0 (read-only)'; result = $result; release = $Release; at = (Get-Date).ToString('o'); fromRunner = [bool]$FromRunner; checks = $script:Checks }
-$report | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $ReportDir 'preflight.json') -Encoding UTF8
+$report | ConvertTo-Json -Depth 8 | Set-Content -Path (Join-Path $reportFolder 'preflight.json') -Encoding UTF8
 $lines = @("EP48.5 G0 PREFLIGHT: $result  (release $Release)")
 foreach ($c in $script:Checks) { $lines += ("{0,-4} {1,-5} {2}" -f $c.id, $c.status, $c.name) }
-$lines | Set-Content -Path (Join-Path $ReportDir 'preflight.txt') -Encoding UTF8
+$lines | Set-Content -Path (Join-Path $reportFolder 'preflight.txt') -Encoding UTF8
 Write-Host ''
-Write-Host "PREFLIGHT $result - report: $ReportDir"
+Write-Host "PREFLIGHT $result - report: $reportFolder"
 if ($block) { exit 1 } else { exit 0 }

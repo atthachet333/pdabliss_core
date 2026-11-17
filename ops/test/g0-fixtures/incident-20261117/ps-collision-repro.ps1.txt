@@ -1,0 +1,14 @@
+# Incident g0-20261117-134458, cause 1 - minimal reproduction of the PowerShell monitor defect (Run by
+# Test-G0Harness.ps1 as a script block; deliberately contains the defect, so it is NOT a .ps1 file in the harness).
+param([int]$Port)
+$http = [ordered]@{}
+foreach ($p in @(1369, 1415, 9899)) { $http["$p"] = [ordered]@{ status = 200; limitMs = 52 } }
+foreach ($port in $http.Keys) { $null = $port }            # the monitor's loop: same variable as the parameter
+$lookupInt = $null
+try { $lookupInt = $http[[int]9899] } catch { $lookupInt = $null }   # ordered dictionary + [int] = lookup BY POSITION
+[pscustomobject]@{
+  portAfterLoop = $Port                                    # no longer 55443
+  portTypeAfterLoop = $Port.GetType().Name                 # [int]: the key string was converted
+  statusByIntKey = $(if ($lookupInt) { $lookupInt.status } else { $null })
+  statusByStringKey = $http['9899'].status
+}

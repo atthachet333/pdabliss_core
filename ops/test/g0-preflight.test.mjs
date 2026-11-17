@@ -52,6 +52,8 @@ test("C2 runner (v3): a step outside the guard, pipe capture, direct process con
   assert.ok(checkRunner(good.replace(/\$env:CORE_G0_PG_SYSID\s*=/, "$x =")).some((p) => /system identifier/.test(p)));
   assert.ok(checkRunner(good.replace("$TempPgPort = 55443", "$TempPgPort = 5433")).some((p) => /55443/.test(p)));
   assert.ok(checkRunner(good.replace("if ($monitorBaseline.valid -ne $true)", "if ($false)")).some((p) => /invalid monitor baseline/.test(p)));
+  // G0 run 2: the census at STOP must be taken before the summary is written.
+  assert.ok(checkRunner(good.replace("  Save-G0Census 'census-at-stop'\n", "")).some((p) => /census/.test(p)), "census removed");
 });
 
 test("C3 supervisor: the incident replays to zero findings; 55443 on 0.0.0.0 is detected; the PS monitor is retired", () => {

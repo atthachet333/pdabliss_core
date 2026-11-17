@@ -1,4 +1,4 @@
-# PDA BLISS CORE - EP48.5 A-1 / G0 runner (isolated quality validation on S2A-SERVER).    Run-G0 v3
+# PDA BLISS CORE - EP48.5 A-1 / G0 runner (isolated quality validation on S2A-SERVER).    Run-G0 v3.1
 #
 # v3 = G0 incident amendment 2026-11-17 (docs/EP48_5_G0_INCIDENT_20261117.md). Incident g0-20261117-134458:
 #   * the PowerShell monitor's loop variable `$port` overwrote its `[int]$Port` parameter (PowerShell names are
@@ -64,7 +64,8 @@ $script:PgStarted = $false
 $script:MonitorProc = $null
 $script:MonitorCreated = $null
 $script:Finishing = $false
-$script:Summary = [ordered]@{ runner = 'EP48.5 Run-G0 v3 (incident amendment)'; release = $Release; baseline = $Baseline; folder = $G0Dir; startedAt = (Get-Date).ToString('o'); result = 'RUNNING'; stopReason = $null; phases = @() }
+$script:LastPhase = $null
+$script:Summary = [ordered]@{ runner = 'EP48.5 Run-G0 v3.1 (run-2 diagnostics)'; release = $Release; baseline = $Baseline; folder = $G0Dir; startedAt = (Get-Date).ToString('o'); result = 'RUNNING'; stopReason = $null; phases = @() }
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 Start-Transcript -Path (Join-Path $OutDir 'transcript.txt') | Out-Null
@@ -72,7 +73,7 @@ function Write-G0Log([string]$Message) { $line = "[{0}] {1}" -f (Get-Date -Forma
 
 function Test-MonitorHealth {
   if (-not $script:MonitorProc -or $script:Finishing) { return $null }
-  if ($script:MonitorProc.HasExited) { return "the G0 monitor process ended unexpectedly (exit $($script:MonitorProc.ExitCode))" }
+  if ($script:MonitorProc.HasExited) { return "the G0 monitor process ended unexpectedly (exit $(Format-G0ExitCode $script:MonitorProc.ExitCode); see monitor.log - no 'exit code' line there means another process terminated it)" }
   return $null
 }
 
@@ -98,8 +99,9 @@ function Invoke-G0Phase {
   $stopPath = ''; $abortBlock = $null
   if (-not $Final) { $stopPath = $StopFile; $abortBlock = { Test-MonitorHealth } }
   $phaseResult = Invoke-G0Bounded -Name $label -FilePath $FilePath -ArgumentValues $ArgumentValues -WorkingDirectory $WorkingDirectory -LogDir $OutDir -TimeoutSec ($TimeoutMin * 60) -StopFile $stopPath -AbortCheck $abortBlock -OnAbort { param($ChildPid, $ChildCreated, $Why) Stop-OwnTree $ChildPid $ChildCreated $Why }
-  $script:PhaseRecords += [ordered]@{ no = $script:PhaseCounter; name = $Name; status = $phaseResult.status; exit = $phaseResult.exit; seconds = $phaseResult.seconds; note = $Note; reason = $phaseResult.reason }
-  Write-G0Log "phase $label -> $($phaseResult.status) (exit $($phaseResult.exit), $($phaseResult.seconds)s) $($phaseResult.reason)"
+  $script:PhaseRecords += [ordered]@{ no = $script:PhaseCounter; name = $Name; status = $phaseResult.status; exit = $phaseResult.exit; exitText = $phaseResult.exitText; childEndedFirst = $phaseResult.childEndedFirst; seconds = $phaseResult.seconds; note = $Note; reason = $phaseResult.reason }
+  $script:LastPhase = $phaseResult
+  Write-G0Log "phase $label -> $($phaseResult.status) (exit $($phaseResult.exitText), $($phaseResult.seconds)s) $($phaseResult.reason)"
   if (-not $Final -and $phaseResult.status -ne 'OK') { Stop-G0 "$Name $($phaseResult.status): $($phaseResult.reason) - see $OutDir\$label.*.txt" }
   return $phaseResult
 }
@@ -115,7 +117,9 @@ function Write-G0Report {
   $script:Summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $OutDir 'G0-SUMMARY.json') -Encoding UTF8
   $lines = @("EP48.5 G0 - $($script:Summary.result)", "release $Release | folder $G0Dir", "started $($script:Summary.startedAt) | finished $($script:Summary.finishedAt)")
   if ($script:Summary.stopReason) { $lines += "STOP REASON: $($script:Summary.stopReason)" }
-  foreach ($rec in $script:PhaseRecords) { $lines += ("{0,-3} {1,-34} {2,-8} {3,7}s  {4} {5}" -f $rec.no, $rec.name, $rec.status, $rec.seconds, $rec.note, $rec.reason) }
+  if ($script:Summary.monitorExit) { $lines += "MONITOR EXIT: $($script:Summary.monitorExit)" }
+  if ($script:Summary.monitorFinal) { $lines += "MONITOR FINAL I5: $($script:Summary.monitorFinal)" }
+  foreach ($rec in $script:PhaseRecords) { $lines += ("{0,-3} {1,-34} {2,-8} {3,7}s  exit {4}  {5} {6}" -f $rec.no, $rec.name, $rec.status, $rec.seconds, $rec.exitText, $rec.note, $rec.reason) }
   $lines | Set-Content -LiteralPath (Join-Path $OutDir 'G0-SUMMARY.txt') -Encoding UTF8
   try {
     $dest = Join-Path $Dev "ops-logs\ep48_5-g0\g0-$RunStamp"
@@ -151,11 +155,17 @@ function Complete-G0 {
       $null = $script:MonitorProc.WaitForExit(15000)
     }
     $finalFile = Join-Path $OutDir 'monitor-final.json'
+    if ($script:MonitorProc.HasExited) { $script:Summary.monitorExit = (Format-G0ExitCode $script:MonitorProc.ExitCode) }
     if (Test-Path -LiteralPath $finalFile) {
       $monitorFinal = Get-Content -LiteralPath $finalFile -Raw | ConvertFrom-Json
+      $script:Summary.monitorFinal = 'present'
       $script:Summary.monitor = $monitorFinal
       if ($script:Summary.result -eq 'RUNNING' -and $monitorFinal.i5ok -ne $true) { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "I5 after-baseline: $(@($monitorFinal.i5diffs) -join '; ')" }
-    } elseif ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = 'monitor did not write a final I5 comparison' }
+    } else {
+      # Recorded even when G0 already stopped for another reason: the I5 comparison by the monitor did not happen.
+      $script:Summary.monitorFinal = 'MISSING - the monitor ended without its final I5 comparison; compare the collector before / after host audits'
+      if ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = 'monitor did not write a final I5 comparison' }
+    }
   }
   if ((Test-Path -LiteralPath $StopFile) -and $script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "$(Get-Content -LiteralPath $StopFile -Raw)".Trim() }
   # 3. host collector "after" (read-only, bounded)
@@ -171,12 +181,24 @@ function Complete-G0 {
   }
 }
 
+function Save-G0Census([string]$CensusName) {
+  # G0 run 2: record, at the moment G0 stops, which G0 processes are still alive and what the exit codes mean.
+  if (-not $script:NodeExe) { return }
+  $exitArgs = @()
+  if ($script:MonitorProc -and $script:MonitorProc.HasExited) { $exitArgs += @('--exit', "monitor=$($script:MonitorProc.ExitCode)") }
+  if ($script:LastPhase -and $null -ne $script:LastPhase.exit) { $exitArgs += @('--exit', "$($script:LastPhase.name)=$($script:LastPhase.exit)") }
+  try {
+    Invoke-G0Phase -Name $CensusName -FilePath $script:NodeExe -ArgumentValues (@($Supervisor, 'census', '--out', (Join-Path $OutDir "$CensusName.json"), '--g0-dir', $G0Dir, '--runner-pid', "$PID", '--runner-created', $script:RunnerCreated) + $exitArgs) -WorkingDirectory $G0Dir -TimeoutMin 2 -Final | Out-Null
+  } catch { Write-G0Log "census failed: $($_.Exception.Message)" }
+}
+
 function Stop-G0([string]$Reason) {
   if ($script:Finishing) { Write-G0Log "(during shutdown) $Reason"; return }
   Write-G0Log "STOP: $Reason"
   $script:Summary.result = 'STOPPED'
   if (-not $script:Summary.stopReason) { $script:Summary.stopReason = $Reason }
   if (-not (Test-Path -LiteralPath $StopFile)) { Set-Content -LiteralPath $StopFile -Value "runner: $Reason" -Encoding UTF8 }
+  Save-G0Census 'census-at-stop'
   Complete-G0
   exit 1
 }

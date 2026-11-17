@@ -147,6 +147,38 @@ try {
   Add-Outcome 'P7' 'EP48.5 Node suites on Windows (loopback-only guard, concurrency 2): 0 fail, 0 skipped, 0 non-loopback attempts' $passed ([ordered]@{ files = $suiteFiles; counts = $count; nonLoopbackAttempts = $violations })
 } catch { Add-Outcome 'P7' 'Node suites on Windows' $false $_.Exception.Message }
 
+# P9 - G0 run 2: a step that ends by itself in the same instant an abort condition appears is reported as having
+# ended by itself (exit code kept), and G0 does not try to stop it.
+try {
+  $abortCalls = @()
+  $ended = Invoke-G0Bounded -Name 'p9-ends-during-abort' -FilePath (Join-Path $env:SystemRoot 'System32\PING.EXE') -ArgumentValues @('-n', '2', '127.0.0.1') -WorkingDirectory $workDir -LogDir $workDir -TimeoutSec 60 -AbortCheck { Start-Sleep -Milliseconds 2500; 'p9 abort condition' } -OnAbort { param($ChildPid, $ChildCreated, $Why) $script:abortCalls += $ChildPid }
+  $passed = ($ended.status -eq 'STOPPED') -and ($ended.childEndedFirst -eq $true) -and ($ended.exit -eq 0) -and ($abortCalls.Count -eq 0) -and ("$($ended.reason)" -match 'already ended by itself')
+  Add-Outcome 'P9' 'a step that ended by itself during an abort is recorded as such (not as stopped by G0); nothing is stopped' $passed ([ordered]@{ status = $ended.status; childEndedFirst = $ended.childEndedFirst; exit = $ended.exitText; reason = $ended.reason; onAbortCalls = $abortCalls.Count })
+} catch { Add-Outcome 'P9' 'step ended during abort' $false $_.Exception.Message }
+
+# P10 - G0 run 2 exit-code evidence on THIS host: a Node process with the monitor's exit diagnostics, terminated by
+# another process (.NET Process.Kill = Stop-Process), ends with 0xFFFFFFFF and leaves NO exit line; a normal exit
+# writes "exit code 0". Only the test's own processes, by their own PIDs.
+try {
+  $supervisorUrl = ([Uri]$supervisorScript).AbsoluteUri
+  $diagCode = "import('" + $supervisorUrl + "').then((m) => { m.installMonitorExitDiagnostics(process.argv[1]); if (process.argv[2] === 'normal') setTimeout(() => process.exit(0), 300); else setInterval(() => {}, 1000); });"
+  $killedDir = Join-Path $workDir 'p10-killed'; $normalDir = Join-Path $workDir 'p10-normal'
+  New-Item -ItemType Directory -Force -Path $killedDir, $normalDir | Out-Null
+  $killedProc = Start-Process -FilePath $nodePath -ArgumentList (ConvertTo-G0ArgLine @('-e', $diagCode, $killedDir, 'wait')) -WindowStyle Hidden -PassThru
+  $null = $killedProc.Handle
+  Start-Sleep -Seconds 3
+  $killedProc.Kill()   # through the handle this test holds: TerminateProcess(-1), the same call as Stop-Process; no PID lookup
+  $null = $killedProc.WaitForExit(10000)
+  $normalProc = Start-Process -FilePath $nodePath -ArgumentList (ConvertTo-G0ArgLine @('-e', $diagCode, $normalDir, 'normal')) -WindowStyle Hidden -PassThru
+  $null = $normalProc.Handle
+  $null = $normalProc.WaitForExit(20000)
+  $killedLog = Join-Path $killedDir 'monitor.log'; $normalLog = Join-Path $normalDir 'monitor.log'
+  $killedHasExitLine = (Test-Path -LiteralPath $killedLog) -and (@(Select-String -LiteralPath $killedLog -Pattern 'exit code').Count -gt 0)
+  $normalHasExitLine = (Test-Path -LiteralPath $normalLog) -and (@(Select-String -LiteralPath $normalLog -Pattern 'exit code 0').Count -gt 0)
+  $passed = ($killedProc.ExitCode -eq -1) -and (-not $killedHasExitLine) -and ($normalProc.ExitCode -eq 0) -and $normalHasExitLine
+  Add-Outcome 'P10' 'exit-code evidence: Process.Kill / Stop-Process gives 0xFFFFFFFF and no exit line; a normal exit is logged' $passed ([ordered]@{ killedExit = (Format-G0ExitCode $killedProc.ExitCode); killedHasExitLine = $killedHasExitLine; normalExit = (Format-G0ExitCode $normalProc.ExitCode); normalHasExitLine = $normalHasExitLine })
+} catch { Add-Outcome 'P10' 'exit-code evidence' $false $_.Exception.Message }
+
 # P8 - no process leak: nothing this harness started is still running (its own children, anything naming its work
 # folder, any ping.exe to 127.0.0.1 started since the harness began). Waits up to 20 s for P3's short ping to end.
 try {

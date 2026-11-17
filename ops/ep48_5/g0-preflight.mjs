@@ -35,14 +35,14 @@ const codeLines = (text) => text.split(/\r?\n/).map((l, i) => ({ n: i + 1, l }))
 export function checkRunner(text) {
   const p = [];
   const lines = codeLines(text);
-  const allowedPhaseFiles = /-FilePath\s+(\$script:NodeExe\s+-ArgumentValues\s+@\(\$Supervisor,|\$script:GitExe\b|\(Join-Path \$PgBin '(initdb|pg_ctl|pg_controldata)\.exe'\)|\$script:PowerShellExe\s+-ArgumentValues\s+@\('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', \(Join-Path \$(HarnessDir 'Preflight-G0|Dev 'ops\\ep48_5\\Collect-HostAudit)\.ps1'\))/;
+  const allowedPhaseFiles = /-FilePath\s+(\$script:NodeExe\s+-ArgumentValues\s+\(?@\(\$Supervisor,|\$script:NodeExe\s+-ArgumentValues\s+\(@\(\$Guard\)\s+\+\s+\$GuardArgs\)|\$script:GitExe\b|\(Join-Path \$PgBin '(initdb|pg_ctl|pg_controldata)\.exe'\)|\$script:PowerShellExe\s+-ArgumentValues\s+@\('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', \(Join-Path \$(HarnessDir 'Preflight-G0|Dev 'ops\\ep48_5\\Collect-HostAudit)\.ps1'\))/;
   if (!lines.some(({ l }) => /^\s*\$TempPgPort\s*=\s*55443\s*$/.test(l))) p.push("runner: $TempPgPort is not 55443");
   for (const { n, l } of lines) {
     if (/^\s*Step\s+'/.test(l)) {
       if (!/^\s*Step\s+'[a-z0-9-]+'\s+@\('(exec|check|create-test-db|backend-tests|frontend-tests|ops-tests)'/.test(l)) p.push(`runner line ${n}: a project step that does not run through g0-guard.mjs`);
       if (/@\('exec'/.test(l) && !/'--target',\s*'(none|static|test)'/.test(l)) p.push(`runner line ${n}: an exec step without an explicit --target`);
     }
-    if (/Invoke-G0Phase\s+-Name\s+'/.test(l) && !allowedPhaseFiles.test(l)) p.push(`runner line ${n}: an infrastructure phase runs a program outside the allow-list`);
+    if (/Invoke-G0Phase\s+-Name\s+/.test(l) && !allowedPhaseFiles.test(l)) p.push(`runner line ${n}: an infrastructure phase runs a program outside the allow-list`);
     if (/\*>|\s2>&1|\s>\s*\$|\bOut-File\b/.test(l)) p.push(`runner line ${n}: output redirection of a program (a pipe can block the runner; use Invoke-G0Bounded)`);
     if (/^\s*(\$\w+\s*=\s*)?Native\b/.test(l)) p.push(`runner line ${n}: the retired Native helper (pipe capture) is used`);
     if (/\bStart-Job\b|\btaskkill\b|\bStop-Process\b|\.Kill\(/i.test(l)) p.push(`runner line ${n}: background job or direct process termination (only g0-supervisor.mjs stop-tree may stop a process)`);
@@ -66,6 +66,8 @@ export function checkRunner(text) {
   if (!lines.some(({ l }) => /\$env:CORE_G0_PG_SYSID\s*=/.test(l)) || !lines.some(({ l }) => /pg_controldata\.exe/.test(l)))
     p.push("runner: the temporary instance's system identifier is not recorded from pg_controldata");
   if (!lines.some(({ l }) => /Invoke-G0Phase -Name 'temp-pg-start' -FilePath \(Join-Path \$PgBin 'pg_ctl\.exe'\)/.test(l))) p.push("runner: pg_ctl start is not run through the bounded helper");
+  const stopFn = text.slice(text.indexOf("function Stop-G0"), text.indexOf("function Stop-G0") + 1200);
+  if (!/Save-G0Census 'census-at-stop'\s*\n\s*Complete-G0/.test(stopFn)) p.push("runner: Stop-G0 does not record the process census before shutting down");
   if (!lines.some(({ l }) => /'temp-pg-identity-before-stop'/.test(l)) || !lines.some(({ l }) => /'temp-pg-stop'.*'stop', '-m', 'fast'/.test(l))) p.push("runner: the temporary PostgreSQL is not stopped with a verified, graceful pg_ctl stop");
   return p;
 }

@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { checkRunner, psVariableProblems } from "../ep48_5/g0-preflight.mjs";
 import {
-  LIMITS, buildHttpBaseline, evaluateRound, evaluateTempPg, finalComparison, freshFindings, g0ProcessIds, identifyProduction,
+  LIMITS, buildHttpBaseline, describeExitCode, evaluateRound, evaluateTempPg, finalComparison, freshFindings, g0ProcessIds, identifyProduction,
   latencyLimit, normalizeFacts, normalizeHttpBaseline, planStopTree, executeStopTree, probeHost, runMonitor, toInt, validateBaseline, validateHttpBaseline,
 } from "../ep48_5/g0-supervisor.mjs";
 import { createdOf, isAlive as testIsAlive, realProcesses } from "./g0-fixtures/test-facts.mjs";
@@ -504,4 +504,91 @@ test("R13d real processes: a 6-process step tree is stopped with 1 process-only 
     decoy.kill();
     root.kill();
   }
+});
+
+// ---------------------------------------------------------------- R14 G0 run 2 (g0-20261117-161805): silent monitor exit
+// Evidence: the monitor (16856) and the backend-tests guard ended in the same half-second with exit 0xFFFFFFFF, no
+// output, no monitor STOP, no monitor-final.json; the runner recorded the step as "STOPPED" although it had already
+// ended by itself. These tests pin the diagnostics added so the next such event is attributable.
+test("R14 exit codes are reported with their Windows meaning (−1 = 0xFFFFFFFF = terminated by another process)", () => {
+  assert.deepEqual(describeExitCode(-1).hex, "0xFFFFFFFF");
+  assert.match(describeExitCode(-1).meaning, /ANOTHER process.*TerminateProcess\(-1\)/);
+  assert.deepEqual(describeExitCode(4294967295).hex, "0xFFFFFFFF");
+  assert.match(describeExitCode(-1073741510).meaning, /Ctrl\+C/);
+  assert.match(describeExitCode("3221225477").meaning, /access violation/);
+  assert.match(describeExitCode(1).meaning, /taskkill \/F or Node process.kill/);
+  assert.equal(describeExitCode(null).hex, null);
+  const common = harness("g0-common.ps1");
+  assert.match(common, /function Format-G0ExitCode\(\$CodeValue\)/);
+  assert.match(harness("Run-G0.ps1"), /ended unexpectedly \(exit \$\(Format-G0ExitCode \$script:MonitorProc\.ExitCode\)/);
+});
+test("R14b the monitor keeps a heartbeat log with an exit line (its last line localises any silent end)", async () => {
+  const m = await startMonitor({ statusOf: () => 200 });
+  try {
+    assert.ok(await waitFor(() => fs.existsSync(path.join(m.out, "monitor.csv")) && read(path.join(m.out, "monitor.csv")).split("\n").length >= 3, 30_000), m.stderr());
+    m.runner.kill();
+    assert.equal(await Promise.race([m.exited, sleep(30_000).then(() => "timeout")]), 0);
+    const log = read(path.join(m.out, "monitor.log"));
+    for (const re of [/monitor started \(pid \d+\)/, /baseline valid: 1 ports/, /round 1: facts …/, /round 1: facts ok in \d+ ms/, /round 1: probes done; 0 finding/, /ending: runner process ended/, /final I5 written: ok/, /exit code 0 \(normal exit\)/])
+      assert.match(log, re);
+  } finally {
+    m.monitor.kill();
+    m.runner.kill();
+    m.server.close();
+  }
+});
+test("R14c a stop request is logged and fails closed (STOP raised); a termination by another process leaves no exit line", async () => {
+  const m = await startMonitor({ statusOf: () => 200 });
+  try {
+    assert.ok(await waitFor(() => fs.existsSync(path.join(m.out, "baseline.json")), 30_000), m.stderr());
+    await sleep(300);
+    m.monitor.kill("SIGTERM");
+    const code = await Promise.race([m.exited, sleep(30_000).then(() => "timeout")]);
+    const log = read(path.join(m.out, "monitor.log"));
+    if (process.platform === "win32") {
+      // On Windows every Node kill is TerminateProcess: no handler runs - the silent signature seen in G0 run 2.
+      assert.equal(code, 1);
+      assert.doesNotMatch(log, /exit code/);
+    } else {
+      assert.equal(code, 143);
+      assert.match(log, /received SIGTERM - ending \(STOP raised\)/);
+      assert.match(log, /exit code 143/);
+      assert.match(read(path.join(m.out, "STOP")), /monitor: received SIGTERM/);
+    }
+  } finally {
+    m.monitor.kill();
+    m.runner.kill();
+    m.server.close();
+  }
+});
+test("R14d census records which G0 processes are alive and what the exit codes mean", async () => {
+  const runner = spawn(process.execPath, ["-e", 'require("node:child_process").spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" }); setTimeout(() => {}, 60000);'], { stdio: "ignore" });
+  try {
+    await waitFor(() => createdOf(runner.pid), 10_000);
+    await sleep(700);
+    const out = tmp("g0-r14d-");
+    const file = path.join(out, "census-at-stop.json");
+    const r = spawnSync(process.execPath, [SUPERVISOR, "census", "--out", file, "--g0-dir", out, "--runner-pid", String(runner.pid), "--runner-created", createdOf(runner.pid), "--exit", "monitor=-1", "--exit", "backend-tests=-1", "--facts-module", TEST_FACTS], { encoding: "utf8", timeout: 60_000 });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const c = JSON.parse(read(file));
+    assert.equal(c.runnerAlive, true);
+    assert.equal(c.g0ProcessesAlive.length, 2, "the runner and its child");
+    assert.deepEqual(c.exits.map((e) => [e.name, e.hex]), [["monitor", "0xFFFFFFFF"], ["backend-tests", "0xFFFFFFFF"]]);
+    assert.match(c.exits[0].meaning, /ANOTHER process/);
+  } finally {
+    runner.kill();
+  }
+});
+test("R14e the runner reports a step that ended by itself during an abort, records a census at STOP and a missing final I5", () => {
+  const common = harness("g0-common.ps1");
+  assert.match(common, /if \(\$child\.HasExited\) \{\s*\n\s*\$endedFirst = \$true\s*\n\s*\$why = "\$why; the step had already ended by itself \(exit \$\(Format-G0ExitCode \$child\.ExitCode\)\) - G0 did not stop it"\s*\n\s*\} elseif \(\$OnAbort -and \$childCreated\) \{ & \$OnAbort/);
+  assert.match(common, /childEndedFirst = \$endedFirst/);
+  const runner = harness("Run-G0.ps1");
+  assert.deepEqual(checkRunner(runner), []);
+  assert.ok(checkRunner(runner.replace("  Save-G0Census 'census-at-stop'\n", "")).some((p) => /census/.test(p)), "removing the census is caught");
+  assert.match(runner, /\$script:Summary\.monitorFinal = 'MISSING - the monitor ended without its final I5 comparison/);
+  assert.match(runner, /MONITOR EXIT: \$\(\$script:Summary\.monitorExit\)/);
+  const harnessText = harness("Test-G0Harness.ps1");
+  assert.match(harnessText, /# P9 - G0 run 2/);
+  assert.match(harnessText, /# P10 - G0 run 2 exit-code evidence/);
 });

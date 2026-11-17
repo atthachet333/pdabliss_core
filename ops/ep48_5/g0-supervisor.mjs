@@ -12,6 +12,12 @@
 //   node g0-supervisor.mjs temp-pg-identity --out <G0\g0> --g0-dir <G0> --pg-data <G0\pg> --temp-pg-port 55443 --expect running|stopped
 //   node g0-supervisor.mjs plan-stop-tree   --root <pid> --root-created <iso> --not-before <iso> --g0-dir <G0>        (plan only)
 //   node g0-supervisor.mjs stop-tree        --root <pid> --root-created <iso> --not-before <iso> --g0-dir <G0> --out <G0\g0> --reason <text>
+//   node g0-supervisor.mjs census           --out <file.json> --g0-dir <G0> --runner-pid <pid> --runner-created <iso> [--exit <name>=<code> …]
+//
+// G0 run 2 (g0-20261117-161805, docs/EP48_5_G0_INCIDENT_20261117.md §6): the monitor and the backend-tests step ended
+// together with exit code 0xFFFFFFFF and no output. Hence: the monitor keeps a heartbeat log (monitor.log) with an
+// exit line and logs console / stop signals (raising STOP) - a missing exit line means another process terminated it;
+// `census` records, at the moment G0 stops, which G0 processes are still alive and what each exit code means.
 //
 // Nothing here listens, connects to PostgreSQL or deletes anything. Processes are stopped only by `stop-tree`: each
 // PID re-verified (start time) right before it is stopped, never a protected production process, never PostgreSQL
@@ -65,6 +71,30 @@ export function normalizeFacts(raw) {
   return { at: String(raw?.at ?? ""), processes, listeners, to5432, cpuPct: toNum(raw?.cpuPct), freeRamGB: toNum(raw?.freeRamGB), freeDiskDGB: toNum(raw?.freeDiskDGB) };
 }
 export const factsComplete = (f) => f.processes.length > 0 && Number.isFinite(f.cpuPct) && Number.isFinite(f.freeRamGB) && Number.isFinite(f.freeDiskDGB);
+
+// ---------------------------------------------------------------- exit codes (Windows)
+const EXIT_MEANINGS = new Map([
+  [0, "normal exit"],
+  [1, "error exit, or terminated by taskkill /F or Node process.kill (TerminateProcess with 1)"],
+  [2, "the supervisor refused an invalid baseline"],
+  [3, "plan refused (plan-stop-tree)"],
+  [78, "launcher refusal"],
+  [0xffffffff, "terminated by ANOTHER process with TerminateProcess(-1) - e.g. .NET Process.Kill / PowerShell Stop-Process; no code of the process itself ran"],
+  [0xc000013a, "console Ctrl+C / Ctrl+Break / console closed (STATUS_CONTROL_C_EXIT)"],
+  [0xc0000005, "crash: access violation"],
+  [0xc0000409, "crash: fail-fast / stack buffer overrun (e.g. a V8 fatal error)"],
+  [0xc00000fd, "crash: stack overflow"],
+  [0xe0434352, ".NET unhandled exception"],
+]);
+/** Windows exit code → { code, hex, meaning }. Accepts signed (-1) or unsigned (4294967295) forms. */
+export function describeExitCode(value) {
+  const n = toInt(value);
+  if (!Number.isInteger(n)) return { code: value ?? null, hex: null, meaning: "no exit code (still running, or unknown)" };
+  const unsigned = n < 0 ? n + 2 ** 32 : n;
+  const hex = `0x${unsigned.toString(16).toUpperCase().padStart(8, "0")}`;
+  const meaning = EXIT_MEANINGS.get(unsigned) ?? (unsigned >= 0xc0000000 ? "crash or system termination (NTSTATUS)" : unsigned > 128 && unsigned < 160 ? `ended by signal ${unsigned - 128} (POSIX)` : "program-specific exit code");
+  return { code: n, hex, meaning };
+}
 
 // ---------------------------------------------------------------- process tree
 function indexFacts(facts) {
@@ -449,6 +479,8 @@ export async function runMonitor(opts, deps) {
     fs.renameSync(file(`${n}.partial`), file(n));
   };
   const note = (line) => append("monitor-breaches.txt", `${stamp(deps.now())} ${line}\n`);
+  const beat = (line) => append("monitor.log", `${new Date(deps.now()).toISOString()} ${line}\n`);
+  beat(`monitor started (pid ${process.pid}); runner ${opts.runnerPid} created ${opts.runnerCreated}; interval ${opts.intervalMs} ms`);
   const raiseStop = (reason) => {
     if (!fs.existsSync(file("STOP"))) fs.writeFileSync(file("STOP"), `monitor: ${reason}\n`);
   };
@@ -478,6 +510,7 @@ export async function runMonitor(opts, deps) {
   baseline.valid = problems.length === 0;
   baseline.problems = problems;
   writeAtomic("baseline.json", `${JSON.stringify(baseline, null, 2)}\n`);
+  beat(`baseline ${baseline.valid ? "valid" : "INVALID"}: ${baseline.http.length} ports, ${Object.keys(baseline.tree).length - 1} PM2 children${problems.length ? `; ${problems.join("; ")}` : ""}`);
   if (!baseline.valid) {
     raiseStop(`baseline invalid: ${problems.join("; ")}`);
     note(`baseline invalid (G0 must not continue): ${problems.join("; ")}`);
@@ -510,7 +543,12 @@ export async function runMonitor(opts, deps) {
       endReason = "maximum monitor lifetime reached";
       break;
     }
-    const facts = normalizeFacts(await deps.collectFacts().catch(() => ({})));
+    const roundNo = stats.rounds + 1;
+    const tFacts = deps.now();
+    beat(`round ${roundNo}: facts …`);
+    let factsError = null;
+    const facts = normalizeFacts(await deps.collectFacts().catch((e) => ((factsError = e?.message ?? String(e)), {})));
+    beat(`round ${roundNo}: facts ${factsComplete(facts) ? "ok" : `INCOMPLETE${factsError ? ` (${factsError})` : ""}`} in ${deps.now() - tFacts} ms; ${facts.processes.length} processes`);
     if (factsComplete(facts) && !runnerAlive(facts, opts.runnerPid, opts.runnerCreated)) {
       endReason = "runner process ended (PID / start time no longer present)";
       break;
@@ -519,6 +557,7 @@ export async function runMonitor(opts, deps) {
     const probes = new Map();
     for (const entry of baseline.http) probes.set(entry.appPort, await deps.probe({ host: entry.host, port: entry.appPort }));
     const round = evaluateRound({ baseline, facts, probes, state, ctx: { ...ctxBase, g0Pids } });
+    beat(`round ${roundNo}: probes done; ${round.findings.length} finding(s); ${g0Pids.size} G0 processes`);
     state = round.state;
     const fresh = freshFindings(round.findings, reported);
     suppressed += round.findings.length - fresh.length;
@@ -541,6 +580,7 @@ export async function runMonitor(opts, deps) {
   }
 
   // final snapshot (I5)
+  beat(`ending: ${endReason}`);
   const factsF = normalizeFacts(await deps.collectFacts().catch(() => ({})));
   const probesF = new Map();
   for (const entry of baseline.http) probesF.set(entry.appPort, await deps.probe({ host: entry.host, port: entry.appPort }));
@@ -552,7 +592,37 @@ export async function runMonitor(opts, deps) {
     stats: { ...stats, minFreeRamGB: Number.isFinite(stats.minFreeRamGB) ? stats.minFreeRamGB : null },
   };
   writeAtomic("monitor-final.json", `${JSON.stringify(final, null, 2)}\n`);
+  beat(`final I5 written: ${final.i5ok ? "ok" : `differences: ${i5diffs.join("; ")}`}`);
   return 0;
+}
+
+/**
+ * Makes a silent monitor exit diagnosable: an exit line on every exit Node itself performs, and console / stop signals
+ * logged with STOP raised (fail closed). On Windows, SIGINT = Ctrl+C, SIGBREAK = Ctrl+Break, SIGHUP = console closed.
+ * A termination by another process (TerminateProcess) runs no code at all: the ABSENCE of an exit line is the evidence.
+ */
+export function installMonitorExitDiagnostics(out, { proc = process, write = fs.appendFileSync } = {}) {
+  const line = (text) => {
+    try {
+      write(path.join(out, "monitor.log"), `${new Date().toISOString()} ${text}\n`);
+    } catch {
+      // logging must never change the exit path
+    }
+  };
+  const signals = { SIGINT: 2, SIGBREAK: 21, SIGHUP: 1, SIGTERM: 15 };
+  for (const [name, num] of Object.entries(signals)) {
+    proc.on(name, () => {
+      line(`received ${name} - ending (STOP raised)`);
+      try {
+        if (!fs.existsSync(path.join(out, "STOP"))) fs.writeFileSync(path.join(out, "STOP"), `monitor: received ${name} (console event or a stop request from another process)\n`);
+      } catch {
+        // the runner still sees the monitor end
+      }
+      proc.exit(128 + num);
+    });
+  }
+  proc.on("exit", (code) => line(`exit code ${code} (${describeExitCode(code).meaning})`));
+  return line;
 }
 
 // ---------------------------------------------------------------- CLI
@@ -592,6 +662,7 @@ async function main(argv) {
     };
     if (!opts.out || !fs.existsSync(opts.out) || !opts.g0Dir || !Number.isInteger(opts.runnerPid) || !Number.isFinite(timeMs(opts.runnerCreated)) || !Number.isInteger(opts.tempPgPort))
       throw new Error("monitor needs --out (existing) --g0-dir --runner-pid --runner-created --temp-pg-port");
+    installMonitorExitDiagnostics(opts.out);
     const code = await runMonitor(opts, { collectFacts: collect, probe: probeHttp, sleep: (ms) => new Promise((r) => setTimeout(r, ms)), now: () => Date.now(), isAlive: isAliveDefault });
     return code;
   }
@@ -626,7 +697,38 @@ async function main(argv) {
     say(record);
     return executed.survivors.length ? 1 : 0;
   }
-  throw new Error("unknown command (monitor | temp-pg-identity | plan-stop-tree | stop-tree)");
+  if (cmd === "census") {
+    const out = argOf(argv, "out");
+    if (!out) throw new Error("census needs --out <file.json>");
+    const exits = [];
+    for (let i = 0; i < argv.length; i++) if (argv[i] === "--exit" && argv[i + 1]) {
+      const [name, code] = argv[i + 1].split("=");
+      exits.push({ name, ...describeExitCode(code) });
+    }
+    let facts = null;
+    let factsError = null;
+    try {
+      facts = normalizeFacts(await sources.collect());
+    } catch (e) {
+      factsError = e.message;
+    }
+    const runnerPid = toInt(argOf(argv, "runner-pid"));
+    const runnerCreated = argOf(argv, "runner-created");
+    const g0 = facts ? g0ProcessIds(facts, { runnerPid, runnerCreated, g0Dir: argOf(argv, "g0-dir") }) : new Set();
+    if (facts) for (const own of [process.pid, ...descendants(facts, process.pid).map((p) => p.pid)]) g0.delete(own); // not the census itself
+    const report = {
+      at: new Date().toISOString(),
+      exits,
+      runnerAlive: facts ? runnerAlive(facts, runnerPid, runnerCreated) : null,
+      g0ProcessesAlive: facts ? facts.processes.filter((p) => g0.has(p.pid)).map((p) => ({ pid: p.pid, parent: p.parent, name: p.name, created: p.created, cmd: p.cmd.slice(0, 300) })) : null,
+      factsError,
+      processCount: facts ? facts.processes.length : null,
+    };
+    fs.writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
+    say({ census: out, exits: exits.length, g0ProcessesAlive: report.g0ProcessesAlive?.length ?? null });
+    return 0;
+  }
+  throw new Error("unknown command (monitor | temp-pg-identity | plan-stop-tree | stop-tree | census)");
 }
 
 if (process.argv[1] && path.basename(process.argv[1]) === "g0-supervisor.mjs") {

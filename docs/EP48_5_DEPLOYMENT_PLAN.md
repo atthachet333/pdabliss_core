@@ -95,7 +95,7 @@ unless they pass there.
 
 ### G0 — Quality gates on the host, isolated, SCRAM-authenticated ✋ C1
 
-> **Superseded in part by the G0 incident amendment (`docs/EP48_5_G0_INCIDENT_20261117.md`):** runner v3, monitor `g0-supervisor.mjs`, host tests `Test-G0Harness.ps1` (P1–P8) before any rerun, ops expectation **112** (C-A0.2).
+> **Superseded in part by the G0 incident amendment (`docs/EP48_5_G0_INCIDENT_20261117.md`):** runner v3, monitor `g0-supervisor.mjs`, host tests `Test-G0Harness.ps1` (P1–P10) before any rerun, ops expectation **117** (C-A0.3); other agents / automation on the host paused during G0 (run-2 incident, §6).
 >
 > **As implemented (A-0.1, `docs/EP48_5_A0_1_AMENDMENT.md`).** G0 is run by `ops\ep48_5\g0-harness\Run-G0.ps1`. It runs `Preflight-G0.ps1` first (a BLOCK stops G0), uses a new folder `D:\pdabliss-core-staging\gates\g0-<timestamp>` and records the temporary instance's **system identifier** right after `initdb`. Every step then runs through `g0-guard.mjs`:
 >
@@ -110,7 +110,7 @@ unless they pass there.
 > # read-only preflight (also run automatically by the runner):
 > powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Preflight-G0.ps1 -Release <sha>
 > # full G0 — only after the owner's separate confirmation:
-> powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <sha> -ExpectOps 112
+> powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <sha> -ExpectOps 117
 > ```
 
 **Isolation design:**
@@ -161,8 +161,8 @@ $S = "$G\src"
 node "$S\ops\ep48_5\g0-guard.mjs" backend-tests  --gates $G --src $S --expect 611
 # frontend: npm ci; typecheck; lint; format:check; npm run build (prerender + budgets) — then:
 node "$S\ops\ep48_5\g0-guard.mjs" frontend-tests --gates $G --src $S --expect 1192
-# ops: EP43 suite (21) + EP48.5 tests (91, including T10 on the live temporary instance) = 112; files listed explicitly, concurrency 2
-node "$S\ops\ep48_5\g0-guard.mjs" ops-tests      --gates $G --src $S --expect 112
+# ops: EP43 suite (21) + EP48.5 tests (96, including T10 on the live temporary instance) = 117; files listed explicitly, concurrency 2
+node "$S\ops\ep48_5\g0-guard.mjs" ops-tests      --gates $G --src $S --expect 117
 # migration scratch on 55443 (after `g0-guard.mjs check`): roles via ops/roles.mjs, migrate deploy as core_owner → 28/28,
 # ownershipAudit 0, forbiddenAttempts 17/17
 # I5 after G0 — the elevated collector again, then:
@@ -175,7 +175,7 @@ Pass (**zero skipped tests anywhere** — a missing database URL makes suites sk
 | ---------------------- | ------------------------------------------------------------------------- |
 | Backend                | 611 / 611, 0 skipped                                                      |
 | Frontend               | 1,192 / 1,192, 0 skipped                                                  |
-| Ops                    | **112 / 112** (EP43 21 + EP48.5 91 incl. T10), 0 skipped                  |
+| Ops                    | **117 / 117** (EP43 21 + EP48.5 96 incl. T10), 0 skipped                  |
 | Static checks          | typecheck, lint and format clean                                          |
 | Budgets                | ≤ 4,300 KiB, ≤ 205 KiB, ≤ 560 KiB                                         |
 | Migrations             | 28 / 28                                                                   |

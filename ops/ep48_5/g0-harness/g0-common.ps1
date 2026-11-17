@@ -25,6 +25,15 @@ function ConvertTo-G0ArgLine([string[]]$ArgumentValues) {
   return (@($quoted) -join ' ')
 }
 
+function Format-G0ExitCode($CodeValue) {
+  # Windows exit codes are 32-bit: -1 is 0xFFFFFFFF (terminated by another process with TerminateProcess(-1), e.g.
+  # .NET Process.Kill / Stop-Process). g0-supervisor.mjs census records the full meaning.
+  if ($null -eq $CodeValue) { return 'none' }
+  $asInt = [int64]$CodeValue
+  if ($asInt -lt 0) { $asInt += 4294967296 }
+  return ('{0} (0x{1:X8})' -f $CodeValue, $asInt)
+}
+
 function Invoke-G0Bounded {
   param(
     [Parameter(Mandatory = $true)][string]$Name,
@@ -63,8 +72,14 @@ function Invoke-G0Bounded {
     }
     if ((Get-Date) -gt $deadline) { $outcome = 'TIMEOUT'; $why = "exceeded $TimeoutSec s"; break }
   }
+  $endedFirst = $false
   if ($outcome) {
-    if ($OnAbort -and $childCreated -and -not $child.HasExited) { & $OnAbort $child.Id $childCreated $why }
+    # G0 run 2: the step may have ended by itself in the same instant the abort condition appeared. Then nothing was
+    # stopped by G0 and the record must say so (fail closed: the outcome stays STOPPED / TIMEOUT).
+    if ($child.HasExited) {
+      $endedFirst = $true
+      $why = "$why; the step had already ended by itself (exit $(Format-G0ExitCode $child.ExitCode)) - G0 did not stop it"
+    } elseif ($OnAbort -and $childCreated) { & $OnAbort $child.Id $childCreated $why }
     $null = $child.WaitForExit(15000)
   } else {
     $child.WaitForExit()
@@ -74,7 +89,7 @@ function Invoke-G0Bounded {
   $exitValue = $null
   if ($child.HasExited) { $exitValue = $child.ExitCode }
   return [pscustomobject]@{
-    name = $Name; status = $outcome; exit = $exitValue; reason = $why; seconds = [int]((Get-Date) - $startedAt).TotalSeconds
+    name = $Name; status = $outcome; exit = $exitValue; exitText = (Format-G0ExitCode $exitValue); childEndedFirst = $endedFirst; reason = $why; seconds = [int]((Get-Date) - $startedAt).TotalSeconds
     childPid = $child.Id; childCreated = $childCreated; stdout = "$logBase.out.txt"; stderr = "$logBase.err.txt"
   }
 }

@@ -95,6 +95,22 @@ unless they pass there.
 
 ### G0 — Quality gates on the host, isolated, SCRAM-authenticated ✋ C1
 
+> **As implemented (A-0.1, `docs/EP48_5_A0_1_AMENDMENT.md`).** G0 is run by `ops\ep48_5\g0-harness\Run-G0.ps1`. It runs `Preflight-G0.ps1` first (a BLOCK stops G0), uses a new folder `D:\pdabliss-core-staging\gates\g0-<timestamp>` and records the temporary instance's **system identifier** right after `initdb`. Every step then runs through `g0-guard.mjs`:
+>
+> - an explicit database target per step: `none`, `static` (Prisma generate / validate: `g0-static@127.0.0.1:55443/g0_no_such_database`) or `test`;
+> - inherited `PG*` / `DATABASE_URL` / `NODE_OPTIONS` refused;
+> - the loopback-only listener guard preloaded into every process;
+> - the test database created by `g0-guard.mjs create-test-db` (no `createdb`, no `PGPASSWORD`).
+>
+> Nothing is deleted. The sketch below is the original plan; the runner supersedes it where they differ.
+>
+> ```powershell
+> # read-only preflight (also run automatically by the runner):
+> powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Preflight-G0.ps1 -Release <sha>
+> # full G0 — only after the owner's separate confirmation:
+> powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <sha> -ExpectOps 90
+> ```
+
 **Isolation design:**
 
 | Aspect             | Temporary test PostgreSQL                                                       | Production cluster (`postgresql-x64-18`)         |
@@ -126,7 +142,7 @@ $env:TEST_DATABASE_URL = "postgresql://gate:$([uri]::EscapeDataString($gatePw))@
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | I1    | `pg_hba.conf` in `$G\pg` has no `trust` line; port 55443 listens on 127.0.0.1 only                                                                                                                                                                             |
 | I2    | `TEST_DATABASE_URL` host = `127.0.0.1`, port = `55443`, database exactly `pdabliss_core_test`. Reason: the test setup runs `DROP SCHEMA public CASCADE` on any `*_test` database it is pointed at, and the production cluster holds **`pda_one_test`**. |
-| I3    | Server identity through that URL: `inet_server_port() = 55443` and `current_setting('data_directory')` = `$G\pg`                                                                                                                                                  |
+| I3    | Server identity through that URL, before every connection that matters (A-0.1): server address 127.0.0.1, `inet_server_port() = 55443`, the expected `current_user` and `current_database()`, `pg_control_system().system_identifier` = the value recorded by `pg_controldata` after `initdb`, and `data_directory` inside the G0 folder |
 | I4    | No `.env`, `.env.test` or `.env.*` anywhere in `$G\src` (the test setup would load `.env.test` over the session)                                                                                                                                                |
 | I5    | The production postmaster PID 5764 and its start time, and the production database list, are unchanged after G0 (collector after G0)                                                                                                                             |
 
@@ -143,8 +159,8 @@ $S = "$G\src"
 node "$S\ops\ep48_5\g0-guard.mjs" backend-tests  --gates $G --src $S --expect 611
 # frontend: npm ci; typecheck; lint; format:check; npm run build (prerender + budgets) — then:
 node "$S\ops\ep48_5\g0-guard.mjs" frontend-tests --gates $G --src $S --expect 1192
-# ops: EP43 suite (21) + EP48.5 launcher / guard tests (48, including T10 on the live temporary instance) = 69
-node "$S\ops\ep48_5\g0-guard.mjs" ops-tests      --gates $G --src $S --expect 69
+# ops: EP43 suite (21) + EP48.5 tests (69, including T10 on the live temporary instance) = 90; files listed explicitly, concurrency 2
+node "$S\ops\ep48_5\g0-guard.mjs" ops-tests      --gates $G --src $S --expect 90
 # migration scratch on 55443 (after `g0-guard.mjs check`): roles via ops/roles.mjs, migrate deploy as core_owner → 28/28,
 # ownershipAudit 0, forbiddenAttempts 17/17
 # I5 after G0 — the elevated collector again, then:
@@ -157,7 +173,7 @@ Pass (**zero skipped tests anywhere** — a missing database URL makes suites sk
 | ---------------------- | ------------------------------------------------------------------------- |
 | Backend                | 611 / 611, 0 skipped                                                      |
 | Frontend               | 1,192 / 1,192, 0 skipped                                                  |
-| Ops                    | **69 / 69** (EP43 21 + EP48.5 48 incl. T10), 0 skipped                    |
+| Ops                    | **90 / 90** (EP43 21 + EP48.5 69 incl. T10), 0 skipped                    |
 | Static checks          | typecheck, lint and format clean                                          |
 | Budgets                | ≤ 4,300 KiB, ≤ 205 KiB, ≤ 560 KiB                                         |
 | Migrations             | 28 / 28                                                                   |

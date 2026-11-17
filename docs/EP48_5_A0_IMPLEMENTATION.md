@@ -43,7 +43,7 @@ collector.
 | I3    | asks the server: port 55443; data directory inside the gates folder. **Refuses if the server holds any production database name** (`pda_one_*`, `pdabliss_property`, `pdabliss_staging`), so it can never act on the shared instance or `pda_one_test`. |
 | I5    | `compare` of the before / after host collector baselines: postmaster PID and start, database list, production PM2 tree, listeners                                                              |
 
-Then it runs the suite and refuses unless the count is exact and **0 skipped**: backend 611, frontend 1,192, ops 69.
+Then it runs the suite and refuses unless the count is exact and **0 skipped**: backend 611, frontend 1,192, ops 90 (after A-0.1).
 
 ## 4. Verification done in A-0 (agent sandbox: Linux VM, Node 22.23 — not the host)
 
@@ -99,3 +99,17 @@ Then it runs the suite and refuses unless the count is exact and **0 skipped**: 
    variables (for example `HTTP_PROXY`) are not restricted; none of them can open a listener.
 9. **An administrator can always edit the launcher or the env files.** Administrators are trusted; the launcher guards
    against mistakes and drift, not against a malicious administrator.
+
+## 6. A-0.1 corrective amendment (approved 2026-11-17 11:40, A-0.1 only)
+
+The C-A0 verification found that `g0-guard.mjs ops-tests` passed a bare directory to `node --test` (V-1) and that T10 dropped its fixture database (V-2). The owner's A-0.1 approval also required three things:
+
+- explicit database targets everywhere (V-3: Prisma's `localhost:5432` fallback);
+- no live all-interface listener in any test (V-4: the firewall is off);
+- a read-only Windows preflight.
+
+All of it is recorded in **`docs/EP48_5_A0_1_AMENDMENT.md`**. After A-0.1:
+
+- the ops expectation in G0 is **90** (EP43 21 + EP48.5 69, T10 included, 0 skipped);
+- every G0 step runs through the guard with an explicit target and the loopback-only listener guard;
+- the T8 real-socket test listens on 127.0.0.1 only.

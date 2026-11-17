@@ -209,11 +209,14 @@ export function externalAddresses(interfaces = os.networkInterfaces()) {
   return [...new Set(out)];
 }
 
-/** P5: a TCP connect to every external address on `port` must fail. Returns { checked, exposed: [addresses] }. */
-export async function probeExposure(port, { addresses = externalAddresses(), timeoutMs = 1000 } = {}) {
+/**
+ * P5: a TCP connect to every external address on `port` must fail. Returns { checked, exposed: [addresses] }.
+ * `connect` is injectable (A-0.1) so the tests prove the classification without any wildcard listener.
+ */
+export async function probeExposure(port, { addresses = externalAddresses(), timeoutMs = 1000, connect = (o) => net.connect(o) } = {}) {
   const attempt = (host) =>
     new Promise((resolve) => {
-      const s = net.connect({ host, port });
+      const s = connect({ host, port });
       const done = (connected) => {
         s.destroy();
         resolve(connected);

@@ -2,6 +2,7 @@
 // Node built-ins only: no database, no Vite, no backend build needed. T10 (live database) is staging-launch.g0.test.mjs.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -10,7 +11,7 @@ import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { API_ALLOWED, checkDatabaseIdentity, runApiLauncher } from "../ep48_5/api-launcher.mjs";
 import {
-  API_ORIGIN, BIND_HOST, REFUSAL_EXIT_CODE, Refusal, externalAddresses, isCoreKey, markerPath, probeExposure, redact,
+  API_ORIGIN, BIND_HOST, REFUSAL_EXIT_CODE, Refusal, isCoreKey, markerPath, probeExposure, redact,
 } from "../ep48_5/launch-common.mjs";
 import { resolveEsmEntry, runWebLauncher } from "../ep48_5/web-launcher.mjs";
 
@@ -423,19 +424,45 @@ test("T8 L12: the exposure probe reporting a reachable LAN address → server cl
   assert.equal(appRef.closed, true);
 });
 
-test("T8 probe (real sockets): loopback-only listener is not reachable on LAN addresses; a wildcard one is", async () => {
-  const local = http.createServer((q, r) => r.end());
-  await new Promise((r) => local.listen(0, "127.0.0.1", r));
-  const r1 = await probeExposure(local.address().port);
-  assert.deepEqual(r1.exposed, []);
-  local.close();
-  const wild = http.createServer((q, r) => r.end());
-  await new Promise((r) => wild.listen(0, "0.0.0.0", r));
-  const r2 = await probeExposure(wild.address().port);
-  const v4 = externalAddresses().filter((a) => a.includes("."));
-  if (v4.length) assert.ok(r2.exposed.length >= 1, "a wildcard listener must be detected");
-  else assert.equal(r2.checked, externalAddresses().length);
-  wild.close();
+// A-0.1: the S2A-SERVER firewall is off, so no test may listen on a wildcard / LAN address, not even briefly. The
+// detection is proven with an injected connector (no socket toward any LAN address) and with real sockets on 127.0.0.1.
+function fakeConnect(behaviour) {
+  return ({ host }) => {
+    const s = new EventEmitter();
+    s.setTimeout = (ms, cb) => {
+      if (behaviour[host] === "silent") setTimeout(cb, 5);
+    };
+    s.destroy = () => {};
+    setImmediate(() => {
+      if (behaviour[host] === "open") s.emit("connect");
+      else if (behaviour[host] === "refused") s.emit("error", Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }));
+    });
+    return s;
+  };
+}
+
+test("T8 probe (injected connector): every reachable LAN / IPv6 address is reported; refused and silent ones are not", async () => {
+  const behaviour = { "10.0.0.5": "open", "192.168.1.9": "refused", "2001:db8::5": "open", "172.16.0.2": "silent" };
+  const r = await probeExposure(1312, { addresses: Object.keys(behaviour), connect: fakeConnect(behaviour), timeoutMs: 5 });
+  assert.deepEqual(r, { checked: 4, exposed: ["10.0.0.5", "2001:db8::5"] });
+  assert.deepEqual(await probeExposure(1312, { addresses: [], connect: fakeConnect({}) }), { checked: 0, exposed: [] });
+  // Through the launcher: a probe that finds the LAN address reachable closes the server and refuses.
+  const fx = fixture();
+  let appRef;
+  const probe = (port) => probeExposure(port, { addresses: ["10.0.0.5"], connect: fakeConnect({ "10.0.0.5": "open" }) });
+  await refusedWith(apiRun(fx, { probe, log: () => {}, loadAppModule: async (f) => { const m = await import(pathToFileURL(f).href); return { buildApp: async (e) => (appRef = await m.buildApp(e)) }; } }), "L12_EXPOSED");
+  assert.equal(appRef.closed, true);
+  assert.equal(appRef.hostUsed, BIND_HOST, "the server itself only ever listened on 127.0.0.1");
+});
+
+test("T8 probe (real sockets, loopback only): a reachable listener is detected, a closed port is not, LAN addresses do not reach 127.0.0.1", async () => {
+  const local = http.createServer((q, res) => res.end());
+  await new Promise((res) => local.listen(0, "127.0.0.1", res));
+  const port = local.address().port;
+  assert.deepEqual((await probeExposure(port, { addresses: ["127.0.0.1"] })).exposed, ["127.0.0.1"], "real connect detection works");
+  assert.deepEqual((await probeExposure(port)).exposed, [], "a 127.0.0.1 listener is not reachable on this host's LAN addresses");
+  await new Promise((res) => local.close(res));
+  assert.deepEqual((await probeExposure(port, { addresses: ["127.0.0.1"] })).exposed, [], "a closed port is not reported");
 });
 
 // ---------------------------------------------------------------- checkDatabaseIdentity direct

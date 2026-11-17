@@ -102,7 +102,7 @@ New execution order (`docs/EP48_5_ROADMAP.md`):
 
 | #    | Decision                                                                                                                                      | Recommended                                                                                     | Owner's answer |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------- |
-| OO-1 | Current use of `core.pdabliss.com` (something answers today); the DNS record recorded before any change                                       | identify at O0; if in use: replace, or use a temporary tester hostname                            |                |
+| OO-1 | Current use of `core.pdabliss.com`. **O0 result: NXDOMAIN** (no record; the earlier "something answers" was a misread fetch failure, corrected) | use it once O0b finds no dormant configuration (Workers route, Access app, tunnel hostname, rules) |                |
 | OO-2 | Production runtime mode via the online launcher profile; the demo seed run once in development mode on the isolated demo-only cluster (recorded exception) | accept for tester-only UAT; the code-level runtime identity is EP48.6 (C2)                       |                |
 | OO-3 | SMTP provider and dedicated send credential (STARTTLS 587 or TLS 465)                                                                          | dedicated send-only credential, config-folder ACL                                                |                |
 | OO-4 | Code delivery for the `*.demo@pdabliss.com` personas                                                                                           | aliases routed to named testers, or testers' own invited accounts                                 |                |
@@ -135,4 +135,26 @@ Still **not** approved by this part:
 - `git push`;
 - any change to PM2, the shared PostgreSQL, MariaDB, the production tunnels, other Access applications, zone-wide Cloudflare settings or the firewall;
 - EP49.
+
+### 6.3 Revision 2 (O0, 2026-11-17 21:40) — public login
+
+The owner prefers public login (CORE's own sign-in). Access modes:
+- **R** (temporary, Access on the whole hostname);
+- **P** (public login; administration behind a path-scoped Access application; self-registration blocked at the edge);
+- **C** (commercial; prohibited until EP48.6).
+
+Checkpoints O0b–O8 and the public-exposure checks P1–P10 are in plan §0; the evidence is in `docs/EP48_5_O0_REPORT.md`.
+
+| #      | Approval                                                                                                                             | Signed |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| OD-P1  | use `core.pdabliss.com` (NXDOMAIN today) subject to the O0b dormant-configuration check                                                |        |
+| OD-P2  | staged exposure R → P (P only after P1–P10); admin paths behind Access until EP48.6                                                  |        |
+| OD-P3  | edge block of self-registration                                                                                                      |        |
+| OD-P4  | `noindex` during EP48.5 / EP48.6                                                                                                     |        |
+| OD-P5  | demo seed exception (development-mode seed run once on the isolated cluster)                                                         |        |
+| OD-P6  | Hostinger SMTP `notify@pdabliss.com`, 587 STARTTLS; persona forwarders or invited tester accounts                                    |        |
+| OD-P7  | named testers / operators; Access identity method                                                                                    |        |
+| OD-P8  | dedicated tunnel `pdabliss-core`, connector `core-tunnel`                                                                            |        |
+| OD-P9  | hardened static server instead of Vite `preview()` for the online profile                                                            |        |
+| OD-P10 | O1 (repository-only), then O2 … O8 separately; agents paused during change windows                                                  |        |
 

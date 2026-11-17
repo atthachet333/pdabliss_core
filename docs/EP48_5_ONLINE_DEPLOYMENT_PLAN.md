@@ -4,12 +4,111 @@
 
 **Owner decision (2026-11-17 20:45):** deploy CORE online at its permanent domain first, restricted to authorized testers. Then EP48.6 (guard, security hardening, production readiness). Then EP49 onward. Roadmap: `docs/EP48_5_ROADMAP.md`.
 
+**Revision 2 (O0, 2026-11-17 21:40):** see **§0** below. The owner prefers **public login** (CORE's own sign-in, no separate Cloudflare login). §0 defines three access modes and the revised checkpoints. Where §0 differs from §1–§5, **§0 governs**. O0 evidence: `EP48_5_O0_REPORT.md`.
+
 **Supersedes:** the loopback-only Stage B access model (`EP48_5_DEPLOYMENT_PLAN.md`, OD-5 "loopback only") and the requirement that a full G0 environment qualification passes before any deployment. **It keeps every isolation and safety control** of `EP48_5_STAGING_ARCHITECTURE.md`. Historical G0 records (`EP48_5_G0_INCIDENT_20261117.md`, `EP48_5_G0_RUN3_READINESS.md`) are unchanged.
 
 **G0 status, stated plainly:**
 - Full G0 has **never passed**. Run 1 was a false STOP (monitor defect). Run 2 had its processes terminated by an unidentified outside process.
 - Neither run is counted as PASS.
 - What G0 was meant to prove is split below into what is **mandatory now** and what moves to **EP48.6**. Nothing is waived silently.
+
+## 0. Revision 2 — public login, access modes and the revised checkpoints (O0)
+
+### 0.1 Three access modes
+
+| Mode                                         | Who can reach what                                                                                                                                                                                                                                                                                                                                                                                                    | When                                                                                                                       |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **R — Restricted (temporary)**               | Cloudflare Access on the **whole hostname**: named testers only, then CORE's own sign-in                                                                                                                                                                                                                                                                                                                               | Used **only while** a public-exposure check (§0.3) is incomplete or failing. It is the first exposure step (O6) and the fallback whenever a P-check fails. |
+| **P — Public login** (owner's preferred final configuration) | Anyone can open `https://core.pdabliss.com` and reach the marketing pages and the CORE sign-in.<br>**Not** public:<br>• company data, dashboards and APIs (every data route requires a session, an active company + subscription and permissions);<br>• **administration**: `/platform*` and `/api/v1/platform/*` stay behind a path-scoped Access application **plus** platform sign-in;<br>• **self-registration**: blocked at the edge (B1).<br>Only accounts that exist (demo personas, invited testers, operators) can sign in. | After every P-check (§0.3) passes with evidence (O7)                                                                       |
+| **C — Commercial customers**                 | **Prohibited.** No real customers, real data, payments or onboarding.                                                                                                                                                                                                                                                                                                                                                   | Only after the EP48.6 release gates (C1–C8) pass and the owner signs separately                                            |
+
+"Public" never means:
+- public dashboards, APIs, company data or administration functions;
+- public sign-up;
+- an unauthenticated route beyond the service info, the package catalog and the rate-limited auth endpoints (O0 report §3).
+
+### 0.2 Architecture changes from O0
+
+- **Ingress (dedicated tunnel `pdabliss-core`):** rules are evaluated in order:
+  1. `^/api/v1/auth/(register|verification/resend)` → `http_status:404`;
+  2. `^/register` → `http_status:404`;
+  3. `^/api/` → `http://127.0.0.1:1312`;
+  4. everything else → `http://127.0.0.1:1311`.
+
+  `/health` is **not** routed publicly; it is checked on loopback. If the dashboard does not offer `HTTP_STATUS`, rules 1–2 become one hostname-scoped WAF custom rule (block), with owner approval.
+- **Access:**
+  - application A1 is path-scoped, permanent until EP48.6: `core.pdabliss.com/platform*` and `core.pdabliss.com/api/v1/platform/*`, allowing named operators;
+  - application A2 is the whole hostname, **mode R only**, for named testers.
+- **Web serving:** the online profile uses a hardened static server (`ops/ep48_5`, O1), not Vite `preview()` (B3). That covers:
+  - security headers;
+  - `X-Robots-Tag: noindex` unless the owner decides otherwise (OD-P4);
+  - the same fail-closed bind rules.
+- **Mail:** Hostinger SMTP, `smtp.hostinger.com:587` STARTTLS (`SMTP_SECURE=false`, enforced by `requireTLS`), mailbox `notify@pdabliss.com` (create if absent). This is required because `pdabliss.com` has DMARC `p=reject` with strict alignment and Hostinger-only SPF / DKIM.
+- **Connector:** `core-tunnel` WinSW service, `cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20243 run --token-file D:\pdabliss-core-staging\config\core-tunnel.token` (20243 free; `--token-file` already used on this host).
+
+### 0.3 Mandatory before **public** exposure (in addition to M1–M14; evidence recorded, missing = stay in mode R)
+
+| #   | Check                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | **Registration blocked:** `POST https://core.pdabliss.com/api/v1/auth/register`, `/api/v1/auth/verification/resend` and `GET /register` give 404 / 403 from the edge, and no account row is created (DB count before / after).                                                                                                                                                       |
+| P2  | **Administration not public:** unauthenticated `/platform`, `/platform/companies` and `/api/v1/platform/overview` end at Access. A tester who is not an operator is refused by Access. An operator passes Access **and** still needs platform sign-in with a code.                                                                                                                 |
+| P3  | **No data without a session:** unauthenticated `GET` returns **401** on one route of every data route file: `/api/v1/account/onboarding`, `/company/current`, `/dashboards`, `/executive/overview`, `/master-data/context`, `/operations/context`, the production / purchase-order / purchase-request / sales / warehouse `…/context`. Only `/api/v1/`, `/api/v1/packages` and the auth endpoints answer without a session. |
+| P4  | **No demo / development surface:** `/api/v1/demo/personas` and `/api/v1/demo/*` are 404. `POST /api/v1/platform/companies/x/development-activation` is not routed. The `/health` path from outside does not reach the API.                                                                                                                                                       |
+| P5  | **Client IP behind the tunnel:** a request with a forged `X-Forwarded-For: 203.0.113.9` is recorded in the audit trail with the **real** client address; rate limits apply per real address.                                                                                                                                                                                      |
+| P6  | **Brute force:** for a test account, 10 wrong passwords within 15 min then 429 (per-account throttle); 5 wrong codes and the challenge locks; the per-IP login limit is active.                                                                                                                                                                                                   |
+| P7  | **Session security:** after sign-in the cookies are `__Host-core_*; Secure; HttpOnly; SameSite=Lax; Path=/`. Sign-out invalidates the session (the old cookie gives 401). A cross-origin POST with the cookie gives 403. HTTP redirects to HTTPS. HSTS is present on HTML responses.                                                                                               |
+| P8  | **Web server:** security headers present; no directory listing; path traversal (`/..%2f..%2fconfig`) refused; only `dist` is served; `X-Robots-Tag` per OD-P4.                                                                                                                                                                                                                      |
+| P9  | **Mail:** a sign-in code and a password-reset mail reach a tester's inbox from `notify@pdabliss.com` with SPF / DKIM / DMARC **pass** (headers recorded).                                                                                                                                                                                                                        |
+| P10 | **Production preserved** after the switch to P: `i5-check` PASS (21 endpoints, owners, PM2, 5764, MariaDB, the existing tunnels).                                                                                                                                                                                                                                                |
+
+Every P-check has a scripted, read-only outside test in `Verify-CoreOnline.ps1` (O1), except P6 / P9 (scripted against a test account; they record outcomes, never secrets). **Any P-check failing at any time means going back to mode R** (A2 on) until it is fixed.
+
+### 0.4 Revised checkpoints (each signed separately; M9 baseline / i5-check and M14 isolation around every host step)
+
+| Checkpoint                         | Does                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Exit evidence                                   |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **O0 / O0b** Readiness             | O0 done (`EP48_5_O0_REPORT.md`). O0b: the owner's read-only dashboard, crt.sh and host checks (report §6); decisions OD-P1 … OD-P10.                                                                                                                                                                                                                                                                                                                                        | O0b results; decisions signed                   |
+| **O1** Tooling amendment (repository only) | <ul><li>online launcher profile (production mode, `TRUST_PROXY=loopback`, Hostinger SMTP, HTTPS origin);</li><li>hardened static web server;</li><li>production-identity fix (CORE's own cluster / connector are not production);</li><li>`Verify-CoreOnline.ps1` (M6 / M7 / P1–P8 / P10 outside checks);</li><li>WinSW templates;</li><li>ingress / Access specification;</li><li>tests;</li><li>P7 manifest;</li><li>`Test-G0Harness` P1–P12 (+ new static-server checks) PASS on Windows.</li></ul> | M3 (tooling), M12; local commit, not pushed     |
+| **O2** Release on disk             | folders / ACLs; clone of the approved SHA; builds with `VITE_API_URL=VITE_SITE_URL=https://core.pdabliss.com`                                                                                                                                                                                                                                                                                                                                                               | M1, M2                                          |
+| **O3** CORE database               | cluster 5433 → roles → identity check → `migrate deploy` 28 / 28 → grants / audits → **platform bootstrap in production** (`dist/cli/seed.js`) → **demo seed (OD-P5 exception)** → integrity → verified reset point                                                                                                                                                                                                                                                        | M4, M13                                         |
+| **O4** Services on loopback        | api / web services (online profile); local health; production-mode behaviour on loopback (P3 / P4 locally); LAN exposure test; refusal drill; R1 drill                                                                                                                                                                                                                                                                                                                    | M5, M10 (local), M11                            |
+| **O5** Cloudflare objects, no hostname | Access A1 (admin paths) and A2 (whole hostname, mode R); tunnel `pdabliss-core` created with the §0.2 ingress; `core-tunnel` service running with the token file. **No public hostname / DNS record yet.**                                                                                                                                                                                                                                                             | screenshots; connector healthy; M9              |
+| **O6** Exposure in mode **R**      | public hostname / DNS `core.pdabliss.com` → the tunnel (A2 active); outside checks with testers                                                                                                                                                                                                                                                                                                                                                                            | M6, M7, M8, M10; P1–P9 run behind A2; M9        |
+| **O7** Switch to mode **P**        | Only when P1–P10 all pass: disable A2 (A1 stays); re-run `Verify-CoreOnline.ps1` unauthenticated from outside; `i5-check`                                                                                                                                                                                                                                                                                                                                                   | P1–P10 recorded; owner signs public mode        |
+| **O8** Watch period                | `i5-check` daily against the O2 baseline; access and audit logs reviewed; any P failure leads back to mode R                                                                                                                                                                                                                                                                                                                                                              | EP48.5 sign-off; EP48.6 starts                  |
+
+**Rollback additions:**
+- **R-P:** re-enable A2, which returns to mode R in seconds.
+- R0 (stop `core-tunnel`), R1, R1b, R2–R4 are as in §5.2.
+
+### 0.5 Deferred to EP48.6 (in addition to C1–C8)
+
+- a code-level switch for self-registration and activation (replacing the edge block);
+- a CSP for the HTML app;
+- origin validation of Access JWTs for the admin paths;
+- bot management / WAF tuning;
+- security alerting (failed-login spikes, new sessions for platform accounts);
+- DMARC aggregate reporting;
+- a mail-sending quota review;
+- log retention;
+- a penetration test of public mode;
+- replacing the demo company with real tenancy rules.
+
+### 0.6 Owner approvals (new; Part 6.3 of the checklist)
+
+| #      | Approval                                                                                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OD-P1  | Use `core.pdabliss.com` (currently NXDOMAIN), subject to O0b finding no dormant configuration                                                                                                    |
+| OD-P2  | Staged exposure: mode R first (O6), then public login (O7) only after P1–P10; admin paths permanently behind Access A1 until EP48.6                                                               |
+| OD-P3  | Edge block of self-registration (tunnel ingress `http_status:404`, or a hostname-scoped WAF rule)                                                                                                |
+| OD-P4  | Indexing: `X-Robots-Tag: noindex` on `core.pdabliss.com` during EP48.5 / EP48.6 (recommended; SEO is EP50.1 in `pdablissv2`)                                                                     |
+| OD-P5  | The demo seed exception (one administrator run in development mode on the isolated cluster; the services run in production mode); demo company marked `isDemo`                                     |
+| OD-P6  | Hostinger SMTP: mailbox `notify@pdabliss.com` + credential, 587 STARTTLS; persona addresses `*.demo@pdabliss.com` as Hostinger forwarders to named testers (or testers' own invited accounts)     |
+| OD-P7  | Named testers (mode R) and named operators (A1); the Access identity method                                                                                                                      |
+| OD-P8  | Dedicated tunnel `pdabliss-core`, connector `core-tunnel` (metrics 127.0.0.1:20243)                                                                                                              |
+| OD-P9  | A hardened static server replaces Vite `preview()` in the online profile (O1 scope)                                                                                                              |
+| OD-P10 | O1 authorization (repository-only tooling amendment), then each of O2 … O8 separately; change windows with development agents paused                                                            |
 
 ## 1. Minimum deployment architecture
 
@@ -51,7 +150,7 @@
 
 | #     | Decision                                                                                                                                                                                                                            | Recommended                                                                                                                                         |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OO-1  | What answers at `core.pdabliss.com` **today**? A request already gets a response (its `robots.txt` refuses crawlers; the repository's would allow them). Record the current DNS record (type, target, proxied) **before** any change. | Identify it at O0. If it is in use, decide whether to replace it, or use a temporary tester hostname (for example `uat.core.pdabliss.com`) instead.   |
+| OO-1  | ~~What answers at `core.pdabliss.com` today?~~ **Corrected at O0:** the name is **NXDOMAIN** (no record of any type). The earlier "something answers" was a misread fetch failure. Remaining: the owner's dashboard check for dormant configuration (O0 report §6). | Use `core.pdabliss.com` once O0b finds no dormant configuration; otherwise it is BLOCKED for cutover. |
 | OO-2  | Runtime profile: **production mode + online launcher profile**, with the demo seed run **once** by an administrator in development mode against the isolated demo-only database, before the services start.                       | Accept, as an explicit, recorded exception for a demo-only cluster. The architecture (§4.3) rejected this for loopback staging; the alternative is a backend code change (explicit UAT identity), moved to EP48.6. |
 | OO-3  | SMTP provider for `pdabliss.com` (host, port 587 STARTTLS or 465 TLS, sender `notify@pdabliss.com`, a dedicated credential)                                                                                                         | a dedicated send-only credential; stored only in the CORE config folder (ACL)                                                                       |
 | OO-4  | How testers receive codes for the demo accounts (`owner.demo@`, `admin.demo@`, … `@pdabliss.com`)                                                                                                                                  | Mail aliases routed to named testers, or testers use their own invited accounts. No shared mailbox password.                                         |
@@ -228,6 +327,6 @@ Disallowed in the online profile (refused if present):
 | Production mode in code (`backend/src/config/env.ts`, `auth/http.ts`, `app.ts`) | `__Host-` + `Secure` cookies only in production mode; production requires `PUBLIC_APP_URL`, `AUTH_SECRET`, `SMTP_HOST`, refuses the dev mail sink and the dev secret; warns without `TRUST_PROXY`; the payment-free activation exists only outside production |
 | Demo seed (`auth/bootstrap.ts`)                            | refuses `NODE_ENV=production`, so OO-2 is needed                                                                                    |
 | Existing tunnels (server audit §4.6)                       | `Cloudflared`, `CloudflaredS2A`: remotely managed (dashboard ingress), so a dedicated tunnel for CORE                              |
-| `core.pdabliss.com`                                        | already answers; its `robots.txt` refuses crawlers, so it is **not** this repository's build (whose `robots.txt` allows `/`), so OO-1 |
+| `core.pdabliss.com`                                        | **Corrected at O0:** **NXDOMAIN** (no record of any type; zone `pdabliss.com` on Cloudflare). The earlier "already answers" was a misread fetch failure. |
 | Windows harness on `5e1488c`                               | **not yet run** (P1–P12): part of M12 at O1                                                                                        |
 | Full G0                                                    | **not passed** (runs 1 and 2 failed); now C1 (EP48.6)                                                                              |

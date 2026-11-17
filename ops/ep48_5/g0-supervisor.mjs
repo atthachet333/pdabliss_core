@@ -13,11 +13,23 @@
 //   node g0-supervisor.mjs plan-stop-tree   --root <pid> --root-created <iso> --not-before <iso> --g0-dir <G0>        (plan only)
 //   node g0-supervisor.mjs stop-tree        --root <pid> --root-created <iso> --not-before <iso> --g0-dir <G0> --out <G0\g0> --reason <text>
 //   node g0-supervisor.mjs census           --out <file.json> --g0-dir <G0> --runner-pid <pid> --runner-created <iso> [--exit <name>=<code> …]
+//                                           [--monitor-log <G0\g0\monitor.log>] [--stop-file <G0\g0\STOP>]
+//   node g0-supervisor.mjs baseline         --out <file.json> --g0-dir <G0> --temp-pg-port 55443          (read-only, as the monitor's)
+//   node g0-supervisor.mjs i5-check         --baseline <G0\g0\baseline.json> --out <file.json> --g0-dir <G0> --temp-pg-port 55443
+//                                           --expect-endpoints <n>                                       (read-only; exit 0 = PASS only)
+//   node g0-supervisor.mjs isolation        --out <file.json> [--window-minutes 180]                        (read-only; exit 1 = BLOCK)
 //
 // G0 run 2 (g0-20261117-161805, docs/EP48_5_G0_INCIDENT_20261117.md §6): the monitor and the backend-tests step ended
 // together with exit code 0xFFFFFFFF and no output. Hence: the monitor keeps a heartbeat log (monitor.log) with an
 // exit line and logs console / stop signals (raising STOP) - a missing exit line means another process terminated it;
 // `census` records, at the moment G0 stops, which G0 processes are still alive and what each exit code means.
+//
+// G0 run 3 readiness (docs/EP48_5_G0_RUN3_READINESS.md): production preservation no longer depends on the monitor
+// surviving. `i5-check` is run by the runner at shutdown in every outcome: it re-probes every production HTTP endpoint of
+// the monitor's baseline (loopback only, GET /) and compares statuses AND the process identity (PID + start time) that
+// owns each port, plus the PM2 tree, PostgreSQL, MariaDB, cloudflared and the production listeners. Only an explicit PASS
+// with every expected endpoint checked passes the gate; a missing baseline, missing facts or an unprobed endpoint is
+// MISSING / INCOMPLETE, never PASS. `isolation` classifies running development agents (never production) for the owner.
 //
 // Nothing here listens, connects to PostgreSQL or deletes anything. Processes are stopped only by `stop-tree`: each
 // PID re-verified (start time) right before it is stopped, never a protected production process, never PostgreSQL
@@ -42,6 +54,7 @@ export const LIMITS = Object.freeze({
 });
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FACTS_SCRIPT = path.join(HERE, "g0-harness", "g0-facts.ps1");
+export const TASKS_SCRIPT = path.join(HERE, "g0-harness", "g0-tasks.ps1");
 
 // ---------------------------------------------------------------- typing helpers (PowerShell JSON is loosely typed)
 const asArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]); // PS 5.1 ConvertTo-Json turns 1-element arrays into objects
@@ -249,8 +262,223 @@ export function validateBaseline(b) {
   if (!b.infra?.postmaster) problems.push("shared PostgreSQL postmaster not found");
   if (!Number.isInteger(b.tempPgPort) || b.tempPgPort < 1024) problems.push("temporary PostgreSQL port missing");
   problems.push(...validateHttpBaseline(b.http));
+  if (toInt(b.version) >= 3) {
+    const owners = new Map(asArray(b.portOwners).map((o) => [toInt(o?.appPort), asArray(o?.owners)]));
+    for (const e of asArray(b.http)) if (!(owners.get(e?.appPort)?.length > 0)) problems.push(`port ${e?.appPort}: no owning process identity (PID@start) in the baseline`);
+  }
   return problems;
 }
+/** Which processes (PID@start time) hold each port: the process identity part of HTTP preservation. */
+export function portOwnerIdentities(facts, ports) {
+  const created = new Map(facts.processes.map((p) => [p.pid, p.created]));
+  return [...ports]
+    .sort((a, b) => a - b)
+    .map((appPort) => ({ appPort, owners: [...new Set(facts.listeners.filter((l) => l.port === appPort).map((l) => `${l.pid}@${created.get(l.pid) ?? "?"}`))].sort() }));
+}
+/** The production baseline (version 3): taken by the monitor at start and by the read-only `baseline` command. */
+export async function buildProductionBaseline({ facts0, probe, tempPgPort, g0Dir, now }) {
+  const prod0 = identifyProduction(facts0, { g0Dir });
+  const samples = [];
+  for (const [appPort, addrs] of [...prod0.productionPorts].sort((a, b) => a[0] - b[0])) {
+    const host = probeHost(addrs);
+    const results = [];
+    for (let i = 0; i < LIMITS.baselineSamples; i++) results.push(host ? await probe({ host, port: appPort }) : { status: -1, ms: NaN });
+    samples.push({ appPort, host, results });
+  }
+  const baseline = {
+    version: 3,
+    at: new Date(now()).toISOString(),
+    tempPgPort,
+    tree: prod0.tree,
+    infra: prod0.infra,
+    http: buildHttpBaseline(samples),
+    portOwners: portOwnerIdentities(facts0, prod0.productionPorts.keys()),
+    listeners: productionListenerSignature(facts0, prod0, tempPgPort),
+    protectedPids: [...prod0.protectedPids].sort((a, b) => a - b),
+  };
+  const problems = factsComplete(facts0) ? validateBaseline(baseline) : ["Windows process / socket facts unavailable at baseline"];
+  baseline.valid = problems.length === 0;
+  baseline.problems = problems;
+  return baseline;
+}
+
+// ---------------------------------------------------------------- production preservation after G0 (pure)
+/**
+ * HTTP preservation: every endpoint of the established baseline answered with its baseline status, served by the same
+ * process identity, and the production tree / infrastructure / listeners are unchanged.
+ * verdict: PASS | FAIL (a proven change) | INCOMPLETE (evidence partly missing) | MISSING (no usable baseline).
+ * Only PASS passes the gate.
+ */
+export function httpPreservation({ baseline, facts, probes, ctx, expectEndpoints }) {
+  const r = { verdict: "PASS", expectedEndpoints: null, baselineEndpoints: null, checkedEndpoints: 0, endpoints: [], identity: [], problems: [] };
+  const fail = (m) => r.problems.push({ kind: "FAIL", message: m });
+  const gap = (m) => r.problems.push({ kind: "INCOMPLETE", message: m });
+  const decide = () => {
+    r.verdict = r.problems.some((x) => x.kind === "MISSING") ? "MISSING" : r.problems.some((x) => x.kind === "FAIL") ? "FAIL" : r.problems.length ? "INCOMPLETE" : "PASS";
+    return r;
+  };
+  const expected = toInt(expectEndpoints);
+  r.expectedEndpoints = Number.isInteger(expected) ? expected : null;
+  if (!Number.isInteger(expected) || expected < 1) r.problems.push({ kind: "MISSING", message: "the expected number of production endpoints was not given" });
+  if (!baseline || typeof baseline !== "object") {
+    r.problems.push({ kind: "MISSING", message: "no production baseline (the monitor's baseline.json is missing or unreadable)" });
+    return decide();
+  }
+  const baseProblems = baseline.valid === true ? validateBaseline(baseline) : [`baseline marked invalid: ${asArray(baseline.problems).join("; ")}`];
+  if (toInt(baseline.version) < 3) baseProblems.push("baseline has no per-port process identities (version < 3)");
+  if (baseProblems.length) {
+    for (const m of baseProblems) r.problems.push({ kind: "MISSING", message: `baseline: ${m}` });
+    return decide();
+  }
+  r.baselineEndpoints = baseline.http.length;
+  if (Number.isInteger(expected) && baseline.http.length !== expected) gap(`the baseline covers ${baseline.http.length} production endpoints, ${expected} expected`);
+  const complete = factsComplete(facts);
+  if (!complete) gap("Windows process / socket facts unavailable after G0 (process identities not verified)");
+  else {
+    const prod = identifyProduction(facts, { g0Dir: ctx.g0Dir });
+    const check = (name, ok) => {
+      r.identity.push({ name, ok });
+      if (!ok) fail(`${name} changed`);
+    };
+    check("production PM2 tree (daemon and children, PID + start time)", treeSignature(prod.tree) === treeSignature(baseline.tree));
+    for (const k of ["postmaster", "mariadb", "cloudflared"]) check(`${k} process`, String(prod.infra[k] ?? "") === String(baseline.infra?.[k] ?? ""));
+    const asSet = (sig) => String(sig ?? "").split(",").filter(Boolean).sort().join(",");
+    check("production listeners", asSet(productionListenerSignature(facts, prod, ctx.tempPgPort)) === asSet(baseline.listeners));
+  }
+  const baseOwners = new Map(baseline.portOwners.map((o) => [toInt(o.appPort), asArray(o.owners).map(String).sort()]));
+  const afterOwners = complete ? new Map(portOwnerIdentities(facts, baseline.http.map((e) => e.appPort)).map((o) => [o.appPort, o.owners])) : new Map();
+  for (const e of baseline.http) {
+    const probe = probes.get(e.appPort);
+    const expectedOwners = baseOwners.get(e.appPort) ?? [];
+    const owners = complete ? (afterOwners.get(e.appPort) ?? []) : null;
+    const row = { appPort: e.appPort, host: e.host, expectedStatus: e.status, status: probe ? probe.status : null, attempts: probe?.attempts ?? (probe ? 1 : 0), ms: probe?.ms ?? null, expectedOwners, owners };
+    row.statusOk = Boolean(probe) && probe.status === e.status;
+    row.ownerOk = owners !== null && owners.join(",") === expectedOwners.join(",");
+    r.endpoints.push(row);
+    if (!probe) gap(`port ${e.appPort}: not probed`);
+    else {
+      r.checkedEndpoints += 1;
+      if (!row.statusOk) fail(`port ${e.appPort} answered ${probe.status === -1 ? "nothing" : probe.status} (baseline ${e.status})`);
+    }
+    if (owners !== null && !row.ownerOk) fail(`port ${e.appPort} is served by ${owners.join(" ") || "no process"} (baseline ${expectedOwners.join(" ")})`);
+  }
+  return decide();
+}
+/** A status that differs is re-asked (up to `attempts`, 1 s apart) so one slow answer is not a false FAIL; every answer is kept. */
+export async function probeEndpoint(entry, { probe, sleep, attempts = 3 }) {
+  const answers = [];
+  for (let i = 0; i < attempts; i++) {
+    const a = await probe({ host: entry.host, port: entry.appPort });
+    answers.push(a);
+    if (a.status === entry.status) break;
+    if (i < attempts - 1) await sleep(1000);
+  }
+  const last = answers[answers.length - 1];
+  return { status: last.status, ms: last.ms, attempts: answers.length, answers: answers.map((a) => a.status) };
+}
+
+// ---------------------------------------------------------------- how G0 ended (pure)
+/** Who raised STOP, from the STOP file's own prefix (runner: / monitor: / anything else). */
+export function stopOrigin(text) {
+  const t = String(text ?? "").replace(/^\uFEFF/, "").trim();
+  if (!t) return { raisedBy: "none", text: null };
+  if (/^runner:/i.test(t)) return { raisedBy: "runner", text: t };
+  if (/^monitor( crashed)?:/i.test(t)) return { raisedBy: "monitor", text: t };
+  return { raisedBy: "other (owner or an outside process)", text: t };
+}
+/** How the monitor ended, from its exit code and its own log (the exit line is written by every exit Node performs). */
+export function classifyMonitorEnd({ exitCode, log }) {
+  const d = describeExitCode(exitCode);
+  const lines = String(log ?? "").split(/\r?\n/).filter(Boolean);
+  const exitLine = [...lines].reverse().find((l) => / exit code -?\d+/.test(l));
+  const finalWritten = lines.some((l) => / final I5 written/.test(l));
+  if (d.hex === null) return { kind: "unknown", detail: "no exit code (the monitor is still running or never started)", exit: d };
+  if (!exitLine) {
+    if (d.hex === "0xFFFFFFFF") return { kind: "terminated-externally", detail: "terminated by another process (TerminateProcess -1, e.g. Stop-Process / .NET Kill); no exit line", exit: d };
+    return { kind: "ended-without-exit-handler", detail: `ended with ${d.hex} without its exit line (forced termination or a crash): ${d.meaning}`, exit: d };
+  }
+  if (/received SIG/.test(lines.join("\n"))) return { kind: "signal", detail: "ended on a console / stop signal (it raised STOP itself)", exit: d };
+  if (d.code === 0 && finalWritten) return { kind: "normal", detail: "ended normally after writing its final I5 comparison", exit: d };
+  if (d.code === 2) return { kind: "invalid-baseline", detail: "refused an invalid baseline (STOP raised)", exit: d };
+  return { kind: "ended-itself", detail: `ended by itself (${d.hex}) ${finalWritten ? "after" : "WITHOUT"} its final I5 comparison`, exit: d };
+}
+
+// ---------------------------------------------------------------- development-agent isolation (pure, read-only)
+/** Autonomous development agents: they can run commands on this host and must be paused (by the owner) during G0. */
+export const AGENT_RULES = Object.freeze([
+  { id: "openai-codex", name: /^(codex|codex-command-runner|cua_node)(\.exe)?$/i, cmd: /[\\/]\.codex[\\/]|@openai[\\/]codex|codex-command-runner|cua_node/i },
+  { id: "claude (desktop / Claude Code)", name: /^claude(\.exe)?$/i, cmd: /@anthropic-ai[\\/]claude-code|[\\/]AnthropicClaude[\\/]/i },
+  { id: "github-copilot", name: /^copilot(-language-server)?(\.exe)?$/i, cmd: /copilot-language-server|@github[\\/]copilot|copilot-agent/i },
+  { id: "google-gemini-cli", name: /^gemini(\.exe)?$/i, cmd: /@google[\\/]gemini-cli/i },
+  { id: "cursor", name: /^cursor(\.exe)?$/i, cmd: /[\\/]cursor[\\/]cursor\.exe/i },
+  { id: "windsurf", name: /^windsurf(\.exe)?$/i, cmd: /[\\/]windsurf[\\/]windsurf\.exe/i },
+  { id: "continue", name: /^continue(-binary)?(\.exe)?$/i, cmd: /[\\/]\.continue[\\/]|continue-binary/i },
+  { id: "aider", name: /^aider(\.exe)?$/i, cmd: /\baider(\.exe)?\b/i },
+]);
+const IDE_NAME = /^(code|code - insiders|devenv|idea64|webstorm64|rider64)\.exe$/i;
+const RUNTIME_NAME = /^(node|python[0-9.]*|pythonw|bun|deno|pwsh|powershell)\.exe$/i;
+const KILL_WORDS = /\b(Stop-Process|taskkill|tskill|pskill|kill\s+-9|killall|pkill)\b|\.Kill\(/i;
+const redactText = (t) =>
+  String(t ?? "")
+    .replace(/(postgres(ql)?|mysql|mariadb):\/\/[^\s'"]+/gi, "<connection-string>")
+    .replace(/((password|passwd|pwd|token|secret|api_?key)\s*[=:]\s*)[^\s;'"]+/gi, "$1<redacted>")
+    .slice(0, 300);
+/**
+ * Read-only isolation readiness. Production (PM2 trees, PostgreSQL, MariaDB, cloudflared) is identified FIRST and never
+ * classified as an agent. status: BLOCK (an agent runs, or a scheduled task that stops processes is running / due in the
+ * window) | REVIEW (owner review items only) | CLEAR. Nothing is ever stopped: the owner pauses agents through their own UI.
+ */
+export function classifyIsolation({ facts, tasks, now, windowMinutes = 180, g0Dir, selfPid }) {
+  const prod = identifyProduction(facts, { g0Dir });
+  const { byPid } = indexFacts(facts);
+  const production = new Set([...prod.protectedPids, ...prod.pm2Pids]);
+  const own = new Set();
+  for (let p = byPid.get(selfPid); p && !own.has(p.pid); p = byPid.get(p.parent)) own.add(p.pid); // this check and its callers
+  const agents = [];
+  const agentPids = new Set();
+  for (const p of facts.processes) {
+    if (production.has(p.pid) || own.has(p.pid) || agentPids.has(p.pid)) continue;
+    const rule = AGENT_RULES.find((r) => r.name.test(p.name) || r.cmd.test(p.cmd));
+    if (!rule) continue;
+    for (const x of [p, ...descendants(facts, p.pid)]) {
+      if (agentPids.has(x.pid) || production.has(x.pid) || own.has(x.pid)) continue;
+      agentPids.add(x.pid);
+      agents.push({ agent: rule.id, pid: x.pid, parent: x.parent, name: x.name, created: x.created, cmd: redactText(x.cmd), viaParent: x.pid !== p.pid ? p.pid : null });
+    }
+  }
+  const review = [];
+  for (const p of facts.processes) {
+    if (production.has(p.pid) || own.has(p.pid) || agentPids.has(p.pid)) continue;
+    if (IDE_NAME.test(p.name)) review.push({ kind: "ide", pid: p.pid, name: p.name, created: p.created, cmd: redactText(p.cmd) });
+    else if (RUNTIME_NAME.test(p.name)) review.push({ kind: "runtime outside production", pid: p.pid, parent: p.parent, name: p.name, created: p.created, cmd: redactText(p.cmd) });
+  }
+  const until = now + windowMinutes * 60_000;
+  const taskRows = [];
+  for (const t of asArray(tasks)) {
+    if (/^\\Microsoft\\/i.test(String(t?.path ?? ""))) continue;
+    const next = timeMs(t?.nextRun);
+    const running = String(t?.state ?? "") === "Running";
+    const due = running || (Number.isFinite(next) && next >= now && next <= until);
+    const actions = asArray(t?.actions).map((a) => `${a?.execute ?? ""} ${a?.arguments ?? ""}`.trim());
+    const stopsProcesses = actions.some((a) => KILL_WORDS.test(a));
+    const touchesAgents = actions.some((a) => AGENT_RULES.some((r) => r.cmd.test(a)));
+    taskRows.push({ task: `${t?.path ?? ""}${t?.name ?? ""}`, state: String(t?.state ?? ""), nextRun: t?.nextRun ?? null, dueInWindow: due, stopsProcesses, touchesAgents, actions: actions.map(redactText) });
+  }
+  const blockingTasks = taskRows.filter((t) => t.dueInWindow && (t.stopsProcesses || t.touchesAgents));
+  const reviewTasks = taskRows.filter((t) => t.dueInWindow && !t.stopsProcesses && !t.touchesAgents);
+  const status = agents.length || blockingTasks.length ? "BLOCK" : review.length || reviewTasks.length ? "REVIEW" : "CLEAR";
+  return {
+    status,
+    windowMinutes,
+    production: { pm2Daemon: prod.daemon ? `${prod.daemon.pid}@${prod.daemon.created}` : null, pm2Daemons: prod.daemonCount, protectedProcesses: production.size, postmaster: prod.infra.postmaster, mariadb: prod.infra.mariadb, cloudflared: prod.infra.cloudflared },
+    agents,
+    blockingTasks,
+    review,
+    reviewTasks,
+    tasksSeen: taskRows.length,
+  };
+}
+
 
 // ---------------------------------------------------------------- one monitoring round (pure)
 /**
@@ -435,6 +663,12 @@ export function collectFactsWindows({ factsScript = FACTS_SCRIPT, timeoutMs = 60
   if (r.error || r.status !== 0) throw new Error(`g0-facts.ps1 failed (${r.error?.code ?? `exit ${r.status}`})`);
   return JSON.parse(String(r.stdout).replace(/^﻿/, ""));
 }
+/** Scheduled tasks (read-only, g0-tasks.ps1): path, name, state, next run, actions. */
+export function collectTasksWindows({ tasksScript = TASKS_SCRIPT, timeoutMs = 120_000 } = {}) {
+  const r = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", tasksScript], { encoding: "utf8", timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (r.error || r.status !== 0) throw new Error(`g0-tasks.ps1 failed (${r.error?.code ?? `exit ${r.status}`})`);
+  return asArray(JSON.parse(String(r.stdout).replace(/^\uFEFF/, "")).tasks);
+}
 export function probeHttp({ host, port, timeoutMs = 5000 }) {
   return new Promise((resolve) => {
     const t0 = performance.now();
@@ -488,27 +722,8 @@ export async function runMonitor(opts, deps) {
 
   // round 0: baseline (fail closed)
   const facts0 = normalizeFacts(await deps.collectFacts().catch(() => ({})));
-  const prod0 = identifyProduction(facts0, { g0Dir: opts.g0Dir });
-  const samples = [];
-  for (const [appPort, addrs] of [...prod0.productionPorts].sort((a, b) => a[0] - b[0])) {
-    const host = probeHost(addrs);
-    const results = [];
-    for (let i = 0; i < LIMITS.baselineSamples; i++) results.push(host ? await deps.probe({ host, port: appPort }) : { status: -1, ms: NaN });
-    samples.push({ appPort, host, results });
-  }
-  const baseline = {
-    version: 2,
-    at: new Date(deps.now()).toISOString(),
-    tempPgPort: opts.tempPgPort,
-    tree: prod0.tree,
-    infra: prod0.infra,
-    http: buildHttpBaseline(samples),
-    listeners: productionListenerSignature(facts0, prod0, opts.tempPgPort),
-    protectedPids: [...prod0.protectedPids].sort((a, b) => a - b),
-  };
-  const problems = factsComplete(facts0) ? validateBaseline(baseline) : ["Windows process / socket facts unavailable at baseline"];
-  baseline.valid = problems.length === 0;
-  baseline.problems = problems;
+  const baseline = await buildProductionBaseline({ facts0, probe: deps.probe, tempPgPort: opts.tempPgPort, g0Dir: opts.g0Dir, now: deps.now });
+  const problems = baseline.problems;
   writeAtomic("baseline.json", `${JSON.stringify(baseline, null, 2)}\n`);
   beat(`baseline ${baseline.valid ? "valid" : "INVALID"}: ${baseline.http.length} ports, ${Object.keys(baseline.tree).length - 1} PM2 children${problems.length ? `; ${problems.join("; ")}` : ""}`);
   if (!baseline.valid) {
@@ -705,6 +920,15 @@ async function main(argv) {
       const [name, code] = argv[i + 1].split("=");
       exits.push({ name, ...describeExitCode(code) });
     }
+    const readOrNull = (f) => {
+      try {
+        return f ? fs.readFileSync(f, "utf8") : null;
+      } catch {
+        return null;
+      }
+    };
+    const monitorExit = exits.find((e) => e.name === "monitor");
+    const monitorLog = readOrNull(argOf(argv, "monitor-log"));
     let facts = null;
     let factsError = null;
     try {
@@ -723,12 +947,68 @@ async function main(argv) {
       g0ProcessesAlive: facts ? facts.processes.filter((p) => g0.has(p.pid)).map((p) => ({ pid: p.pid, parent: p.parent, name: p.name, created: p.created, cmd: p.cmd.slice(0, 300) })) : null,
       factsError,
       processCount: facts ? facts.processes.length : null,
+      monitorEnd: argOf(argv, "monitor-log") ? classifyMonitorEnd({ exitCode: monitorExit?.code ?? null, log: monitorLog }) : null,
+      stop: argOf(argv, "stop-file") ? stopOrigin(readOrNull(argOf(argv, "stop-file"))) : null,
+      agentsAlive: facts ? classifyIsolation({ facts, tasks: [], now: Date.now(), g0Dir: argOf(argv, "g0-dir"), selfPid: process.pid }).agents : null,
     };
     fs.writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
     say({ census: out, exits: exits.length, g0ProcessesAlive: report.g0ProcessesAlive?.length ?? null });
     return 0;
   }
-  throw new Error("unknown command (monitor | temp-pg-identity | plan-stop-tree | stop-tree | census)");
+  if (cmd === "baseline") {
+    const out = argOf(argv, "out");
+    if (!out) throw new Error("baseline needs --out <file.json>");
+    const facts0 = normalizeFacts(await collect().catch(() => ({})));
+    const baseline = await buildProductionBaseline({ facts0, probe: probeHttp, tempPgPort: toInt(argOf(argv, "temp-pg-port")), g0Dir: argOf(argv, "g0-dir"), now: () => Date.now() });
+    fs.writeFileSync(out, `${JSON.stringify(baseline, null, 2)}\n`);
+    say({ baseline: out, valid: baseline.valid, endpoints: baseline.http.length, problems: baseline.problems });
+    return baseline.valid ? 0 : 2;
+  }
+  if (cmd === "i5-check") {
+    const out = argOf(argv, "out");
+    const baselineFile = argOf(argv, "baseline");
+    if (!out || !baselineFile) throw new Error("i5-check needs --baseline <baseline.json> --out <file.json>");
+    let baseline = null;
+    let baselineError = null;
+    try {
+      baseline = JSON.parse(fs.readFileSync(baselineFile, "utf8").replace(/^\uFEFF/, ""));
+    } catch (e) {
+      baselineError = e.code === "ENOENT" ? "baseline file not found" : `baseline unreadable: ${e.message}`;
+    }
+    let facts = normalizeFacts({});
+    let factsError = null;
+    try {
+      facts = normalizeFacts(await collect());
+    } catch (e) {
+      factsError = e.message;
+    }
+    const probes = new Map();
+    for (const e of asArray(baseline?.http)) {
+      // loopback only, exactly as the monitor: an entry without a loopback host is never probed (and stays unproven)
+      if (!Number.isInteger(toInt(e?.appPort)) || !LOOPBACK_ADDRESSES.includes(e?.host)) continue;
+      probes.set(toInt(e.appPort), await probeEndpoint({ ...e, appPort: toInt(e.appPort) }, { probe: probeHttp, sleep: (ms) => new Promise((r) => setTimeout(r, ms)) }));
+    }
+    const result = httpPreservation({ baseline, facts, probes, ctx: { tempPgPort: toInt(argOf(argv, "temp-pg-port")), g0Dir: argOf(argv, "g0-dir") }, expectEndpoints: argOf(argv, "expect-endpoints") });
+    const report = { at: new Date().toISOString(), check: "production HTTP preservation (I5, runner-owned)", baselineFile, baselineError, factsError, ...result };
+    fs.writeFileSync(`${out}.partial`, `${JSON.stringify(report, null, 2)}\n`);
+    fs.renameSync(`${out}.partial`, out);
+    say({ i5: out, verdict: result.verdict, checked: result.checkedEndpoints, expected: result.expectedEndpoints, problems: result.problems.length });
+    return result.verdict === "PASS" ? 0 : 1;
+  }
+  if (cmd === "isolation") {
+    const out = argOf(argv, "out");
+    if (!out) throw new Error("isolation needs --out <file.json>");
+    const facts = normalizeFacts(await collect());
+    if (!factsComplete(facts)) throw new Error("Windows process facts unavailable - isolation cannot be assessed");
+    const tasksFile = argOf(argv, "tasks-file");
+    const tasks = tasksFile ? asArray(JSON.parse(fs.readFileSync(tasksFile, "utf8").replace(/^\uFEFF/, "")).tasks) : collectTasksWindows();
+    const windowMinutes = toInt(argOf(argv, "window-minutes") ?? 180);
+    const report = { at: new Date().toISOString(), check: "development-agent isolation readiness (read-only; nothing is stopped)", ...classifyIsolation({ facts, tasks, now: Date.now(), windowMinutes, g0Dir: argOf(argv, "g0-dir"), selfPid: process.pid }) };
+    fs.writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
+    say({ isolation: out, status: report.status, agents: report.agents.length, blockingTasks: report.blockingTasks.length, review: report.review.length, reviewTasks: report.reviewTasks.length });
+    return report.status === "BLOCK" ? 1 : 0;
+  }
+  throw new Error("unknown command (monitor | temp-pg-identity | plan-stop-tree | stop-tree | census | baseline | i5-check | isolation)");
 }
 
 if (process.argv[1] && path.basename(process.argv[1]) === "g0-supervisor.mjs") {

@@ -1,4 +1,4 @@
-# PDA BLISS CORE - EP48.5 A-1 / G0 runner (isolated quality validation on S2A-SERVER).    Run-G0 v3.1
+# PDA BLISS CORE - EP48.5 A-1 / G0 runner (isolated quality validation on S2A-SERVER).    Run-G0 v3.2
 #
 # v3 = G0 incident amendment 2026-11-17 (docs/EP48_5_G0_INCIDENT_20261117.md). Incident g0-20261117-134458:
 #   * the PowerShell monitor's loop variable `$port` overwrote its `[int]$Port` parameter (PowerShell names are
@@ -8,7 +8,13 @@
 # Now: every external program runs through Invoke-G0Bounded (files, not pipes; polled STOP / monitor health /
 # deadline); the monitor is g0-supervisor.mjs (typed, unit-tested); shutdown is bounded and identity-checked.
 #
-# Owner authorization required before EVERY run. -Release and -ExpectOps are REQUIRED.
+# v3.2 = G0 run 3 readiness (docs/EP48_5_G0_RUN3_READINESS.md): production HTTP preservation is checked by THIS runner
+#   at shutdown in every outcome (g0-supervisor.mjs i5-check: every baseline endpoint re-probed on loopback, status AND
+#   owning process identity compared) - it no longer depends on the monitor surviving; only an explicit PASS passes.
+#   A read-only isolation check refuses to start while a development agent runs (the owner pauses agents; nothing is
+#   stopped by G0); -ExpectHttpEndpoints and -AgentIsolationConfirmed are required.
+#
+# Owner authorization required before EVERY run. -Release, -ExpectOps, -ExpectHttpEndpoints and -AgentIsolationConfirmed are REQUIRED.
 #   * Preflight-G0.ps1 runs first; a BLOCK stops G0 before anything is created.
 #   * Everything happens in a NEW folder D:\pdabliss-core-staging\gates\g0-<timestamp> (never reused, never deleted).
 #   * One TEMPORARY PostgreSQL (plain process, not a service): 127.0.0.1:55443, SCRAM, random password in memory only.
@@ -26,7 +32,7 @@
 #     (never killed); the monitor gets MONITOR-END (verified stop only if it does not end in 90 s); logs are kept.
 #
 # Run in an ELEVATED Windows PowerShell (the production PM2 tree runs as SYSTEM):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <approved sha> -ExpectOps <n>
+#   powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2A_PROJECT\pdabliss_core\ops\ep48_5\g0-harness\Run-G0.ps1 -Release <approved sha> -ExpectOps <n> -ExpectHttpEndpoints <n> -AgentIsolationConfirmed
 #
 [CmdletBinding()]
 param(
@@ -37,7 +43,9 @@ param(
   [string]$GatesRoot = 'D:\pdabliss-core-staging\gates',
   [int]$ExpectBackend = 611,
   [int]$ExpectFrontend = 1192,
-  [int]$ExpectOps = 0
+  [int]$ExpectOps = 0,
+  [int]$ExpectHttpEndpoints = 0,
+  [switch]$AgentIsolationConfirmed
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,7 +73,8 @@ $script:MonitorProc = $null
 $script:MonitorCreated = $null
 $script:Finishing = $false
 $script:LastPhase = $null
-$script:Summary = [ordered]@{ runner = 'EP48.5 Run-G0 v3.1 (run-2 diagnostics)'; release = $Release; baseline = $Baseline; folder = $G0Dir; startedAt = (Get-Date).ToString('o'); result = 'RUNNING'; stopReason = $null; phases = @() }
+$script:LastWorkPhase = $null
+$script:Summary = [ordered]@{ runner = 'EP48.5 Run-G0 v3.2 (run-3 readiness)'; release = $Release; baseline = $Baseline; folder = $G0Dir; startedAt = (Get-Date).ToString('o'); result = 'RUNNING'; stopReason = $null; phases = @() }
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 Start-Transcript -Path (Join-Path $OutDir 'transcript.txt') | Out-Null
@@ -101,6 +110,7 @@ function Invoke-G0Phase {
   $phaseResult = Invoke-G0Bounded -Name $label -FilePath $FilePath -ArgumentValues $ArgumentValues -WorkingDirectory $WorkingDirectory -LogDir $OutDir -TimeoutSec ($TimeoutMin * 60) -StopFile $stopPath -AbortCheck $abortBlock -OnAbort { param($ChildPid, $ChildCreated, $Why) Stop-OwnTree $ChildPid $ChildCreated $Why }
   $script:PhaseRecords += [ordered]@{ no = $script:PhaseCounter; name = $Name; status = $phaseResult.status; exit = $phaseResult.exit; exitText = $phaseResult.exitText; childEndedFirst = $phaseResult.childEndedFirst; seconds = $phaseResult.seconds; note = $Note; reason = $phaseResult.reason }
   $script:LastPhase = $phaseResult
+  if (-not $Final) { $script:LastWorkPhase = $phaseResult }   # census reports the last WORK step, never a shutdown phase
   Write-G0Log "phase $label -> $($phaseResult.status) (exit $($phaseResult.exitText), $($phaseResult.seconds)s) $($phaseResult.reason)"
   if (-not $Final -and $phaseResult.status -ne 'OK') { Stop-G0 "$Name $($phaseResult.status): $($phaseResult.reason) - see $OutDir\$label.*.txt" }
   return $phaseResult
@@ -119,6 +129,11 @@ function Write-G0Report {
   if ($script:Summary.stopReason) { $lines += "STOP REASON: $($script:Summary.stopReason)" }
   if ($script:Summary.monitorExit) { $lines += "MONITOR EXIT: $($script:Summary.monitorExit)" }
   if ($script:Summary.monitorFinal) { $lines += "MONITOR FINAL I5: $($script:Summary.monitorFinal)" }
+  if ($script:Summary.monitorEnd) { $lines += "MONITOR END: $($script:Summary.monitorEnd)" }
+  if ($script:Summary.stopRaisedBy) { $lines += "STOP RAISED BY: $($script:Summary.stopRaisedBy)" }
+  if ($script:Summary.httpPreservation) { $lines += "PRODUCTION HTTP PRESERVATION: $($script:Summary.httpPreservation)" }
+  if ($script:Summary.collectorAfter) { $lines += "COLLECTOR AFTER: $($script:Summary.collectorAfter)" }
+  if ($script:Summary.isolation) { $lines += "ISOLATION AT START: $($script:Summary.isolation)" }
   foreach ($rec in $script:PhaseRecords) { $lines += ("{0,-3} {1,-34} {2,-8} {3,7}s  exit {4}  {5} {6}" -f $rec.no, $rec.name, $rec.status, $rec.seconds, $rec.exitText, $rec.note, $rec.reason) }
   $lines | Set-Content -LiteralPath (Join-Path $OutDir 'G0-SUMMARY.txt') -Encoding UTF8
   try {
@@ -168,8 +183,34 @@ function Complete-G0 {
     }
   }
   if ((Test-Path -LiteralPath $StopFile) -and $script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "$(Get-Content -LiteralPath $StopFile -Raw)".Trim() }
-  # 3. host collector "after" (read-only, bounded)
-  Invoke-G0Phase -Name 'collector-after' -FilePath $script:PowerShellExe -ArgumentValues @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $Dev 'ops\ep48_5\Collect-HostAudit.ps1'), '-NoHttpProbe') -WorkingDirectory $G0Dir -TimeoutMin 15 -Final | Out-Null
+  # 3. how G0 ended: which G0 processes are alive, how the monitor ended, who raised STOP (read-only)
+  Save-G0Census 'census-at-end'
+  $censusEndFile = Join-Path $OutDir 'census-at-end.json'
+  if (Test-Path -LiteralPath $censusEndFile) {
+    $censusEnd = Get-Content -LiteralPath $censusEndFile -Raw | ConvertFrom-Json
+    if ($censusEnd.monitorEnd) { $script:Summary.monitorEnd = "$($censusEnd.monitorEnd.kind): $($censusEnd.monitorEnd.detail)" }
+    if ($censusEnd.stop) { $script:Summary.stopRaisedBy = "$($censusEnd.stop.raisedBy)" }
+    $script:Summary.g0ProcessesAliveAtEnd = @($censusEnd.g0ProcessesAlive).Count
+  }
+  # 4. production preservation (I5), owned by THIS runner: runs in every outcome, also when the monitor ended
+  #    unexpectedly. Every baseline endpoint is re-probed (loopback, GET /) and its status AND owning process identity
+  #    compared, with the PM2 tree, PostgreSQL, MariaDB, cloudflared and the production listeners. Only PASS passes.
+  $script:Summary.httpPreservation = 'MISSING - the runner-owned I5 check did not run'
+  $i5File = Join-Path $OutDir 'i5-after.json'
+  if ($script:NodeExe) {
+    Invoke-G0Phase -Name 'production-i5-check' -FilePath $script:NodeExe -ArgumentValues @($Supervisor, 'i5-check', '--baseline', (Join-Path $OutDir 'baseline.json'), '--out', $i5File, '--g0-dir', $G0Dir, '--temp-pg-port', "$TempPgPort", '--expect-endpoints', "$ExpectHttpEndpoints") -WorkingDirectory $G0Dir -TimeoutMin 10 -Final | Out-Null
+  }
+  if (Test-Path -LiteralPath $i5File) {
+    $i5After = Get-Content -LiteralPath $i5File -Raw | ConvertFrom-Json
+    $script:Summary.httpPreservation = "$($i5After.verdict) - $($i5After.checkedEndpoints) of $($i5After.expectedEndpoints) production endpoints checked (status and owning process identity)"
+    $script:Summary.i5 = $i5After
+  }
+  # 5. host collector "after" (read-only, bounded). It does not probe HTTP: its success is NOT HTTP-preservation evidence.
+  $collectorAfter = Invoke-G0Phase -Name 'collector-after' -FilePath $script:PowerShellExe -ArgumentValues @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $Dev 'ops\ep48_5\Collect-HostAudit.ps1'), '-NoHttpProbe') -WorkingDirectory $G0Dir -TimeoutMin 15 -Final
+  $script:Summary.collectorAfter = "$($collectorAfter.status) - process / listener audit only (-NoHttpProbe); not HTTP-preservation evidence"
+  # 6. gates: PASS needs every phase OK AND the monitor's final I5 AND the runner-owned HTTP preservation PASS
+  if ($script:Summary.result -eq 'RUNNING' -and $script:Summary.monitorFinal -ne 'present') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "the monitor's final I5 comparison is missing" }
+  if ($script:Summary.result -eq 'RUNNING' -and "$($script:Summary.httpPreservation)" -notmatch '^PASS - ') { $script:Summary.result = 'STOPPED'; $script:Summary.stopReason = "production HTTP preservation not proven: $($script:Summary.httpPreservation)" }
   if ($script:Summary.result -eq 'RUNNING') { $script:Summary.result = 'PASS' }
   } catch {
     Write-G0Log "shutdown error: $($_.Exception.Message)"
@@ -186,7 +227,8 @@ function Save-G0Census([string]$CensusName) {
   if (-not $script:NodeExe) { return }
   $exitArgs = @()
   if ($script:MonitorProc -and $script:MonitorProc.HasExited) { $exitArgs += @('--exit', "monitor=$($script:MonitorProc.ExitCode)") }
-  if ($script:LastPhase -and $null -ne $script:LastPhase.exit) { $exitArgs += @('--exit', "$($script:LastPhase.name)=$($script:LastPhase.exit)") }
+  if ($script:LastWorkPhase -and $null -ne $script:LastWorkPhase.exit) { $exitArgs += @('--exit', "$($script:LastWorkPhase.name)=$($script:LastWorkPhase.exit)") }
+  $exitArgs += @('--monitor-log', (Join-Path $OutDir 'monitor.log'), '--stop-file', $StopFile)
   try {
     Invoke-G0Phase -Name $CensusName -FilePath $script:NodeExe -ArgumentValues (@($Supervisor, 'census', '--out', (Join-Path $OutDir "$CensusName.json"), '--g0-dir', $G0Dir, '--runner-pid', "$PID", '--runner-created', $script:RunnerCreated) + $exitArgs) -WorkingDirectory $G0Dir -TimeoutMin 2 -Final | Out-Null
   } catch { Write-G0Log "census failed: $($_.Exception.Message)" }
@@ -205,8 +247,10 @@ function Stop-G0([string]$Reason) {
 
 try {
   # ------------------------------------------------------------------ 0. preconditions + preflight (read-only)
-  Write-G0Log "EP48.5 G0 runner v3 - folder $G0Dir"
+  Write-G0Log "EP48.5 G0 runner v3.2 - folder $G0Dir"
   if ($ExpectOps -le 0) { throw '-ExpectOps <exact ops test count from the approved amendment report> is required' }
+  if ($ExpectHttpEndpoints -le 0) { throw '-ExpectHttpEndpoints <number of production HTTP endpoints from the owner-reviewed baseline> is required' }
+  if (-not $AgentIsolationConfirmed) { throw '-AgentIsolationConfirmed is required: complete the owner checklist in docs/EP48_5_G0_RUN3_READINESS.md first (development agents paused by the owner)' }
   (Get-Process -Id $PID).PriorityClass = 'BelowNormal'   # children inherit BelowNormal
   $identityNow = [Security.Principal.WindowsIdentity]::GetCurrent()
   if (-not (New-Object Security.Principal.WindowsPrincipal($identityNow)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'run this in an ELEVATED PowerShell (the production PM2 tree runs as SYSTEM)' }
@@ -221,6 +265,10 @@ try {
   foreach ($hazardName in $hazards) { Remove-Item "Env:$hazardName" }
   $script:Summary.neutralisedVariables = $hazards
   Invoke-G0Phase -Name 'preflight' -FilePath $script:PowerShellExe -ArgumentValues @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $HarnessDir 'Preflight-G0.ps1'), '-Release', $Release, '-Baseline', $Baseline, '-Dev', $Dev, '-PgBin', $PgBin, '-GatesRoot', $GatesRoot, '-TempPgPort', "$TempPgPort", '-ReportDir', (Join-Path $OutDir 'preflight'), '-FromRunner') -WorkingDirectory $Dev -TimeoutMin 15 -Note 'read-only W1-W9' | Out-Null
+  # Read-only: refuses to start while a development agent runs (production is identified first and never classified).
+  Invoke-G0Phase -Name 'isolation-check' -FilePath $script:NodeExe -ArgumentValues @($Supervisor, 'isolation', '--out', (Join-Path $OutDir 'isolation-at-start.json'), '--g0-dir', $G0Dir) -WorkingDirectory $Dev -TimeoutMin 5 -Note 'read-only; BLOCK = a development agent runs' | Out-Null
+  $isolationStart = Get-Content -LiteralPath (Join-Path $OutDir 'isolation-at-start.json') -Raw | ConvertFrom-Json
+  $script:Summary.isolation = "$($isolationStart.status) - agents $(@($isolationStart.agents).Count), owner review items $(@($isolationStart.review).Count + @($isolationStart.reviewTasks).Count)"
   $commitType = (& $script:GitExe -C $Dev cat-file -t $Release)
   if ($commitType -ne 'commit') { throw "release commit $Release not found in $Dev" }
   & $script:GitExe -C $Dev diff --quiet $Baseline $Release -- backend frontend
@@ -247,6 +295,7 @@ try {
   }
   $monitorBaseline = Get-Content -LiteralPath $baselineFile -Raw | ConvertFrom-Json
   if ($monitorBaseline.valid -ne $true) { Stop-G0 ('monitor baseline invalid: ' + (@($monitorBaseline.problems) -join '; ')) }
+  if (@($monitorBaseline.http).Count -ne $ExpectHttpEndpoints) { Stop-G0 "monitor baseline has $(@($monitorBaseline.http).Count) production HTTP endpoints, $ExpectHttpEndpoints expected - every endpoint must be in the baseline" }
   Write-G0Log "monitor running (PID $($script:MonitorProc.Id)); baseline valid: $(@($monitorBaseline.http).Count) production ports, PM2 tree, PostgreSQL / MariaDB / cloudflared"
 
   # ------------------------------------------------------------------ 2. checkout of the exact release commit

@@ -7,7 +7,9 @@
 # listener outside 127.0.0.1 (the Node suites run under the loopback-only guard). It only starts its own short-lived
 # helper processes (ping.exe to 127.0.0.1, cmd.exe, powershell.exe, node.exe) in a new folder under %TEMP%, stops only
 # its own ping.exe processes through g0-supervisor.mjs stop-tree (verified identity), checks that none is left (P8), and asks the supervisor for a PLAN (never an action) against
-# production PIDs. Results: ops-logs\ep48_5-g0\harness-test-<timestamp>\ (git-ignored). Exit 0 = all PASS.
+# production PIDs. G0 run 3 readiness: P7 checks an exact per-file test manifest; P11 runs the runner-owned production
+# I5 check read-only (loopback GET / to production ports, as the monitor does); P12 writes the read-only isolation
+# report. Results: ops-logs\ep48_5-g0\harness-test-<timestamp>\ (git-ignored). Exit 0 = all PASS.
 param([string]$Dev = 'D:\S2A_PROJECT\pdabliss_core')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Off
@@ -129,23 +131,76 @@ try {
 } catch { Add-Outcome 'P6' 'facts script' $false $_.Exception.Message }
 
 # P7 - the EP48.5 Node suites on Windows / Node 24, under the loopback-only guard, concurrency 2 (no database: T10 and
-# the EP43 suite, which needs the backend's dependencies, are not part of this run).
+# the EP43 suite, which needs the backend's dependencies, are not part of this run). G0 run 3 readiness: the files and
+# their EXACT test counts come from ops\ep48_5\g0-test-manifest.mjs; a per-test reporter records each test's file and
+# `check` requires exactly the manifest (no file missing or added, no count drift, 0 fail / skipped / todo / cancelled).
 try {
   $loopbackDir = Join-Path $workDir 'loopback'
   New-Item -ItemType Directory -Force -Path $loopbackDir | Out-Null
-  $suiteFiles = @(Get-ChildItem -LiteralPath (Join-Path $Dev 'ops\test') -Filter '*.test.mjs' | Where-Object { $_.Name -notin @('ops.test.mjs', 'staging-launch.g0.test.mjs') } | Sort-Object Name | ForEach-Object { "ops/test/$($_.Name)" })
+  $manifestTool = Join-Path $Dev 'ops\ep48_5\g0-test-manifest.mjs'
+  $manifestList = Invoke-Node 'p7-manifest-files' @($manifestTool, 'files', '--manifest', 'p7') 60
+  $suiteFiles = @(Get-Content -LiteralPath $manifestList.stdout | Where-Object { $_ -match '\S' } | ForEach-Object { $_.Trim() })
+  $eventsFile = Join-Path $workDir 'p7-events.jsonl'
   $env:NODE_OPTIONS = '--import=' + ([Uri](Join-Path $Dev 'ops\ep48_5\g0-loopback-preload.mjs')).AbsoluteUri
   $env:CORE_G0_LOOPBACK_DIR = $loopbackDir
-  try { $suite = Invoke-Node 'p7-node-suites' (@('--test', '--test-reporter=tap', '--test-concurrency=2') + $suiteFiles) 600 }
+  try { $suite = Invoke-Node 'p7-node-suites' (@('--test', '--test-concurrency=2', '--test-reporter=tap', '--test-reporter-destination=stdout', ('--test-reporter=' + ([Uri]$manifestTool).AbsoluteUri), "--test-reporter-destination=$eventsFile") + $suiteFiles) 600 }
   finally { Remove-Item Env:NODE_OPTIONS; Remove-Item Env:CORE_G0_LOOPBACK_DIR }
   $tap = Get-Content -LiteralPath $suite.stdout -Raw
   $count = @{}
   foreach ($key in @('tests', 'pass', 'fail', 'skipped', 'todo', 'cancelled')) { if ($tap -match "(?m)^# $key (\d+)") { $count[$key] = [int]$Matches[1] } else { $count[$key] = -1 } }
   $violations = 0; $violationsFile = Join-Path $loopbackDir 'violations.log'
   if (Test-Path -LiteralPath $violationsFile) { $violations = @(Get-Content -LiteralPath $violationsFile).Count }
-  $passed = ($suite.status -eq 'OK') -and ($count['fail'] -eq 0) -and ($count['skipped'] -eq 0) -and ($count['cancelled'] -eq 0) -and ($count['tests'] -gt 0) -and ($count['pass'] -eq $count['tests']) -and ($violations -eq 0)
-  Add-Outcome 'P7' 'EP48.5 Node suites on Windows (loopback-only guard, concurrency 2): 0 fail, 0 skipped, 0 non-loopback attempts' $passed ([ordered]@{ files = $suiteFiles; counts = $count; nonLoopbackAttempts = $violations })
+  $verdictFile = Join-Path $workDir 'p7-manifest-check.json'
+  $manifestCheck = Invoke-Node 'p7-manifest-check' @($manifestTool, 'check', '--manifest', 'p7', '--events', $eventsFile, '--tap', $suite.stdout, '--test-dir', 'ops/test', '--violations', "$violations", '--out', $verdictFile) 60
+  $verdict = Get-Content -LiteralPath $verdictFile -Raw | ConvertFrom-Json
+  $passed = ($suite.status -eq 'OK') -and ($manifestCheck.status -eq 'OK') -and ($verdict.ok -eq $true) -and ($count['fail'] -eq 0) -and ($count['skipped'] -eq 0) -and ($count['cancelled'] -eq 0) -and ($count['todo'] -eq 0) -and ($count['tests'] -eq $verdict.expected) -and ($count['pass'] -eq $verdict.expected) -and ($violations -eq 0)
+  Add-Outcome 'P7' "EP48.5 Node suites on Windows (loopback-only guard, concurrency 2): exactly the manifest ($($verdict.expected) tests in $($suiteFiles.Count) files), 0 fail / skipped / todo / cancelled, 0 non-loopback attempts" $passed ([ordered]@{ files = $suiteFiles; exit = $suite.exitText; seconds = $suite.seconds; expected = $verdict.expected; counts = $count; perFile = $verdict.perFile; problems = @($verdict.problems); nonLoopbackAttempts = $violations })
 } catch { Add-Outcome 'P7' 'Node suites on Windows' $false $_.Exception.Message }
+
+# P11 - G0 run 3 readiness: the runner-owned production I5 check on THIS host (read-only: loopback GET / to the
+# production ports, exactly as the monitor does every round; nothing else). A fresh baseline then an unchanged host
+# must PASS with every endpoint checked; a baseline with one expected status and one owning process altered must
+# FAIL; a missing baseline must be MISSING. All three exit non-zero unless PASS.
+try {
+  $p11Base = Join-Path $workDir 'p11-baseline.json'
+  $p11Tampered = Join-Path $workDir 'p11-baseline-tampered.json'
+  $baseRun = Invoke-Node 'p11-baseline' @($supervisorScript, 'baseline', '--out', $p11Base, '--g0-dir', $workDir, '--temp-pg-port', '55443') 300
+  $p11Baseline = Get-Content -LiteralPath $p11Base -Raw | ConvertFrom-Json
+  $endpointCount = @($p11Baseline.http).Count
+  $unchangedRun = Invoke-Node 'p11-i5-unchanged' @($supervisorScript, 'i5-check', '--baseline', $p11Base, '--out', (Join-Path $workDir 'p11-i5-unchanged.json'), '--g0-dir', $workDir, '--temp-pg-port', '55443', '--expect-endpoints', "$endpointCount") 600
+  $unchanged = Get-Content -LiteralPath (Join-Path $workDir 'p11-i5-unchanged.json') -Raw | ConvertFrom-Json
+  $tamperCode = "const fs = require('fs'); const b = JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); const e = b.http[0]; const s = e.status === 418 ? 419 : 418; e.status = s; e.statuses = e.statuses.map(() => s); b.portOwners[b.portOwners.length - 1].owners = ['1@2020-01-01T00:00:00.0000000+07:00']; fs.writeFileSync(process.argv[2], JSON.stringify(b, null, 2));"
+  $null = Invoke-Node 'p11-tamper' @('-e', $tamperCode, $p11Base, $p11Tampered) 60
+  $tamperedRun = Invoke-Node 'p11-i5-tampered' @($supervisorScript, 'i5-check', '--baseline', $p11Tampered, '--out', (Join-Path $workDir 'p11-i5-tampered.json'), '--g0-dir', $workDir, '--temp-pg-port', '55443', '--expect-endpoints', "$endpointCount") 600
+  $tampered = Get-Content -LiteralPath (Join-Path $workDir 'p11-i5-tampered.json') -Raw | ConvertFrom-Json
+  $missingRun = Invoke-Node 'p11-i5-missing' @($supervisorScript, 'i5-check', '--baseline', (Join-Path $workDir 'p11-no-such-baseline.json'), '--out', (Join-Path $workDir 'p11-i5-missing.json'), '--g0-dir', $workDir, '--temp-pg-port', '55443', '--expect-endpoints', "$endpointCount") 300
+  $missing = Get-Content -LiteralPath (Join-Path $workDir 'p11-i5-missing.json') -Raw | ConvertFrom-Json
+  $tamperMessages = @($tampered.problems | ForEach-Object { $_.message })
+  $passed = ($baseRun.status -eq 'OK') -and ($p11Baseline.valid -eq $true) -and ($endpointCount -ge 1) -and
+    ($unchangedRun.status -eq 'OK') -and ($unchanged.verdict -eq 'PASS') -and ($unchanged.checkedEndpoints -eq $endpointCount) -and
+    ($tamperedRun.exit -eq 1) -and ($tampered.verdict -eq 'FAIL') -and (@($tamperMessages | Where-Object { $_ -match 'answered' }).Count -ge 1) -and (@($tamperMessages | Where-Object { $_ -match 'is served by' }).Count -ge 1) -and
+    ($missingRun.exit -eq 1) -and ($missing.verdict -eq 'MISSING')
+  Add-Outcome 'P11' 'runner-owned production I5 (read-only): unchanged host PASS on every endpoint; altered status / owner FAIL; missing baseline MISSING' $passed ([ordered]@{
+      productionEndpoints = $endpointCount; baselineProblems = @($p11Baseline.problems); unchanged = "$($unchanged.verdict) ($($unchanged.checkedEndpoints) of $($unchanged.expectedEndpoints) checked)"
+      unchangedProblems = @($unchanged.problems | ForEach-Object { $_.message }); tampered = $tampered.verdict; tamperedProblems = $tamperMessages; missing = $missing.verdict })
+} catch { Add-Outcome 'P11' 'runner-owned production I5' $false $_.Exception.Message }
+
+# P12 - G0 run 3 readiness: the isolation report runs read-only and never classifies production as a development
+# agent. Its status (CLEAR / REVIEW / BLOCK) is reported for the owner, not required here: BLOCK only means an agent is
+# running now. Nothing is stopped.
+try {
+  $isolationFile = Join-Path $workDir 'p12-isolation.json'
+  $isolationRun = Invoke-Node 'p12-isolation' @($supervisorScript, 'isolation', '--out', $isolationFile, '--g0-dir', $workDir) 300
+  $isolationReport = Get-Content -LiteralPath $isolationFile -Raw | ConvertFrom-Json
+  $productionPids = @(@($pm2Daemons) + @($sharedPostmaster) | Where-Object { $_ } | ForEach-Object { [int]$_.ProcessId })
+  $agentPids = @($isolationReport.agents | ForEach-Object { [int]$_.pid })
+  $productionAsAgent = @($agentPids | Where-Object { $productionPids -contains $_ })
+  $expectedExit = $(if ($isolationReport.status -eq 'BLOCK') { 1 } else { 0 })
+  $passed = ($isolationRun.exit -eq $expectedExit) -and ($isolationReport.status -in @('CLEAR', 'REVIEW', 'BLOCK')) -and ($isolationReport.production.pm2Daemon) -and ($isolationReport.production.postmaster) -and ($productionAsAgent.Count -eq 0)
+  Add-Outcome 'P12' 'isolation report (read-only): produced; production never classified as an agent (status for the owner)' $passed ([ordered]@{
+      status = $isolationReport.status; agents = @($isolationReport.agents | ForEach-Object { "$($_.agent): $($_.pid) $($_.name)" }); blockingTasks = @($isolationReport.blockingTasks | ForEach-Object { $_.task })
+      reviewItems = @($isolationReport.review).Count; reviewTasks = @($isolationReport.reviewTasks | ForEach-Object { "$($_.task) next $($_.nextRun)" }); productionAsAgent = $productionAsAgent })
+} catch { Add-Outcome 'P12' 'isolation report' $false $_.Exception.Message }
 
 # P9 - G0 run 2: a step that ends by itself in the same instant an abort condition appears is reported as having
 # ended by itself (exit code kept), and G0 does not try to stop it.

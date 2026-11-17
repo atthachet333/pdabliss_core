@@ -69,6 +69,25 @@ export function checkRunner(text) {
   const stopFn = text.slice(text.indexOf("function Stop-G0"), text.indexOf("function Stop-G0") + 1200);
   if (!/Save-G0Census 'census-at-stop'\s*\n\s*Complete-G0/.test(stopFn)) p.push("runner: Stop-G0 does not record the process census before shutting down");
   if (!lines.some(({ l }) => /'temp-pg-identity-before-stop'/.test(l)) || !lines.some(({ l }) => /'temp-pg-stop'.*'stop', '-m', 'fast'/.test(l))) p.push("runner: the temporary PostgreSQL is not stopped with a verified, graceful pg_ctl stop");
+  // G0 run 3 readiness: runner-owned production preservation, explicit endpoint count, agent isolation.
+  const completeFn = text.slice(text.indexOf("function Complete-G0"), text.indexOf("function Save-G0Census"));
+  const at = (re) => completeFn.search(re);
+  const i5 = at(/Invoke-G0Phase -Name 'production-i5-check' -FilePath \$script:NodeExe -ArgumentValues @\(\$Supervisor, 'i5-check', '--baseline', \(Join-Path \$OutDir 'baseline\.json'\).*'--expect-endpoints', "\$ExpectHttpEndpoints"\) .*-Final/);
+  const pgStopped = at(/'temp-pg-stopped-check'/);
+  const gate = at(/-notmatch '\^PASS - '\) \{ \$script:Summary\.result = 'STOPPED'/);
+  const monitorGate = at(/\$script:Summary\.monitorFinal -ne 'present'\) \{ \$script:Summary\.result = 'STOPPED'/);
+  const pass = at(/if \(\$script:Summary\.result -eq 'RUNNING'\) \{ \$script:Summary\.result = 'PASS' \}/);
+  if (i5 < 0) p.push("runner: Complete-G0 does not run the runner-owned production I5 check (i5-check) as a final phase");
+  else if (pgStopped >= 0 && i5 < pgStopped) p.push("runner: the production I5 check runs before the temporary PostgreSQL is stopped");
+  if (gate < 0 || pass < 0 || gate > pass) p.push("runner: PASS is not gated on an explicit production HTTP preservation PASS");
+  if (monitorGate < 0 || pass < 0 || monitorGate > pass) p.push("runner: PASS is not gated on the monitor's final I5 comparison");
+  if (/Collect-HostAudit\.ps1'\), '-NoHttpProbe'/.test(completeFn) && !/not HTTP-preservation evidence/.test(completeFn)) p.push("runner: the collector result could be read as HTTP-preservation evidence");
+  if (!/Save-G0Census 'census-at-end'/.test(completeFn)) p.push("runner: Complete-G0 does not record how G0 ended (census-at-end)");
+  if (!lines.some(({ l }) => /if \(\$ExpectHttpEndpoints -le 0\) \{ throw/.test(l)) || !lines.some(({ l }) => /@\(\$monitorBaseline\.http\)\.Count -ne \$ExpectHttpEndpoints\) \{ Stop-G0/.test(l)))
+    p.push("runner: the number of production HTTP endpoints in the baseline is not enforced (-ExpectHttpEndpoints)");
+  const isolation = lines.find(({ l }) => /Invoke-G0Phase -Name 'isolation-check' -FilePath \$script:NodeExe -ArgumentValues @\(\$Supervisor, 'isolation'/.test(l));
+  if (!isolation || (firstStep && isolation.n > firstStep.n) || / -Final\b/.test(isolation.l)) p.push("runner: the read-only development-agent isolation check does not run (and stop G0 on BLOCK) before the first step");
+  if (!lines.some(({ l }) => /if \(-not \$AgentIsolationConfirmed\) \{ throw/.test(l))) p.push("runner: the owner's -AgentIsolationConfirmed is not required");
   return p;
 }
 

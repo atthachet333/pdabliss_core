@@ -13,6 +13,7 @@ import { checkRunner, psVariableProblems } from "../ep48_5/g0-preflight.mjs";
 import {
   LIMITS, buildHttpBaseline, describeExitCode, evaluateRound, evaluateTempPg, finalComparison, freshFindings, g0ProcessIds, identifyProduction,
   latencyLimit, normalizeFacts, normalizeHttpBaseline, planStopTree, executeStopTree, probeHost, runMonitor, toInt, validateBaseline, validateHttpBaseline,
+  buildProductionBaseline, classifyIsolation, classifyMonitorEnd, httpPreservation, portOwnerIdentities, probeEndpoint, stopOrigin,
 } from "../ep48_5/g0-supervisor.mjs";
 import { createdOf, isAlive as testIsAlive, realProcesses } from "./g0-fixtures/test-facts.mjs";
 
@@ -597,4 +598,226 @@ test("R14e the runner reports a step that ended by itself during an abort, recor
   const harnessText = harness("Test-G0Harness.ps1");
   assert.match(harnessText, /# P9 - G0 run 2/);
   assert.match(harnessText, /# P10 - G0 run 2 exit-code evidence/);
+});
+
+// ---------------------------------------------------------------- R15 G0 run 3 readiness (docs/EP48_5_G0_RUN3_READINESS.md)
+// Run 2 lost its I5: only the monitor compared production after G0, and the monitor was terminated. Production
+// preservation is now checked by the runner (i5-check) from the established baseline, with process identities.
+const T0 = "2026-11-15T18:39:09.000Z";
+function prodFacts({ ports = [3001, 3002], ownerCreated = T0, daemonCreated = T0, extra = [] } = {}) {
+  return normalizeFacts({
+    at: "x", cpuPct: 1, freeRamGB: 30, freeDiskDGB: 500,
+    processes: [
+      { pid: 9001, parent: 1, name: "node.exe", cmd: "node C:\\pm2\\lib\\Daemon.js", created: daemonCreated },
+      ...ports.map((port, i) => ({ pid: 9100 + i, parent: 9001, name: "node.exe", cmd: `node app${i}.js`, created: ownerCreated })),
+      { pid: 9200, parent: 1, name: "pg_ctl.exe", cmd: "pg_ctl runservice", created: T0 },
+      { pid: 9201, parent: 9200, name: "postgres.exe", cmd: "postgres -D C:\\data", created: T0 },
+      ...extra,
+    ],
+    listeners: ports.map((port, i) => ({ address: "127.0.0.1", port, pid: 9100 + i })),
+  });
+}
+const fixedProbe = (statusOf) => async ({ port }) => ({ status: statusOf(port), ms: 3 });
+async function prodBaseline(statusOf = () => 200) {
+  return buildProductionBaseline({ facts0: prodFacts(), probe: fixedProbe(statusOf), tempPgPort: 55443, g0Dir: "D:\\g0", now: () => Date.parse(T0) });
+}
+const answers = (b, statusOf = (e) => e.status) => new Map(b.http.map((e) => [e.appPort, { status: statusOf(e), ms: 3, attempts: 1 }]));
+const ctx3 = { tempPgPort: 55443, g0Dir: "D:\\g0" };
+
+test("R15 HTTP preservation PASS: every baseline endpoint answered its status and is served by the same process identity", async () => {
+  const b = await prodBaseline();
+  assert.equal(b.version, 3);
+  assert.equal(b.valid, true, JSON.stringify(b.problems));
+  assert.deepEqual(b.portOwners, [{ appPort: 3001, owners: [`9100@${T0}`] }, { appPort: 3002, owners: [`9101@${T0}`] }]);
+  const r = httpPreservation({ baseline: b, facts: prodFacts(), probes: answers(b), ctx: ctx3, expectEndpoints: 2 });
+  assert.equal(r.verdict, "PASS", JSON.stringify(r.problems));
+  assert.equal(r.checkedEndpoints, 2);
+  assert.ok(r.endpoints.every((e) => e.statusOk && e.ownerOk));
+  assert.ok(r.identity.length >= 5 && r.identity.every((i) => i.ok));
+});
+test("R15b HTTP preservation FAIL: a changed status, a changed owning process or a changed PM2 tree is a proven change", async () => {
+  const b = await prodBaseline();
+  const status = httpPreservation({ baseline: b, facts: prodFacts(), probes: answers(b, (e) => (e.appPort === 3002 ? 502 : e.status)), ctx: ctx3, expectEndpoints: 2 });
+  assert.equal(status.verdict, "FAIL");
+  assert.match(status.problems.map((x) => x.message).join("; "), /port 3002 answered 502 \(baseline 200\)/);
+  const down = httpPreservation({ baseline: b, facts: prodFacts(), probes: answers(b, () => -1), ctx: ctx3, expectEndpoints: 2 });
+  assert.equal(down.verdict, "FAIL");
+  assert.match(down.problems[0].message, /answered nothing/);
+  // a PM2 restart: same ports, same statuses, new process start times -> owners and tree differ
+  const restarted = httpPreservation({ baseline: b, facts: prodFacts({ ownerCreated: "2026-11-17T16:30:00.000Z" }), probes: answers(b), ctx: ctx3, expectEndpoints: 2 });
+  assert.equal(restarted.verdict, "FAIL");
+  const msgs = restarted.problems.map((x) => x.message).join("; ");
+  assert.match(msgs, /production PM2 tree .* changed/);
+  assert.match(msgs, /port 3001 is served by 9100@2026-11-17T16:30:00.000Z \(baseline 9100@2026-11-15T18:39:09.000Z\)/);
+  assert.equal(finalComparison({ baseline: b, facts: prodFacts({ ownerCreated: "2026-11-17T16:30:00.000Z" }), probes: answers(b), ctx: ctx3 }).length > 0, true);
+});
+test("R15c missing or incomplete HTTP evidence is never PASS (no baseline, old baseline, no facts, unprobed endpoint, wrong count)", async () => {
+  const b = await prodBaseline();
+  const v = (args) => httpPreservation({ baseline: b, facts: prodFacts(), probes: answers(b), ctx: ctx3, expectEndpoints: 2, ...args }).verdict;
+  assert.equal(v({ baseline: null }), "MISSING");
+  assert.equal(v({ baseline: { ...b, valid: false, problems: ["x"] } }), "MISSING");
+  const { portOwners, ...v2 } = b;
+  assert.equal(v({ baseline: { ...v2, version: 2 } }), "MISSING", "a baseline without process identities cannot prove preservation");
+  assert.equal(v({ expectEndpoints: undefined }), "MISSING");
+  assert.equal(v({ facts: normalizeFacts({}) }), "INCOMPLETE");
+  assert.equal(v({ probes: new Map([[3001, { status: 200, ms: 1 }]]) }), "INCOMPLETE");
+  assert.equal(v({ expectEndpoints: 21 }), "INCOMPLETE");
+  assert.equal(v({ facts: normalizeFacts({}), probes: answers(b, () => 500) }), "FAIL", "a proven change outranks missing facts");
+  assert.ok(validateBaseline({ ...b, portOwners: [] }).some((m) => /no owning process identity/.test(m)));
+  assert.deepEqual(portOwnerIdentities(prodFacts(), [3002, 3001]).map((o) => o.appPort), [3001, 3002]);
+});
+test("R15d a differing status is re-asked up to 3 times (1 s apart), every answer kept; a matching answer ends at once", async () => {
+  const slept = [];
+  const seq = [503, 503, 200];
+  const r = await probeEndpoint({ host: "127.0.0.1", appPort: 1, status: 200 }, { probe: async () => ({ status: seq.shift(), ms: 1 }), sleep: async (ms) => slept.push(ms) });
+  assert.deepEqual(r, { status: 200, ms: 1, attempts: 3, answers: [503, 503, 200] });
+  assert.deepEqual(slept, [1000, 1000]);
+  const never = await probeEndpoint({ host: "127.0.0.1", appPort: 1, status: 200 }, { probe: async () => ({ status: 500, ms: 1 }), sleep: async () => {} });
+  assert.deepEqual([never.status, never.attempts], [500, 3]);
+  const first = await probeEndpoint({ host: "127.0.0.1", appPort: 1, status: 200 }, { probe: async () => ({ status: 200, ms: 1 }), sleep: async () => assert.fail("no wait") });
+  assert.equal(first.attempts, 1);
+});
+test("R15e monitor terminated unexpectedly: the runner-owned i5-check still proves (or refutes) preservation from the baseline", async () => {
+  let status = 200;
+  const m = await startMonitor({ statusOf: () => status });
+  try {
+    assert.ok(await waitFor(() => fs.existsSync(path.join(m.out, "baseline.json")), 30_000), m.stderr());
+    m.monitor.kill("SIGKILL"); // like run 2: no handler, no final I5
+    await Promise.race([m.exitedWith, sleep(30_000)]);
+    assert.equal(fs.existsSync(path.join(m.out, "monitor-final.json")), false);
+    const extra = path.join(path.dirname(m.out), "extra.json");
+    // asynchronous: this test process serves the production stand-in, so it must keep answering while i5-check probes
+    const check = async (name, baselineFile) => {
+      const out = path.join(m.out, `${name}.json`);
+      const child = spawn(process.execPath, [SUPERVISOR, "i5-check", "--baseline", baselineFile, "--out", out, "--g0-dir", path.dirname(m.out), "--temp-pg-port", "55443", "--expect-endpoints", "1", "--facts-module", TEST_FACTS], { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, G0_TEST_FACTS_EXTRA: extra } });
+      let stderr = "";
+      child.stderr.on("data", (d) => (stderr += d));
+      const code = await new Promise((resolve) => child.on("exit", (c) => resolve(c)));
+      return { code, report: JSON.parse(read(out)), stderr };
+    };
+    const baselineFile = path.join(m.out, "baseline.json");
+    const ok = await check("i5-ok", baselineFile);
+    assert.equal(ok.code, 0, JSON.stringify(ok.report.problems) + ok.stderr);
+    assert.equal(ok.report.verdict, "PASS");
+    assert.equal(ok.report.checkedEndpoints, 1);
+    assert.equal(ok.report.endpoints[0].ownerOk, true);
+    status = 500;
+    const failed = await check("i5-fail", baselineFile);
+    assert.equal(failed.code, 1);
+    assert.equal(failed.report.verdict, "FAIL");
+    assert.equal(failed.report.endpoints[0].attempts, 3);
+    const missing = await check("i5-missing", path.join(m.out, "no-such-baseline.json"));
+    assert.equal(missing.code, 1);
+    assert.equal(missing.report.verdict, "MISSING");
+    assert.equal(missing.report.baselineError, "baseline file not found");
+  } finally {
+    m.monitor.kill();
+    m.runner.kill();
+    m.server.close();
+  }
+});
+test("R15f the monitor's baseline is version 3 with the owning process identity of every production port", async () => {
+  const m = await startMonitor({ statusOf: () => 200 });
+  try {
+    assert.ok(await waitFor(() => fs.existsSync(path.join(m.out, "baseline.json")), 30_000), m.stderr());
+    const b = JSON.parse(read(path.join(m.out, "baseline.json")));
+    assert.equal(b.version, 3);
+    assert.equal(b.valid, true, JSON.stringify(b.problems));
+    assert.deepEqual(b.portOwners, [{ appPort: m.server.address().port, owners: ["5000002@2026-11-15T18:39:09.000Z"] }]);
+  } finally {
+    m.monitor.kill();
+    m.runner.kill();
+    m.server.close();
+  }
+});
+test("R15g STOP classification: who raised STOP and how the monitor ended (external termination is not a monitor finding)", () => {
+  assert.equal(stopOrigin("runner: backend-tests STOPPED").raisedBy, "runner");
+  assert.equal(stopOrigin("\uFEFFmonitor: production port 3001 answered 502").raisedBy, "monitor");
+  assert.equal(stopOrigin("monitor crashed: x").raisedBy, "monitor");
+  assert.equal(stopOrigin("test stop").raisedBy, "other (owner or an outside process)");
+  assert.equal(stopOrigin("").raisedBy, "none");
+  const run2 = classifyMonitorEnd({ exitCode: -1, log: "t monitor started (pid 1)\nt round 9: facts …\n" });
+  assert.equal(run2.kind, "terminated-externally");
+  assert.equal(classifyMonitorEnd({ exitCode: 1, log: "t round 9: facts …\n" }).kind, "ended-without-exit-handler");
+  assert.equal(classifyMonitorEnd({ exitCode: 0, log: "t ending: MONITOR-END\nt final I5 written: ok\nt exit code 0 (normal exit)\n" }).kind, "normal");
+  assert.equal(classifyMonitorEnd({ exitCode: 0, log: "t exit code 0 (normal exit)\n" }).kind, "ended-itself");
+  assert.equal(classifyMonitorEnd({ exitCode: 143, log: "t received SIGTERM - ending (STOP raised)\nt exit code 143 (x)\n" }).kind, "signal");
+  assert.equal(classifyMonitorEnd({ exitCode: 2, log: "t baseline INVALID\nt exit code 2 (x)\n" }).kind, "invalid-baseline");
+  assert.equal(classifyMonitorEnd({ exitCode: null, log: "" }).kind, "unknown");
+});
+test("R15h isolation: agents (and their children) BLOCK, production is never an agent, IDEs / runtimes / due tasks are owner review items", () => {
+  const now = Date.parse("2026-11-17T20:00:00.000Z");
+  const later = "2026-11-17T20:00:01.000Z";
+  const extra = [
+    { pid: 9300, parent: 1, name: "codex.exe", cmd: "C:\\Users\\x\\.codex\\bin\\codex.exe app-server", created: later },
+    { pid: 9301, parent: 9300, name: "node.exe", cmd: "node tool.js", created: later },
+    { pid: 9302, parent: 1, name: "claude.exe", cmd: "C:\\Users\\x\\AppData\\Local\\AnthropicClaude\\app-1\\claude.exe", created: later },
+    { pid: 9303, parent: 1, name: "code.exe", cmd: "Code.exe", created: later },
+    { pid: 9304, parent: 1, name: "python.exe", cmd: "python watcher.py", created: later },
+    { pid: 9400, parent: 1, name: "powershell.exe", cmd: "powershell -File Run-G0.ps1", created: later },
+    { pid: 9401, parent: 9400, name: "node.exe", cmd: "node g0-supervisor.mjs isolation", created: later },
+  ];
+  const facts = prodFacts({ extra });
+  facts.processes.find((p) => p.pid === 9101).cmd = "node C:\\apps\\codex-reports\\server.js --codex-command-runner"; // a production app whose command line LOOKS like an agent
+  const tasks = [
+    { path: "\\Microsoft\\Windows\\Defrag\\", name: "ScheduledDefrag", state: "Ready", nextRun: "2026-11-17T20:10:00.000Z", actions: [{ execute: "defrag.exe" }] },
+    { path: "\\", name: "Cleanup", state: "Ready", nextRun: "2026-11-17T21:00:00.000Z", actions: [{ execute: "powershell.exe", arguments: "-c Stop-Process -Name node -Force" }] },
+    { path: "\\", name: "NasBackup", state: "Ready", nextRun: "2026-11-17T22:00:00.000Z", actions: [{ execute: "backup.exe", arguments: "--password=hunter2" }] },
+    { path: "\\", name: "Weekly", state: "Ready", nextRun: "2026-11-24T22:00:00.000Z", actions: [{ execute: "taskkill.exe", arguments: "/F /IM node.exe" }] },
+  ];
+  const r = classifyIsolation({ facts, tasks, now, windowMinutes: 180, g0Dir: "D:\\g0", selfPid: 9401 });
+  assert.equal(r.status, "BLOCK");
+  assert.deepEqual(r.agents.map((a) => [a.agent, a.pid]).sort(), [["claude (desktop / Claude Code)", 9302], ["openai-codex", 9300], ["openai-codex", 9301]]);
+  assert.equal(r.agents.find((a) => a.pid === 9301).viaParent, 9300);
+  const all = [...r.agents, ...r.review].map((x) => x.pid);
+  for (const prodPid of [9001, 9100, 9101, 9200, 9201]) assert.ok(!all.includes(prodPid), `production ${prodPid} classified`);
+  assert.ok(!all.includes(9400) && !all.includes(9401), "the check and its caller are not review items");
+  assert.deepEqual(r.review.map((x) => [x.kind, x.pid]), [["ide", 9303], ["runtime outside production", 9304]]);
+  assert.deepEqual(r.blockingTasks.map((t) => t.task), ["\\Cleanup"]);
+  assert.deepEqual(r.reviewTasks.map((t) => t.task), ["\\NasBackup"]);
+  assert.match(r.reviewTasks[0].actions[0], /--password=<redacted>/);
+  assert.equal(classifyIsolation({ facts: prodFacts({ extra: extra.slice(3) }), tasks: [], now, g0Dir: "D:\\g0", selfPid: 9401 }).status, "REVIEW");
+  assert.equal(classifyIsolation({ facts: prodFacts(), tasks: [tasks[0], tasks[3]], now, g0Dir: "D:\\g0", selfPid: 1 }).status, "CLEAR");
+});
+test("R15i census at the end records how the monitor ended, who raised STOP and any development agent alive", () => {
+  const out = tmp("g0-r15i-");
+  fs.writeFileSync(path.join(out, "monitor.log"), "t monitor started (pid 1)\nt round 9: facts …\n");
+  fs.writeFileSync(path.join(out, "STOP"), "runner: the G0 monitor process ended unexpectedly\n");
+  const extra = path.join(out, "extra.json");
+  fs.writeFileSync(extra, JSON.stringify({ processes: [{ pid: 7_000_001, parent: 1, name: "codex.exe", cmd: "codex app-server", created: "2026-11-17T00:00:00.000Z" }] }));
+  const file = path.join(out, "census-at-end.json");
+  const r = spawnSync(process.execPath, [SUPERVISOR, "census", "--out", file, "--g0-dir", out, "--runner-pid", "1", "--runner-created", "2020-01-01T00:00:00.000Z", "--exit", "monitor=-1", "--monitor-log", path.join(out, "monitor.log"), "--stop-file", path.join(out, "STOP"), "--facts-module", TEST_FACTS], { encoding: "utf8", timeout: 60_000, env: { ...process.env, G0_TEST_FACTS_EXTRA: extra } });
+  assert.equal(r.status, 0, r.stderr);
+  const c = JSON.parse(read(file));
+  assert.equal(c.monitorEnd.kind, "terminated-externally");
+  assert.equal(c.stop.raisedBy, "runner");
+  assert.ok(c.agentsAlive.some((a) => a.pid === 7_000_001 && a.agent === "openai-codex"));
+});
+test("R15j shutdown order and gates: temp PG stopped -> census -> runner-owned I5 -> collector (not HTTP evidence) -> gates -> PASS -> report", () => {
+  const runner = harness("Run-G0.ps1");
+  const complete = runner.slice(runner.indexOf("function Complete-G0"), runner.indexOf("function Save-G0Census"));
+  const order = ["'temp-pg-stopped-check'", "MONITOR-END", "Save-G0Census 'census-at-end'", "'production-i5-check'", "'collector-after'", "monitorFinal -ne 'present'", "-notmatch '^PASS - '", "$script:Summary.result = 'PASS' }", "Write-G0Report"];
+  const at = order.map((x) => complete.indexOf(x));
+  assert.ok(at.every((i) => i >= 0), JSON.stringify(order.filter((x, k) => at[k] < 0)));
+  assert.deepEqual([...at].sort((x, y) => x - y), at, "shutdown steps out of order");
+  assert.match(complete, /\} finally \{\s*\n\s*Write-G0Report/);
+  assert.match(complete, /not HTTP-preservation evidence/);
+  assert.match(runner, /if \(-not \$Final\) \{ \$script:LastWorkPhase = \$phaseResult \}/);
+  assert.match(runner, /\$script:LastWorkPhase\.name\)=\$\(\$script:LastWorkPhase\.exit/);
+  assert.deepEqual(checkRunner(runner), []);
+  const mutations = [
+    ["i5 check removed", (t) => t.replace(/  if \(\$script:NodeExe\) \{\n    Invoke-G0Phase -Name 'production-i5-check'[^\n]*\n  \}\n/, "")],
+    ["HTTP gate removed", (t) => t.replace(/  if \(\$script:Summary\.result -eq 'RUNNING' -and "\$\(\$script:Summary\.httpPreservation\)"[^\n]*\n/, "")],
+    ["monitor gate removed", (t) => t.replace(/  if \(\$script:Summary\.result -eq 'RUNNING' -and \$script:Summary\.monitorFinal -ne 'present'\)[^\n]*\n/, "")],
+    ["collector as evidence", (t) => t.replace("; not HTTP-preservation evidence", "")],
+    ["census at end removed", (t) => t.replace("  Save-G0Census 'census-at-end'\n", "")],
+    ["isolation check removed", (t) => t.replace(/  Invoke-G0Phase -Name 'isolation-check'[^\n]*\n/, "")],
+    ["endpoint count not enforced", (t) => t.replace(/  if \(@\(\$monitorBaseline\.http\)\.Count -ne \$ExpectHttpEndpoints\)[^\n]*\n/, "")],
+    ["owner confirmation not required", (t) => t.replace(/  if \(-not \$AgentIsolationConfirmed\)[^\n]*\n/, "")],
+  ];
+  for (const [name, mutate] of mutations) {
+    const mutated = mutate(runner);
+    assert.notEqual(mutated, runner, `mutation "${name}" did not apply`);
+    assert.ok(checkRunner(mutated).length > 0, `mutation "${name}" is not caught by the preflight`);
+  }
 });

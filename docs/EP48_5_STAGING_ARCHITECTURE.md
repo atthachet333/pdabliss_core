@@ -193,6 +193,8 @@ configuration switch that could create one.
 
 ### 4.4 Exit condition (before any access beyond the server's own browser)
 
+> **2026-11-17 (revised strategy):** for tester-only online access, this exit condition is met **without a code change** by running the unchanged `cb21be1` application in **production mode** through an *online* launcher profile. That gives `__Host-` Secure cookies, no development activation, real STARTTLS mail and `TRUST_PROXY=loopback`, all behind Cloudflare Access and a dedicated tunnel. The demo seed runs once in development mode as a recorded owner exception (OO-2). The code change described below (an explicit runtime identity) stays **required before commercial customers** (EP48.6, C2). See `docs/EP48_5_ONLINE_DEPLOYMENT_PLAN.md`.
+
 A separately approved **code** change adds an explicit staging identity (for example `CORE_ENV=staging`):
 
 - production-grade cookies, JSON logs, `environment: staging`;

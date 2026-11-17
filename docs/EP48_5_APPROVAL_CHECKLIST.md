@@ -1,5 +1,7 @@
 # EP48.5 — Stage B Approval Checklist
 
+> **2026-11-17 20:45 — revised strategy (owner decision):** EP48.5 is now the *Minimum Safe Online Deployment* at `core.pdabliss.com`, tester-only behind Cloudflare Access (`docs/EP48_5_ONLINE_DEPLOYMENT_PLAN.md`). The online checkpoints and decisions are in **Part 6**. Parts 1–5 stay as signed / recorded. Part 4's "no public listeners / DNS / Cloudflare change" is lifted **only** for the Part 6 items, each when signed. **Full G0 has not passed** and is not counted as PASS.
+
 Stage B starts **only** when Parts 2 and 3 are answered and signed. Approving this list is **not** approval of a customer
 pilot, LAN / public access, real data or commercial production.
 
@@ -86,3 +88,51 @@ On any of these: stop and roll back per `EP48_5_ROLLBACK_PLAN.md`.
 | Window agreed                      |                               |
 
 **Decision:** GO / NO-GO — owner ____________________ date ________
+
+## Part 6 — Revised strategy: Minimum Safe Online Deployment (2026-11-17)
+
+New execution order (`docs/EP48_5_ROADMAP.md`):
+1. **EP48.5** Minimum Safe Online Deployment;
+2. **EP48.6** Guard, Security Hardening and Production Readiness;
+3. **EP49** Notifications & Work Queues;
+4. **EP50** Supplier RFQ & Quotation;
+5. **EP50.1** SEO Enhancement (separate `pdablissv2` repository).
+
+### 6.1 Owner decisions (plan §1.1)
+
+| #    | Decision                                                                                                                                      | Recommended                                                                                     | Owner's answer |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------- |
+| OO-1 | Current use of `core.pdabliss.com` (something answers today); the DNS record recorded before any change                                       | identify at O0; if in use: replace, or use a temporary tester hostname                            |                |
+| OO-2 | Production runtime mode via the online launcher profile; the demo seed run once in development mode on the isolated demo-only cluster (recorded exception) | accept for tester-only UAT; the code-level runtime identity is EP48.6 (C2)                       |                |
+| OO-3 | SMTP provider and dedicated send credential (STARTTLS 587 or TLS 465)                                                                          | dedicated send-only credential, config-folder ACL                                                |                |
+| OO-4 | Code delivery for the `*.demo@pdabliss.com` personas                                                                                           | aliases routed to named testers, or testers' own invited accounts                                 |                |
+| OO-5 | Tester list and Access identity method                                                                                                         | named e-mails; company IdP or one-time PIN; session ≤ 24 h                                       |                |
+| OO-6 | A dedicated Cloudflare tunnel `pdabliss-core` (production tunnels untouched)                                                                    | yes                                                                                              |                |
+| OO-7 | HTTP → HTTPS scoped to this hostname only, if not already in place; no zone-wide change                                                       | verify first                                                                                     |                |
+| OO-8 | Deployment windows with development agents paused (run-3 isolation checklist)                                                                  | yes                                                                                              |                |
+
+### 6.2 Checkpoints (each signed separately; plan §5.1)
+
+| #  | Approval                                                                                                                                       | Mandatory evidence (plan §3.1)        | Signed |
+| -- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------ |
+| O0 | Owner decisions + read-only preflight                                                                                                           | OO-1 … OO-8; preflight report          |        |
+| O1 | Tooling amendment (online launcher profile, production-identity exclusion fix, WinSW templates, outside-check script); repository only, local commit | M3 (tooling), M12 (harness P1–P12)     |        |
+| O2 | Release on disk: folders / ACLs, clone, builds with the HTTPS origin                                                                            | M1, M2, M9, M14                        |        |
+| O3 | CORE database: cluster 5433, migrations on the verified target, demo seed (OO-2), verified reset point                                           | M4, M13, M9, M14                       |        |
+| O4 | CORE services on loopback; local health; LAN exposure test; refusal drill; R1 drill                                                              | M5, M10 (local), M11, M9, M14          |        |
+| O5 | Cloudflare Access application + allow policy (no hostname yet)                                                                                   | M6 (part 1)                            |        |
+| O6 | Dedicated tunnel, `core-tunnel` service, public hostname / DNS; outside checks                                                                   | M6, M7, M8, M10, M13, M9, M14          |        |
+| O7 | Tester UAT opened                                                                                                                               | all of M1–M14 recorded                 |        |
+
+### 6.3 Classification of the remaining checks (plan §3)
+
+- **Mandatory before any internet-reachable deployment: M1–M14.** Missing evidence = no exposure.
+- **Required before commercial customers, EP48.6: C1–C8.** C1 is the full environment qualification (G0 run 3 or equivalent CI) and must PASS.
+- **Deferrable: D1–D5.** D5 (production SEO) is EP50.1 in `pdablissv2`.
+
+Still **not** approved by this part:
+- commercial customers or real customer data;
+- `git push`;
+- any change to PM2, the shared PostgreSQL, MariaDB, the production tunnels, other Access applications, zone-wide Cloudflare settings or the firewall;
+- EP49.
+

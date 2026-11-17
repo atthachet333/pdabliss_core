@@ -1,5 +1,11 @@
 # EP48.5 — CORE Internal Staging: Deployment Plan (Stage B — NOT executed)
 
+> **2026-11-17 20:45 — owner decision, revised strategy.** CORE is to be deployed online first at `core.pdabliss.com`, restricted by Cloudflare Access to authorized testers. That is followed by EP48.6 (guard, security hardening, production readiness), then EP49.
+>
+> The governing plan is now **`docs/EP48_5_ONLINE_DEPLOYMENT_PLAN.md`** (Minimum Safe Deployment Gate, checkpoints O0–O7). This document stays as the record and as the source of the B1–B6 host steps that the new plan reuses. Its loopback-only access model (OD-5) and its "full G0 before any host change" ordering are **superseded**.
+>
+> **Full G0 has not passed** (runs 1 and 2 failed; see the incident record). It is not counted as PASS; it moves to EP48.6 as a requirement before commercial customers (C1).
+
 **Status:** ready for owner approval. **Nothing in this plan has run.** Every value comes from the verified host audit
 (`EP48_5_SERVER_AUDIT.md`), except the owner decisions in `EP48_5_APPROVAL_CHECKLIST.md`.
 

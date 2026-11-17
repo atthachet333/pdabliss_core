@@ -125,3 +125,13 @@ Alternative: drop, then repeat B4 steps 2–6.
 | R2    | < 5 min   | yes           | none (unless migrations → R3)                 | no (no previous release yet)          |
 | R3    | < 10 min  | yes           | staging changes since the reset point         | yes (G7 restore into scratch)         |
 | R4    | ≈ 15 min  | yes           | the staging environment (by design)           | checked against the created-object inventory in `EP48_5_OPERATIONS_HANDOFF.md` (Stage B) |
+
+## 7. Online deployment (revised strategy, 2026-11-17)
+
+`docs/EP48_5_ONLINE_DEPLOYMENT_PLAN.md` §5.2 adds these CORE-owned objects:
+- the `core-tunnel` service;
+- the dedicated Cloudflare tunnel `pdabliss-core`;
+- the Access application and public hostname for `core.pdabliss.com`;
+- the tunnel token file.
+
+It also adds two levels, **R0** (stop the tunnel connector: the door closes in seconds) and **R1b** (remove the public hostname, restore the prior DNS record, then remove the Access application last). The rules of §5 apply unchanged: no rollback touches the production tunnels `Cloudflared` / `CloudflaredS2A`, their ingress, other Access applications or zone-wide settings.

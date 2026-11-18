@@ -182,6 +182,7 @@ const DETAIL: PlatformCompanyDetail = {
   ],
   access: { canEnterCore: false },
   developmentActivation: true,
+  manualActivation: false,
 };
 
 const owner = () =>
@@ -737,6 +738,47 @@ describe('Platform Inspection (EP24.1)', () => {
     renderRoute('/platform/companies/c1');
     await screen.findByRole('heading', { level: 1, name: 'Siam Trade' });
     expect(document.querySelector('[data-dev-activation]')).toBeNull();
+  });
+
+  it('production manual activation: only for the listed company, with the name retyped and a reason (EP48.5 F2)', async () => {
+    const api = fakeApi({
+      ...owner(),
+      'GET /api/v1/platform/companies/c1': ok({
+        ...DETAIL,
+        developmentActivation: false,
+        manualActivation: true,
+      }),
+      'POST /api/v1/platform/companies/c1/manual-activation': fail(409, 'CONFIRMATION_MISMATCH'),
+    });
+    renderRoute('/platform/companies/c1');
+    await screen.findByRole('heading', { level: 1, name: 'Siam Trade' });
+    expect(document.querySelector('[data-dev-activation]')).toBeNull();
+    const button = screen.getByRole('button', { name: 'เปิดใช้งานบริษัทนี้' });
+    expect(button).toBeDisabled();
+    await userEvent.type(
+      screen.getByLabelText('พิมพ์ชื่อบริษัท “Siam Trade” เพื่อยืนยัน'),
+      'Siam Trade',
+    );
+    expect(button).toBeDisabled(); // a reason is required too
+    await userEvent.type(screen.getByLabelText('เหตุผล'), 'UAT round 1 approved');
+    expect(button).toBeEnabled();
+    await userEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent('ไม่ตรงกับชื่อที่ใช้แสดง');
+    expect(api.called('POST /api/v1/platform/companies/c1/manual-activation')[0]!.body).toEqual({
+      confirmDisplayName: 'Siam Trade',
+      reason: 'UAT round 1 approved',
+    });
+    cleanup();
+    resetIdentityForTests();
+
+    // Not on the allow-list: no manual activation block at all.
+    fakeApi({
+      ...owner(),
+      'GET /api/v1/platform/companies/c1': ok({ ...DETAIL, developmentActivation: false }),
+    });
+    renderRoute('/platform/companies/c1');
+    await screen.findByRole('heading', { level: 1, name: 'Siam Trade' });
+    expect(document.querySelector('[data-manual-activation]')).toBeNull();
   });
 
   it('an unknown company is "not found", not a blank page', async () => {

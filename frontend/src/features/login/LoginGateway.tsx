@@ -24,6 +24,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { Logo, LogoMark } from '@/components/brand/Logo';
 import { buttonClasses } from '@/components/ui/buttonStyles';
 import { controlClass } from '@/components/ui/fieldStyles';
+import { publicSignup } from '@/config/site';
 import { authApi, type Challenge, type Identity } from '@/features/auth/api';
 import { AUTH_COPY } from '@/features/auth/copy';
 import { commonError, errorCode } from '@/features/auth/errors';
@@ -468,6 +469,7 @@ export function LoginGateway() {
                       <span className="block text-text-secondary">{c.failedHint}</span>
                     )}
                     {unverifiedEmail &&
+                      publicSignup() &&
                       (resent ? (
                         <span className="block text-text-secondary">{c.verificationSent}</span>
                       ) : (
@@ -492,14 +494,21 @@ export function LoginGateway() {
                 {pending ? c.submitting : c.submit}
               </button>
               <p className="text-caption text-text-muted">{c.after}</p>
-              <Link
-                to="/register"
-                {...authLinkState}
-                data-link="register"
-                className="inline-flex min-h-11 items-center text-label text-brand-soft underline-offset-4 hover:underline"
-              >
-                {c.register}
-              </Link>
+              {publicSignup() ? (
+                <Link
+                  to="/register"
+                  {...authLinkState}
+                  data-link="register"
+                  className="inline-flex min-h-11 items-center text-label text-brand-soft underline-offset-4 hover:underline"
+                >
+                  {c.register}
+                </Link>
+              ) : (
+                // EP48.5 F3: invitation-only — no link to a sign-up page that does not exist here.
+                <p className="text-caption text-text-muted" data-signup="invitation-only">
+                  {c.inviteOnly}
+                </p>
+              )}
             </form>
           )}
           {DevPersonaPicker && !otp && (

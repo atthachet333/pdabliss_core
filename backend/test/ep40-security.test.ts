@@ -51,7 +51,7 @@ const PUBLIC = [
   /^GET \/api\/v1\/?$/,
   /^GET \/api\/v1\/packages$/,
   /^GET \/api\/v1\/demo\//,
-  /^POST \/api\/v1\/auth\/(register|verify-email|verification\/resend|login|login\/otp|login\/otp\/resend|logout|password\/forgot|password\/reset|password\/reset\/check|invitations\/accept)$/,
+  /^POST \/api\/v1\/auth\/(register|verify-email|verification\/resend|login|login\/otp|login\/otp\/resend|logout|password\/forgot|password\/reset|password\/reset\/check|invitations\/accept|invitations\/register)$/,
 ];
 const isPublic = (r: Route) => PUBLIC.some((p) => p.test(`${r.method} ${r.path}`));
 const MUTATING = (r: Route) => r.method !== 'GET';

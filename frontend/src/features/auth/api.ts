@@ -147,6 +147,20 @@ export const authApi = {
       `${A}/invitations/accept`,
       { token },
     ),
+  /** EP48.5 F1: create the account from an invitation link (the account is the invited address). */
+  registerFromInvitation: (body: {
+    token: string;
+    password: string;
+    fullName: string;
+    phone?: string;
+    locale: Locale;
+    acceptTerms: true;
+  }) =>
+    apiRequest<{
+      status: 'account_created';
+      company: { id: string; name: string };
+      role: CompanyRole;
+    }>('POST', `${A}/invitations/register`, body),
 };
 
 const P = '/api/v1/platform';

@@ -50,6 +50,8 @@ export const v1Routes: FastifyPluginAsync<{
     apiVersion: API_VERSION,
     demoRoutes: opts.enableDemoRoutes,
     accounts: opts.services !== null,
+    // EP48.5 F1: false = accounts are created from company invitations only.
+    publicSignup: opts.env.PUBLIC_SIGNUP,
   }));
 
   // EP24: the package catalog (public facts; enforcement reads the same source).

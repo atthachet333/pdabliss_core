@@ -390,6 +390,20 @@ describe('real sign-in (EP23)', () => {
     await screen.findByRole('heading', { level: 1, name: 'Reset your password' });
     expect(router.state.location.pathname).toBe('/forgot-password');
   });
+
+  it('invitation-only build: no link to a sign-up page, a plain explanation instead (EP48.5 F3)', async () => {
+    vi.stubEnv('VITE_PUBLIC_SIGNUP', 'false');
+    try {
+      await open('/en/login');
+      expect(document.querySelector('[data-link="register"]')).toBeNull();
+      expect(document.querySelector('[data-signup="invitation-only"]')).toHaveTextContent(
+        LOGIN_COPY.en.inviteOnly,
+      );
+      expect(screen.queryByRole('link', { name: /Register/ })).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe('ways out and around', () => {

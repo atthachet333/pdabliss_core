@@ -49,6 +49,17 @@ const RegisterBody = z
     acceptTerms: z.literal(true),
   })
   .strict();
+/** EP48.5 F1: an invited person creates the account from the invitation link (no public sign-up). */
+const InvitationRegisterBody = z
+  .object({
+    token,
+    password,
+    fullName: FullName,
+    phone: Phone.optional(),
+    locale: z.enum(API_LOCALES).optional(),
+    acceptTerms: z.literal(true),
+  })
+  .strict();
 const EmailBody = z.object({ email }).strict();
 const TokenBody = z.object({ token }).strict();
 const LoginBody = z.object({ email, password }).strict();
@@ -74,21 +85,35 @@ export const authRoutes: FastifyPluginAsync<AuthRouteDeps> = async (
     bodyLimit: 16 * 1024,
   });
 
-  app.post('/register', limit('register'), async (request, reply) => {
-    const body = parseInput(RegisterBody, request.body);
-    await auth.register(body, requestMeta(request));
-    return reply.status(202).send({ status: 'verification_sent' });
-  });
+  // EP48.5 F1: public self-service sign-up exists only while PUBLIC_SIGNUP is on (the online
+  // profile turns it off; accounts then come from invitations, see /invitations/register).
+  if (env.PUBLIC_SIGNUP) {
+    app.post('/register', limit('register'), async (request, reply) => {
+      const body = parseInput(RegisterBody, request.body);
+      await auth.register(body, requestMeta(request));
+      return reply.status(202).send({ status: 'verification_sent' });
+    });
+  }
 
   app.post('/verify-email', limit('verifyEmail'), async (request) => {
     const { token: value } = parseInput(TokenBody, request.body);
     return { status: await auth.verifyEmail(value, requestMeta(request)) };
   });
 
-  app.post('/verification/resend', limit('resendVerification'), async (request, reply) => {
-    const body = parseInput(EmailBody, request.body);
-    await auth.resendVerification(body.email, requestMeta(request));
-    return reply.status(202).send({ status: 'accepted' });
+  if (env.PUBLIC_SIGNUP) {
+    app.post('/verification/resend', limit('resendVerification'), async (request, reply) => {
+      const body = parseInput(EmailBody, request.body);
+      await auth.resendVerification(body.email, requestMeta(request));
+      return reply.status(202).send({ status: 'accepted' });
+    });
+  }
+
+  // EP48.5 F1: create the account from a company invitation (token from the email link), then
+  // sign in normally. Works whether or not public sign-up is on.
+  app.post('/invitations/register', limit('invitationRegister'), async (request, reply) => {
+    const body = parseInput(InvitationRegisterBody, request.body);
+    const result = await invitations.registerAndAccept(body, requestMeta(request));
+    return reply.status(201).send(result);
   });
 
   app.post('/login', limit('login'), async (request, reply) => {

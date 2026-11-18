@@ -213,6 +213,25 @@ const th = {
     invitationBad: 'คำเชิญนี้หมดอายุ ถูกยกเลิก หรือถูกใช้ไปแล้ว',
     backToAccount: 'กลับไปที่บัญชี',
   },
+  /** EP48.5 F1: create the account from a company invitation (public sign-up is closed). */
+  invite: {
+    meta: {
+      title: 'สร้างบัญชีจากคำเชิญ',
+      description: 'สร้างบัญชี PDA BLISS CORE จากคำเชิญของบริษัทคุณ',
+    },
+    kicker: 'คำเชิญเข้าร่วมบริษัท',
+    title: 'สร้างบัญชีของคุณ',
+    lead: 'บัญชีจะใช้อีเมลที่ได้รับเชิญ เมื่อสร้างแล้วให้เข้าสู่ระบบด้วยรหัสผ่านและรหัสยืนยันทางอีเมล',
+    haveAccount: 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบเพื่อยอมรับคำเชิญ',
+    submit: 'สร้างบัญชีและเข้าร่วมบริษัท',
+    submitting: 'กำลังสร้างบัญชี…',
+    done: (company: string) => `สร้างบัญชีและเข้าร่วม ${company} แล้ว เข้าสู่ระบบเพื่อเริ่มใช้งาน`,
+    accountExists: 'อีเมลนี้มีบัญชีอยู่แล้ว เข้าสู่ระบบแล้วยอมรับคำเชิญ',
+    companyUnavailable: 'บริษัทนี้ยังไม่รับสมาชิกใหม่ในขณะนี้ กรุณาติดต่อผู้ดูแลบริษัท',
+    closedTitle: 'สมัครใช้งานได้ด้วยคำเชิญเท่านั้น',
+    closedLead:
+      'บัญชี PDA BLISS CORE สร้างจากลิงก์คำเชิญที่บริษัทของคุณส่งทางอีเมล หากต้องการใช้งาน กรุณาติดต่อผู้ดูแลบริษัทของคุณหรือทีม PDA BLISS',
+  },
   security: {
     title: 'ความปลอดภัยและอุปกรณ์',
     lead: 'อุปกรณ์ที่เข้าสู่ระบบด้วยบัญชีนี้อยู่ ณ ตอนนี้',
@@ -472,6 +491,27 @@ export const AUTH_COPY: Localized<AuthCopy> = {
       invitationBad: 'This invitation has expired, was revoked, or was already used.',
       backToAccount: 'Back to your account',
     },
+    invite: {
+      meta: {
+        title: 'Create your account from an invitation',
+        description: 'Create your PDA BLISS CORE account from your company invitation',
+      },
+      kicker: 'Company invitation',
+      title: 'Create your account',
+      lead:
+        'The account uses the invited email address. Afterwards, sign in with your password and an emailed code.',
+      haveAccount: 'Already have an account? Sign in to accept the invitation',
+      submit: 'Create account and join',
+      submitting: 'Creating your account…',
+      done: (company: string) =>
+        `Your account is ready and you joined ${company}. Sign in to start.`,
+      accountExists: 'This email already has an account. Sign in, then accept the invitation.',
+      companyUnavailable:
+        'This company is not accepting new members right now. Please contact your company administrator.',
+      closedTitle: 'Accounts are by invitation only',
+      closedLead:
+        'PDA BLISS CORE accounts are created from the invitation link your company sends by email. To get access, contact your company administrator or the PDA BLISS team.',
+    },
     security: {
       title: 'Security and devices',
       lead: 'Devices currently signed in to this account.',
@@ -715,6 +755,24 @@ export const AUTH_COPY: Localized<AuthCopy> = {
       invitationPlatform: '平台管理账户不能加入客户公司。',
       invitationBad: '此邀请已过期、已撤销或已被使用。',
       backToAccount: '返回账户',
+    },
+    invite: {
+      meta: {
+        title: '通过邀请创建账户',
+        description: '通过公司邀请创建 PDA BLISS CORE 账户',
+      },
+      kicker: '公司邀请',
+      title: '创建您的账户',
+      lead: '账户使用受邀的邮箱地址。创建后，请使用密码和邮箱验证码登录。',
+      haveAccount: '已有账户？登录后接受邀请',
+      submit: '创建账户并加入公司',
+      submitting: '正在创建账户…',
+      done: (company: string) => `账户已创建，您已加入 ${company}。请登录开始使用。`,
+      accountExists: '此邮箱已有账户。请登录后接受邀请。',
+      companyUnavailable: '该公司目前不接受新成员，请联系公司管理员。',
+      closedTitle: '仅限邀请注册',
+      closedLead:
+        'PDA BLISS CORE 账户通过公司发送的邀请邮件链接创建。如需使用，请联系您的公司管理员或 PDA BLISS 团队。',
     },
     security: {
       title: '安全与设备',

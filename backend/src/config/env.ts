@@ -89,6 +89,34 @@ const EnvSchema = z
     SMTP_USER: optionalString,
     SMTP_PASSWORD: optionalString,
     DEV_MAIL_DIR: z.string().min(1).default('.mail'),
+
+    // --- EP48.5 FINAL ------------------------------------------------------------
+    /**
+     * F1: public self-service sign-up (`POST /auth/register`, `/auth/verification/resend`).
+     * false = those routes do not exist; accounts come from company invitations
+     * (`POST /auth/invitations/register`). The online profile requires false.
+     */
+    PUBLIC_SIGNUP: z.stringbool().default(true),
+    /**
+     * F2: the companies a PLATFORM_OWNER may activate manually in production — comma-separated
+     * company ids. Empty (the default) = the manual-activation route is not registered.
+     */
+    MANUAL_ACTIVATION_COMPANY_IDS: z
+      .string()
+      .default('')
+      .transform((value, ctx) => {
+        const ids = value
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean);
+        for (const id of ids) {
+          if (!/^[a-z0-9]{8,64}$/.test(id)) {
+            ctx.addIssue({ code: 'custom', message: `not a company id: ${id}` });
+            return z.NEVER;
+          }
+        }
+        return [...new Set(ids)];
+      }),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;

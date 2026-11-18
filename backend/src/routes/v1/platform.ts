@@ -30,6 +30,15 @@ const ActivityQuery = z
   })
   .strict();
 const GrantBody = z.object({ email: z.string().trim().max(254).pipe(z.email()) }).strict();
+// eslint-disable-next-line no-control-regex
+const NO_CONTROL = /^[^\u0000-\u001f\u007f]*$/;
+/** EP48.5 F2: the operator retypes the company display name and says why (both audited). */
+const ManualActivationBody = z
+  .object({
+    confirmDisplayName: z.string().trim().min(1).max(200).regex(NO_CONTROL),
+    reason: z.string().trim().min(10).max(500).regex(NO_CONTROL),
+  })
+  .strict();
 
 export const platformRoutes: FastifyPluginAsync<{
   platform: PlatformService;
@@ -68,6 +77,22 @@ export const platformRoutes: FastifyPluginAsync<{
       async (request) => {
         const { id } = parseInput(IdParams, request.params);
         return companies.activateForDevelopment(requireAuth(request), id, requestMeta(request));
+      },
+    );
+  }
+  // ---- EP48.5 F2: production manual activation (owner only, fresh step-up, allow-listed) ----
+  // Registered only when MANUAL_ACTIVATION_COMPANY_IDS names a company; every other id is 404.
+  if (companies.manualActivationEnabled) {
+    app.post(
+      '/companies/:id/manual-activation',
+      {
+        preHandler: [requireOwner, requireRecentStepUp],
+        config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+      },
+      async (request) => {
+        const { id } = parseInput(IdParams, request.params);
+        const body = parseInput(ManualActivationBody, request.body);
+        return companies.activateManually(requireAuth(request), id, body, requestMeta(request));
       },
     );
   }

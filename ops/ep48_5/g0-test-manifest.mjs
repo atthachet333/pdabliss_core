@@ -22,20 +22,21 @@ export const P7_MANIFEST = Object.freeze({
   // C-A0.4 (G0 run 3 readiness): g0-preflight 6 -> 9 (+3 manifest), g0-supervisor 27 -> 37 (+10 run-3 readiness).
   // EP48.5 O1 (online tooling): g0-supervisor 37 -> 40 (+3 R16 CORE-vs-production identity); new g0-online 9 (online
   // checks, tunnel / Access specs, WinSW templates); new staging-launch.online 13 (online launcher profile, static server).
+  // EP48.5 FINAL (F1/F2): staging-launch.online 13 -> 14 (+1 O-L12 invitation-only sign-up + manual-activation allow-list).
   files: Object.freeze({
     "ops/test/g0-guard.test.mjs": 18,
     "ops/test/g0-loopback.test.mjs": 4,
     "ops/test/g0-online.test.mjs": 9,
     "ops/test/g0-preflight.test.mjs": 9,
     "ops/test/g0-supervisor.test.mjs": 40,
-    "ops/test/staging-launch.online.test.mjs": 13,
+    "ops/test/staging-launch.online.test.mjs": 14,
     "ops/test/staging-launch.test.mjs": 40,
   }),
   excluded: Object.freeze({
     "ops/test/ops.test.mjs": "EP43 suite: needs the backend's dependencies; runs in G0 ops-tests (exact total there)",
     "ops/test/staging-launch.g0.test.mjs": "T10: runs only inside G0 against the temporary PostgreSQL (exact total there)",
   }),
-  total: 133,
+  total: 134,
 });
 export const MANIFESTS = Object.freeze({ p7: P7_MANIFEST });
 

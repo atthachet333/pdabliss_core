@@ -75,6 +75,8 @@ export const AUTH_RATE_LIMITS = {
   forgotPassword: { max: 5, timeWindow: '15 minutes' },
   resetPassword: { max: 10, timeWindow: '15 minutes' },
   invitationAccept: { max: 10, timeWindow: '15 minutes' },
+  /** EP48.5 F1: creating an account from an invitation link. */
+  invitationRegister: { max: 10, timeWindow: '15 minutes' },
   // EP24 onboarding (signed-in only; the one-company rule stops repeats anyway).
   packageSelection: { max: 30, timeWindow: '15 minutes' },
   companyCreate: { max: 10, timeWindow: '15 minutes' },

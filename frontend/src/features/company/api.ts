@@ -246,6 +246,8 @@ export interface PlatformCompanyDetail {
   access: { canEnterCore: boolean };
   /** True only outside production: the manual development activation exists. */
   developmentActivation: boolean;
+  /** EP48.5 F2: this company is on the production manual-activation allow-list (owner only). */
+  manualActivation: boolean;
 }
 
 export const companyApi = {
@@ -274,5 +276,12 @@ export const platformCompanyApi = {
       'POST',
       `${P}/${encodeURIComponent(id)}/development-activation`,
       {},
+    ),
+  /** EP48.5 F2: production manual activation — the display name retyped, and a reason (audited). */
+  activateManually: (id: string, body: { confirmDisplayName: string; reason: string }) =>
+    apiRequest<PlatformCompanyDetail>(
+      'POST',
+      `${P}/${encodeURIComponent(id)}/manual-activation`,
+      body,
     ),
 };

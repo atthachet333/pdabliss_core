@@ -2,6 +2,7 @@ import { ArrowLeft, Check, Eye, LoaderCircle, MapPin, ShieldAlert } from 'lucide
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { buttonClasses } from '@/components/ui/buttonStyles';
+import { controlClass } from '@/components/ui/fieldStyles';
 import { formatDateTime } from '@/features/account/format';
 import type { Identity } from '@/features/auth/api';
 import { Notice } from '@/features/auth/AuthFrame';
@@ -390,6 +391,46 @@ function SubscriptionSection({
     d.company.status === 'PENDING_SUBSCRIPTION' &&
     d.company.onboardingStatus === 'COMPLETED';
 
+  // EP48.5 F2: production manual activation, shown only for the allow-listed company.
+  const canActivateManually =
+    d.manualActivation &&
+    current?.status === 'PENDING' &&
+    d.company.status === 'PENDING_SUBSCRIPTION' &&
+    d.company.onboardingStatus === 'COMPLETED';
+  const [confirmName, setConfirmName] = useState('');
+  const [reason, setReason] = useState('');
+  const manualReady =
+    confirmName.trim() === d.company.displayName.trim() && reason.trim().length >= 10;
+
+  const activateManually = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      onActivated(
+        await platformCompanyApi.activateManually(d.company.id, {
+          confirmDisplayName: confirmName.trim(),
+          reason: reason.trim(),
+        }),
+      );
+      setMessage({ tone: 'success', text: i.manualActivated });
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : '';
+      setMessage({
+        tone: 'error',
+        text:
+          code === 'STEP_UP_REQUIRED'
+            ? i.devStepUp
+            : code === 'CONFIRMATION_MISMATCH'
+              ? i.manualMismatch
+              : code === 'FORBIDDEN'
+                ? i.manualOwnerOnly
+                : i.devFailed,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const activate = async () => {
     setBusy(true);
     setMessage(null);
@@ -523,6 +564,66 @@ function SubscriptionSection({
               />
             )}
             {busy ? i.devActivating : i.devActivate}
+          </button>
+        </div>
+      )}
+      {canActivateManually && (
+        <div
+          className="mt-6 space-y-3 rounded-2xl border border-warning/25 bg-warning/[0.04] p-4"
+          data-manual-activation
+        >
+          <p className="text-label font-semibold text-text-primary">{i.manualTitle}</p>
+          <p className="text-caption text-text-secondary">{i.manualNote}</p>
+          <div>
+            <label
+              htmlFor="manual-confirm-name"
+              className="mb-2 block text-label font-medium text-text-primary"
+            >
+              {i.manualConfirmLabel(d.company.displayName)}
+            </label>
+            <input
+              id="manual-confirm-name"
+              className={controlClass(false)}
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={200}
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="manual-reason"
+              className="mb-2 block text-label font-medium text-text-primary"
+            >
+              {i.manualReasonLabel}
+            </label>
+            <textarea
+              id="manual-reason"
+              className={controlClass(false, true)}
+              rows={2}
+              maxLength={500}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              aria-describedby="manual-reason-hint"
+            />
+            <p id="manual-reason-hint" className="mt-1.5 text-caption text-text-muted">
+              {i.manualReasonHint}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void activateManually()}
+            disabled={busy || !manualReady}
+            className={buttonClasses('secondary', 'md')}
+          >
+            {busy && (
+              <LoaderCircle
+                aria-hidden
+                className="size-4 animate-spin motion-reduce:animate-none"
+              />
+            )}
+            {busy ? i.devActivating : i.manualActivate}
           </button>
         </div>
       )}

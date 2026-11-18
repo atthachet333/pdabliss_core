@@ -130,7 +130,12 @@ export async function buildApp(env: Env, overrides: AppOverrides = {}): Promise<
       platform: new PlatformService(db),
       invitations: new InvitationService(db, env, mailer),
       // The manual activation exists only outside production (EP24).
-      companies: new CompanyService(db, env.NODE_ENV !== 'production'),
+      companies: new CompanyService(
+        db,
+        env.NODE_ENV !== 'production',
+        // EP48.5 F2: production manual activation, only for the companies listed in the env.
+        env.MANUAL_ACTIVATION_COMPANY_IDS,
+      ),
       // EP25: the customer Company Control Center.
       control: new CompanyControlService(db),
       db,

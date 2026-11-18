@@ -25,9 +25,9 @@ const ids = (r) => r.checks.filter((c) => !c.ok).map((c) => c.id);
 test("ON1 the release's application safeguards hold in this repository; the known blockers are reported, not hidden", () => {
   const r = checkReleaseSafeguards(SRC);
   assert.equal(r.ok, true, JSON.stringify(r.checks.filter((c) => !c.ok), null, 2));
-  assert.deepEqual(r.checks.map((c) => c.id), ["A1_SESSION_BEFORE_DATA_ROUTES", "A2_PLATFORM_ROUTES", "A3_AUTH_SESSION_ROUTES", "A4_RATE_LIMITS", "C1_SECURE_COOKIES", "C2_ORIGIN_CHECK", "D1_NO_DEMO_BYPASS_IN_PRODUCTION", "D2_NO_DEV_ACTIVATION_IN_PRODUCTION", "D3_DEMO_SEED_REFUSES_PRODUCTION", "M1_SMTP_REQUIRE_TLS", "E1_PRODUCTION_ENV"]);
-  assert.deepEqual(r.blockers.map((b) => b.id), ["B1_PUBLIC_SIGN_UP", "I1_HEALTH_DISCLOSURE"]);
-  assert.match(r.blockers[0].control, /edge.*before public mode \(O7\)/);
+  assert.deepEqual(r.checks.map((c) => c.id), ["A1_SESSION_BEFORE_DATA_ROUTES", "A2_PLATFORM_ROUTES", "A3_AUTH_SESSION_ROUTES", "A4_RATE_LIMITS", "C1_SECURE_COOKIES", "C2_ORIGIN_CHECK", "D1_NO_DEMO_BYPASS_IN_PRODUCTION", "D2_NO_DEV_ACTIVATION_IN_PRODUCTION", "F1_SIGNUP_SWITCH", "F2_MANUAL_ACTIVATION_GUARDED", "D3_DEMO_SEED_REFUSES_PRODUCTION", "M1_SMTP_REQUIRE_TLS", "E1_PRODUCTION_ENV"]);
+  // EP48.5 F1: public sign-up is now behind PUBLIC_SIGNUP (code level), so B1 is no longer an open blocker.
+  assert.deepEqual(r.blockers.map((b) => b.id), ["I1_HEALTH_DISCLOSURE"]);
 });
 test("ON2 a weakened safeguard in a release is caught (route before its session hook, cookie flags, demo bypass, requireTLS, origin check)", () => {
   const copy = tmp("core-src-");
@@ -46,7 +46,12 @@ test("ON2 a weakened safeguard in a release is caught (route before its session 
     ["auth/http.ts", "secure: env.NODE_ENV === 'production',", "secure: false,", "C1_SECURE_COOKIES"],
     ["app.ts", "checkOrigin(request);", "void checkOrigin;", "C2_ORIGIN_CHECK"],
     ["auth/demo-bypass.ts", "return env.NODE_ENV !== 'production' && env.ENABLE_DEMO_ROUTES === true;", "return env.ENABLE_DEMO_ROUTES === true;", "D1_NO_DEMO_BYPASS_IN_PRODUCTION"],
-    ["app.ts", "new CompanyService(db, env.NODE_ENV !== 'production')", "new CompanyService(db, true)", "D2_NO_DEV_ACTIVATION_IN_PRODUCTION"],
+    ["app.ts", "        env.NODE_ENV !== 'production',\n", "        true,\n", "D2_NO_DEV_ACTIVATION_IN_PRODUCTION"],
+    ["routes/v1/auth.ts", "  if (env.PUBLIC_SIGNUP) {\n    app.post('/register'", "  {\n    app.post('/register'", "F1_SIGNUP_SWITCH"],
+    ["routes/v1/auth.ts", "app.post('/invitations/register', limit('invitationRegister')", "app.post('/invitations/register', {}", "F1_SIGNUP_SWITCH"],
+    ["routes/v1/platform.ts", "preHandler: [requireOwner, requireRecentStepUp],\n        config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },", "preHandler: [requireOwner],\n        config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },", "F2_MANUAL_ACTIVATION_GUARDED"],
+    ["company/service.ts", "if (!this.manualActivationIds.includes(companyId)) throw new NotFoundError();", "void companyId;", "F2_MANUAL_ACTIVATION_GUARDED"],
+    ["company/service.ts", "where: { id: companyId, status: 'PENDING_SUBSCRIPTION' },", "where: { id: companyId },", "F2_MANUAL_ACTIVATION_GUARDED"],
     ["mail/mailer.ts", "requireTLS: !env.SMTP_SECURE,", "requireTLS: false,", "M1_SMTP_REQUIRE_TLS"],
   ];
   for (const [rel, from, to, id] of cases) {

@@ -39,21 +39,26 @@ export const ONLINE_API_ALLOWED = new Set([
   "CORE_ENVIRONMENT", "NODE_ENV", "ENABLE_DEMO_ROUTES", "HOST", "PORT", "CORS_ORIGINS", "PUBLIC_APP_URL", "AUTH_SECRET",
   "DATABASE_URL", "TRUST_PROXY", "MAIL_TRANSPORT", "MAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER",
   "SMTP_PASSWORD", "LOG_LEVEL",
+  // EP48.5 FINAL: F1 invitation-only sign-up (must be false online) and F2's one-company manual-activation allow-list.
+  "PUBLIC_SIGNUP", "MANUAL_ACTIVATION_COMPANY_IDS",
 ]);
 const ONLINE_REQUIRED = [
   "CORE_ENVIRONMENT", "NODE_ENV", "ENABLE_DEMO_ROUTES", "HOST", "PORT", "CORS_ORIGINS", "PUBLIC_APP_URL", "AUTH_SECRET",
   "DATABASE_URL", "TRUST_PROXY", "MAIL_TRANSPORT", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD",
+  "PUBLIC_SIGNUP",
 ];
+/** EP48.5 F2: at most ONE company may be listed for manual activation at a time (empty = route absent). */
+const COMPANY_ID_RE = /^[a-z0-9]{8,64}$/;
 
 /** The two fixed launcher profiles. */
 export const PROFILES = Object.freeze({
   staging: Object.freeze({
     name: "staging", marker: "staging", nodeEnv: "development", origin: WEB_ORIGIN, trustProxy: null, mail: "dev",
-    allowed: API_ALLOWED, required: REQUIRED, label: "CORE Internal Staging",
+    invitationOnly: false, allowed: API_ALLOWED, required: REQUIRED, label: "CORE Internal Staging",
   }),
   online: Object.freeze({
     name: "online", marker: ONLINE_MARKER, nodeEnv: "production", origin: PUBLIC_ORIGIN, trustProxy: "loopback", mail: "smtp",
-    allowed: ONLINE_API_ALLOWED, required: ONLINE_REQUIRED, label: "CORE online (core.pdabliss.com, production mode)",
+    invitationOnly: true, allowed: ONLINE_API_ALLOWED, required: ONLINE_REQUIRED, label: "CORE online (core.pdabliss.com, production mode)",
   }),
 });
 
@@ -148,6 +153,13 @@ export function preflight({ env, root, releaseRoot, cwd, execArgv, inspectorUrl,
   requireExact(env, "CORS_ORIGINS", profile.origin, "L6_CORS");
   requireExact(env, "PUBLIC_APP_URL", profile.origin, "L6_PUBLIC_URL");
   if (profile.trustProxy) requireExact(env, "TRUST_PROXY", profile.trustProxy, "L6_TRUST_PROXY");
+  if (profile.invitationOnly) {
+    // EP48.5 F1: no public self-service sign-up on the public host (the Cloudflare WAF rule stays as a second layer).
+    requireExact(env, "PUBLIC_SIGNUP", "false", "L12_PUBLIC_SIGNUP");
+    const ids = String(env.MANUAL_ACTIVATION_COMPANY_IDS ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+    if (ids.length > 1) refuse("L12_MANUAL_ACTIVATION", "MANUAL_ACTIVATION_COMPANY_IDS may name at most one company");
+    if (ids.some((id) => !COMPANY_ID_RE.test(id))) refuse("L12_MANUAL_ACTIVATION", "MANUAL_ACTIVATION_COMPANY_IDS is not a company id");
+  }
   if (profile.mail === "smtp") checkSmtpConfig(env);
   else {
     requireExact(env, "MAIL_TRANSPORT", "dev", "L7_MAIL_TRANSPORT");
@@ -177,7 +189,11 @@ export function checkParsedEnv(parsed, devAuthSecret, profile = PROFILES.staging
         parsed.TRUST_PROXY[0] === profile.trustProxy && parsed.PUBLIC_APP_URL === profile.origin &&
         parsed.SMTP_HOST === env.SMTP_HOST && parsed.SMTP_PORT === Number(env.SMTP_PORT) && parsed.SMTP_SECURE === (env.SMTP_SECURE === "true")
       : parsed?.MAIL_TRANSPORT === "dev" && parsed?.TRUST_PROXY === false;
-  if (!(common && specific)) refuse("L11_PARSED_ENV", `the application's parsed configuration differs from the locked ${profile.name} profile`);
+  const signup =
+    !profile.invitationOnly ||
+    (parsed?.PUBLIC_SIGNUP === false && Array.isArray(parsed?.MANUAL_ACTIVATION_COMPANY_IDS) &&
+      parsed.MANUAL_ACTIVATION_COMPANY_IDS.length <= 1);
+  if (!(common && specific && signup)) refuse("L11_PARSED_ENV", `the application's parsed configuration differs from the locked ${profile.name} profile`);
 }
 
 const releasePaths = (releaseRoot) => ({

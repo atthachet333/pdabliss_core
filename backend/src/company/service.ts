@@ -145,7 +145,17 @@ export class CompanyService {
     private readonly db: Db,
     /** Development / test only: the manual activation endpoint exists. */
     readonly developmentActivation: boolean,
+    /**
+     * EP48.5 F2: the companies a Platform Owner may activate manually in production (env
+     * MANUAL_ACTIVATION_COMPANY_IDS; empty = the production route does not exist at all).
+     */
+    private readonly manualActivationIds: readonly string[] = [],
   ) {}
+
+  /** EP48.5 F2: the production manual-activation route is registered only when this is true. */
+  get manualActivationEnabled(): boolean {
+    return this.manualActivationIds.length > 0;
+  }
 
   private membership(userId: string) {
     return this.db.companyMember.findUnique({ where: { userId }, include: { company: true } });
@@ -714,6 +724,8 @@ export class CompanyService {
       })),
       access: { canEnterCore: canEnterCore(c, current) },
       developmentActivation: this.developmentActivation,
+      // EP48.5 F2: this company is on the production manual-activation allow-list.
+      manualActivation: this.manualActivationIds.includes(c.id),
     };
   }
 
@@ -746,6 +758,47 @@ export class CompanyService {
    */
   async activateForDevelopment(ctx: AuthContext, companyId: string, meta: RequestMeta) {
     if (!this.developmentActivation) throw new NotFoundError();
+    return this.activateSubscription(ctx, companyId, meta, { mode: 'development_manual' });
+  }
+
+  /**
+   * EP48.5 F2 — PRODUCTION manual activation, one company at a time. Only a company on the
+   * MANUAL_ACTIVATION_COMPANY_IDS allow-list (others: not found), only the PLATFORM_OWNER, and
+   * the route also requires a fresh e-mailed one-time code (step-up). The operator confirms the
+   * company's display name and gives a reason; the transition is the canonical one below
+   * (PENDING -> ACTIVE once: a second call is INVALID_TRANSITION), audited as
+   * `operator_manual`, `paid: false`.
+   */
+  async activateManually(
+    ctx: AuthContext,
+    companyId: string,
+    input: { confirmDisplayName: string; reason: string },
+    meta: RequestMeta,
+  ) {
+    if (!this.manualActivationIds.includes(companyId)) throw new NotFoundError();
+    if (ctx.user.platformRole?.role !== 'PLATFORM_OWNER') throw forbidden();
+    const company = await this.db.company.findUnique({ where: { id: companyId } });
+    if (!company) throw new NotFoundError('Company not found.');
+    if (company.name.trim() !== input.confirmDisplayName.trim()) {
+      throw new AppError(
+        409,
+        'CONFIRMATION_MISMATCH',
+        'The confirmation does not match the company display name.',
+      );
+    }
+    return this.activateSubscription(ctx, companyId, meta, {
+      mode: 'operator_manual',
+      reason: input.reason.trim(),
+    });
+  }
+
+  /** The one canonical PENDING -> ACTIVE transition (development and production manual paths). */
+  private async activateSubscription(
+    ctx: AuthContext,
+    companyId: string,
+    meta: RequestMeta,
+    how: { mode: 'development_manual' | 'operator_manual'; reason?: string },
+  ) {
     const role = ctx.user.platformRole?.role;
     if (!role) throw forbidden();
     const company = await this.db.company.findUnique({ where: { id: companyId } });
@@ -778,24 +831,29 @@ export class CompanyService {
       });
       if (count === 0)
         throw new AppError(409, 'INVALID_TRANSITION', 'The subscription changed meanwhile.');
-      await tx.company.update({
-        where: { id: companyId },
+      // EP48.5: conditional on the state just checked, so a concurrent or replayed call can
+      // never activate twice or overwrite a status that changed meanwhile.
+      const companyUpdate = await tx.company.updateMany({
+        where: { id: companyId, status: 'PENDING_SUBSCRIPTION' },
         data: { status: 'ACTIVE', activatedAt: now },
       });
+      if (companyUpdate.count === 0)
+        throw new AppError(409, 'INVALID_TRANSITION', 'The company changed meanwhile.');
       const base = { actorId: ctx.user.id, actorScope, companyId };
+      const reason = how.reason ? { reason: how.reason } : {};
       await recordCompanyEvent(tx, meta, {
         ...base,
         action: 'SUBSCRIPTION_STATUS_CHANGED',
         entityType: 'Subscription',
         entityId: sub.id,
-        details: { from: 'PENDING', to: 'ACTIVE', mode: 'development_manual', paid: false },
+        details: { from: 'PENDING', to: 'ACTIVE', mode: how.mode, paid: false, ...reason },
       });
       await recordCompanyEvent(tx, meta, {
         ...base,
         action: 'COMPANY_STATUS_CHANGED',
         entityType: 'Company',
         entityId: companyId,
-        details: { from: 'PENDING_SUBSCRIPTION', to: 'ACTIVE', mode: 'development_manual' },
+        details: { from: 'PENDING_SUBSCRIPTION', to: 'ACTIVE', mode: how.mode, ...reason },
       });
     });
     return this.detailForPlatform(companyId);

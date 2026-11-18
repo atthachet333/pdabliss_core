@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEMO_COMPANY,
   DEMO_ONBOARDING,
@@ -404,6 +404,74 @@ describe('invitation acceptance', () => {
       'คุณเข้าร่วม Invite Co แล้ว',
     );
     expect(api.called('POST /api/v1/auth/invitations/accept')[0]!.body).toEqual({ token: TOKEN });
+  });
+});
+
+describe('invitation-only accounts (EP48.5 F1)', () => {
+  it('a visitor without an account creates it from the invitation, bound to the invited address', async () => {
+    const api = fakeApi({
+      ...signedOut,
+      'POST /api/v1/auth/invitations/register': ok({
+        status: 'account_created',
+        company: { id: 'c1', name: 'Invite Co' },
+        role: 'DEPARTMENT_STAFF',
+      }),
+    });
+    window.history.replaceState(null, '', `/account/invitation#token=${TOKEN}`);
+    renderRoute('/account/invitation');
+    await screen.findByRole('heading', { level: 1, name: 'สร้างบัญชีของคุณ' });
+    expect(window.location.hash).toBe('');
+    // No email field: the account is the invited address.
+    expect(document.querySelector('input[type="email"]')).toBeNull();
+    const submit = screen.getByRole('button', { name: 'สร้างบัญชีและเข้าร่วมบริษัท' });
+    await userEvent.click(submit);
+    expect(api.called('POST /api/v1/auth/invitations/register')).toHaveLength(0);
+    await userEvent.type(screen.getByLabelText('ชื่อ-นามสกุล'), 'สมหญิง ใจดี');
+    await userEvent.type(screen.getByLabelText('รหัสผ่าน'), PASSWORD);
+    await userEvent.type(screen.getByLabelText('ยืนยันรหัสผ่าน'), PASSWORD);
+    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.click(submit);
+    expect(await screen.findByRole('status')).toHaveTextContent('Invite Co');
+    expect(api.called('POST /api/v1/auth/invitations/register')[0]!.body).toEqual({
+      token: TOKEN,
+      password: PASSWORD,
+      fullName: 'สมหญิง ใจดี',
+      locale: 'th',
+      acceptTerms: true,
+    });
+  });
+
+  it('an address that already has an account is sent to sign in', async () => {
+    fakeApi({
+      ...signedOut,
+      'POST /api/v1/auth/invitations/register': fail(409, 'ACCOUNT_EXISTS'),
+    });
+    window.history.replaceState(null, '', `/account/invitation#token=${TOKEN}`);
+    renderRoute('/account/invitation');
+    await screen.findByRole('heading', { level: 1, name: 'สร้างบัญชีของคุณ' });
+    await userEvent.type(screen.getByLabelText('ชื่อ-นามสกุล'), 'สมหญิง ใจดี');
+    await userEvent.type(screen.getByLabelText('รหัสผ่าน'), PASSWORD);
+    await userEvent.type(screen.getByLabelText('ยืนยันรหัสผ่าน'), PASSWORD);
+    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.click(screen.getByRole('button', { name: 'สร้างบัญชีและเข้าร่วมบริษัท' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('อีเมลนี้มีบัญชีอยู่แล้ว');
+    expect(document.querySelector('[data-link="invite-sign-in"]')).toHaveAttribute(
+      'href',
+      '/login?next=%2Faccount%2Finvitation',
+    );
+  });
+
+  it('with public sign-up closed, /register explains invitations and shows no form', async () => {
+    vi.stubEnv('VITE_PUBLIC_SIGNUP', 'false');
+    try {
+      const api = fakeApi(signedOut);
+      renderRoute('/register');
+      await screen.findByRole('heading', { level: 1, name: 'สมัครใช้งานได้ด้วยคำเชิญเท่านั้น' });
+      expect(document.querySelector('[data-register-step]')).toBeNull();
+      expect(api.called('POST /api/v1/auth/register')).toHaveLength(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

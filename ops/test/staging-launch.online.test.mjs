@@ -43,7 +43,8 @@ export function parseEnv(s) {
     ENABLE_DEMO_ROUTES: s.ENABLE_DEMO_ROUTES === "true" ? true : s.ENABLE_DEMO_ROUTES === "false" ? false : s.NODE_ENV !== "production",
     TRUST_PROXY: s.TRUST_PROXY ? s.TRUST_PROXY.split(",") : false, CORS_ORIGINS: String(s.CORS_ORIGINS).split(","),
     PUBLIC_APP_URL: s.PUBLIC_APP_URL, SMTP_HOST: s.SMTP_HOST, SMTP_PORT: Number(s.SMTP_PORT ?? 587), SMTP_SECURE: s.SMTP_SECURE === "true",
-    AUTH_SECRET: s.AUTH_SECRET ?? DEV_AUTH_SECRET };
+    AUTH_SECRET: s.AUTH_SECRET ?? DEV_AUTH_SECRET, PUBLIC_SIGNUP: s.PUBLIC_SIGNUP !== "false",
+    MANUAL_ACTIVATION_COMPANY_IDS: String(s.MANUAL_ACTIVATION_COMPANY_IDS ?? "").split(",").map((v) => v.trim()).filter(Boolean) };
 }
 `,
   );
@@ -87,6 +88,7 @@ function onlineEnv(extra = {}) {
     DATABASE_URL: `postgresql://core_app:${DB_PW}@127.0.0.1:5433/pdabliss_core_staging`, TRUST_PROXY: "loopback",
     MAIL_TRANSPORT: "smtp", SMTP_HOST: "smtp.hostinger.com", SMTP_PORT: "587", SMTP_SECURE: "false",
     SMTP_USER: "notify@pdabliss.com", SMTP_PASSWORD: SMTP_PW, MAIL_FROM: "PDA BLISS CORE <notify@pdabliss.com>", LOG_LEVEL: "info",
+    PUBLIC_SIGNUP: "false",
     PATH: process.env.PATH ?? "", SystemRoot: "C:\\Windows",
     ...extra,
   };
@@ -195,6 +197,25 @@ test("O-L11: the application's own parsed configuration must agree with the onli
   for (const patch of [{ NODE_ENV: "development" }, { ENABLE_DEMO_ROUTES: true }, { TRUST_PROXY: false }, { TRUST_PROXY: ["loopback", "10.0.0.0/8"] }, { MAIL_TRANSPORT: "dev" }, { PUBLIC_APP_URL: "http://127.0.0.1:1311" }, { SMTP_SECURE: true }, { SMTP_PORT: 25 }, { AUTH_SECRET: DEV_SECRET }])
     await refusedWith(launchApi(f, onlineEnv(), { loadEnvModule: parsedWith(patch) }), "L11_PARSED_ENV");
   await refusedWith(launchApi(f, onlineEnv({ SMTP_HOST: "smtp.hostinger.com" }), { loadEnvModule: async () => ({ DEV_AUTH_SECRET: DEV_SECRET, parseEnv: () => { throw new Error("SMTP_HOST: required in production"); } }) }), "L11_PARSED_ENV");
+});
+test("O-L12 (EP48.5 F1/F2): public sign-up must be off; manual activation names at most one company id", async () => {
+  const f = fixture();
+  for (const v of ["true", "TRUE", "False", "0", ""]) await refusedWith(launchApi(f, onlineEnv({ PUBLIC_SIGNUP: v })), "L12_PUBLIC_SIGNUP");
+  await refusedWith(launchApi(f, without(onlineEnv(), "PUBLIC_SIGNUP")), "P6_REQUIRED");
+  for (const v of ["cmabc12345678,cmdef12345678", "../etc", "short", "CMABC12345678 x"])
+    await refusedWith(launchApi(f, onlineEnv({ MANUAL_ACTIVATION_COMPANY_IDS: v })), "L12_MANUAL_ACTIVATION");
+  for (const v of ["", "cmabc12345678xyz0000000000"]) {
+    const app = await launchApi(f, onlineEnv({ MANUAL_ACTIVATION_COMPANY_IDS: v }));
+    await app.close();
+  }
+  const parsedWith = (patch) => async (file) => {
+    const m = await import(`${new URL(`file://${file}`).href}?v=${Math.random()}`);
+    return { DEV_AUTH_SECRET: m.DEV_AUTH_SECRET, parseEnv: (s) => ({ ...m.parseEnv(s), ...patch }) };
+  };
+  for (const patch of [{ PUBLIC_SIGNUP: true }, { PUBLIC_SIGNUP: undefined }, { MANUAL_ACTIVATION_COMPANY_IDS: ["a1234567", "b1234567"] }, { MANUAL_ACTIVATION_COMPANY_IDS: undefined }])
+    await refusedWith(launchApi(f, onlineEnv(), { loadEnvModule: parsedWith(patch) }), "L11_PARSED_ENV");
+  assert.equal(PROFILES.online.invitationOnly, true);
+  assert.equal(PROFILES.staging.invitationOnly, false);
 });
 test("O-profiles: the staging profile refuses the online environment and the online entry point is fixed to the online profile", async () => {
   const f = fixture();

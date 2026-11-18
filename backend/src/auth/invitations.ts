@@ -6,15 +6,23 @@ import { assertDepartmentIntent } from '../company/department-policy.js';
 import type { InvitationInput } from '../company/input.js';
 import { ASSIGNABLE_ROLES } from '../company/policy.js';
 import type { DepartmentCode } from '../billing/catalog.js';
+import { Prisma } from '../generated/prisma/client.js';
 import type { AppLocale, BranchAccessScope, CompanyRole } from '../generated/prisma/enums.js';
 import { AppError } from '../lib/errors.js';
 import { takesDepartment } from '../permissions/catalog.js';
 import type { Mailer } from '../mail/mailer.js';
 import { appLink, invitationMail } from '../mail/templates.js';
-import { recordAuthEvent, type RequestMeta } from './audit.js';
+import { recordAuthEvent, type DbClient, type RequestMeta } from './audit.js';
 import { normalizeEmail, randomToken, sha256 } from './crypto.js';
-import { mailUnavailable, tokenExpired, tokenInvalid, tokenUsed } from './errors.js';
-import { mailLocale, toApiLocale, toDbLocale } from './locale.js';
+import {
+  mailUnavailable,
+  passwordPolicy,
+  tokenExpired,
+  tokenInvalid,
+  tokenUsed,
+} from './errors.js';
+import { mailLocale, toApiLocale, toDbLocale, type ApiLocale } from './locale.js';
+import { checkPassword, hashPassword } from './password.js';
 import { AUTH_POLICY } from './policy.js';
 import type { AuthContext } from './sessions.js';
 
@@ -46,6 +54,31 @@ export const INVITATION_RESEND_COOLDOWN_MS = 60_000;
 
 const invitationNotFound = () =>
   new AppError(404, 'INVITATION_NOT_FOUND', 'No open invitation with this id.');
+
+/** EP48.5 F1: the invited address already has an account — sign in, then accept. */
+const accountExists = () =>
+  new AppError(
+    409,
+    'ACCOUNT_EXISTS',
+    'An account already uses this email address. Sign in, then accept the invitation.',
+  );
+
+const companyUnavailable = () =>
+  new AppError(409, 'COMPANY_UNAVAILABLE', 'This company is not accepting members now.');
+
+const isUniqueViolation = (e: unknown) =>
+  e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
+
+/** What joining needs from an invitation row (accept and register-from-invitation share it). */
+interface JoinableInvitation {
+  id: string;
+  companyId: string;
+  role: CompanyRole;
+  departments: DepartmentCode[];
+  branchScope: BranchAccessScope;
+  branchIds: string[];
+  invitedById: string;
+}
 
 const peerAdmin = () =>
   new AppError(403, 'PEER_ADMIN', 'Only the Company Owner can manage a System Admin invitation.');
@@ -338,7 +371,7 @@ export class InvitationService {
       );
     }
     if (invitation.company.status === 'SUSPENDED' || invitation.company.status === 'CLOSED') {
-      throw new AppError(409, 'COMPANY_UNAVAILABLE', 'This company is not accepting members now.');
+      throw companyUnavailable();
     }
 
     const now = new Date();
@@ -348,100 +381,201 @@ export class InvitationService {
       if (existing) {
         throw new AppError(409, 'ALREADY_IN_COMPANY', 'This account already belongs to a company.');
       }
-      const { count } = await tx.invitation.updateMany({
-        where: { id: invitation.id, status: 'PENDING', expiresAt: { gt: now } },
-        data: { status: 'ACCEPTED', acceptedAt: now, acceptedById: ctx.user.id },
-      });
-      if (count === 0) throw tokenUsed();
-      // Never the owner role, whatever the row says (also a database CHECK).
-      if (invitation.role === 'COMPANY_OWNER') throw tokenInvalid();
-      // EP26: the intent, as valid now.
-      const [departments, branches] = await Promise.all([
-        tx.department.findMany({
-          where: {
-            companyId: invitation.companyId,
-            isActive: true,
-            code: { in: invitation.departments },
-          },
-        }),
-        invitation.branchScope === 'SELECTED_BRANCHES'
-          ? tx.branch.findMany({
-              where: {
-                id: { in: invitation.branchIds },
-                companyId: invitation.companyId,
-                status: 'ACTIVE',
-              },
-            })
-          : Promise.resolve([]),
-      ]);
-      const member = await tx.companyMember.create({
-        data: {
-          companyId: invitation.companyId,
-          userId: ctx.user.id,
-          role: invitation.role,
-          branchScope: invitation.branchScope,
-        },
-      });
-      // EP45: one department at most, and only for a department role (the invitation CHECK
-      // and the assignment triggers enforce the same in the database).
-      if (departments.length > 1) throw tokenInvalid();
-      if (departments.length && takesDepartment(invitation.role)) {
-        await tx.membership.create({
-          data: {
-            userId: ctx.user.id,
-            companyId: invitation.companyId,
-            departmentId: departments[0]!.id,
-            isPrimary: true,
-          },
-        });
-      }
-      if (branches.length) {
-        await tx.memberBranchAccess.createMany({
-          data: branches.map((b) => ({
-            companyId: invitation.companyId,
-            memberId: member.id,
-            branchId: b.id,
-            grantedById: invitation.invitedById,
-          })),
-        });
-      }
-      const applied = takesDepartment(invitation.role) ? departments.map((d) => d.code) : [];
-      const intentApplied = {
-        departments: applied,
-        droppedDepartments: invitation.departments.filter((d) => !applied.includes(d)),
-        branchScope: invitation.branchScope,
-        branches: branches.map((b) => b.code).sort(),
-        droppedBranches: invitation.branchIds.length - branches.length,
-      };
-      await recordAuthEvent(tx, meta, {
-        type: 'INVITATION_ACCEPTED',
-        userId: ctx.user.id,
-        actorId: invitation.invitedById,
-        sessionId: ctx.session.id,
-        metadata: { invitationId: invitation.id, role: invitation.role },
-      });
-      await recordCompanyEvent(tx, meta, {
-        action: 'INVITATION_ACCEPTED',
-        actorId: ctx.user.id,
-        actorScope: 'customer',
-        companyId: invitation.companyId,
-        entityType: 'CompanyMember',
-        entityId: member.id,
-        details: {
-          invitationId: invitation.id,
-          role: invitation.role,
-          departments: intentApplied.departments,
-          droppedDepartments: intentApplied.droppedDepartments,
-          branchScope: intentApplied.branchScope,
-          branches: intentApplied.branches,
-          droppedBranches: intentApplied.droppedBranches,
-        },
-      });
+      await this.join(
+        tx,
+        invitation,
+        { userId: ctx.user.id, sessionId: ctx.session.id },
+        meta,
+        now,
+      );
     });
     return {
       company: { id: invitation.company.id, name: invitation.company.name },
       role: invitation.role,
     };
+  }
+
+  /**
+   * EP48.5 F1 — an invited person WITHOUT an account creates it from the invitation link, so a
+   * company can onboard its people while public self-service sign-up stays closed. The token
+   * (256 bits, only its SHA-256 stored, single use, 7-day expiry, bound to one address) arrived
+   * by email, so it proves the mailbox: the account is created for the INVITED address, already
+   * verified, and the invitation is accepted in the same transaction (same rules as accept()).
+   * No session is created — the person then signs in normally (password + emailed code).
+   * An address that already has an account is refused: sign in, then accept.
+   */
+  async registerAndAccept(
+    input: {
+      token: string;
+      password: string;
+      fullName: string;
+      phone?: string;
+      locale?: ApiLocale;
+    },
+    meta: RequestMeta,
+  ) {
+    const invitation = await this.db.invitation.findUnique({
+      where: { tokenHash: sha256(input.token) },
+      include: { company: true },
+    });
+    if (!invitation) throw tokenInvalid();
+    if (invitation.status === 'ACCEPTED') throw tokenUsed();
+    if (invitation.status === 'REVOKED' || invitation.expiresAt <= new Date()) throw tokenExpired();
+    // Never the owner role, whatever the row says (also a database CHECK).
+    if (invitation.role === 'COMPANY_OWNER') throw tokenInvalid();
+    if (invitation.company.status === 'SUSPENDED' || invitation.company.status === 'CLOSED') {
+      throw companyUnavailable();
+    }
+    const problem = checkPassword(input.password, invitation.emailNormalized);
+    if (problem) throw passwordPolicy(problem);
+    const passwordHash = await hashPassword(input.password);
+    const taken = await this.db.user.findUnique({
+      where: { emailNormalized: invitation.emailNormalized },
+      select: { id: true },
+    });
+    if (taken) throw accountExists();
+
+    const now = new Date();
+    try {
+      await this.db.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: invitation.email,
+            emailNormalized: invitation.emailNormalized,
+            fullName: input.fullName,
+            phone: input.phone ?? null,
+            locale: input.locale
+              ? toDbLocale(input.locale)
+              : (invitation.locale ?? invitation.company.defaultLocale),
+            status: 'ACTIVE',
+            emailVerifiedAt: now,
+            credential: { create: { passwordHash } },
+          },
+        });
+        await recordAuthEvent(tx, meta, {
+          type: 'REGISTER',
+          userId: user.id,
+          metadata: { via: 'invitation', invitationId: invitation.id },
+        });
+        await recordAuthEvent(tx, meta, {
+          type: 'EMAIL_VERIFIED',
+          userId: user.id,
+          metadata: { via: 'invitation', invitationId: invitation.id },
+        });
+        await this.join(tx, invitation, { userId: user.id, sessionId: null }, meta, now);
+      });
+    } catch (e) {
+      // A concurrent registration of the same address won the race.
+      if (isUniqueViolation(e)) throw accountExists();
+      throw e;
+    }
+    return {
+      status: 'account_created' as const,
+      company: { id: invitation.company.id, name: invitation.company.name },
+      role: invitation.role,
+    };
+  }
+
+  /**
+   * Consumes the invitation (once, while PENDING and unexpired) and creates the membership
+   * with the intent as valid NOW (see accept()). Runs inside the caller's transaction.
+   */
+  private async join(
+    tx: DbClient,
+    invitation: JoinableInvitation,
+    acceptor: { userId: string; sessionId: string | null },
+    meta: RequestMeta,
+    now: Date,
+  ) {
+    const { count } = await tx.invitation.updateMany({
+      where: { id: invitation.id, status: 'PENDING', expiresAt: { gt: now } },
+      data: { status: 'ACCEPTED', acceptedAt: now, acceptedById: acceptor.userId },
+    });
+    if (count === 0) throw tokenUsed();
+    // Never the owner role, whatever the row says (also a database CHECK).
+    if (invitation.role === 'COMPANY_OWNER') throw tokenInvalid();
+    // EP26: the intent, as valid now.
+    const [departments, branches] = await Promise.all([
+      tx.department.findMany({
+        where: {
+          companyId: invitation.companyId,
+          isActive: true,
+          code: { in: invitation.departments },
+        },
+      }),
+      invitation.branchScope === 'SELECTED_BRANCHES'
+        ? tx.branch.findMany({
+            where: {
+              id: { in: invitation.branchIds },
+              companyId: invitation.companyId,
+              status: 'ACTIVE',
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+    const member = await tx.companyMember.create({
+      data: {
+        companyId: invitation.companyId,
+        userId: acceptor.userId,
+        role: invitation.role,
+        branchScope: invitation.branchScope,
+      },
+    });
+    // EP45: one department at most, and only for a department role (the invitation CHECK
+    // and the assignment triggers enforce the same in the database).
+    if (departments.length > 1) throw tokenInvalid();
+    if (departments.length && takesDepartment(invitation.role)) {
+      await tx.membership.create({
+        data: {
+          userId: acceptor.userId,
+          companyId: invitation.companyId,
+          departmentId: departments[0]!.id,
+          isPrimary: true,
+        },
+      });
+    }
+    if (branches.length) {
+      await tx.memberBranchAccess.createMany({
+        data: branches.map((b) => ({
+          companyId: invitation.companyId,
+          memberId: member.id,
+          branchId: b.id,
+          grantedById: invitation.invitedById,
+        })),
+      });
+    }
+    const applied = takesDepartment(invitation.role) ? departments.map((d) => d.code) : [];
+    const intentApplied = {
+      departments: applied,
+      droppedDepartments: invitation.departments.filter((d) => !applied.includes(d)),
+      branchScope: invitation.branchScope,
+      branches: branches.map((b) => b.code).sort(),
+      droppedBranches: invitation.branchIds.length - branches.length,
+    };
+    await recordAuthEvent(tx, meta, {
+      type: 'INVITATION_ACCEPTED',
+      userId: acceptor.userId,
+      actorId: invitation.invitedById,
+      sessionId: acceptor.sessionId,
+      metadata: { invitationId: invitation.id, role: invitation.role },
+    });
+    await recordCompanyEvent(tx, meta, {
+      action: 'INVITATION_ACCEPTED',
+      actorId: acceptor.userId,
+      actorScope: 'customer',
+      companyId: invitation.companyId,
+      entityType: 'CompanyMember',
+      entityId: member.id,
+      details: {
+        invitationId: invitation.id,
+        role: invitation.role,
+        departments: intentApplied.departments,
+        droppedDepartments: intentApplied.droppedDepartments,
+        branchScope: intentApplied.branchScope,
+        branches: intentApplied.branches,
+        droppedBranches: intentApplied.droppedBranches,
+      },
+    });
   }
 
   private view(i: {

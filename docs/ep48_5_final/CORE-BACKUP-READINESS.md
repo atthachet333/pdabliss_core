@@ -26,11 +26,26 @@ has NOT been run (writing it on the production host needs owner approval). A `pg
 - Credentials: read from env files by the tool, passed to PostgreSQL tools via `PGPASSWORD` in the child environment
   only; nothing printed or logged.
 
-Runner (owner-run, elevated): `ops-logs\ep48_5-online\deploy\Invoke-CoreBackupCheck.ps1 -Approved -ApprovedBy "<name>"`
+Runner (owner-run, elevated). First the **read-only preflight** (no approval needed; writes nothing):
+`Invoke-CoreBackupCheck.ps1 -PreflightOnly -ApprovedBy "<name>"` — connects AS `core_backup` in a read-only
+transaction and refuses unless: the role is `core_backup`, has no superuser / createrole / createdb / replication /
+bypassrls, is a member of `pg_read_all_data`, is NOT a member of `pg_write_all_data`, can INSERT / UPDATE / DELETE /
+TRUNCATE none of the public tables, and the URL points at `pdabliss_core_staging` on 5433; free space on D: is at
+least max(10 GB, 5 × database size); the verify port is not 5432 / 5433 / 1311 / 1312 and is free; the temporary
+folder is a new folder under `<root>\gates`; all PostgreSQL tools exist. It prints the facts (never a password).
+
+Then the backup (approval A1): `ops-logs\ep48_5-online\deploy\Invoke-CoreBackupCheck.ps1 -Approved -ApprovedBy "<name>"`
 — creates the backup folder (inheritance removed; Administrators + SYSTEM), writes `config\ops.config.json` (no
 credentials), starts the temporary verify cluster with file-redirected output (G0 incident 1 lesson), runs
 `core-ops backup --profile production --verify`, stops / removes the temporary cluster, prints the manifest summary.
-No live data change, no migration, no service restart.
+No live data change, no migration, no service restart. The temporary cluster is resource-limited (loopback only,
+`max_connections 20`, `shared_buffers 64MB`, 2 workers, autovacuum off, fsync off — it is scratch) and its
+`postgres.log` is kept in `logs\ops`; its data folder (a restored COPY of customer data) is removed.
+
+**The verified backup is preserved.** The runner never deletes, overwrites or prunes a backup (`core-ops backup` runs
+no retention). After verification it re-hashes the dump against the manifest SHA-256 and marks the dump and manifest
+read-only. If verification fails the dump is kept for review and the backup is not counted as recoverable. Deleting
+a backup is **never** a rollback step for any EP48.5 change; it needs its own explicit owner decision.
 
 ## Validation done here (isolated, Level B)
 

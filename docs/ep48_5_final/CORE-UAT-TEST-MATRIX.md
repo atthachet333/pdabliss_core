@@ -1,6 +1,6 @@
 # EP48.5 FINAL — Department Workflow UAT Matrix
 
-**FUNCTIONAL UAT: PENDING — automated coverage PASS, live UAT not executed yet.**
+**FUNCTIONAL UAT: PASS (live, 2026-11-19) — one feature gap: Accounting payables ledger NOT IMPLEMENTED (not counted as a pass).**
 The UAT company `cmwn2xumn0001nol4sziqtioo` (PDA BLISS CORE — UAT, PROFESSIONAL, six departments) is ACTIVE on release
 `5ba9d04` (2026-11-19). Every "Implemented" test file below **ran and passed** in G1 on that exact commit
 (`ops-logs\ep48_5-final-gate-20261119-102138`: backend 620 / 620 in 43 files, frontend 66 / 66 files). Live UAT adds:
@@ -27,6 +27,23 @@ happy path, validation failure, unauthorized role, invalid transition and audit 
 | Platform | Platform vs company separation; company isolation; department and branch boundaries | yes — `permissions` (23), `ep45-department` (23), `branch-user-admin` (24), `ep40-security` (13) | PENDING |
 
 Backend suite size: 573 tests in 42 files (counted, not run). Frontend tests exist under `frontend/src` (not run).
+
+## Live UAT results (2026-11-19, release `5ba9d04`, UAT company only; evidence `ops-logs/ep48_5-final-uat/EVIDENCE.md`)
+
+| Area | Result | Key evidence |
+|---|---|---|
+| Invitations / accounts | PASS | 5 tampered invites refused (owner role, platform role, extra field, 2 departments, executive + department); 7 created (expiry +7 d); spare revoked; 6 ACCEPTED, members 7 with planned roles; live link-reuse / revoked-link checks not run (tokens in mailbox) — G1 covers |
+| Purchasing | PASS | PR-202611-000001 submit → own approve 409 → owner approve; PO-202611-000001 1000.00 + 70.00 VAT, deposit 10 % = 107.00 server-side; own issue 409 → owner issue → WAITING_DEPOSIT |
+| Accounting | PASS (deposits) / **GAP (payables)** | deposit list with amounts; staff confirm 403 (MANAGE by design); owner confirm → PENDING_RECEIVE, second decision 409; payables ledger not implemented |
+| Warehouse | PASS | GR 40 (L1, +90 d) + GR 60 (L2, +30 d) POSTED, over-receive 409, re-post 409; FG receipts: over 409, staff post 403 (MANAGE) |
+| **Warehouse confidentiality** | **PASS** | 25 responses key-scanned + 14 raw-text scanned: no price / cost / total / deposit / terms / currency, none of the PO's money values; PO / deposit / sales / BOM / executive routes 403 / 404; company price hidden |
+| Inventory / FEFO | PASS | FEFO rank 1 = L2 (earlier expiry); MO reservation 60 from L2, L1 untouched; MI 60 posted |
+| Operations / production | PASS | BOM 2:1 active; MO 30: own approve / issue post / output accept 409 (SoD), issue before start 409, output over target 409, outputs 10 + 20 accepted, review → COMPLETED, actions after completion 409 |
+| Sales | PASS | SO-202611-000001 25 × 50.00 (1337.50); staff confirm / allocate 403; owner confirm, allocate; pick (over-pick 422), 2 packs, SHP 10 + SHP 15, staff dispatch 403, deliver before dispatch 409; delivered 25 / 25; no purchase data visible to Sales |
+| Executive | PASS | read-only overview, no money values; 7 writes 403; BOM list header only, BOM detail 403 |
+| Isolation / platform | PASS | platform routes 403 for every member; dev / manual activation 404; unknown ids 404; cross-company sweeps by G1 (no second company created) |
+| Audit | PASS | owner activity: every step with actor and from → to; activation audit (operator_manual) from CV |
+| Session security | PASS | see SESSION-SECURITY-REPORT update |
 
 ## Live UAT plan (2026-11-19)
 

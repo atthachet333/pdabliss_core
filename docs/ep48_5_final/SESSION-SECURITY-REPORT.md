@@ -1,5 +1,14 @@
 # EP48.5 FINAL — Session Security Report
 
+> **Update 2026-11-19 (release `5ba9d04`): Verdict PASS.** G1 ran the full backend suite (620 / 620, incl. `auth-session`,
+> `auth-login`, `ep40` "a signed-out session cannot be replayed"). Live with the UAT accounts (evidence
+> `ops-logs/ep48_5-final-uat/EVIDENCE.md`): HttpOnly (cookie never readable by page JavaScript); refresh keeps the session;
+> logout → 401; login-code replay → `410 OTP_EXPIRED`; cross-device revoke of a still-held session → its next request 401
+> (no client logout in between); logout-all → the other device's next request 401; protected routes 401 / 403 throughout.
+> Secure / SameSite=Lax / `__Host-` rest on release safeguard C1 + G1 tests (live headers not read: they carry the value).
+> The original 2026-11-18 PARTIAL text below is kept as history.
+
+
 Release `7e62673` (backend/frontend = `cb21be1`), `https://core.pdabliss.com`, 2026-11-18.
 
 **Verdict: PARTIAL.** The implementation was read in full for every item, and every unauthenticated behaviour was checked live. Two items are still open, so this is not a PASS:

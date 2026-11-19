@@ -1,5 +1,9 @@
 # EP48.5 FINAL — UAT Role Matrix and Enablement Design
 
+> **Update 2026-11-19: UAT ENABLEMENT PASS.** F1/F2/F3 deployed in release `5ba9d04` (G1 PASS); UAT company
+> `cmwn2xumn0001nol4sziqtioo` ACTIVE via the audited owner activation; six accounts created through invitation links only
+> (ACCEPTED 6, spare REVOKED, members 7, roles / departments / ALL_BRANCHES as planned). Text below is the original plan.
+
 **UAT COMPANY ENABLEMENT: BLOCK (code ready, not yet gate-tested or deployed).** No UAT account or company exists.
 F1, F2 and F3 are implemented in local commit `dcffb1d` (not pushed); the backend / frontend suites, typecheck,
 lint and builds have **not** run yet (no package registry in the authoring environment) — they run in the isolated
@@ -29,7 +33,7 @@ gate (`EP48.5-FINAL-APPROVAL-PACKAGE.md`). Until the gate passes and the release
 | 4 | `…+uat-wh` | DEPARTMENT_STAFF · WAREHOUSE | pending receive (qty), goods receipt post, stock / lots / expiry | **any price, cost, total, deposit, terms — API and UI**; PO edit |
 | 5 | `…+uat-sales` | DEPARTMENT_STAFF · SALES | sales orders, fulfilment view | warehouse locations / lots detail, purchase prices |
 | 6 | `…+uat-ops` | DEPARTMENT_MANAGER · OPERATIONS | production orders, progress, recipes (confidential) | purchase prices unless granted |
-| 7 | `…+uat-acct` | DEPARTMENT_STAFF · ACCOUNTING | deposits view / confirm-waive, payment status | warehouse operations, PO edit |
+| 7 | `…+uat-acct` | DEPARTMENT_STAFF · ACCOUNTING | deposits view, payment status (**confirm / waive is MANAGE: Accounting manager or owner**; corrected 2026-11-19) | warehouse operations, PO edit, deposit confirm |
 | 8 | `…+uat-exec` | EXECUTIVE | executive command center, cross-department summaries | department write actions |
 
 ## F1 — onboarding is impossible in production (P1)

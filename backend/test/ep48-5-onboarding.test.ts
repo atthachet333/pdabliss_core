@@ -369,3 +369,102 @@ describeDb('EP48.5 F2: production manual activation', () => {
     }
   });
 });
+
+describeDb('EP48.5 U0: e-mail verification and the login code are separate steps', () => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await createHarness(); // the self-sign-up release the UAT owner registered on
+  });
+  afterAll(async () => h.close());
+  beforeEach(async () => {
+    await resetDb(h.db);
+    h.mailer.clear();
+  });
+
+  const EMAIL = 'someone+uat-owner@example.com';
+  async function registerOwner() {
+    const res = await new Browser(h.app).post(`${API}/auth/register`, {
+      email: EMAIL,
+      password: PASSWORD,
+      fullName: 'UAT Owner',
+      phone: '0812345678',
+      business: { companyName: 'PDA BLISS UAT', industry: 'DISTRIBUTION', teamSize: 'SIZE_1_10' },
+      acceptTerms: true,
+    });
+    expect(res.statusCode, res.body).toBe(202);
+    return h.db.user.findUniqueOrThrow({ where: { emailNormalized: EMAIL } });
+  }
+  const login = (b: Browser) => b.post(`${API}/auth/login`, { email: EMAIL, password: PASSWORD });
+
+  it('before the link is used: the right password gets EMAIL_NOT_VERIFIED, no login code, no session, no onboarding', async () => {
+    const user = await registerOwner();
+    expect(h.mailer.last(EMAIL, 'verify_email')).toBeDefined();
+    const b = new Browser(h.app);
+    const res = await login(b);
+    expect(res.statusCode).toBe(403);
+    expect(json(res).error.code).toBe('EMAIL_NOT_VERIFIED');
+    // No login code is issued or mailed, so there is nothing to submit.
+    expect(h.mailer.last(EMAIL, 'login_otp')).toBeUndefined();
+    expect(await h.db.otpChallenge.count({ where: { userId: user.id } })).toBe(0);
+    expect(await h.db.session.count({ where: { userId: user.id } })).toBe(0);
+    expect(b.cookies.size).toBe(0);
+    // A guessed / forged code cannot open a session either.
+    const forged = await b.post(`${API}/auth/login/otp`, {
+      challengeId: '00000000-0000-4000-8000-000000000000',
+      code: '123456',
+      trustDevice: false,
+    });
+    expect(forged.statusCode).toBeGreaterThanOrEqual(400);
+    expect(await h.db.session.count({ where: { userId: user.id } })).toBe(0);
+    // Company onboarding needs a session.
+    expect((await b.get(`${API}/account/onboarding`)).statusCode).toBe(401);
+    expect((await b.post(`${API}/account/package`, { plan: 'PROFESSIONAL' })).statusCode).toBe(401);
+    const events = await h.db.authAuditEvent.findMany({ where: { userId: user.id } });
+    expect(events.map((e) => e.type)).not.toContain('OTP_SENT');
+    expect(events.find((e) => e.type === 'LOGIN_FAILURE')?.metadata).toMatchObject({
+      reason: 'email_not_verified',
+    });
+  });
+
+  it('after the link: the link opens no session; password + login code does, and leaves the audit trail U0 checks', async () => {
+    const user = await registerOwner();
+    const b = new Browser(h.app);
+    const verified = await b.post(`${API}/auth/verify-email`, {
+      token: tokenFrom(h.mailer, EMAIL, 'verify_email'),
+    });
+    expect(json(verified).status).toBe('verified');
+    expect(await h.db.session.count({ where: { userId: user.id } })).toBe(0);
+
+    const started = await login(b);
+    expect(started.statusCode).toBe(200);
+    expect(json(started).status).toBe('otp_required');
+    const code = codeFrom(h.mailer, EMAIL, 'login_otp');
+    const done = await b.post(`${API}/auth/login/otp`, {
+      challengeId: json(started).challenge.id,
+      code,
+      trustDevice: false,
+    });
+    expect(done.statusCode, done.body).toBe(200);
+    expect(json(done).status).toBe('authenticated');
+    expect((await b.get(`${API}/account/onboarding`)).statusCode).toBe(200);
+
+    const sessions = await h.db.session.findMany({ where: { userId: user.id } });
+    expect(sessions).toHaveLength(1);
+    const events = await h.db.authAuditEvent.findMany({ where: { userId: user.id } });
+    const one = (type: string) => events.filter((e) => e.type === type);
+    expect(one('OTP_SENT').map((e) => e.metadata)).toEqual([{ purpose: 'LOGIN' }]);
+    expect(one('OTP_SUCCESS').map((e) => e.metadata)).toEqual([{ purpose: 'LOGIN' }]);
+    expect(one('LOGIN_SUCCESS')).toHaveLength(1);
+    expect(one('LOGIN_SUCCESS')[0]!.metadata).toMatchObject({ otp: true });
+    expect(one('LOGIN_SUCCESS')[0]!.sessionId).toBe(sessions[0]!.id);
+
+    // The same code cannot be used again (no second session).
+    const replay = await new Browser(h.app).post(`${API}/auth/login/otp`, {
+      challengeId: json(started).challenge.id,
+      code,
+      trustDevice: false,
+    });
+    expect(replay.statusCode).toBeGreaterThanOrEqual(400);
+    expect(await h.db.session.count({ where: { userId: user.id } })).toBe(1);
+  });
+});

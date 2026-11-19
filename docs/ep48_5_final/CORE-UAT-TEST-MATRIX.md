@@ -1,9 +1,10 @@
 # EP48.5 FINAL — Department Workflow UAT Matrix
 
-**FUNCTIONAL UAT: PENDING — no workflow has been executed live** (no UAT company can exist yet, see F1 / F2).
-"Implemented" below means the code and an existing backend test exist; those tests were **not run** in this session
-(no package registry / runtime here). Each workflow gets: happy path, validation failure, unauthorized role, invalid
-transition, audit / transaction check — to be executed against the UAT company once enabled.
+**FUNCTIONAL UAT: PENDING — automated coverage PASS, live UAT not executed yet.**
+The UAT company `cmwn2xumn0001nol4sziqtioo` (PDA BLISS CORE — UAT, PROFESSIONAL, six departments) is ACTIVE on release
+`5ba9d04` (2026-11-19). Every "Implemented" test file below **ran and passed** in G1 on that exact commit
+(`ops-logs\ep48_5-final-gate-20261119-102138`: backend 620 / 620 in 43 files, frontend 66 / 66 files). Live UAT adds:
+happy path, validation failure, unauthorized role, invalid transition and audit check on production, UAT company only.
 
 | Area | Workflow | Implemented (code + test file) | Live UAT |
 |---|---|---|---|
@@ -27,7 +28,65 @@ transition, audit / transaction check — to be executed against the UAT company
 
 Backend suite size: 573 tests in 42 files (counted, not run). Frontend tests exist under `frontend/src` (not run).
 
-## Execution order once the UAT company is enabled
+## Live UAT plan (2026-11-19)
+
+### Accounts (invited by the UAT owner from the Company Control Center; F1 links only)
+
+| # | Address | Role | Department | Purpose |
+|---|---|---|---|---|
+| 3 | `atthachetthongchat333+uat-purch@gmail.com` | DEPARTMENT_MANAGER | PURCHASING | PR raise, PO create / edit; cannot issue own PO |
+| 4 | `atthachetthongchat333+uat-wh@gmail.com` | DEPARTMENT_STAFF | WAREHOUSE | receiving, lots / expiry; **no money anywhere** |
+| 5 | `atthachetthongchat333+uat-sales@gmail.com` | DEPARTMENT_STAFF | SALES | sales orders, fulfilment view |
+| 6 | `atthachetthongchat333+uat-ops@gmail.com` | DEPARTMENT_MANAGER | OPERATIONS | BOM (confidential), production orders, output |
+| 7 | `atthachetthongchat333+uat-acct@gmail.com` | DEPARTMENT_STAFF | ACCOUNTING | deposits confirm / waive |
+| 8 | `atthachetthongchat333+uat-exec@gmail.com` | EXECUTIVE (role; takes no department) | — | command center, read-only |
+
+Branch scope ALL_BRANCHES (one Head Office). Each person: open the e-mailed link → create the account (no e-mail field;
+password typed by the owner) → sign in with password + e-mail code. Negative probes: a used link (`TOKEN_USED`), a
+spare invitation revoked before use (`TOKEN_EXPIRED`), COMPANY_OWNER not offered in the invite form, `/register` WAF 403.
+Role / e-mail tampering in the request body is covered by G1 (`ep48-5-onboarding`); not repeated live.
+
+### Fake data (UAT company only; created through the normal screens)
+
+Supplier `ซัพพลายเออร์ทดสอบ UAT จำกัด`; customer `ลูกค้าทดสอบ UAT`; location `UAT-A1`; raw material `UAT-RM-001`
+(lot + expiry tracked); finished good `UAT-FG-001`; BOM 2 × RM per FG. No real names, tax ids or addresses.
+**Note:** stock movements and business audit rows are append-only by design, so this UAT data stays in the production
+database permanently (scoped to its company; closing the UAT company needs the EP48.6 suspend action).
+
+### Script (each step: success + one denied action; evidence = request id / response fields / screen)
+
+1. **Purchasing (#3):** PR 100 × RM → submit; #3 cannot approve own PR; owner approves. PO from PR, price 10.00,
+   deposit 10 %; #3 cannot issue own PO; owner issues → deposit required.
+2. **Accounting (#7):** deposit list shows the PO amount; confirm with reference → PENDING_RECEIVE; a second confirm or
+   waive is refused; #7 cannot edit the PO.
+3. **Warehouse (#4):** receive 40 (lot L1, expiry +90 d) then 60 (lot L2, expiry +30 d) → PO RECEIVED; Purchasing sees
+   the progress. **Confidentiality:** on every warehouse screen the page's own API responses are scanned in the browser
+   for keys matching price / cost / amount / total / deposit / terms / currency → none; direct GETs of PO / deposit /
+   accounting routes as #4 → 403.
+4. **FEFO / inventory:** balance 100 RM; production reservation takes L2 (earlier expiry) before L1.
+5. **Operations (#6):** BOM visible to #6 and the owner only (#4 / #5 / #8 → 403); production order 30 FG → reserve /
+   issue 60 RM → output 10 then 20 → remaining quantities; output after completion refused.
+6. **Sales (#5):** SO 25 FG → owner confirms (independent approval) → pick / pack / dispatch 10 then 15 → delivered vs
+   outstanding and fulfilment %; #5 sees no purchase price; dispatch beyond the reservation refused.
+7. **Executive (#8):** command center shows open / blocked work of all departments; any write → 403.
+8. **Platform / isolation:** Platform Owner gets no `/api/v1/company/*`; unknown well-formed ids → 404; members see only
+   the UAT company. No second company is created: cross-company isolation rests on G1 `ep40` / `ep45` sweeps.
+9. **Audit:** owner activity view and Platform inspection show PR / PO / receipt / SO events.
+
+### Session security (live, UAT accounts only — never the Platform Owner)
+
+Cookie `__Host-core_sid` attributes read from response metadata (never the value): HttpOnly, Secure, SameSite=Lax,
+Path=/, no Domain. Refresh keeps the session. Device B revokes device A ("ความปลอดภัยและอุปกรณ์") → A's next API call
+401. Logout → signed out and revoked server-side (G1: "a copied cookie stops working"). Logout-all. A used login code
+re-submitted → refused. Protected APIs without a session → 401.
+
+### How it is executed
+
+Claude drives the Claude desktop browser pane; **the owner types every password and e-mail code directly into the
+pane** (Claude never sees or logs them). Evidence comes from the pages' own API responses (field names, statuses,
+request ids — never cookies or tokens).
+
+## Execution order (original outline)
 1. Owner (#2): branches, departments, master data (fake items, units, suppliers, customers, locations).
 2. Invite #3–#8 (F1 flow); assign departments / branches; review each member's effective permissions.
 3. Purchasing → Accounting (deposit) → Warehouse (partial receipt, lot + expiry) → Sales (order, partial fulfilment) →

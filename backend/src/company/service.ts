@@ -840,20 +840,35 @@ export class CompanyService {
       if (companyUpdate.count === 0)
         throw new AppError(409, 'INVALID_TRANSITION', 'The company changed meanwhile.');
       const base = { actorId: ctx.user.id, actorScope, companyId };
-      const reason = how.reason ? { reason: how.reason } : {};
+      // The operator's reason is recorded only when there is one (never an undefined key).
+      const subscriptionDetails: Record<string, string | boolean> = {
+        from: 'PENDING',
+        to: 'ACTIVE',
+        mode: how.mode,
+        paid: false,
+      };
+      const companyDetails: Record<string, string> = {
+        from: 'PENDING_SUBSCRIPTION',
+        to: 'ACTIVE',
+        mode: how.mode,
+      };
+      if (how.reason) {
+        subscriptionDetails.reason = how.reason;
+        companyDetails.reason = how.reason;
+      }
       await recordCompanyEvent(tx, meta, {
         ...base,
         action: 'SUBSCRIPTION_STATUS_CHANGED',
         entityType: 'Subscription',
         entityId: sub.id,
-        details: { from: 'PENDING', to: 'ACTIVE', mode: how.mode, paid: false, ...reason },
+        details: subscriptionDetails,
       });
       await recordCompanyEvent(tx, meta, {
         ...base,
         action: 'COMPANY_STATUS_CHANGED',
         entityType: 'Company',
         entityId: companyId,
-        details: { from: 'PENDING_SUBSCRIPTION', to: 'ACTIVE', mode: how.mode, ...reason },
+        details: companyDetails,
       });
     });
     return this.detailForPlatform(companyId);

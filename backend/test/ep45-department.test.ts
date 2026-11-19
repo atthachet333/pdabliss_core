@@ -739,7 +739,9 @@ describeDb('EP45 department boundaries with the real demo personas', () => {
     // Most refusals are the authorization itself (the rest fail input validation first).
     expect(refused403 / total).toBeGreaterThan(0.4);
     expect(changed(before, await stateHash())).toEqual([]);
-  });
+    // 600+ sequential requests by six personas: the 20 s unit default is too short on a slower host
+    // (S2A gate, BelowNormal priority: 21.4 s), like this suite's own 300 s setup. Assertions unchanged.
+  }, 120_000);
 
   it('A10/A11/A15: forged ids, other branches and another company reach nothing', async () => {
     // A11 a well-formed id that does not exist, and an id of another kind of record.

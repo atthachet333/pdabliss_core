@@ -498,8 +498,7 @@ export const AUTH_COPY: Localized<AuthCopy> = {
       },
       kicker: 'Company invitation',
       title: 'Create your account',
-      lead:
-        'The account uses the invited email address. Afterwards, sign in with your password and an emailed code.',
+      lead: 'The account uses the invited email address. Afterwards, sign in with your password and an emailed code.',
       haveAccount: 'Already have an account? Sign in to accept the invitation',
       submit: 'Create account and join',
       submitting: 'Creating your account…',

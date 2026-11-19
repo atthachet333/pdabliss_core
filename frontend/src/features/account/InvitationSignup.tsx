@@ -136,8 +136,7 @@ export function InvitationSignup({ token }: { token: string }) {
           id="invite-phone"
           label={
             <>
-              {p.phone}{' '}
-              <span className="font-normal text-text-muted">({c.common.optional})</span>
+              {p.phone} <span className="font-normal text-text-muted">({c.common.optional})</span>
             </>
           }
           type="tel"

@@ -236,8 +236,11 @@ describeDb('EP40 security sweeps', () => {
   it('the route table is what the audit covers (no unexpected public routes)', () => {
     expect(routes.length).toBeGreaterThan(250);
     const publics = routes.filter(isPublic).map((r) => `${r.method} ${r.path}`);
-    // 19 = health + readiness (EP43), the API index (2), packages, three demo routes, eleven auth entry points.
-    expect(publics).toHaveLength(19);
+    // 20 = health + readiness (EP43), the API index (2), packages, three demo routes, twelve auth entry points
+    // (EP48.5 F1 added POST /auth/invitations/register; with PUBLIC_SIGNUP=false register / resend disappear,
+    // see ep48-5-onboarding.test.ts).
+    expect(publics).toContain('POST /api/v1/auth/invitations/register');
+    expect(publics).toHaveLength(20);
   });
 
   it('anonymous: every non-public route answers 401, none fails with 5xx', async () => {
